@@ -101,7 +101,7 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 啟動時自動建立。
 
 ```bash
-cp foo.pdf /data/lightrag/acoustics_v155/inputs/acoustics_v155/
+cp foo.pdf /data/rag/lightrag/acoustics_v155/inputs/acoustics_v155/
 curl -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
 ```
 
@@ -129,8 +129,44 @@ MinerU 的原始輸出快取在 `inputs/<ws>/__parsed__/<檔名>.mineru_raw/`，
 檢查項目：掉字、空的文字／表格／公式區塊、整頁無正文、prompt 洩漏。有 ERROR 時 exit 1。
 
 已知會抓到的真實問題：**MinerU 有時偵測到表格區域卻什麼都不產出** —— `table_body` 缺席、
-`img_path` 也是空字串，連退而求其次的圖片備份都沒有，該區域內容完全遺失。C Equivalent Networks
-是 16/57（28%）。
+`img_path` 也是空字串，連退而求其次的圖片備份都沒有，該區域內容完全遺失。以採用的 pipeline
+模型計，C Equivalent Networks 是 10/57。
+
+判斷表格是否為空**必須剝掉 HTML 標籤再看**：MinerU 會產出 `<table><tr><td></td></tr></table>`
+這種空殼，字串非空但內容為零。
+
+2026-08-01 抽樣 10 份（5 個 KB 各 2 份）顯示這是**教科書特有問題**：8 份期刊論文共 20 張表格
+全部正常，失敗只出現在教科書（C 的 10 張、J Duct Acoustics 的 2 張，合計 12/71）。
+
+## 給 CLI agent 查詢：askrag
+
+```bash
+askrag "mechanical impedance"                  # 預設 hybrid，回傳檢索脈絡
+askrag --mode local --json "sound power"       # 結構化輸出給程式解析
+askrag --answer "what is acoustic impedance?"  # 要 LightRAG 直接生成答案
+askrag --docs                                  # 列出已索引文件
+```
+
+安裝：`ln -sf $PWD/scripts/askrag.py ~/.local/bin/askrag`。真身在 repo（進版控），
+PATH 上是 symlink，所以改一處三個 agent 同時生效。
+
+**為什麼不是 MCP**：CLI agent 本來就有 shell，「怎麼呼叫」只需要一行指示。
+**為什麼不是 Ollama 相容端點**（`/api/chat`）：那個端點是為了假扮成 Ollama 給只會講
+Ollama 協定的 app 用，回傳的是生成好的答案；agent 要的是原始脈絡，自己判斷。所以
+預設走 `/query/data`，拿 entities / relationships / chunks / references。
+
+**限制**：這是本機腳本，只服務跑在這台機器上的 agent。Mac／Windows 上的 agent 要用
+遠端 MCP（streamable-HTTP 傳輸，掛在 mcpjungle 後面），見下。
+
+### 跨機器：遠端 MCP
+
+stdio 傳輸的 MCP 需要每台機器各自安裝 server，Windows／Mac／Linux 的路徑與設定格式
+不同，這是「MCP 跨平台很痛」的來源。**streamable-HTTP 傳輸沒有這個問題** —— server
+只跑在這台機器，客戶端拿到的就是一個 URL。
+
+本機已有現成範本可照抄：`/opt/stacks/mcp-servers/deeptutor/mcp_obsidian_server.py`
+（FastMCP 包 HTTP API）與 `run_http.py`（`mcp.run(transport="streamable-http")`），
+以及 mcpjungle 這個 MCP gateway（已在 host network 的 :8080 提供 `/mcp`）。
 
 ## 比對工具
 
