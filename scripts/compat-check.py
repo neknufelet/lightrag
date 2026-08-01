@@ -179,6 +179,40 @@ class Checker:
             return (not busy), (f"busy={d.get('busy')} scanning={d.get('scanning')} "
                                 f"job={d.get('job_name')!r}"), d
 
+        @self.check("A-22", "hard", "每張向量表都有向量索引")
+        def _():
+            import subprocess
+            env = _load_env()
+            model = env.get("EMBEDDING_MODEL", "").replace("-", "_")
+            dim = env.get("EMBEDDING_DIM", "")
+            suffix = f"{model}_{dim}d".lower()
+            sql = (
+                "select t.relname, count(i.indexrelid) filter ("
+                "  where am.amname in ('hnsw','ivfflat','vchordrq')) "
+                "from pg_class t "
+                "join pg_namespace n on n.oid=t.relnamespace and n.nspname='public' "
+                "left join pg_index i on i.indrelid=t.oid "
+                "left join pg_class ic on ic.oid=i.indexrelid "
+                "left join pg_am am on am.oid=ic.relam "
+                f"where t.relkind='r' and t.relname like 'lightrag\\_vdb\\_%{suffix}' "
+                "group by 1 order by 1;"
+            )
+            p = subprocess.run(
+                ["docker", "exec", "deeptutor-v4-postgres", "psql", "-U",
+                 env.get("POSTGRES_USER", "deeptutor"), "-d",
+                 env.get("POSTGRES_DATABASE", "lightrag"), "-tAF|", "-c", sql],
+                capture_output=True, text=True, timeout=30)
+            rows = [ln.split("|") for ln in p.stdout.strip().splitlines() if "|" in ln]
+            if not rows:
+                return False, f"找不到 *{suffix} 的向量表", {}
+            bad = [r[0] for r in rows if int(r[1]) == 0]
+            return not bad, (
+                f"{len(rows)} 張表都有向量索引"
+                if not bad else
+                f"{bad} 沒有向量索引 —— 查詢會退化成全表掃描。"
+                "常見原因：維度 > 2000 而未設 POSTGRES_VECTOR_INDEX_TYPE=HNSW_HALFVEC，"
+                "建索引失敗只在啟動日誌留一行 ERROR，服務照樣 healthy"), {"tables": rows}
+
         @self.check("A-21", "info", "MinerU token 到期日")
         def _():
             import base64
