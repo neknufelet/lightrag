@@ -36,6 +36,7 @@ python3 scripts/postprocess.py plan --details --doc <關鍵字>
 python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
 python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
 python3 scripts/compat-check.py                   # LightRAG 契約斷言
+python3 scripts/extract-check.py                  # 抽取品質：接地檢查（三態）
 python3 scripts/parse-check.py --details          # 解析品質
 ```
 
@@ -93,6 +94,7 @@ embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
 | `aside_text` 先跑重複/樣板規則,`is_gibberish` 只當單次殘骸的後備 | 2 份 | 穩 |
 | 書眉/頁尾數**樣板**(數字抹成 `#`),不數字面字串 | 2 份 | 穩 |
 | `chart` 只登記不處理 | 3 份（含一份 50 個 chart） | 穩 |
+| 接地檢查要**三態**:符號型 chunk 的未接地是「驗不了」不是「錯」 | 5 份 | 穩 |
 
 ### 易腐觀察:綁特定模型,換代即失效
 
@@ -121,12 +123,31 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
   520 項消音已有 20 份文件證據,比表格修補成熟得多。
 - **`chart` → `image`** —— 目前論文的圖表對索引貢獻為零(`content` 是空字串,
   fallback 不 append)。改寫型別即可走 `_build_ir_drawing`,不必改 LightRAG。
-- **`Empty entity name found after sanitization`** —— C 這份 250 次,未解。
+- **`K Muffler Acoustics.pdf` 抽取失敗** —— chunk-041 `Worker execution timeout
+  after 480s`。設定問題不是品質問題,逾時對大章節不夠。
+- **接地檢查的 47 個可疑實體** —— `Region I/II/III`、`Mechl`、`S1` 等,
+  多數與已記錄的 domain_fact「羅馬數字下標難讀」相關。
 - 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,
   命中率約 1/15 —— 要湊樣本得再抽十幾份。
 - **首頁的期刊/會議資訊**(`Paper ID #8776`、`©American Society...`)只出現一次、
   只在第 0 頁,重複與樣板規則都抓不到,目前留在待查。要處理需要新的訊號
   （限第 0 頁 + 版權/會議標記），但只有 1 份文件的證據,先不動。
+
+## 抽取品質:接地檢查
+
+`extract-check.py` 拿每個實體名字去對它來源的 chunk。原理跟 `pdfcrop` 抽文字層
+當 ground truth 一樣:**拿產出對來源,不要相信它**。確定性、不呼叫模型、免費。
+
+必須三態。字串比對只對散文有效 —— 表格裡常常只有符號,實測 C 的 chunk-002 是
+`<td>G</td><td>$G=I/\Delta U=1/Z$</td>`,完全沒有 `Conductance` 這個字,但模型
+抽出 Conductance 是**正確的**:從符號推論概念名稱正是它該做的事。
+
+二態時未接地率與符號密度高度相關、與幻覺無關(散文 0%、論文 3.4%、C 55%)。
+分成「接地 / 符號型無法驗證 / 可疑」之後,C 從 55.1% 降到 3.4%,總計 3.7%。
+
+```
+2,084 實體 → 接地 1,238、符號型 799（驗不了）、可疑 47
+```
 
 ## 兩雙眼睛:為什麼要兩個
 
