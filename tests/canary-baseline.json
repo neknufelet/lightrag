@@ -1,0 +1,72 @@
+{
+ "00908_3.8 Transmission Through Thin Solid Slabs, Plates, and Blankets.pdf": {
+  "held": 0,
+  "items": 85,
+  "mute": 8,
+  "pages": 8,
+  "ratio": 0.0285,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 2
+ },
+ "2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Band.pdf": {
+  "held": 0,
+  "items": 66,
+  "mute": 1,
+  "pages": 5,
+  "ratio": 0.0012,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 0
+ },
+ "A Conventions.pdf": {
+  "held": 0,
+  "items": 35,
+  "mute": 2,
+  "pages": 4,
+  "ratio": 0.005,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 0
+ },
+ "C Equivalent Networks.pdf": {
+  "held": 0,
+  "items": 556,
+  "mute": 110,
+  "pages": 68,
+  "ratio": 0.0558,
+  "repairable": 10,
+  "review": 1,
+  "tables_total": 57
+ },
+ "G Porous Absorbers.pdf": {
+  "held": 0,
+  "items": 668,
+  "mute": 108,
+  "pages": 56,
+  "ratio": 0.0177,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 8
+ },
+ "K Muffler Acoustics.pdf": {
+  "held": 0,
+  "items": 798,
+  "mute": 61,
+  "pages": 50,
+  "ratio": 0.0157,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 0
+ },
+ "N Flow Acoustics.pdf": {
+  "held": 3,
+  "items": 1655,
+  "mute": 93,
+  "pages": 74,
+  "ratio": 0.0156,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 0
+ }
+}

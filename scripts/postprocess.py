@@ -15,6 +15,9 @@
     postprocess.py check --doc Equivalent  # 兩雙眼睛轉錄 + 逐格比對，產出 review.md
     postprocess.py check                   # 整個 workspace
 
+    postprocess.py canary                  # 規則漂移偵測（改規則後必跑）
+    postprocess.py canary --update         # 認可目前結果為新基準
+
 check 會呼叫外部模型（本機 qwen + 雲端 luna），結果快取在
 DATA_ROOT/<ws>/postprocess/<doc>/cache/，重跑不會重複付費。
 """
@@ -155,6 +158,77 @@ def cmd_check(a, env) -> int:
     return 1 if n_err else 0
 
 
+CANARY = REPO / "tests" / "canary-baseline.json"
+
+# 金絲雀只比這幾個數字。比全部欄位會被無關的變動洗版（頁數、caption 文字），
+# 比太少又抓不到漂移。這幾個是「規則改動一定會反映在上面」的量。
+_CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
+                "tables_total", "repairable", "review")
+
+
+def canary_row(p: dict) -> dict:
+    ctx, noise, tables = p["ctx"], p["noise"], p["tables"]
+    return {"pages": ctx.n_pages, "items": len(ctx.items),
+            "mute": len(noise.mutes), "held": len(noise.held),
+            "ratio": round(noise.ratio, 4),
+            "tables_total": tables.total,
+            "repairable": len(tables.repairable),
+            "review": len(tables.review)}
+
+
+def cmd_canary(a, env) -> int:
+    """比對目前的 plan 結果與記錄的基準。
+
+    存在的理由：規則是一份一份文件逼出來的，每次改動都可能無意間動到別份。
+    手動逐份比對數字會漏，而漏掉的漂移不會有錯誤訊息。基準進版控，
+    所以規則改動造成的行為變化會直接出現在 git diff 裡，賴不掉。
+    """
+    cur = {}
+    for raw in find_bundles(a.workspace, None):
+        try:
+            cur[DocContext(raw).doc_name] = canary_row(plan_one(raw))
+        except DocContextError as e:
+            cur[raw.name.removesuffix(".mineru_raw")] = {"error": str(e)[:200]}
+
+    if a.update:
+        CANARY.parent.mkdir(parents=True, exist_ok=True)
+        CANARY.write_text(json.dumps(cur, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+        print(f"基準已更新：{len(cur)} 份 → {CANARY}")
+        print("記得在 commit 訊息說明每個數字為什麼變 —— 沒說明的變動等同未被察覺的漂移。")
+        return 0
+
+    if not CANARY.is_file():
+        sys.exit(f"沒有基準檔 {CANARY}，先跑 `postprocess.py canary --update`")
+    base = json.loads(CANARY.read_text())
+
+    drift, added, gone = [], [], []
+    for name, row in cur.items():
+        if name not in base:
+            added.append(name)
+            continue
+        for k in _CANARY_KEYS:
+            if row.get(k) != base[name].get(k):
+                drift.append((name, k, base[name].get(k), row.get(k)))
+        if ("error" in row) != ("error" in base[name]):
+            drift.append((name, "error", base[name].get("error"), row.get("error")))
+    gone = [n for n in base if n not in cur]
+
+    for n in added:
+        print(f"  新增   {n}")
+    for n in gone:
+        print(f"  消失   {n}　← 基準有但現在找不到")
+    for name, k, b, c in drift:
+        print(f"  漂移   {name}\n           {k}: {b} → {c}")
+
+    if not drift and not gone:
+        print(f"金絲雀通過：{len(base)} 份基準文件的數字都沒變"
+              + (f"（另有 {len(added)} 份新文件尚未納入基準）" if added else ""))
+        return 0
+    print(f"\n金絲雀失敗：{len(drift)} 處漂移、{len(gone)} 份消失。"
+          "\n若是預期中的改動，跑 `canary --update` 並在 commit 訊息說明原因。")
+    return 2
+
+
 def main():
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="MinerU 解析輸出的後處理")
@@ -171,10 +245,16 @@ def main():
     c.add_argument("--doc", help="檔名關鍵字，預設全部")
     c.add_argument("--workers", type=int, default=3)
 
+    n = sub.add_parser("canary", help="比對 plan 結果與記錄的基準，抓規則漂移")
+    n.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    n.add_argument("--update", action="store_true", help="把目前結果寫成新基準")
+
     a = ap.parse_args()
 
     if a.cmd == "check":
         sys.exit(cmd_check(a, env))
+    if a.cmd == "canary":
+        sys.exit(cmd_canary(a, env))
 
     plans, failed = [], []
     for raw in find_bundles(a.workspace, a.doc):

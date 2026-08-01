@@ -1,0 +1,115 @@
+# lightrag-v1
+
+LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來源(SSOT)**,
+其他文件從這裡連出去。改動任何規則或流程時,這裡要跟著改。
+
+## 文件地圖
+
+| 檔案 | 內容 | 什麼時候看 |
+|---|---|---|
+| **CLAUDE.md**(本檔) | 現況、鐵則、每條規則的證據基礎 | 每次開工 |
+| [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
+| [docs/postprocess-workorder.md](docs/postprocess-workorder.md) | 後處理的完整工單(W0–W14) | 要動 `scripts/pp/` 之前 |
+| [README.md](README.md) | 部署、解析選項實測、備份範圍 | 環境有問題時 |
+| [tests/canary-baseline.json](tests/canary-baseline.json) | 金絲雀基準數字 | 不要手改,用 `canary --update` |
+
+## 四條鐵則
+
+踩過坑換來的。違反前先讀工單。
+
+1. **`preflight()` 拒絕,不猜。** 遇到未知型別就停整份文件。
+   用不適用的規則硬跑會產生「有產出但產出錯誤」—— 這個專案一路在防的就是它。
+2. **消音,不刪除。** `.parsed/` 的 `tables.json` 用 `content_list.json#/6` 這種
+   **陣列索引**當 `self_ref`。刪一個項目,其後所有引用靜靜指向別的東西。
+3. **LightRAG 的行為用 `pp/oracle.py` 問,不要推測。**
+   實測踩過:推測 `chart` 的 `img_path` 會污染索引,查 `_coerce_text` 後發現
+   它只讀 `("text","content","body","code_body")`,根本不讀 `img_path`。
+4. **門檻用量的,不要用調的。** 覺得誤判多時先看**差在哪些具體記號**。
+   實測有五次「以為要調門檻」其實是偵測器量錯東西(清單見 SKILL.md)。
+
+## 常用指令
+
+```bash
+python3 scripts/postprocess.py plan               # 只讀,算出打算改什麼
+python3 scripts/postprocess.py plan --details --doc <關鍵字>
+python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
+python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
+python3 scripts/compat-check.py                   # LightRAG 契約斷言
+python3 scripts/parse-check.py --details          # 解析品質
+```
+
+## 金絲雀:規則漂移偵測
+
+規則是**一份一份文件逼出來的**,每次改動都可能無意間動到別份。手動逐份比對
+數字會漏,而漏掉的漂移不會有錯誤訊息。
+
+```bash
+python3 scripts/postprocess.py canary            # exit 0 通過 / 2 漂移
+python3 scripts/postprocess.py canary --update   # 認可為新基準
+```
+
+基準 [tests/canary-baseline.json](tests/canary-baseline.json) **進版控**,
+所以規則改動造成的行為變化會直接出現在 `git diff` 裡。
+
+比對這幾個量:`pages` `items` `mute` `held` `ratio` `tables_total`
+`repairable` `review`。
+
+**改規則的正確順序:**
+
+1. 改 → 2. `canary`(預期會失敗) → 3. 逐條確認每個漂移都是**想要的**
+→ 4. `canary --update` → 5. commit 訊息**說明每個數字為什麼變**
+
+沒說明的數字變動 = 未被察覺的漂移。
+
+實測驗證過金絲雀真的會失敗:門檻 3→20 時它指出 `C: mute 110→101`、
+`K: mute 61→48`。(注意 3→5 不會失敗,因為書眉重複次數遠大於 5 ——
+**測試本身也要選會咬到的值**。)
+
+## 現況
+
+```
+文件      7 份已納入基準（2 論文、5 教科書章節,其中 4 份與 C 同一本書）
+索引      C Equivalent Networks 148 chunks / 1,135 entities / 1,812 relations
+解析      pipeline + is_ocr=true + MinerU official
+embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
+兩雙眼睛  qwen3.6-35b-a3b(本機) + gpt-5.6-luna(雲端,$0.20/$1.20 per 1M)
+```
+
+## 每條規則站在幾份文件上
+
+**改動前先看它有多少證據。** 只有 1 份的規則很可能是那份文件的巧合。
+
+| 規則 | 證據 | 狀態 |
+|---|---|---|
+| 消音 header/footer,不刪除 | 7 份 | 穩 |
+| 書眉門檻依頁數 `max(2, min(3, ⌈pages×0.5⌉))` | 7 份 | 穩 |
+| `aside_text` 用 `is_gibberish`(零個真字才消音) | 1 份 | **脆弱** |
+| `chart` 只登記不處理 | 1 份 | **脆弱** |
+| 空表格用兩雙眼睛逐格交叉比對 | 1 份 | **脆弱** |
+| 「列數不一致優先採信 luna」 | 1 份 | **尚未採用** |
+
+驗過就更新份數。
+
+## 已知待辦
+
+- **W7 `apply.py`** —— 第一個真的寫檔的步驟(消音 + 表格修補 + 更新 manifest)。
+  383 項消音已有 7 份文件證據,比表格修補成熟。
+- **`chart` → `image`** —— 目前論文的圖表對索引貢獻為零(`content` 是空字串,
+  fallback 不 append)。改寫型別即可走 `_build_ir_drawing`,不必改 LightRAG。
+- **`Empty entity name found after sanitization`** —— C 這份 250 次,未解。
+- 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。
+
+## 兩雙眼睛:為什麼要兩個
+
+實測 C 的 10 張空表格,**沒有哪個模型比較準**,而且錯法互補:
+
+- luna 會**看錯字元**(`S_n`→`S_h`、`p_I`→`p_l`)
+- qwen 會**切錯結構**(該分的併、該併的分)
+- 兩者都會錯在**羅馬數字下標**(區域 I/II),方向相反
+
+只用其中一個,另一個抓得到的那類錯誤就會靜靜進索引。`pp/eyes.py` 會擋下
+「兩雙眼睛是同一個模型」—— 同模型的系統性誤讀會一模一樣地重現,
+互相印證等於沒印證。
+
+luna 不接受 `temperature=0`(只允許預設 1),所以**首次轉錄有抽樣變異**;
+快取之後才穩定。分歧要重抽一次才知道是真的還是雜訊。

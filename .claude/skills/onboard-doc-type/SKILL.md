@@ -134,15 +134,23 @@ python3 scripts/postprocess.py check --doc <關鍵字>
 **這些觀察目前只有 C Equivalent Networks 一份文件的證據，不足以寫成自動規則。**
 遇到第二份有空表格的文件時，優先驗證它們。
 
-### 5. 迴歸：改完規則必須確認舊文件沒變
+### 5. 迴歸：金絲雀
 
 ```bash
-python3 scripts/postprocess.py plan | grep -E "^=== |過濾：|表格："
+python3 scripts/postprocess.py canary        # exit 0 通過 / 2 漂移
 ```
 
-跟改動前逐份比對。**只有目標文件該改變**。實例：書眉門檻從絕對值 3 改成
-`max(2, min(3, ceil(pages*0.5)))` 後，只有 3 頁的 A Conventions 改變
-（保留待查 2→0、消音 0→2），其餘六份數字完全不動 —— 這才算通過。
+**改完規則必跑。**手動逐份比對數字會漏，而漏掉的漂移不會有錯誤訊息。
+
+正確順序：改 → `canary`（預期失敗）→ 逐條確認每個漂移都是**想要的**
+→ `canary --update` → commit 訊息說明**每個數字為什麼變**。
+沒說明的數字變動 = 未被察覺的漂移。
+
+實例：書眉門檻從絕對值 3 改成 `max(2, min(3, ceil(pages*0.5)))` 後，
+只有 3 頁的 A Conventions 改變（保留待查 2→0、消音 0→2），其餘六份完全
+不動 —— 這才算通過。
+
+基準 `tests/canary-baseline.json` 進版控，行為變化會出現在 git diff 裡。
 
 再跑：
 
