@@ -35,9 +35,20 @@ DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
 
 # 已知的 content_list 項目型別。出現沒見過的型別 = 版面型態超出規則涵蓋範圍，
 # 過濾與修補的判斷都可能不適用，所以擋下而不是猜。
+# 「已知」的意思是**我們決定過 LightRAG 怎麼對待它**，不是「看過這個字串」。
+# 出現在這裡以外的型別，代表有一批內容的去向沒人判斷過。
+#
+#   text/header/footer/…  ir_builder 有對應分支，或 fallback 取得到文字
+#   aside_text            走 fallback，text 有內容所以進得了索引（頁碼側欄那些
+#                         是被 layout_noise 消音的，那是刻意的）
+#   chart                 走 fallback 但 content 固定是空字串 → 整個被丟掉。
+#                         由 pp/rules/chart_type.py 轉成 image；轉完就不會再
+#                         出現在資料裡，留在這裡是為了「新解析的文件出現 chart
+#                         時不要當成未知型別驚慌」——它有處置方式，跑 apply 即可。
 KNOWN_TYPES = {
     "text", "header", "footer", "table", "equation", "image",
     "page_number", "page_footnote", "code", "list",
+    "aside_text", "chart",
 }
 
 
@@ -128,6 +139,21 @@ class Checker:
             want = ["text", "content", "body", "code_body"]
             return fields == want, f"{fields}", {"fields": fields}
 
+        @self.check("A-24", "hard", "drawing 的型別集合與 caption 欄位不變（chart→image 的前提）")
+        def _():
+            c = self.o.ir_drawing_contract()
+            types, fields = c.get("types") or [], c.get("fields") or []
+            want_t = ["image", "picture", "drawing"]
+            # 只要求 caption/footnote 這兩個關鍵欄位還在；img_path 等其餘欄位
+            # 增減不影響我們。
+            need_f = {"image_caption", "image_footnote"}
+            ok = types == want_t and need_f <= set(fields)
+            note = f"型別 {types}；讀 {fields}"
+            if types != want_t:
+                note += ("　← chart 已被 LightRAG 認得，轉換規則可以退休"
+                         if "chart" in types else "　← 集合變了，重新確認 chart 的去向")
+            return ok, note, {"types": types, "fields": fields}
+
         @self.check("A-06b", "hard", "page_number 在 heading 偵測之前被無條件跳過")
         def _():
             src = self.o.py(
@@ -178,6 +204,23 @@ class Checker:
             busy = d.get("busy") or d.get("scanning") or d.get("destructive_busy")
             return (not busy), (f"busy={d.get('busy')} scanning={d.get('scanning')} "
                                 f"job={d.get('job_name')!r}"), d
+
+        @self.check("A-25", "soft", "chunk_top_k 仍然控制回傳的片段數（kbapi 的節流靠它）")
+        def _():
+            """kbapi 的 chunks 參數就是下傳成 chunk_top_k。它一旦失效，
+            /kb/*/search 會靜靜地回到每次 55–60KB —— 不會報錯，只是把呼叫端的
+            context 灌爆。所以寧可每次都真的打一次查詢來驗。
+
+            順帶記下不要用 max_total_tokens 收：它是先扣圖譜再給原文，設太小
+            時 available_chunk_tokens 變負數，chunk 直接回 0 個且不報錯。
+            """
+            try:
+                got = self.o.chunk_top_k_effect(api_key)
+            except OracleError as e:
+                return None, f"查不動（{str(e)[:60]}），跳過", {}
+            a, b = got.get("2", -1), got.get("8", -1)
+            return (a <= 2 and b <= 8 and b > a), \
+                   f"chunk_top_k=2 → {a} 個、=8 → {b} 個", got
 
         @self.check("A-22", "hard", "每張向量表都有向量索引")
         def _():
@@ -355,7 +398,14 @@ def main():
     ap = argparse.ArgumentParser(description="驗證 postprocess 依賴的假設")
     ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--container", default="lightrag-acoustics_v155")
-    ap.add_argument("--doc", help="檔名關鍵字，加做該文件的資料層檢查")
+    # 資料層檢查**預設跑全部文件**。原本是 `if a.doc:` 才跑，等於不指定就一份
+    # 都不檢查 —— 而你只會對「正在處理的那一份」指定。實測代價：A-16
+    # （沒有未知的項目型別）本來就抓得到 chart，但 184 個 chart 分散在 11 份
+    # 文件裡，從專案開始到發現為止一次都沒被喊過。探針要能在沒人問的時候發聲，
+    # 否則它防的是「你已經懷疑的事」，那不需要探針。
+    ap.add_argument("--doc", help="檔名關鍵字，只檢查符合的文件（預設全部）")
+    ap.add_argument("--no-docs", action="store_true",
+                    help="跳過資料層檢查，只驗契約與環境")
     ap.add_argument("--port", type=int, default=int(env.get("HOST_PORT", 9621)))
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
@@ -369,14 +419,23 @@ def main():
     c.contract()
     c.environment(env.get("LIGHTRAG_API_KEY", ""), a.port)
 
-    if a.doc:
+    n_docs = 0
+    doc_from = len(c.results)          # 之後的結果都是資料層的，印的時候要收合
+    if not a.no_docs:
         pdir = DATA_ROOT / a.workspace / "inputs" / a.workspace / "__parsed__"
-        hits = [d for d in pdir.glob("*.mineru_raw") if a.doc.lower() in d.name.lower()]
+        hits = [d for d in pdir.glob("*.mineru_raw")
+                if not a.doc or a.doc.lower() in d.name.lower()]
         if not hits:
-            print(f"compat-check: {pdir} 底下找不到符合 {a.doc!r} 的 bundle", file=sys.stderr)
+            print(f"compat-check: {pdir} 底下找不到"
+                  + (f"符合 {a.doc!r} 的 bundle" if a.doc else "任何 bundle"), file=sys.stderr)
             sys.exit(2)
         for raw in sorted(hits):
             c.document(raw)
+        n_docs = len(hits)
+
+    # 20 份 × 6 支探針 = 120 行，全印會把契約層的結果洗掉。所以資料層預設
+    # 只印失敗的；指定了 --doc 就是在看那一份，全部印出來。
+    collapse = n_docs > 1 and not a.doc
 
     if a.json:
         print(json.dumps([r.__dict__ for r in c.results], ensure_ascii=False, indent=1))
@@ -384,7 +443,11 @@ def main():
         mark = {True: "  ok  ", False: " FAIL ", None: " skip "}
         print(f"{'ID':<7} {'層級':<6} {'結果':^6}  說明")
         print("-" * 100)
-        for r in c.results:
+        # 20 份 × 6 支探針 = 120 行，全印會把契約層的結果洗掉。所以資料層
+        # 預設只印失敗的；指定了 --doc 就是在看那一份，全部印出來。
+        for i, r in enumerate(c.results):
+            if collapse and i >= doc_from and r.ok is True:
+                continue
             print(f"{r.id:<7} {r.level:<6} {mark[r.ok]:^6}  {r.what}")
             if r.detail:
                 print(f"{'':<21}  └ {r.detail}")
@@ -393,7 +456,12 @@ def main():
     soft = [r for r in c.results if r.level == "soft" and r.ok is False]
     if not a.json:
         print("-" * 100)
-        print(f"hard 失敗 {len(hard)}　soft 失敗 {len(soft)}　共 {len(c.results)} 項")
+        # 收合的那些必須報出數量，否則「沒印出來」跟「沒檢查」在畫面上一樣，
+        # 而這整段修改就是為了修掉那種一樣。
+        hidden = sum(1 for i, r in enumerate(c.results)
+                     if collapse and i >= doc_from and r.ok is True)
+        print(f"hard 失敗 {len(hard)}　soft 失敗 {len(soft)}　共 {len(c.results)} 項"
+              + (f"（{n_docs} 份文件的資料層檢查，{hidden} 項通過未列出）" if hidden else ""))
     sys.exit(2 if hard else (5 if soft else 0))
 
 

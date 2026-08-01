@@ -178,6 +178,48 @@ class Oracle:
             "print(json.dumps(re.findall(r'\"([a-z_]+)\"', src)))"
         )
 
+    def ir_drawing_contract(self) -> dict:
+        """A-24：哪些型別會走 _build_ir_drawing，以及該函式讀哪些欄位。
+
+        chart→image 整條規則就建立在這兩件事上：chart **不在**型別集合裡（所以
+        圖被丟掉），而 caption 要改名成 image_caption（因為它只讀這個）。哪一邊
+        變了，規則就從「修好」變成「多做一次沒用的搬動」或「把 caption 搬丟」。
+
+        用正則錨在 `self._build_ir_drawing` 上，不是抓任何一個 `item_type in {...}`
+        —— _detect_heading 裡也有一個，抓錯會驗到不相干的集合還一路 ok。
+        """
+        return self.py(
+            "import json,inspect,re\n"
+            "from lightrag.parser.external.mineru import ir_builder as B\n"
+            "src=inspect.getsource(B)\n"
+            "m=re.search(r'item_type in \\{([^}]*)\\}:\\s*\\n\\s*"
+            "drawing, asset = self\\._build_ir_drawing', src)\n"
+            "d=inspect.getsource(B.MinerUIRBuilder._build_ir_drawing)\n"
+            "print(json.dumps({'types': re.findall(r'\"([a-z_]+)\"', m.group(1)) if m else [],\n"
+            "                  'fields': re.findall(r'item\\.get\\(\"([a-z_]+)\"\\)', d)}))"
+        )
+
+    def chunk_top_k_effect(self, api_key: str, ks: tuple[int, ...] = (2, 8)) -> dict:
+        """A-25：chunk_top_k 是否真的在控制回傳的片段數。
+
+        在容器內打 localhost —— 服務只發佈到 ${BIND_ADDR}，從 host 打
+        127.0.0.1 會連不上，而「連不上」跟「參數失效」在結果上長得一樣。
+        """
+        code = (
+            "import json,os,sys,urllib.request as u\n"
+            "out={}\n"
+            "for k in [int(x) for x in sys.argv[1:]]:\n"
+            "    r=u.Request('http://localhost:9621/query/data',method='POST',\n"
+            "        data=json.dumps({'query':'sound absorption coefficient','mode':'mix',\n"
+            "                         'only_need_context':True,'chunk_top_k':k}).encode(),\n"
+            "        headers={'X-API-Key':os.environ['LIGHTRAG_API_KEY'],\n"
+            "                 'Content-Type':'application/json'})\n"
+            "    d=json.load(u.urlopen(r,timeout=180)).get('data') or {}\n"
+            "    out[str(k)]=len(d.get('chunks') or [])\n"
+            "print(json.dumps(out))"
+        )
+        return self.py_argv(code, [str(k) for k in ks])
+
     def pipeline_idle(self, api_key: str, port: int = 9621) -> dict:
         """A-19：apply --commit 前必須確認沒有其他工作在跑。"""
         return self.py(

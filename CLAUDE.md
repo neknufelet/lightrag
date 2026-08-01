@@ -13,7 +13,7 @@ LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來�
 | [README.md](README.md) | 部署、解析選項實測、備份範圍 | 環境有問題時 |
 | [tests/canary-baseline.json](tests/canary-baseline.json) | 金絲雀基準數字 | 不要手改,用 `canary --update` |
 
-## 四條鐵則
+## 六條鐵則
 
 踩過坑換來的。違反前先讀工單。
 
@@ -31,6 +31,13 @@ LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來�
    給模型看的東西不對,再多模型、再好的比對邏輯都沒用。
 5. **門檻用量的,不要用調的。** 覺得誤判多時先看**差在哪些具體記號**。
    實測有五次「以為要調門檻」其實是偵測器量錯東西(清單見 SKILL.md)。
+6. **探針要在沒人問的時候會響。** 只有指定目標才跑的檢查,防的是「你已經
+   懷疑的事」—— 而你已經懷疑的事不需要探針。
+   實測踩過:A-16「沒有未知的項目型別」本來就抓得到 `chart`,但單篇檢查被
+   `if a.doc:` 關著,而你只會對正在處理的那一份指定。184 個 `chart` 分散在
+   11 份文件裡,從專案開始到發現為止**一次都沒被喊過**。
+   同理:收合輸出時必須報出「幾項通過未列出」,否則「沒印出來」跟「沒檢查」
+   在畫面上長得一樣。
 
 ## 常用指令
 
@@ -40,7 +47,9 @@ python3 scripts/postprocess.py plan               # 只讀,算出打算改什麼
 python3 scripts/postprocess.py plan --details --doc <關鍵字>
 python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
 python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
-python3 scripts/compat-check.py                   # LightRAG 契約斷言
+python3 scripts/compat-check.py                   # LightRAG 契約斷言（預設連 20 份文件一起驗）
+python3 scripts/compat-check.py --no-docs         # 只驗契約與環境（快）
+python3 scripts/compat-check.py --doc <關鍵字>     # 只驗某一份，且逐項列出
 python3 scripts/extract-check.py                  # 抽取品質：實體與關係對照原文（三態）
 python3 scripts/eq-check.py --n 30                # 方程式：MinerU/qwen/luna 三票多數決
 python3 scripts/parse-check.py --details          # 解析品質
@@ -153,7 +162,7 @@ python3 scripts/postprocess.py canary          # 應為綠
 # 2. 改 compose.yaml 的 digest，重建
 
 # 3. 契約有沒有變 —— 這是關鍵
-python3 scripts/compat-check.py                # 13 項斷言
+python3 scripts/compat-check.py                # 契約 15 項 + 每份文件 6 項
 python3 scripts/postprocess.py canary          # 規則行為有沒有漂移
 python3 scripts/parse-check.py                 # 解析品質
 python3 scripts/extract-check.py               # 抽取品質
@@ -166,15 +175,33 @@ python3 scripts/extract-check.py               # 抽取品質
 size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列索引、
 `page_number` 被跳過而 `header`/`footer` 走 fallback 進索引。
 
+新增兩點：
+
+- **A-24 走 `_build_ir_drawing` 的型別集合是 `{image, picture, drawing}`,
+  而它讀 `image_caption` / `image_footnote`。** `chart→image` 整條規則就
+  站在這兩件事上。哪天 LightRAG 把 `chart` 加進集合,規則就該退休（斷言的
+  說明會直接這樣寫）；caption 欄位改名的話,現在的搬動會把 caption 搬丟。
+- **A-25 `chunk_top_k` 仍然控制回傳的片段數。** kbapi 的 `chunks` 參數就是
+  下傳成它。失效時 `/kb/*/search` 會靜靜回到每次 55–60KB —— 不報錯,只是把
+  呼叫端的 context 灌爆,所以每次都真的打一次查詢來驗。
+  **不要改用 `max_total_tokens` 收**:它先扣圖譜再給原文,設 8000 時
+  `available_chunk_tokens` 變負數,chunk 直接回 0 個且不報錯。
+
 ## 已知待辦
 
 - **W7 `apply.py`** —— 第一個真的寫檔的步驟(消音 + 表格修補 + 更新 manifest)。
   520 項消音已有 20 份文件證據,比表格修補成熟得多。
-- **`chart` → `image`** —— 目前論文的圖表對索引貢獻為零(`content` 是空字串,
-  fallback 不 append)。改寫型別即可走 `_build_ir_drawing`,不必改 LightRAG。
+- ~~**`chart` → `image`**~~ —— 已完成(2026-08-02)。184 個項目、11 份文件,
+  規則在 `pp/rules/chart_type.py`,由 A-24 守著前提。`image` 187 → 371。
+  欄位一併改名(`chart_caption` → `image_caption`),否則圖進得去但 caption 掉光。
 - **`K Muffler` 對照原文可疑率 12.8%** —— 20 份裡唯一超標,可疑關係大量是
   「概念 → 引用文獻」（`Normalized Partition Impedance → Sullivan 1979`）,待查。
-- **實體碎片化 6.1%** —— `k_0` 抽成 5 個節點。先記錄不處理（合併不可逆）。
+- **實體碎片化 6.1%** —— `k_0` 抽成 5 個節點(`k_0`/`k0`/`K 0`/`K_0`/`K0`)。
+  LightRAG 有 `POST /graph/entities/merge`,**不必重跑抽取**。仍未動:合併
+  不可逆,而數學裡 `S_n` 與 `S_N` 可能真的是兩回事,要先出候選清單過目。
+- **3 條方程式已知錯但未回寫** —— `apply.py` 只寫 `table_body`。
+  例:`N Flow` #1005 的 `\hat{o}` 其實是 ∂、`P` 其實是 ρ。門檻比表格高 ——
+  表格是「從無到錯」,方程式是「從錯到另一種錯」。
 - **接地檢查的 47 個可疑實體** —— `Region I/II/III`、`Mechl`、`S1` 等,
   多數與已記錄的 domain_fact「羅馬數字下標難讀」相關。
 - 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,
