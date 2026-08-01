@@ -11,7 +11,7 @@
   "兩者都會錯在羅馬數字下標（區域 I/II），方向相反：eye_a 把 II 讀成 ||，eye_b 把 I 讀成 l。",
   "十張表 eye_a 對 1 次、eye_b 對 2 次 —— 沒有哪一個比較準。",
   "eye_b 不接受 temperature=0（只允許預設 1），首次轉錄有抽樣變異；分歧要重抽才知道是真的還是雜訊。",
-  "eye_c 候選比較（4 條三方皆異）：MiMo 解決 3、Gemini 解決 2。血統相關性 MiMo↔qwen 0.68（三對中最低）、MiMo↔luna 0.84、Gemini↔MiMo 0.86 ——沒有 Qwen 衍生的跡象，可當獨立的一票。"
+  "eye_c 候選實測（同一批 4 條三方皆異，2026-08-01）：MiMo v2.5 解決 3、MiniMax-m3 解決 3、Gemini 3.1-flash-lite 解決 3、Gemini 2.5-flash-lite 解決 2、Kimi-k2.5 每次呼叫超過 2 分半（其他候選都是幾秒）不可用。選 MiMo：與前三名同分但輸出價最低（$0.28 vs MiniMax $1.20、Gemini 3.1 $1.50）。警告：MiMo↔MiniMax 相似度 0.97，行為高度相關，不可同時當兩票用 —— 家族偵測只看名字，偵測不到這種相關性，只有實測抓得到。"
  ],
  "domain_facts": [
   "羅馬數字 I/II/III 是這批文件確定的核心難點 —— 四個獨立檢查、四個不同層次都指向它：①MinerU 把 p_II 解析成 p_|| ②VLM 把 p_I 轉錄成 p_l ③實體 N_n,v^(II) 的 (II) 被抽成 (H) ④關係 Field Formulation I/II/III 對不到原文。字形接近 || / l / 1 / H。換模型仍然難。",
