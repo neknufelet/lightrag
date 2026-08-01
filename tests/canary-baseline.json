@@ -19,6 +19,16 @@
   "review": 0,
   "tables_total": 2
  },
+ "01200_6 Room Acoustics.pdf": {
+  "held": 2,
+  "items": 8,
+  "mute": 0,
+  "pages": 1,
+  "ratio": 0.0,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 0
+ },
  "01205_3.5 Numerical solution of the wave equation_ the finite element method.pdf": {
   "held": 1,
   "items": 38,
@@ -69,6 +79,16 @@
   "review": 0,
   "tables_total": 0
  },
+ "2017 - Metadiffusers Deep-subwavelength sound diffusers.pdf": {
+  "held": 3,
+  "items": 166,
+  "mute": 21,
+  "pages": 12,
+  "ratio": 0.0225,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 4
+ },
  "2021 - A benchmark for room acoustical simulation. Concept and database.pdf": {
   "held": 6,
   "items": 103,
@@ -79,6 +99,16 @@
   "review": 0,
   "tables_total": 1
  },
+ "2022 - Elimination of the Phase Mismatch Error in PP Probe Using Synchronous Measurement Technique.pdf": {
+  "held": 10,
+  "items": 247,
+  "mute": 15,
+  "pages": 12,
+  "ratio": 0.0096,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 2
+ },
  "2023 - A Review of Finite Element Methods for Room Acoustics.pdf": {
   "held": 4,
   "items": 348,
@@ -88,6 +118,26 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 1
+ },
+ "2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped a.pdf": {
+  "held": 7,
+  "items": 265,
+  "mute": 31,
+  "pages": 16,
+  "ratio": 0.03,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 4
+ },
+ "2026 - JAX-BEM Gradient-Based Acoustic Shape Optimisation via a Differentiable Boundary Element Method.pdf": {
+  "held": 0,
+  "items": 79,
+  "mute": 1,
+  "pages": 6,
+  "ratio": 0.0008,
+  "repairable": 0,
+  "review": 0,
+  "tables_total": 0
  },
  "41598_2017_5710_MOESM1_ESM.pdf": {
   "held": 0,

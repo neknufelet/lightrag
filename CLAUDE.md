@@ -69,7 +69,7 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 ## 現況
 
 ```
-文件      15 份已納入基準（5 論文、9 教科書章節/5 本不同的書、1 份補充材料）
+文件      20 份已納入基準（9 論文、10 教科書章節/6 本不同的書、1 份補充材料）
 索引      C Equivalent Networks 148 chunks / 1,135 entities / 1,812 relations
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
@@ -92,7 +92,7 @@ embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
 | 分歧要**逐格**定位,不用整表純量分數 | 原理 + 1 份 | 穩 |
 | `aside_text` 先跑重複/樣板規則,`is_gibberish` 只當單次殘骸的後備 | 2 份 | 穩 |
 | 書眉/頁尾數**樣板**(數字抹成 `#`),不數字面字串 | 2 份 | 穩 |
-| `chart` 只登記不處理 | 1 份 | **脆弱** |
+| `chart` 只登記不處理 | 3 份（含一份 50 個 chart） | 穩 |
 
 ### 易腐觀察:綁特定模型,換代即失效
 
@@ -118,7 +118,7 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
 ## 已知待辦
 
 - **W7 `apply.py`** —— 第一個真的寫檔的步驟(消音 + 表格修補 + 更新 manifest)。
-  452 項消音已有 15 份文件證據,比表格修補成熟得多。
+  520 項消音已有 20 份文件證據,比表格修補成熟得多。
 - **`chart` → `image`** —— 目前論文的圖表對索引貢獻為零(`content` 是空字串,
   fallback 不 append)。改寫型別即可走 `_build_ir_drawing`,不必改 LightRAG。
 - **`Empty entity name found after sanitization`** —— C 這份 250 次,未解。
