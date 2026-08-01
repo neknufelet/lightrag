@@ -55,6 +55,7 @@ _ALIAS = {
     # 只別名「同義」的寫法。\iint 與 \int、\notin 與 \neq 意思不同，
     # 別名掉等於主動隱藏真差異 —— 那正是這支程式存在要防的事。
     "\\xrightarrow": "\\to", "\\xlongrightarrow": "\\to", "\\ne": "\\neq",
+    "\\ldots": "\\dots", "\\cdots": "\\dots",
     # 兩邊表達「這格是圖」的方式不同：prompt 要求寫 [FIGURE]，qwen 改吐 <img>。
     # 語意相同，不該算成不一致。
     "img": "figure",
@@ -72,8 +73,12 @@ def _norm(s: str) -> str:
 
 
 def tokens(text: str) -> set[str]:
-    t = text.replace("{", " { ").replace("}", " } ")
-    return {n for x in TOK.findall(t) if (n := _norm(x)) and n not in _ENV}
+    """不要在斷詞前把大括號拆開。`X_{...}` 這條規則靠括號緊貼著才配得到，
+    先 replace("{", " { ") 會讓 J_{0} 變成 J { 0 }，下標整個抓不到 ——
+    結果是「愛用大括號的那個模型」的下標記號全部消失，兩邊憑空產生大量假分歧。
+    實測 luna 寫 J_{0}、qwen 寫 J_0，#390 就是這樣被誤判成不一致的。
+    括號本來就會被 _norm 剝掉，這裡什麼都不用做。"""
+    return {n for x in TOK.findall(text) if (n := _norm(x)) and n not in _ENV}
 
 
 class _Grid(HTMLParser):

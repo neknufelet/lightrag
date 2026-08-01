@@ -111,11 +111,19 @@ def _lcs_len(a: list[str], b: list[str]) -> int:
 
 
 def transcribe(png: Path, host: str, api_key: str, model: str,
-               timeout: int = 300) -> tuple[str, str]:
-    """回傳 (原始輸出, finish_reason)。不做任何清理 —— V2 要檢查結尾。"""
+               timeout: int = 300, reasoning: bool = False,
+               max_out: int = 3072) -> tuple[str, str]:
+    """回傳 (原始輸出, finish_reason)。不做任何清理 —— V2 要檢查結尾。
+
+    reasoning=True 給 gpt-5 系列這類推理模型：它們用 max_completion_tokens，
+    而且推理會先吃掉額度 —— 額度不足時 content 回空字串，看起來像模型失敗，
+    實際是被截斷（實測 gpt-5 給 200 就是空的，給 6000 正常）。額度要給足。
+    """
     img = base64.b64encode(png.read_bytes()).decode()
+    cfg = ({"max_completion_tokens": max_out} if reasoning
+           else {"temperature": 0, "max_tokens": max_out})
     body = json.dumps({
-        "model": model, "temperature": 0, "max_tokens": 3072,
+        "model": model, **cfg,
         "messages": [{"role": "user", "content": [
             {"type": "text", "text": PROMPT},
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}},
