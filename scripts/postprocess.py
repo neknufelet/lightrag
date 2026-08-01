@@ -18,6 +18,10 @@
     postprocess.py canary                  # 規則漂移偵測（改規則後必跑）
     postprocess.py canary --update         # 認可目前結果為新基準
 
+    postprocess.py apply --doc X           # 只算不寫（預設 dry-run）
+    postprocess.py apply --doc X --commit  # **真的寫檔**
+    postprocess.py revert --doc X          # 還原
+
 check 會呼叫外部模型（本機 qwen + 雲端 luna），結果快取在
 DATA_ROOT/<ws>/postprocess/<doc>/cache/，重跑不會重複付費。
 """
@@ -229,6 +233,56 @@ def cmd_canary(a, env) -> int:
     return 2
 
 
+def cmd_apply(a, env) -> int:
+    from pp import apply as ap_mod, eyes
+    from pp.oracle import Oracle
+
+    out_root = DATA_ROOT / a.workspace / "postprocess"
+    o = Oracle()
+    rc = 0
+    for raw in find_bundles(a.workspace, a.doc):
+        try:
+            verified: dict[str, str] = {}
+            if not a.no_tables:
+                # 只採用兩雙眼睛逐格一致的。沒把握的轉錄一律不寫 ——
+                # 拿它覆蓋空表格，是把「明顯缺失」換成「看起來正常但可能是錯的」。
+                ctx, results = eyes.check_doc(raw, env, out_root, workers=a.workers)
+                for r_ in results:
+                    if r_.ok:
+                        html, err = eyes.look(eyes.eyes_from_env(env)[0], r_.png,
+                                              out_root / ctx.doc_name / "cache")
+                        if not err:
+                            verified[str(r_.index)] = html
+            res = ap_mod.apply_doc(raw, out_root=out_root, verified_tables=verified,
+                                   oracle=o, commit=a.commit)
+        except (DocContextError, ap_mod.ApplyError) as e:
+            print(f"  ✗ {raw.name.removesuffix('.mineru_raw')}：{e}")
+            rc = 2
+            continue
+        mark = "✓" if (res.valid_after is not False) else "✗"
+        print(f"  {mark} {res.doc}\n      {res.line()}")
+        if res.backup:
+            print(f"      備份 {res.backup}")
+        for n in res.notes:
+            print(f"      {n}")
+        if res.valid_after is False:
+            rc = 2
+    if not a.commit:
+        print("\n（dry-run。確認無誤後加 --commit 才會寫檔）")
+    return rc
+
+
+def cmd_revert(a, env) -> int:
+    from pp import apply as ap_mod
+    from pp.oracle import Oracle
+    o = Oracle()
+    for raw in find_bundles(a.workspace, a.doc):
+        res = ap_mod.revert_doc(raw, oracle=o)
+        print(f"  ✓ {res.doc}：還原消音 {res.muted}、表格 {res.tables}；"
+              f"bundle {'認可' if res.valid_after else '**未認可**'}")
+    return 0
+
+
 def main():
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="MinerU 解析輸出的後處理")
@@ -249,8 +303,23 @@ def main():
     n.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     n.add_argument("--update", action="store_true", help="把目前結果寫成新基準")
 
+    ap2 = sub.add_parser("apply", help="寫進 content_list.json 並更新 manifest")
+    ap2.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    ap2.add_argument("--doc", help="檔名關鍵字，預設全部")
+    ap2.add_argument("--commit", action="store_true", help="真的寫檔（預設只算不寫）")
+    ap2.add_argument("--no-tables", action="store_true", help="只做消音，不碰表格")
+    ap2.add_argument("--workers", type=int, default=3)
+
+    rv = sub.add_parser("revert", help="還原（讀 _pp_original_* 欄位）")
+    rv.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    rv.add_argument("--doc", help="檔名關鍵字，預設全部")
+
     a = ap.parse_args()
 
+    if a.cmd == "apply":
+        sys.exit(cmd_apply(a, env))
+    if a.cmd == "revert":
+        sys.exit(cmd_revert(a, env))
     if a.cmd == "check":
         sys.exit(cmd_check(a, env))
     if a.cmd == "canary":
