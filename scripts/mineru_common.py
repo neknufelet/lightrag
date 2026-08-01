@@ -39,6 +39,17 @@ BODY_TYPES = ("text", "header", "footer", "aside_text")
 # (\s[a-z]{1,2}\s){5,} 會因為前一次匹配吃掉後一次的前導空白而永遠回 0。
 MANGLED = re.compile(r"(?:\s+[a-z]{1,2}\b){5,}")
 
+# 光看「連續 5 個 1–2 字母的小寫詞」會誤判正常英文散文 —— 實測 00712 的
+# 「…may not **be so if r is** small…」就命中了：be/so/if/r/is 全是真英文字。
+# 這是本專案第七次同一類誤判（偵測器量的東西跟以為的不一樣）。
+#
+# 真正的掉字長這樣（C p64）：
+#   'Ab = = ze = etsosbd) te se  e e e   e o  e e tes rt   d  s    s s    sd'
+# 差別在**單字母碎片的密度**：字元被切散時會產生大量孤立字母，正常英文不會
+# （英文只有 a / I 是單字母詞）。要求命中的區段裡至少有這麼多個單字母碎片。
+MIN_SINGLE_CHARS = 3
+_SINGLE = re.compile(r"\b[b-hj-z]\b")
+
 # 行內數學。LaTeX 會把字母拆開排版（\mathrm { i n t e r i o r }），長得跟掉字
 # 一模一樣，套 MANGLED 之前必須先剝掉。
 MATH = re.compile(r"\$[^$]*\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
@@ -69,7 +80,12 @@ def is_mangled(text: str, item_type: str) -> bool:
     會讓每一份都變 ERROR（實測 12 個命中裡 11 個是誤判）。"""
     if item_type not in PROSE_TYPES:
         return False
-    return bool(MANGLED.search(strip_math(text)))
+    for m in MANGLED.finditer(strip_math(text)):
+        # 命中區段裡要有足夠的單字母碎片才算掉字。只看「連續短詞」會誤判
+        # 正常英文（見 MIN_SINGLE_CHARS 註解）。
+        if len(_SINGLE.findall(m.group(0))) >= MIN_SINGLE_CHARS:
+            return True
+    return False
 
 
 def item_body(item: dict) -> str:

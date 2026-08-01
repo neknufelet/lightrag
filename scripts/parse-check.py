@@ -16,32 +16,20 @@ MinerU 的原始輸出會快取在 inputs/<workspace>/__parsed__/<檔名>.mineru
 import argparse, collections, json, os, re, sys, time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 偵測器一律從 mineru_common 拿，不要在這裡另外定義一份。
+# 這支腳本曾經自己複製 MANGLED，結果 mineru_common 修好了誤判、這裡還在用舊
+# 規則，同一份資料兩個答案 —— 正是 mineru_common 檔頭警告的漂移。
+from mineru_common import (  # noqa: E402
+    LEAK, MANGLED, MATH, TAG, is_mangled, strip_math, table_text,
+)
+
 DEFAULT_ROOT = Path("/data/rag/lightrag")
 
-# 掉字偵測器 —— 務必用 \b 這種非消耗性邊界；寫成兩側都是 \s 的
-# (\s[a-z]{1,2}\s){5,} 會因為前一次匹配吃掉後一次的前導空白而永遠回 0。
-MANGLED = re.compile(r"(?:\s+[a-z]{1,2}\b){5,}")
-
-# 套用前必須先剔除數學式。LaTeX 會把字母拆開排版（\mathrm { i n t e r i o r }），
-# 長得跟掉字一模一樣 —— 在 C Equivalent Networks 上會把 8 個誤判成掉字，實際只有 1 個是真的。
-MATH = re.compile(r"\$[^$]*\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
 
 
-def strip_math(t: str) -> str:
-    return MATH.sub(" ", t or "")
-
-
-# 判斷表格是否真的有內容時必須剝掉標籤 —— MinerU 會產出 <table><tr><td></td></tr></table>
-# 這種空殼，字串非空但內容為零。只用 .strip() 判斷會把它算成有內容（實測 pipeline 在
-# C Equivalent Networks 上漏掉 1 張）。<img> 參照也不算內容，那只是指向圖片檔。
-TAG = re.compile(r"<[^>]+>")
-
-
-def table_text(body: str) -> str:
-    return TAG.sub("", body or "").strip()
 
 # 這些 prompt 範例字串若出現在正文，代表模型把提示詞當成內容（1.5.5 上游已移除，留著防退化）
-LEAK = re.compile(r"Noah Carter|World Athletics|Carbon-Fiber Spikes|100m Sprint|Knowledge Graph Specialist", re.I)
 
 
 def check_doc(raw_dir: Path) -> dict:
@@ -75,11 +63,14 @@ def check_doc(raw_dir: Path) -> dict:
         # 掉字偵測只跑散文（text / header）。equation 的 text 是沒有 $ 包裹的裸 LaTeX，
         # table_body 也整片是標記，兩者本來就長得像掉字（\mathrm { e n t r a n c e }），
         # 在數學密集的文件上會讓每一份都變 ERROR。散文內的行內數學仍要先剝掉。
-        if t in ("text", "header"):
+        # 判斷一律走 mineru_common.is_mangled —— 這裡曾經自己複製一份 MANGLED，
+        # 結果 mineru_common 修好了誤判、這支還在用舊規則，同一份資料兩個答案。
+        # 那正是 mineru_common 檔頭警告的漂移。
+        if is_mangled(body, t):
             clean = strip_math(body)
-            if clean and MANGLED.search(clean):
-                m = MANGLED.search(clean)
-                r["mangled"].append({**loc, "snippet": clean[max(0, m.start() - 40): m.end() + 40]})
+            m = MANGLED.search(clean)
+            r["mangled"].append({**loc, "snippet":
+                clean[max(0, m.start() - 40): m.end() + 40] if m else clean[:120]})
         if body and LEAK.search(body):
             r["洩漏"].append({**loc, "snippet": body[:120]})
 
