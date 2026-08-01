@@ -52,6 +52,34 @@ services:
       retries: 5
       start_period: 60s
 
+  # LightRAG 沒有圖片端點，1,786 張圖躺在 __parsed__/*/images/ 但 API 拿不到。
+  # 這支唯讀服務把它們開出來，另外提供單篇的結構化內容。
+  # 只用 Python 標準函式庫，所以直接掛官方 slim 映像跑腳本，不需要自己建映像。
+  # 綁 0.0.0.0：容器內沒有 Tailscale 介面，隔離靠的是 ports 只發佈到
+  # ${BIND_ADDR}，跟 lightrag 一致。
+  kbapi:
+    image: python:3.12-slim
+    container_name: kbapi-${WORKSPACE:-acoustics_v155}
+    restart: unless-stopped
+    command: ["python", "/app/scripts/kbapi.py", "--port", "9700"]
+    working_dir: /app
+    environment:
+      PP_DATA_ROOT: /data/rag/lightrag
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./.env:/app/.env:ro
+      - ${DATA_ROOT:-/data/rag/lightrag}:/data/rag/lightrag:ro
+    ports:
+      - "${BIND_ADDR:-100.87.88.7}:9700:9700"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request as u; u.urlopen('http://localhost:9700/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rag
+
 # Postgres 與 Neo4j 都在既有的 rag_default 網路上，此處只接上、不建立
 networks:
   rag:

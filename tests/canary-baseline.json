@@ -162,10 +162,10 @@
  "C Equivalent Networks.pdf": {
   "held": 0,
   "items": 556,
-  "mute": 110,
+  "mute": 0,
   "pages": 68,
-  "ratio": 0.0558,
-  "repairable": 10,
+  "ratio": 0.0,
+  "repairable": 4,
   "review": 1,
   "tables_total": 57
  },

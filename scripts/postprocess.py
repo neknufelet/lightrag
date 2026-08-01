@@ -18,6 +18,7 @@
     postprocess.py canary                  # 規則漂移偵測（改規則後必跑）
     postprocess.py canary --update         # 認可目前結果為新基準
 
+    postprocess.py prepare --commit        # 新文件：解析 → 修補 → 掃描（只抽取一次）
     postprocess.py apply --doc X           # 只算不寫（預設 dry-run）
     postprocess.py apply --doc X --commit  # **真的寫檔**
     postprocess.py revert --doc X          # 還原
@@ -234,6 +235,64 @@ def cmd_canary(a, env) -> int:
     return 2
 
 
+def cmd_prepare(a, env) -> int:
+    """新文件的正確順序：解析 → 修補 → 才掃描。
+
+    為什麼順序重要：/scan 會把解析與實體抽取綁在一起跑完，之後再修補就得
+    reindex，等於**抽取兩次**。抽取是本機序列的，20 份要 1.5–2 小時，
+    390 份約 30 小時 —— 白跑一輪的代價太大。
+
+    先 apply 再 scan 就只抽一次。已經索引過的文件沒有這個選擇（要走
+    apply + reindex），所以這條路只適用於還沒進索引的新文件。
+    """
+    inputs = DATA_ROOT / a.workspace / "inputs" / a.workspace
+    parsed = inputs / "__parsed__"
+    pending = [p for p in sorted(inputs.glob("*.pdf"))
+               if not (parsed / f"{p.name}.mineru_raw" / "content_list.json").is_file()]
+    ready = []
+    for raw in sorted(parsed.glob("*.mineru_raw")):
+        if not (raw / "content_list.json").is_file():
+            continue
+        items = json.loads((raw / "content_list.json").read_text())
+        if not any("_pp_original_text" in i or "_pp_repaired_at" in i for i in items):
+            ready.append(raw)
+
+    print(f"待解析 {len(pending)} 份、待修補 {len(ready)} 份")
+    if not a.commit:
+        for p in pending:
+            print(f"  解析  {p.name[:64]}")
+        for r in ready:
+            print(f"  修補  {r.name.removesuffix('.mineru_raw')[:64]}")
+        print("\n（dry-run。加 --commit 才會執行）")
+        return 0
+
+    if pending:
+        print("\n[1/3] 解析（不觸發抽取）")
+        import subprocess
+        subprocess.run([sys.executable, str(REPO / "scripts" / "parse-only.py"),
+                        "--workspace", a.workspace], check=False)
+
+    print("\n[2/3] 修補")
+    rc = cmd_apply(argparse.Namespace(workspace=a.workspace, doc=None, commit=True,
+                                      no_tables=a.no_tables, workers=a.workers), env)
+
+    print("\n[3/3] 掃描（此時才進抽取，只跑一次）")
+    print(" ", json.dumps(_api(env, "/documents/scan", "POST"), ensure_ascii=False)[:200])
+    return rc
+
+
+def _api(env: dict, path: str, method: str = "GET", body=None):
+    import urllib.request
+    host = f"http://{env.get('BIND_ADDR','127.0.0.1')}:{env.get('HOST_PORT','9621')}"
+    req = urllib.request.Request(
+        host + path, method=method,
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={"X-API-Key": env.get("LIGHTRAG_API_KEY", ""),
+                 "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return json.loads(r.read() or "{}")
+
+
 def cmd_apply(a, env) -> int:
     from pp import apply as ap_mod, eyes
     from pp.oracle import Oracle
@@ -393,6 +452,12 @@ def main():
     ri.add_argument("--doc", help="檔名關鍵字，預設全部")
     ri.add_argument("--commit", action="store_true")
 
+    pr = sub.add_parser("prepare", help="新文件：解析 → 修補 → 掃描（只抽取一次）")
+    pr.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    pr.add_argument("--commit", action="store_true")
+    pr.add_argument("--no-tables", action="store_true")
+    pr.add_argument("--workers", type=int, default=3)
+
     rv = sub.add_parser("revert", help="還原（讀 _pp_original_* 欄位）")
     rv.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     rv.add_argument("--doc", help="檔名關鍵字，預設全部")
@@ -401,6 +466,8 @@ def main():
 
     if a.cmd == "apply":
         sys.exit(cmd_apply(a, env))
+    if a.cmd == "prepare":
+        sys.exit(cmd_prepare(a, env))
     if a.cmd == "reindex":
         sys.exit(cmd_reindex(a, env))
     if a.cmd == "revert":
