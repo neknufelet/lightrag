@@ -114,7 +114,8 @@ def main() -> int:
         crops = out_root / ctx.doc_name / "crops"
         try:
             c = pdfcrop.crop_region(ctx.source_pdf, int(it["page_idx"]), bbox,
-                                    crops, f"eq{idx}", *ctx.page_size)
+                                    crops, f"eq{idx}", *ctx.page_size,
+                                    pad=pdfcrop.EQ_PAD_X, pad_y=pdfcrop.EQ_PAD_Y)
         except pdfcrop.CropError as e:
             errs += 1
             continue

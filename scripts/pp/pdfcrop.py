@@ -21,6 +21,18 @@ from pathlib import Path
 # 裁切時往外擴的邊界（PDF 點）。表格外框線常落在 bbox 邊緣上，切齊會削掉。
 PAD_PT = 6.0
 
+# 方程式要用不同的 padding，而且**垂直方向幾乎不擴**。
+#
+# 表格的 6 點是為外框線留的；方程式沒有框線，而且顯示式的行距很密 ——
+# 實測 K Muffler p27 的 T_a/T_b/T_c/T_d 四條式子，bbox 各只有 18 單位高、
+# 上下緊貼。往外擴 6 點等於把上下鄰居都框進圖裡，六個模型於是各自決定
+# 要轉幾條，看起來像模型分歧，實際是裁圖把題目出錯了。
+#
+# 這一條先前被我誤判成「三方皆異、真的無解」——實際上六個模型對共同部分
+# 完全一致，差別只在轉了幾行。左右仍然擴，因為公式編號與括號會貼邊。
+EQ_PAD_X = 4.0
+EQ_PAD_Y = 1.0
+
 # 送 VLM 的解析度。300 DPI 在試點時足以讓本機模型正確辨識下標與積分符號。
 DPI = 300
 
@@ -64,17 +76,22 @@ def _run(argv: list[str], timeout: int = 120) -> str:
 
 def crop_region(pdf: Path, page_idx: int, bbox_pt: tuple, out_dir: Path,
                 stem: str, page_w: float, page_h: float,
-                pad: float = PAD_PT, dpi: int = DPI) -> Crop:
-    """裁出一塊區域。page_idx 是 0-based（content_list 的慣例），poppler 要 1-based。"""
+                pad: float = PAD_PT, dpi: int = DPI,
+                pad_y: float | None = None) -> Crop:
+    """裁出一塊區域。page_idx 是 0-based（content_list 的慣例），poppler 要 1-based。
+
+    pad_y 分開指定時垂直方向用它 —— 方程式的行距很密，垂直擴太多會框進鄰居。
+    """
     _require_tools()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    py = pad if pad_y is None else pad_y
     x0, y0, x1, y1 = bbox_pt
     # 往外擴，但不超出頁面
     x0 = max(0.0, x0 - pad)
-    y0 = max(0.0, y0 - pad)
+    y0 = max(0.0, y0 - py)
     x1 = min(page_w, x1 + pad)
-    y1 = min(page_h, y1 + pad)
+    y1 = min(page_h, y1 + py)
     if x1 <= x0 or y1 <= y0:
         raise CropError(f"矩形無效：{(x0, y0, x1, y1)}")
 
