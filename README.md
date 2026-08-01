@@ -51,9 +51,24 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 |---|---|
 | 設定（版控） | 本 repo |
 | rag_storage | `/data/lightrag/${WORKSPACE}/rag_storage` |
-| 語料來源（唯讀） | `/data/rag/knowledge_bases/${WORKSPACE}/raw` |
+| 待匯入文件 | `/data/lightrag/${WORKSPACE}/inputs/${WORKSPACE}/` ← 注意多一層 |
+| 語料來源 | `/data/rag/knowledge_bases/*/raw`（不掛進容器） |
 
 語料 390 個 PDF、約 2.0 GB，留在 `/data` 的獨立 NVMe，不進 repo。
+
+### 文件要放進 inputs 的 workspace 子目錄
+
+設了 `WORKSPACE` 之後，LightRAG **只掃 `inputs/${WORKSPACE}/`，不掃 `inputs/` 根層**。
+放在根層的檔案掃描會回報 `0 discovered` 而且不報錯，很容易誤判成服務壞了。該子目錄由容器
+啟動時自動建立。
+
+```bash
+cp foo.pdf /data/lightrag/acoustics_v155/inputs/acoustics_v155/
+curl -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
+```
+
+`inputs` 也**不能唯讀掛載** —— 容器啟動時要建上述子目錄，掛 `:ro` 會直接 crash loop。
+這是為什麼此處用專屬目錄而非直接掛 `/data/rag/knowledge_bases/*/raw`。
 
 ### 儲存後端
 
@@ -62,6 +77,22 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 標籤，所以多個知識庫可共存於同一組資料庫。
 
 要跑第二個知識庫：複製本目錄為另一個 stack，改 `WORKSPACE` 與 `HOST_PORT` 即可。
+
+## 拆解品質檢查（整批重跑前先用這個）
+
+```bash
+./scripts/parse-check.py --details      # 檢查已解析的文件
+./scripts/parse-check.py --watch        # 邊解析邊看
+```
+
+MinerU 的原始輸出快取在 `inputs/<ws>/__parsed__/<檔名>.mineru_raw/`，所以**解析一結束就能驗，
+不必等後面幾十小時的 LLM 抽取**。整批重新 parsing 時先跑這個確認拆得對，再讓 LLM 上工。
+
+檢查項目：掉字、空的文字／表格／公式區塊、整頁無正文、prompt 洩漏。有 ERROR 時 exit 1。
+
+已知會抓到的真實問題：**MinerU 有時偵測到表格區域卻什麼都不產出** —— `table_body` 缺席、
+`img_path` 也是空字串，連退而求其次的圖片備份都沒有，該區域內容完全遺失。C Equivalent Networks
+是 16/57（28%）。
 
 ## 比對工具
 
