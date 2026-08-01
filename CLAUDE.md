@@ -36,7 +36,7 @@ python3 scripts/postprocess.py plan --details --doc <關鍵字>
 python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
 python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
 python3 scripts/compat-check.py                   # LightRAG 契約斷言
-python3 scripts/extract-check.py                  # 抽取品質：接地檢查（三態）
+python3 scripts/extract-check.py                  # 抽取品質：實體與關係對照原文（三態）
 python3 scripts/parse-check.py --details          # 解析品質
 ```
 
@@ -70,8 +70,8 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 ## 現況
 
 ```
-文件      20 份已納入基準（9 論文、10 教科書章節/6 本不同的書、1 份補充材料）
-索引      C Equivalent Networks 148 chunks / 1,135 entities / 1,812 relations
+文件      20 份已納入基準並完成抽取（processed 20/20、failed 0）
+索引      20 份共 6,911 實體 / 7,766+ 關係
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
 兩雙眼睛  qwen3.6-35b-a3b(本機) + gpt-5.6-luna(雲端,$0.20/$1.20 per 1M)
@@ -123,8 +123,9 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
   520 項消音已有 20 份文件證據,比表格修補成熟得多。
 - **`chart` → `image`** —— 目前論文的圖表對索引貢獻為零(`content` 是空字串,
   fallback 不 append)。改寫型別即可走 `_build_ir_drawing`,不必改 LightRAG。
-- **`K Muffler Acoustics.pdf` 抽取失敗** —— chunk-041 `Worker execution timeout
-  after 480s`。設定問題不是品質問題,逾時對大章節不夠。
+- **`K Muffler` 對照原文可疑率 12.8%** —— 20 份裡唯一超標,可疑關係大量是
+  「概念 → 引用文獻」（`Normalized Partition Impedance → Sullivan 1979`）,待查。
+- **實體碎片化 6.1%** —— `k_0` 抽成 5 個節點。先記錄不處理（合併不可逆）。
 - **接地檢查的 47 個可疑實體** —— `Region I/II/III`、`Mechl`、`S1` 等,
   多數與已記錄的 domain_fact「羅馬數字下標難讀」相關。
 - 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,

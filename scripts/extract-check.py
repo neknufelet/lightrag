@@ -26,6 +26,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -45,7 +46,7 @@ _MARKUP = re.compile(r"<[^>]+>|\$[^$]*\$|\\[a-zA-Z]+")
 
 
 def is_symbolic(text: str) -> bool:
-    """這個 chunk 主要是表格與公式，而不是散文。
+    r"""這個 chunk 主要是表格與公式，而不是散文。
 
     為什麼要分：接地檢查用字串比對，只對散文有效。表格裡常常只有符號 ——
     實測 C 的 chunk-002 是一張表，儲存格是 `G` 與 $G=I/\Delta U=1/Z$，
@@ -77,9 +78,17 @@ _NORM = re.compile(r"[^a-z0-9]+")
 
 
 def norm(s: str) -> str:
-    """大小寫、標點、空白一律抹平。LLM 會把 'Sound-Pressure Level' 寫成
-    'sound pressure level'，那不是幻覺。"""
-    return _NORM.sub(" ", (s or "").lower()).strip()
+    """大小寫、標點、空白、變音符號一律抹平。
+
+    折疊變音符號是必要的：原文寫 'Michał Raczyński'，模型很合理地抽成
+    'Michal Raczynski'（自己去掉了變音），不折疊的話 ł/ń 會被當成標點抹成
+    空白，兩邊永遠對不上 —— 實測讓兩個作者名被誤判成幻覺。
+    """
+    t = unicodedata.normalize("NFKD", s or "")
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    # NFKD 拆不開的（ł、ø、ð 等）另外對映
+    t = t.translate(str.maketrans("łŁøØðÐþÞđĐıŒœæÆß", "lLoOdDtTdDiOoaAs"))
+    return _NORM.sub(" ", t.lower()).strip()
 
 
 def grounded(name: str, text: str) -> bool:
