@@ -1,0 +1,44 @@
+# LightRAG 1.5.5 — 由 Dockge 管理
+# 本目錄被 bind mount 進 dockge 容器的 /opt/stacks/lightrag-v1（見 /opt/stacks/dockge/compose.yaml），
+# 所以原始碼留在 ghq 有版控，同時 Dockge UI 也能直接管理這個 stack。
+#
+# 單一實例：靠 .env 的 WORKSPACE 切換知識庫。要同時跑第二個知識庫時，
+# 複製本目錄為另一個 stack，改 WORKSPACE 與 HOST_PORT 即可 —— 儲存層
+# 已用 workspace 隔離，兩者可共存於同一組 Postgres/Neo4j。
+#
+# 注意：compose 的 ${VAR} 插值讀的是本目錄的 .env（與 env_file 同一份），
+# 所以 WORKSPACE / HOST_PORT 改一處即同時生效於容器名、port 與資料路徑。
+
+services:
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:v1.5.5
+    container_name: lightrag-${WORKSPACE}
+    restart: unless-stopped
+
+    env_file: .env
+
+    # 只綁 Tailscale 位址，不對外。要改成本機才可存取就設 BIND_ADDR=127.0.0.1
+    ports:
+      - "${BIND_ADDR:-100.87.88.7}:${HOST_PORT:-9621}:9621"
+
+    volumes:
+      # 執行期資料放 /data 的獨立 NVMe，不進 repo
+      - ${DATA_ROOT:-/data/lightrag}/${WORKSPACE}/rag_storage:/app/data/rag_storage
+      # 語料來源：預設指向既有的知識庫 raw 目錄，唯讀掛載避免誤寫
+      - ${INPUTS_DIR:-/data/rag/knowledge_bases/${WORKSPACE}/raw}:/app/data/inputs:ro
+
+    networks:
+      - rag
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9621/health -H \"X-API-Key: $${LIGHTRAG_API_KEY}\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+# Postgres 與 Neo4j 都在既有的 rag_default 網路上，此處只接上、不建立
+networks:
+  rag:
+    external: true
+    name: rag_default

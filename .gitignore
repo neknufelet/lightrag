@@ -1,0 +1,12 @@
+# 密鑰 —— .env 內含 OpenAI key 與 MinerU token，絕不進版控
+.env
+.env.*
+!.env.example
+
+# 執行期資料（實際落在 /data，此處僅為誤建時的保險）
+data/
+rag_storage/
+inputs/
+
+*.log
+.DS_Store
