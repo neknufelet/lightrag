@@ -87,10 +87,20 @@ def main() -> int:
     ap.add_argument("--doc")
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--show", type=int, default=8)
+    ap.add_argument("--no-tiebreak", action="store_true",
+                    help="不呼叫第三隻眼睛（三方皆異直接留給人工）")
     a = ap.parse_args()
 
     out_root = DATA_ROOT / a.workspace / "postprocess" / "_equations"
     eye_a, eye_b = eyes.eyes_from_env(env)
+    # 第三隻眼睛只在「三方皆異」時才呼叫 —— 其餘 87% 的案例多數決已經解決，
+    # 對它們付費不會改變任何結論。沒設定就跳過，那些留給人工。
+    eye_c = eyes.eye_c_from_env(env) if not a.no_tiebreak else None
+    if eye_c:
+        eyes.assert_distinct([eye_a, eye_b, eye_c])
+        print(f"第三隻眼睛：{eye_c.model}（{eye_c.family} 家族）"
+              + (f"，釘住 {eye_c.provider}" if eye_c.provider else
+                 "　⚠ 未釘 provider，OpenRouter 可能路由到不同部署"))
     # 方程式的 prompt 跟表格不同（沒有列結構，而且要特別交代羅馬數字）
     eyes.vlm.PROMPT = PROMPT_EQ
 
@@ -98,6 +108,7 @@ def main() -> int:
     print(f"抽樣 {len(sample)} 條方程式（偏向數學密集文件）\n")
 
     consensus = mineru_bad = majority = threeway = errs = 0
+    tiebroken = tiebreak_err = 0
     rows = []
     for k, (dens, ctx, idx, it, bbox) in enumerate(sample, 1):
         crops = out_root / ctx.doc_name / "crops"
@@ -131,6 +142,21 @@ def main() -> int:
         elif max(s_am, s_bm) >= T_AGREE:
             majority += 1      # 兩眼吵架，MinerU 當第三票
         else:
+            # 三方皆異 —— 這時候第四票才有價值
+            if eye_c:
+                hc, ec = eyes.look(eye_c, c.png, cache)
+                if ec:
+                    tiebreak_err += 1
+                else:
+                    sims = {"A": crosscheck.eq_similar(hc, ha),
+                            "B": crosscheck.eq_similar(hc, hb),
+                            "MinerU": crosscheck.eq_similar(hc, mineru)}
+                    who, best = max(sims.items(), key=lambda kv: kv[1])
+                    if best >= T_AGREE:
+                        tiebroken += 1
+                        rows.append((f"第四票站 {who}", ctx.doc_name, idx,
+                                     it.get("page_idx"), s_ab, best, mineru, hc))
+                        continue
             threeway += 1
             rows.append(("三方皆異", ctx.doc_name, idx, it.get("page_idx"),
                          s_ab, max(s_am, s_bm), mineru, hb))
@@ -145,7 +171,11 @@ def main() -> int:
     print(f"  2 比 1        {majority}　（{majority/n:.0%}）兩眼吵架，MinerU 當第三票")
     print(f"  ── 自動解決   {auto}　（{auto/n:.0%}）")
     print(f"  MinerU 可疑   {mineru_bad}　（{mineru_bad/n:.0%}）兩眼一致但都跟它不同")
-    print(f"  三方皆異      {threeway}　（{threeway/n:.0%}）才需要第四方")
+    if eye_c:
+        print(f"  第四票解決    {tiebroken}　（{tiebroken/n:.0%}）"
+              + (f"　呼叫失敗 {tiebreak_err}" if tiebreak_err else ""))
+    print(f"  三方皆異      {threeway}　（{threeway/n:.0%}）"
+          + ("交人工" if eye_c else "才需要第四方（未設定 PP_EYE_C_*）"))
 
     for kind, doc, idx, pg, s_ab, s_m, mineru, hb in rows[:a.show]:
         print(f"\n── [{kind}] {doc[:34]} #{idx} p{pg}　兩眼 {s_ab:.2f} / 對 MinerU {s_m:.2f}")

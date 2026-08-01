@@ -34,6 +34,45 @@ class Eye:
     model: str
     reasoning: bool = False          # gpt-5 系列要 max_completion_tokens
     max_out: int = 3072
+    # OpenRouter 會把同一個模型路由到不同供應商，輸出行為因此會變。
+    # 交叉驗證的前提是「模型固定」，所以必須釘住 —— 不釘的話，兩次呼叫
+    # 可能來自不同部署，比對出來的差異分不清是模型錯還是換了後端。
+    provider: str = ""
+
+    @property
+    def family(self) -> str:
+        """訓練血統。多數決要求家族不同 —— 同家族的系統性誤讀會一起發生，
+        投票就變成一個人投三票。"""
+        m = self.model.lower()
+        for key, fam in (("gemini", "google"), ("gemma", "google"),
+                         ("claude", "anthropic"), ("gpt", "openai"),
+                         ("o1", "openai"), ("o3", "openai"), ("luna", "openai"),
+                         ("qwen", "qwen"), ("llama", "meta"), ("grok", "xai"),
+                         ("mistral", "mistral"), ("pixtral", "mistral"),
+                         ("deepseek", "deepseek")):
+            if key in m:
+                return fam
+        return m.split("/")[0]
+
+
+def eye_c_from_env(env: dict) -> Eye | None:
+    """第三隻眼睛。只在需要打破僵局時才呼叫，所以是可選的 ——
+    沒設定時流程照跑，三方皆異的項目留給人工。
+
+    走 OpenRouter：一把金鑰通吃多個家族，換模型是改設定不是寫 adapter。
+    這一點跟「綁模型的觀察會過期」那條規則直接相關（見 A-23）—— 換代成本
+    趨近於零，才有可能真的定期換。
+    """
+    model = (env.get("PP_EYE_C_MODEL") or "").strip()
+    key = (env.get("PP_EYE_C_API_KEY") or "").strip()
+    if not model or not key or key.startswith("貼在") or key in ("...", "TODO"):
+        return None
+    return Eye("eye_c",
+               env.get("PP_EYE_C_HOST", "https://openrouter.ai/api/v1"),
+               key, model,
+               reasoning=env.get("PP_EYE_C_REASONING", "false").lower() == "true",
+               max_out=int(env.get("PP_EYE_C_MAX_OUT", "3072")),
+               provider=(env.get("PP_EYE_C_PROVIDER") or "").strip())
 
 
 def eyes_from_env(env: dict) -> tuple[Eye, Eye]:
@@ -51,7 +90,21 @@ def eyes_from_env(env: dict) -> tuple[Eye, Eye]:
             max_out=int(env.get("PP_EYE_B_MAX_OUT", "6000")))
     if a.model == b.model:
         raise RuntimeError("兩雙眼睛不能是同一個模型 —— 錯誤會相關，交叉驗證失去意義")
+    if a.family == b.family:
+        raise RuntimeError(
+            f"兩雙眼睛同屬 {a.family} 家族（{a.model} / {b.model}）—— "
+            "同家族的系統性誤讀會一起發生，交叉驗證等於沒驗")
     return a, b
+
+
+def assert_distinct(eyes_: list[Eye]) -> None:
+    """多數決前的前提檢查。家族重複時投票會失真 —— 一個血統投兩票。"""
+    fams = [e.family for e in eyes_]
+    dup = {f for f in fams if fams.count(f) > 1}
+    if dup:
+        raise RuntimeError(
+            f"眼睛家族重複：{sorted(dup)}（{', '.join(e.model for e in eyes_)}）—— "
+            "多數決要求各票獨立")
 
 
 def _sha(p: Path) -> str:
@@ -80,7 +133,8 @@ def look(eye: Eye, png: Path, cache: Path) -> tuple[str, str | None]:
         return hit, None
     try:
         raw, fin = vlm.transcribe(png, eye.host, eye.api_key, eye.model,
-                                  reasoning=eye.reasoning, max_out=eye.max_out)
+                                  reasoning=eye.reasoning, max_out=eye.max_out,
+                                  provider=eye.provider)
     except Exception as e:                                    # noqa: BLE001
         return "", f"{eye.name}: {type(e).__name__}: {e}"
     if not (raw or "").strip():

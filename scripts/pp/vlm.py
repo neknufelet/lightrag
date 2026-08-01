@@ -112,7 +112,7 @@ def _lcs_len(a: list[str], b: list[str]) -> int:
 
 def transcribe(png: Path, host: str, api_key: str, model: str,
                timeout: int = 300, reasoning: bool = False,
-               max_out: int = 3072) -> tuple[str, str]:
+               max_out: int = 3072, provider: str = "") -> tuple[str, str]:
     """回傳 (原始輸出, finish_reason)。不做任何清理 —— V2 要檢查結尾。
 
     reasoning=True 給 gpt-5 系列這類推理模型：它們用 max_completion_tokens，
@@ -122,6 +122,11 @@ def transcribe(png: Path, host: str, api_key: str, model: str,
     img = base64.b64encode(png.read_bytes()).decode()
     cfg = ({"max_completion_tokens": max_out} if reasoning
            else {"temperature": 0, "max_tokens": max_out})
+    if provider:
+        # OpenRouter 專用：釘住供應商。同一個模型 ID 可能路由到不同部署，
+        # 輸出行為會變 —— 交叉驗證的前提是模型固定，不釘就分不清差異是
+        # 模型讀錯還是換了後端。非 OpenRouter 的端點會忽略這個欄位。
+        cfg["provider"] = {"order": [provider], "allow_fallbacks": False}
     body = json.dumps({
         "model": model, **cfg,
         "messages": [{"role": "user", "content": [
