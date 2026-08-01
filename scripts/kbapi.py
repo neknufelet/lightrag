@@ -21,8 +21,8 @@ LightRAG 1.5.5 的 API 只有 /query、/query/stream、/query/data 與文件管�
     GET /kb/{ws}/figures?query=&top_k=    依查詢找圖，回傳可讀檔名與 caption
     GET /kb/{ws}/images/{name}            圖片本體（雜湊名或可讀別名都吃）
     GET /kb/{ws}/search?query=&chunks=&chars=&mode=  查詢
-        chunks 預設 6、chars 預設 12000 —— **限制在這裡實作**，因為 LightRAG
-        的 top_k 不控制回傳量（實測 top_k=3 與 20 都回 20 個 chunk、55–60KB）
+        chunks 預設 6（下傳為 LightRAG 的 chunk_top_k）、chars 預設 12000
+        （字元上限，LightRAG 沒有對應參數，只能在這裡截）
     GET /health
 
 所有端點都支援 `?format=md` 回傳 Markdown（預設 json）。
@@ -277,17 +277,28 @@ class H(BaseHTTPRequestHandler):
                     return self._json({"error": "缺少 query"}, 400)
                 mode = (q.get("mode") or ["mix"])[0]
                 k = int((q.get("top_k") or ["10"])[0])
-                # LightRAG 的 top_k **不控制回傳量** —— 實測 top_k=3 與 20 都回
-                # 20 個 chunk、55–60KB，開大反而略小（內部檢索筆數變了而已）。
-                # mode 也一樣：mix/local/global/naive 都是 14,000–21,000 tokens。
-                # 也就是說呼叫端沒有任何參數擋得住，每次查詢固定吃掉一大塊 context。
-                # 所以限制必須在這裡實作，否則 skill 只能寫「不要開大」這種
-                # 做不到的建議 —— 那比沒有 guidance 更糟，agent 會以為有控制權。
+                # top_k 控制的是**圖譜檢索廣度**，不是回傳量，而且方向和直覺相反。
+                # operate.py:5230：
+                #     available_chunk_tokens = max_total_tokens
+                #         - (sys_prompt + kg_context + query + buffer)
+                # 總額固定 30,000。top_k 餵給 entities_vdb / relationships_vdb，
+                # 開大 → kg_context 變大 → 原文的預算被擠掉。實測同一個查詢：
+                #     top_k=3   實體 7   chunk 20 個 / 70,796 bytes
+                #     top_k=40  實體 98  chunk 12 個 / 41,241 bytes
+                #
+                # 真正控制片段數的是 chunk_top_k（utils.py:4842，直接切 list），
+                # 而且它切在 token 截斷之前，所以設了以後 top_k 就只剩「回幾個實體」
+                # 這一個作用 —— 實測 top_k 3/10/20/40 配 chunk_top_k=6，
+                # 拿到的 6 個 chunk 位元組數完全相同。兩個參數因此是正交的。
+                #
+                # 不用 max_total_tokens 收：它是先扣圖譜再給原文，設 8000 時
+                # 圖譜就把預算吃光，chunk 直接回 0 個而且不報錯。
                 max_chunks = int((q.get("chunks") or ["6"])[0])
                 max_chars = int((q.get("chars") or ["12000"])[0])
                 try:
                     d = lightrag("/query/data",
                                  {"query": query, "mode": mode, "top_k": k,
+                                  "chunk_top_k": max_chunks,
                                   "only_need_context": True})
                 except Exception as e:                       # noqa: BLE001
                     return self._json({"error": f"LightRAG 查詢失敗: {e}"}, 502)
@@ -309,8 +320,12 @@ class H(BaseHTTPRequestHandler):
                 out = {
                     "query": query, "mode": mode,
                     "chunks": kept,
-                    "truncated": {"chunks_available": len(raw_chunks),
+                    # chunk_top_k 下傳之後 raw_chunks 已經是被 LightRAG 切過的，
+                    # 不再是「總共有幾個」。叫 available 會讓呼叫端誤以為還有更多
+                    # 可以撈，所以改成 retrieved —— 它就是 max_chunks（或更少）。
+                    "truncated": {"chunks_retrieved": len(raw_chunks),
                                   "chunks_returned": len(kept),
+                                  "cap_chunks": max_chunks,
                                   "chars": used, "cap_chars": max_chars},
                     "entities": [e.get("entity_name") for e in (data.get("entities") or [])][:30],
                 }
@@ -318,7 +333,8 @@ class H(BaseHTTPRequestHandler):
                     f"# 查詢：{o['query']}（mode={o['mode']}）\n\n"
                     + f"相關實體：{', '.join(x for x in o['entities'] if x)}\n\n"
                     + f"_取 {o['truncated']['chunks_returned']}/"
-                      f"{o['truncated']['chunks_available']} 個片段、"
+                      f"{o['truncated']['chunks_retrieved']} 個片段"
+                      f"（上限 {o['truncated']['cap_chunks']}）、"
                       f"{o['truncated']['chars']:,} 字元_\n\n"
                     + "\n".join(f"## {c['doc']}\n\n{c['content']}\n"
                                 for c in o["chunks"]))
