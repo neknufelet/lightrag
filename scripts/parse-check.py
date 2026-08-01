@@ -16,7 +16,7 @@ MinerU 的原始輸出會快取在 inputs/<workspace>/__parsed__/<檔名>.mineru
 import argparse, collections, json, os, re, sys, time
 from pathlib import Path
 
-DEFAULT_ROOT = Path("/data/lightrag")
+DEFAULT_ROOT = Path("/data/rag/lightrag")
 
 # 掉字偵測器 —— 務必用 \b 這種非消耗性邊界；寫成兩側都是 \s 的
 # (\s[a-z]{1,2}\s){5,} 會因為前一次匹配吃掉後一次的前導空白而永遠回 0。
@@ -72,10 +72,14 @@ def check_doc(raw_dir: Path) -> dict:
 
         loc = {"i": idx, "type": t, "page": it.get("page_idx")}
 
-        clean = strip_math(body)
-        if clean and MANGLED.search(clean):
-            m = MANGLED.search(clean)
-            r["mangled"].append({**loc, "snippet": clean[max(0, m.start() - 40): m.end() + 40]})
+        # 掉字偵測只跑散文（text / header）。equation 的 text 是沒有 $ 包裹的裸 LaTeX，
+        # table_body 也整片是標記，兩者本來就長得像掉字（\mathrm { e n t r a n c e }），
+        # 在數學密集的文件上會讓每一份都變 ERROR。散文內的行內數學仍要先剝掉。
+        if t in ("text", "header"):
+            clean = strip_math(body)
+            if clean and MANGLED.search(clean):
+                m = MANGLED.search(clean)
+                r["mangled"].append({**loc, "snippet": clean[max(0, m.start() - 40): m.end() + 40]})
         if body and LEAK.search(body):
             r["洩漏"].append({**loc, "snippet": body[:120]})
 
