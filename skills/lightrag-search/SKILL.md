@@ -15,13 +15,16 @@ There is **no MCP layer**.
 - Fallback base URL: `http://florian-dker:9700`
 - Auth: none; Tailscale-only.
 
-**為什麼是 9700 而不是 LightRAG 的 9621：** 9621 需要 `X-API-Key`，而金鑰只在
+**為什麼是 9700 而不是 LightRAG 的 9621：** 9621 需要 `X-API-Key`，金鑰只在
 伺服器上的 `.env` 裡 —— skill 複製到別台機器就讀不到，會靜默變成 401。
-9700 這支服務代為保管金鑰並轉發，所以這個 skill 在**任何機器上都能直接用**，
-金鑰也不會散落在各台機器的檔案裡。
+9700 代為保管金鑰並轉發，所以這個 skill 在**任何機器上都能直接用**。
 
-（位址用 IP 而非主機名：這台機器上 `florian-dker` 解析成 127.0.1.1，
-本機的 agent 用主機名會連不到；IP 兩邊都成立。）
+**位址說明：** 兩個服務都只發佈到 Tailscale 位址（`100.87.88.7`），不綁 `0.0.0.0`。
+- 在**伺服器本機**跑的 agent：`florian-dker` 解析成 `/etc/hosts` 的 `127.0.1.1`，
+  那裡沒有服務 —— 所以主位址必須用 IP。
+- 在**其他機器**跑的 agent：`florian-dker` 是 MagicDNS，指向同一個 Tailscale IP，
+  兩者都通；fallback 在 IP 變動時仍能解析。
+
 
 ## Endpoint
 `GET /kb/{ws}/search?query=<q>&top_k=<n>&mode=<m>`

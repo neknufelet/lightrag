@@ -15,11 +15,16 @@ description: Pull the full structure of one specific document from the LightRAG 
 There is **no MCP layer**.
 
 - Primary base URL: `http://100.87.88.7:9700`
-- Fallback base URL: `http://100.87.88.7:9700`
+- Fallback base URL: `http://florian-dker:9700`
 
-（位址用 IP 而非主機名：這台機器上 `florian-dker` 解析成 127.0.1.1，本機的
-agent 用主機名會連不到；IP 兩邊都成立。9700 不需要認證，所以這個 skill
-複製到任何機器都能直接用。）
+**9700 不需要認證，所以這個 skill 複製到任何機器都能直接用。**
+
+**位址說明：** 兩個服務都只發佈到 Tailscale 位址（`100.87.88.7`），不綁 `0.0.0.0`。
+- 在**伺服器本機**跑的 agent：`florian-dker` 解析成 `/etc/hosts` 的 `127.0.1.1`，
+  那裡沒有服務 —— 所以主位址必須用 IP。
+- 在**其他機器**跑的 agent：`florian-dker` 是 MagicDNS，指向同一個 Tailscale IP，
+  兩者都通；fallback 在 IP 變動時仍能解析。
+
 - Auth: none; Tailscale-only.
 
 （9700 是 `kbapi.py`，補 LightRAG 沒有的唯讀端點。查詢仍走 9621。）
