@@ -373,8 +373,12 @@ def cmd_reindex(a, env) -> int:
     docs = api("/documents/paginated", "POST",
                {"page": 1, "page_size": 200})
     rows = docs.get("documents") or []
+    keys = [k.lower() for k in (a.doc or [])]
     want = [d for d in rows
-            if not a.doc or a.doc.lower() in (d.get("file_path") or "").lower()]
+            if not keys or any(k in (d.get("file_path") or "").lower() for k in keys)]
+    for k in keys:                       # 打錯字會靜靜地少重建一份，所以先擋下來
+        if not any(k in (d.get("file_path") or "").lower() for d in rows):
+            sys.exit(f"--doc {k!r} 對不到任何已索引文件")
     if not want:
         print("沒有符合的已索引文件")
         return 0
@@ -462,7 +466,9 @@ def main():
 
     ri = sub.add_parser("reindex", help="刪索引記錄並重新掃描，讓修補生效")
     ri.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
-    ri.add_argument("--doc", help="檔名關鍵字，預設全部")
+    ri.add_argument("--doc", action="append",
+                    help="檔名關鍵字，可重複指定；預設全部。"
+                         "只重建真正改過的那幾份，其餘的索引不必動")
     ri.add_argument("--commit", action="store_true")
 
     pr = sub.add_parser("prepare", help="新文件：解析 → 修補 → 掃描（只抽取一次）")
