@@ -179,9 +179,57 @@ def main() -> int:
         print(f"\n⚠ {miss} 個實體的來源 chunk 在資料庫裡找不到 —— 那是參照斷裂，比未接地嚴重")
 
     if ungrounded:
-        print(f"\n── 未接地的實體（前 {a.list_ungrounded} 個，這些是要看的）──")
+        print(f"\n── 對不到原文的實體（前 {a.list_ungrounded} 個，這些是要看的）──")
         for doc, name in ungrounded[:a.list_ungrounded]:
             print(f"  {doc[:34]:<36} {name[:60]}")
+
+    # ── 關係 ──────────────────────────────────────────────
+    rtab = etab.replace("_vdb_entity_", "_vdb_relation_")
+    rels = psql(f"""
+        select source_id, target_id, chunk_ids, coalesce(file_path,'') as file_path
+        from {rtab} where chunk_ids is not null
+    """, env)
+    if rels:
+        rstat = {"total": 0, "ok": 0, "one_side": 0, "neither": 0, "symbolic": 0}
+        bad_rel: list[tuple[str, str, str]] = []
+        for r in rels:
+            doc = ((r["file_path"] or "").split("<SEP>")[0]).strip() or "?"
+            if a.doc and a.doc.lower() not in doc.lower():
+                continue
+            rstat["total"] += 1
+            texts = [chunks.get(c, "") for c in (r["chunk_ids"] or []) if c]
+            texts = [t for t in texts if t]
+            if not texts:
+                continue
+            src, tgt = r["source_id"] or "", r["target_id"] or ""
+            # 兩端都要在同一段原文裡找得到。關係說「A 和 B 有關聯」，
+            # 那段原文至少要同時提到 A 和 B —— 只提到一邊的是模型跨段腦補，
+            # 兩邊都沒有的是憑空捏造。
+            hit = max((grounded(src, t), grounded(tgt, t)).count(True) for t in texts)
+            if hit == 2:
+                rstat["ok"] += 1
+            elif all(is_symbolic(t) for t in texts):
+                rstat["symbolic"] += 1
+            elif hit == 1:
+                rstat["one_side"] += 1
+                bad_rel.append((doc, src, tgt))
+            else:
+                rstat["neither"] += 1
+                bad_rel.append((doc, src, tgt))
+
+        n = rstat["total"]
+        judged = rstat["ok"] + rstat["one_side"] + rstat["neither"]
+        print(f"\n{'='*82}\n關係：共 {n:,} 條")
+        print(f"  兩端都對得到原文    {rstat['ok']:,}")
+        print(f"  符號型（驗不了）    {rstat['symbolic']:,}")
+        print(f"  只有一端對得到      {rstat['one_side']:,}"
+              f"　（{rstat['one_side']/max(judged,1):.1%}）← 跨段腦補")
+        print(f"  兩端都對不到        {rstat['neither']:,}"
+              f"　（{rstat['neither']/max(judged,1):.1%}）← 最可疑")
+        if bad_rel:
+            print(f"\n── 可疑的關係（前 {a.list_ungrounded} 條）──")
+            for doc, src, tgt in bad_rel[:a.list_ungrounded]:
+                print(f"  {doc[:26]:<28} {src[:26]:<28} → {tgt[:24]}")
 
     return 2 if bad_docs else 0
 
