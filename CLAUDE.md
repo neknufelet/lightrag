@@ -30,6 +30,7 @@ LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來�
 ## 常用指令
 
 ```bash
+python3 scripts/parse-only.py                     # 只解析不抽取（規則建立期用這個）
 python3 scripts/postprocess.py plan               # 只讀,算出打算改什麼
 python3 scripts/postprocess.py plan --details --doc <關鍵字>
 python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
@@ -68,7 +69,7 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 ## 現況
 
 ```
-文件      7 份已納入基準（2 論文、5 教科書章節,其中 4 份與 C 同一本書）
+文件      15 份已納入基準（5 論文、9 教科書章節/5 本不同的書、1 份補充材料）
 索引      C Equivalent Networks 148 chunks / 1,135 entities / 1,812 relations
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
@@ -117,11 +118,15 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
 ## 已知待辦
 
 - **W7 `apply.py`** —— 第一個真的寫檔的步驟(消音 + 表格修補 + 更新 manifest)。
-  383 項消音已有 7 份文件證據,比表格修補成熟。
+  452 項消音已有 15 份文件證據,比表格修補成熟得多。
 - **`chart` → `image`** —— 目前論文的圖表對索引貢獻為零(`content` 是空字串,
   fallback 不 append)。改寫型別即可走 `_build_ir_drawing`,不必改 LightRAG。
 - **`Empty entity name found after sanitization`** —— C 這份 250 次,未解。
-- 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。
+- 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,
+  命中率約 1/15 —— 要湊樣本得再抽十幾份。
+- **首頁的期刊/會議資訊**(`Paper ID #8776`、`©American Society...`)只出現一次、
+  只在第 0 頁,重複與樣板規則都抓不到,目前留在待查。要處理需要新的訊號
+  （限第 0 頁 + 版權/會議標記），但只有 1 份文件的證據,先不動。
 
 ## 兩雙眼睛:為什麼要兩個
 
