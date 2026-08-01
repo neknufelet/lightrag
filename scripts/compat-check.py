@@ -213,6 +213,29 @@ class Checker:
                 "常見原因：維度 > 2000 而未設 POSTGRES_VECTOR_INDEX_TYPE=HNSW_HALFVEC，"
                 "建索引失敗只在啟動日誌留一行 ERROR，服務照樣 healthy"), {"tables": rows}
 
+        @self.check("A-23", "hard", "綁模型的觀察仍對應現行模型")
+        def _():
+            """模型換代時，綁模型的觀察會靜默失效 —— 規則還在，前提沒了。
+
+            實測記錄的「eye_b 會看錯字元、eye_a 會切錯結構」這類觀察，換一個
+            模型就可能完全相反。這條斷言不判斷觀察對不對，只確認**它是對現在
+            這組模型量的**。不一致就 FAIL，逼人重新量測。
+            """
+            f = REPO / "tests" / "model-observations.json"
+            if not f.is_file():
+                return False, f"缺少 {f.name}", {}
+            rec = json.loads(f.read_text())
+            want_a, want_b = rec.get("eye_a"), rec.get("eye_b")
+            env = _load_env()
+            got_a = env.get("LLM_MODEL")
+            got_b = env.get("PP_EYE_B_MODEL", "gpt-5.6-luna")
+            ok = (want_a == got_a) and (want_b == got_b)
+            msg = (f"量測於 {rec.get('measured_on')}：{want_a} + {want_b}"
+                   if ok else
+                   f"觀察量測於 {want_a} + {want_b}，但現行是 {got_a} + {got_b} —— "
+                   f"綁模型的觀察已失效，重新量測後更新 {f.name}")
+            return ok, msg, {}
+
         @self.check("A-21", "info", "MinerU token 到期日")
         def _():
             import base64
