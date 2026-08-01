@@ -11,7 +11,12 @@
 
 services:
   lightrag:
-    image: ghcr.io/hkuds/lightrag:v1.5.5
+    # 用 digest 而非 tag 釘死。標籤是可以被重推的 —— 作者修完 bug 常用同一個 v1.5.5
+    # 再推一次，於是 compose 一個字沒改、拉到的卻是不同映像。我們整套後處理都建立在
+    # 「LightRAG 如何讀寫 __parsed__ 底下的檔案」這些假設上，環境默默變動會讓假設失效
+    # 而無人察覺。釘 digest 後升級變成一個明確的動作（改這一行），而非某次重啟的副作用。
+    # 對應 v1.5.5。升級時用 docker image inspect --format '{{.RepoDigests}}' 取新值。
+    image: ghcr.io/hkuds/lightrag@sha256:206579ab1a2bc1f2b5f19fe97c01cb801ff409e6ae29a15542f82208a285640a
     container_name: lightrag-${WORKSPACE}
     restart: unless-stopped
 
@@ -23,11 +28,11 @@ services:
 
     volumes:
       # 執行期資料放 /data 的獨立 NVMe，不進 repo
-      - ${DATA_ROOT:-/data/lightrag}/${WORKSPACE}/rag_storage:/app/data/rag_storage
+      - ${DATA_ROOT:-/data/rag/lightrag}/${WORKSPACE}/rag_storage:/app/data/rag_storage
       # inputs 必須可寫 —— LightRAG 啟動時會在其下建立 ${WORKSPACE} 子目錄。
       # 因此不直接掛既有語料目錄（/data/rag/knowledge_bases/*/raw），避免它寫進語料來源；
       # 改用專屬目錄，檔案經 WebUI／API 上傳，或見 README 的批次匯入。
-      - ${INPUTS_DIR:-${DATA_ROOT:-/data/lightrag}/${WORKSPACE}/inputs}:/app/data/inputs
+      - ${INPUTS_DIR:-${DATA_ROOT:-/data/rag/lightrag}/${WORKSPACE}/inputs}:/app/data/inputs
 
     networks:
       - rag

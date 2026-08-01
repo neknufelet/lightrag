@@ -76,9 +76,21 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 | 用途 | 位置 |
 |---|---|
 | 設定（版控） | 本 repo |
-| rag_storage | `/data/lightrag/${WORKSPACE}/rag_storage` |
-| 待匯入文件 | `/data/lightrag/${WORKSPACE}/inputs/${WORKSPACE}/` ← 注意多一層 |
+| rag_storage | `/data/rag/lightrag/${WORKSPACE}/rag_storage` |
+| 待匯入文件 | `/data/rag/lightrag/${WORKSPACE}/inputs/${WORKSPACE}/` ← 注意多一層 |
+| MinerU 解析快取 | `.../inputs/${WORKSPACE}/__parsed__/` ← 貴，務必納入備份 |
+| 過程紀錄 | `/data/rag/lightrag/${WORKSPACE}/records/` |
 | 語料來源 | `/data/rag/knowledge_bases/*/raw`（不掛進容器） |
+
+執行期資料刻意全部放在 `/data/rag` 底下，因為該路徑已納入 restic 備份 —— Postgres
+（`/data/rag/postgres_data`）與 Neo4j（`/data/rag/neo4j_data`）也在其中。解析快取尤其
+不能掉：390 份重新解析要 6–10 小時的 MinerU 呼叫。
+
+### 映像用 digest 釘死
+
+`compose.yaml` 指定的是 `@sha256:...` 而非 `:v1.5.5`。標籤可被重推，同一行指令在不同
+時間可能拉到不同映像；而後處理腳本全都建立在「LightRAG 如何讀寫 `__parsed__`」這些
+假設上，環境默默變動會讓假設失效卻無人察覺。釘 digest 讓升級變成明確的動作。
 
 語料 390 個 PDF、約 2.0 GB，留在 `/data` 的獨立 NVMe，不進 repo。
 
