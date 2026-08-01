@@ -30,6 +30,16 @@ MATH = re.compile(r"\$[^$]*\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
 def strip_math(t: str) -> str:
     return MATH.sub(" ", t or "")
 
+
+# 判斷表格是否真的有內容時必須剝掉標籤 —— MinerU 會產出 <table><tr><td></td></tr></table>
+# 這種空殼，字串非空但內容為零。只用 .strip() 判斷會把它算成有內容（實測 pipeline 在
+# C Equivalent Networks 上漏掉 1 張）。<img> 參照也不算內容，那只是指向圖片檔。
+TAG = re.compile(r"<[^>]+>")
+
+
+def table_text(body: str) -> str:
+    return TAG.sub("", body or "").strip()
+
 # 這些 prompt 範例字串若出現在正文，代表模型把提示詞當成內容（1.5.5 上游已移除，留著防退化）
 LEAK = re.compile(r"Noah Carter|World Athletics|Carbon-Fiber Spikes|100m Sprint|Knowledge Graph Specialist", re.I)
 
@@ -71,7 +81,7 @@ def check_doc(raw_dir: Path) -> dict:
 
         if t in ("text", "header") and not body.strip():
             r["空文字"].append(loc)
-        elif t == "table" and not (it.get("table_body") or "").strip():
+        elif t == "table" and not table_text(it.get("table_body")):
             r["空表格"].append(loc)
         elif t == "equation" and not (it.get("text") or "").strip():
             r["空公式"].append(loc)
