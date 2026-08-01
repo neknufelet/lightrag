@@ -88,7 +88,8 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 文件      20 份已完成「解析 → 修補 → 重新索引」全流程（processed 20/20、failed 0）
 服務      lightrag :9621 查詢　kbapi :9700 圖片與單篇結構（唯讀）
 skills    lightrag-search / fetch / images —— 全走 :9700，不需認證，任何機器可用
-索引      20 份共 6,911 實體 / 7,766+ 關係
+索引      20 份共 7,211 實體、512 chunk、可疑率 3.2%
+圖        image 371（含 chart 轉入的 184）；chunk 裡以 <drawing caption=… path=…/> 出現
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
 兩雙眼睛  qwen3.6-35b-a3b(本機) + gpt-5.6-luna(雲端,$0.20/$1.20 per 1M)
