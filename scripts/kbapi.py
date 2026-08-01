@@ -23,6 +23,14 @@ LightRAG 1.5.5 的 API 只有 /query、/query/stream、/query/data 與文件管�
     GET /kb/{ws}/search?query=&top_k=&mode=  查詢（代轉 LightRAG，金鑰由本服務保管）
     GET /health
 
+所有端點都支援 `?format=md` 回傳 Markdown（預設 json）。
+
+**md 是給 agent 用的預設選擇。** 回 JSON 的話 skill 必須寫成
+`curl -o /tmp/x.json` 再 `jq` 解析 —— 而 `/tmp` 在 PowerShell 不存在
+（Git Bash 會映射到 LOCALAPPDATA 的 Temp，PowerShell 直接失敗），
+`jq` 在 Windows 也要另外裝。回 Markdown 就只需要 `curl -s <url>`，
+Linux／macOS／Git Bash／PowerShell 四種環境的指令完全一樣。
+
 用法：
     kbapi.py --port 9700
 """
@@ -179,12 +187,25 @@ class H(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj, ensure_ascii=False).encode(),
                    "application/json; charset=utf-8")
 
+    def _md(self, text: str, code=200):
+        self._send(code, text.encode(), "text/markdown; charset=utf-8")
+
+    def _out(self, obj, fmt: str, render, code=200):
+        """format=md 時走 render()，否則回 JSON。錯誤一律用純文字，
+        免得 agent 還要判斷型別。"""
+        if fmt == "md":
+            if isinstance(obj, dict) and "error" in obj:
+                return self._md(f"錯誤：{obj['error']}\n", code)
+            return self._md(render(obj), code)
+        return self._json(obj, code)
+
     def log_message(self, fmt, *a):                          # 安靜一點
         sys.stderr.write("  %s\n" % (fmt % a))
 
     def do_GET(self):                                        # noqa: N802
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
+        fmt = (q.get("format") or ["json"])[0].lower()
         parts = [urllib.parse.unquote(p) for p in u.path.strip("/").split("/")]
 
         if parts == ["health"]:
@@ -203,10 +224,38 @@ class H(BaseHTTPRequestHandler):
                     name = raw.name.removesuffix(".mineru_raw")
                     docs.append({"doc": name,
                                  "figures": len(_index(ws, name)["by_hash"])})
-                return self._json({"workspace": ws, "documents": docs})
+                return self._out(
+                    {"workspace": ws, "documents": docs}, fmt,
+                    lambda o: f"# {o['workspace']}：{len(o['documents'])} 份文件\n\n"
+                    + "\n".join(f"- {d['doc']}　（{d['figures']} 張圖）"
+                                 for d in o["documents"]) + "\n")
 
             if kind == "doc" and rest:
-                return self._json(doc_summary(ws, rest))
+                def _doc_md(o):
+                    L = [f"# {o['doc']}", "",
+                         f"{o['items']} 個項目｜表格 {len(o['tables'])}｜"
+                         f"方程式 {len(o['equations'])}｜圖 {len(o['figures'])}", ""]
+                    if o["headings"]:
+                        L += ["## 章節", ""] + [f"- p{h['page']}　{h['text']}"
+                                                for h in o["headings"]] + [""]
+                    if o["tables"]:
+                        L += ["## 表格", ""]
+                        for t in o["tables"]:
+                            mark = "（已修補）" if t["repaired"] else ""
+                            L.append(f"- #{t['index']} p{t['page']}{mark}　{t['caption']}")
+                        L.append("")
+                    if o["equations"]:
+                        L += ["## 方程式", ""]
+                        for e in o["equations"]:
+                            L.append(f"- p{e['page']} #{e['index']}　`{e['latex']}`")
+                        L.append("")
+                    if o["figures"]:
+                        L += ["## 圖片", ""]
+                        for f in o["figures"]:
+                            L.append(f"- `{f['alias']}`　p{f['page']}"
+                                     + (f"　{f['caption']}" if f["caption"] else ""))
+                    return "\n".join(L) + "\n"
+                return self._out(doc_summary(ws, rest), fmt, _doc_md)
 
             if kind == "images" and rest:
                 p = find_image(ws, rest)
@@ -235,13 +284,18 @@ class H(BaseHTTPRequestHandler):
                 data = d.get("data") or {}
                 # 只回 agent 用得到的欄位。原始回應還有 entities/relationships，
                 # 但那些對「拿原文自己整合」的用法是雜訊，會擠掉 context。
-                return self._json({
+                out = {
                     "query": query, "mode": mode,
                     "chunks": [{"doc": Path(c.get("file_path") or "").name,
                                 "content": c.get("content") or ""}
                                for c in (data.get("chunks") or [])],
                     "entities": [e.get("entity_name") for e in (data.get("entities") or [])][:30],
-                })
+                }
+                return self._out(out, fmt, lambda o:
+                    f"# 查詢：{o['query']}（mode={o['mode']}）\n\n"
+                    + f"相關實體：{', '.join(x for x in o['entities'] if x)}\n\n"
+                    + "\n".join(f"## {c['doc']}\n\n{c['content']}\n"
+                                for c in o["chunks"]))
 
             if kind == "figures":
                 query = (q.get("query") or [""])[0]
@@ -271,8 +325,14 @@ class H(BaseHTTPRequestHandler):
                         # content_list 的原始欄位乾淨，優先採用
                         figs.append({**rec, "doc": doc,
                                      "caption": cap.strip() or rec["caption"]})
-                return self._json({"query": query, "figures": figs[:k],
-                                   "hint": "用 /kb/{ws}/images/{alias} 下載"})
+                return self._out(
+                    {"query": query, "figures": figs[:k], "workspace": ws}, fmt,
+                    lambda o: f"# 找到 {len(o['figures'])} 張圖\n\n"
+                    + "\n".join(
+                        f"- `{f['alias']}`　{f['doc']}　p{f['page']}"
+                        + (f"\n  caption: {f['caption']}" if f["caption"] else "")
+                        for f in o["figures"])
+                    + f"\n\n下載：`/kb/{o['workspace']}/images/<alias>`\n")
 
         self._json({"error": "unknown path",
                     "paths": ["/health", "/kb/{ws}/docs", "/kb/{ws}/doc/{name}",

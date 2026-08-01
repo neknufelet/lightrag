@@ -35,11 +35,23 @@ curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v155/search" \
   --data-urlencode "query=<問題>" \
   --data-urlencode "top_k=10" \
   --data-urlencode "mode=mix" \
-  -o /tmp/lr_search.json
-
-jq -r '.chunks[] | "[\(.doc)]\n\(.content[0:500])\n"' /tmp/lr_search.json
-jq -r '.entities | join(", ")' /tmp/lr_search.json
+  --data-urlencode "format=md"
 ```
+
+輸出直接就是 Markdown：標題是查詢、接著相關實體、再來每個 chunk 一節（標題是來源文件）。
+不需要暫存檔，也不需要 `jq`。
+
+## 跨平台：不要用暫存檔、不要用 jq
+所有端點加 `&format=md` 就直接回 Markdown，**指令在四種環境完全一樣**：
+
+| 環境 | `/tmp` | `jq` |
+|---|---|---|
+| Linux / macOS | 有 | 通常要裝 |
+| Git Bash (Windows) | 映射到 LOCALAPPDATA 的 Temp | 要裝 |
+| **PowerShell** | **不存在，`-o /tmp/x.json` 直接失敗** | 要裝 |
+
+所以一律用 `curl -s <url>` 讀 stdout，不要 `-o /tmp/...`、不要接 `jq`。
+
 
 ### mode 怎麼選
 | mode | 適用 |

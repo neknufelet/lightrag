@@ -45,12 +45,24 @@ k-muffler-acoustics-p16-75.jpg
 ```bash
 curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v155/figures" \
   --data-urlencode "query=<主題>" --data-urlencode "top_k=10" \
-  -o /tmp/lr_figs.json
-
-jq -r '.figures[] | "\(.alias)\t p\(.page)\t \(.doc)\t \(.caption)"' /tmp/lr_figs.json
+  --data-urlencode "format=md"
 ```
 
-若某篇的圖要全拿，改用 `doc` 端點的 `.figures[]`。
+回傳每張圖一行：`` `別名` 　文件　p頁碼 `` ＋ caption。直接讀 stdout，不用暫存檔也不用 jq。
+
+若某篇的圖要全拿，改用 `doc?format=md` 的「圖片」那一節。
+
+## 跨平台：不要用暫存檔、不要用 jq
+所有端點加 `&format=md` 就直接回 Markdown，**指令在四種環境完全一樣**：
+
+| 環境 | `/tmp` | `jq` |
+|---|---|---|
+| Linux / macOS | 有 | 通常要裝 |
+| Git Bash (Windows) | 映射到 LOCALAPPDATA 的 Temp | 要裝 |
+| **PowerShell** | **不存在，`-o /tmp/x.json` 直接失敗** | 要裝 |
+
+所以一律用 `curl -s <url>` 讀 stdout，不要 `-o /tmp/...`、不要接 `jq`。
+
 
 ### 2. 下載進 vault
 在 vault 內操作時用 vault 相對路徑。

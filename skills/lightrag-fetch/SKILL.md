@@ -34,16 +34,26 @@ workspace 目前是 `acoustics_v155`。
 
 ```bash
 # 1. 先看有哪些文件
-curl -s -m 30 "http://100.87.88.7:9700/kb/acoustics_v155/docs" | jq -r '.documents[].doc'
+curl -s -m 30 "http://100.87.88.7:9700/kb/acoustics_v155/docs?format=md"
 
-# 2. 取某一篇（檔名要 URL encode）
+# 2. 取某一篇（檔名有空格，用 -G --data-urlencode 讓 curl 自己編碼）
 curl -s -m 60 -G "http://100.87.88.7:9700/kb/acoustics_v155/doc/C Equivalent Networks.pdf" \
-  --data-urlencode "" -o /tmp/lr_doc.json
-
-jq '{doc, items, tables: (.tables|length), equations: (.equations|length), figures: (.figures|length)}' /tmp/lr_doc.json
-jq -r '.headings[] | "p\(.page)  \(.text)"' /tmp/lr_doc.json
-jq -r '.equations[] | "p\(.page) #\(.index)  \(.latex)"' /tmp/lr_doc.json
+  --data-urlencode "format=md"
 ```
+
+回傳的 Markdown 分四節：章節、表格（標「已修補」）、方程式、圖片（別名 + caption）。
+
+## 跨平台：不要用暫存檔、不要用 jq
+所有端點加 `&format=md` 就直接回 Markdown，**指令在四種環境完全一樣**：
+
+| 環境 | `/tmp` | `jq` |
+|---|---|---|
+| Linux / macOS | 有 | 通常要裝 |
+| Git Bash (Windows) | 映射到 LOCALAPPDATA 的 Temp | 要裝 |
+| **PowerShell** | **不存在，`-o /tmp/x.json` 直接失敗** | 要裝 |
+
+所以一律用 `curl -s <url>` 讀 stdout，不要 `-o /tmp/...`、不要接 `jq`。
+
 
 ## 回傳裡的品質欄位
 - `tables[].repaired: true` — 這張表是空的、已由雙模型交叉驗證後補上。可信度較高。
