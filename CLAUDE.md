@@ -76,7 +76,9 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 ## 現況
 
 ```
-文件      20 份已納入基準並完成抽取（processed 20/20、failed 0）
+文件      20 份已完成「解析 → 修補 → 重新索引」全流程（processed 20/20、failed 0）
+服務      lightrag :9621 查詢　kbapi :9700 圖片與單篇結構（唯讀）
+skills    lightrag-search / fetch / images —— 全走 :9700，不需認證，任何機器可用
 索引      20 份共 6,911 實體 / 7,766+ 關係
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
