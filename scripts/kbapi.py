@@ -20,7 +20,9 @@ LightRAG 1.5.5 的 API 只有 /query、/query/stream、/query/data 與文件管�
     GET /kb/{ws}/doc/{name}               單篇：章節、表格、方程式、圖片
     GET /kb/{ws}/figures?query=&top_k=    依查詢找圖，回傳可讀檔名與 caption
     GET /kb/{ws}/images/{name}            圖片本體（雜湊名或可讀別名都吃）
-    GET /kb/{ws}/search?query=&top_k=&mode=  查詢（代轉 LightRAG，金鑰由本服務保管）
+    GET /kb/{ws}/search?query=&chunks=&chars=&mode=  查詢
+        chunks 預設 6、chars 預設 12000 —— **限制在這裡實作**，因為 LightRAG
+        的 top_k 不控制回傳量（實測 top_k=3 與 20 都回 20 個 chunk、55–60KB）
     GET /health
 
 所有端點都支援 `?format=md` 回傳 Markdown（預設 json）。
@@ -275,6 +277,14 @@ class H(BaseHTTPRequestHandler):
                     return self._json({"error": "缺少 query"}, 400)
                 mode = (q.get("mode") or ["mix"])[0]
                 k = int((q.get("top_k") or ["10"])[0])
+                # LightRAG 的 top_k **不控制回傳量** —— 實測 top_k=3 與 20 都回
+                # 20 個 chunk、55–60KB，開大反而略小（內部檢索筆數變了而已）。
+                # mode 也一樣：mix/local/global/naive 都是 14,000–21,000 tokens。
+                # 也就是說呼叫端沒有任何參數擋得住，每次查詢固定吃掉一大塊 context。
+                # 所以限制必須在這裡實作，否則 skill 只能寫「不要開大」這種
+                # 做不到的建議 —— 那比沒有 guidance 更糟，agent 會以為有控制權。
+                max_chunks = int((q.get("chunks") or ["6"])[0])
+                max_chars = int((q.get("chars") or ["12000"])[0])
                 try:
                     d = lightrag("/query/data",
                                  {"query": query, "mode": mode, "top_k": k,
@@ -284,16 +294,32 @@ class H(BaseHTTPRequestHandler):
                 data = d.get("data") or {}
                 # 只回 agent 用得到的欄位。原始回應還有 entities/relationships，
                 # 但那些對「拿原文自己整合」的用法是雜訊，會擠掉 context。
+                raw_chunks = data.get("chunks") or []
+                kept, used = [], 0
+                for c in raw_chunks[:max_chunks]:
+                    body = c.get("content") or ""
+                    room = max_chars - used
+                    if room <= 0:
+                        break
+                    if len(body) > room:
+                        body = body[:room] + "\n…（截斷）"
+                    used += len(body)
+                    kept.append({"doc": Path(c.get("file_path") or "").name,
+                                 "content": body})
                 out = {
                     "query": query, "mode": mode,
-                    "chunks": [{"doc": Path(c.get("file_path") or "").name,
-                                "content": c.get("content") or ""}
-                               for c in (data.get("chunks") or [])],
+                    "chunks": kept,
+                    "truncated": {"chunks_available": len(raw_chunks),
+                                  "chunks_returned": len(kept),
+                                  "chars": used, "cap_chars": max_chars},
                     "entities": [e.get("entity_name") for e in (data.get("entities") or [])][:30],
                 }
                 return self._out(out, fmt, lambda o:
                     f"# 查詢：{o['query']}（mode={o['mode']}）\n\n"
                     + f"相關實體：{', '.join(x for x in o['entities'] if x)}\n\n"
+                    + f"_取 {o['truncated']['chunks_returned']}/"
+                      f"{o['truncated']['chunks_available']} 個片段、"
+                      f"{o['truncated']['chars']:,} 字元_\n\n"
                     + "\n".join(f"## {c['doc']}\n\n{c['content']}\n"
                                 for c in o["chunks"]))
 

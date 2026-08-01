@@ -27,7 +27,7 @@ There is **no MCP layer**.
 
 
 ## Endpoint
-`GET /kb/{ws}/search?query=<q>&top_k=<n>&mode=<m>`
+`GET /kb/{ws}/search?query=<q>&chunks=<n>&chars=<n>&mode=<m>&format=md`
 
 workspace 目前是 `acoustics_v155`。
 
@@ -36,8 +36,8 @@ workspace 目前是 `acoustics_v155`。
 ```bash
 curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v155/search" \
   --data-urlencode "query=<問題>" \
-  --data-urlencode "top_k=10" \
-  --data-urlencode "mode=mix" \
+  --data-urlencode "chunks=6" \
+  --data-urlencode "chars=12000" \
   --data-urlencode "format=md"
 ```
 
@@ -56,15 +56,35 @@ curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v155/search" \
 所以一律用 `curl -s <url>` 讀 stdout，不要 `-o /tmp/...`、不要接 `jq`。
 
 
-### mode 怎麼選
+### 控制回傳量：用 `chunks` 與 `chars`，不要用 `top_k`
+
+| 參數 | 預設 | 作用 |
+|---|---|---|
+| `chunks` | 6 | 最多回幾個片段 |
+| `chars` | 12000 | 總字元上限，超過就截斷 |
+
+**`top_k` 不控制回傳量。** 實測（同一個查詢）：
+
+```
+top_k=3   → 20 個 chunk、60,487 bytes
+top_k=10  → 20 個 chunk、57,767 bytes
+top_k=20  → 18 個 chunk、54,854 bytes
+```
+
+開大反而略小 —— 它只影響 LightRAG 內部檢索幾筆，不決定吐多少出來。
+`mode` 同樣沒有節流效果（mix/local/global/naive 都是 14,000–21,000 tokens）。
+
+所以**限制是由 :9700 這支服務實作的**，不是 LightRAG 給的。
+一次搜尋預設約 3,000–4,000 tokens；答案不足時把 `chunks` 提到 12、
+`chars` 提到 24000 再試一次。
+
+### mode 怎麼選（影響檢索策略，不影響量）
 | mode | 適用 |
 |---|---|
 | `mix` | 預設。向量 + 圖譜，最穩 |
 | `local` | 問某個具體概念的細節 |
 | `global` | 跨文件的關聯、比較、綜述 |
 | `naive` | 只要關鍵字命中的原文，不要圖譜 |
-
-`top_k` 預設 10。不夠再提到 20 重試**一次**，不要一開始就開大 —— context 會被灌爆。
 
 ## 這個 KB 的已知限制（回答時要考慮）
 - **羅馬數字下標 I / II / III 常被誤讀**成 `||`、`l`、`1`、`H`。四個獨立的檢查都指向這一點。看到區域下標時要存疑。
