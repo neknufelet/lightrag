@@ -117,6 +117,47 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
 `domain_facts` 那一節是例外 —— 那些是文件的性質(羅馬數字下標難讀、
 跨頁續表詞彙重疊、文字層表示不了數學),換模型仍然成立,可以累積。
 
+## LightRAG 升級時怎麼辦
+
+**我們沒有改過 LightRAG 一行程式碼。** 後處理改的是磁碟上的 `content_list.json`
+與 `_manifest.json`，耦合的對象是「LightRAG 如何讀寫 `__parsed__`」這組**未言明的
+契約**，不是它的原始碼。所以升級不會有 patch 衝突，但契約可能悄悄改變。
+
+設定全部在**容器外**：
+
+| 在哪 | 內容 | 版控 |
+|---|---|---|
+| `.env` | 實際值（含金鑰） | ❌ gitignore，chmod 600 |
+| `.env.example` | 每個鍵 + **為什麼設這個值** | ✅ |
+| `compose.yaml` | 映像以 digest 釘選 | ✅ |
+
+`.env.example` 才是真正的文件 —— 它記的不是「有這個鍵」，而是「為什麼是這個值」，
+例如 `MAX_ASYNC=2` 底下寫著 llama.cpp 只有 1 個 slot、4 個並行會排隊撞逾時。
+換機器或換人接手時看那個檔就夠。
+
+**升級的步驟：**
+
+```bash
+# 1. 先記下現況
+python3 scripts/compat-check.py --json > /tmp/before.json
+python3 scripts/postprocess.py canary          # 應為綠
+
+# 2. 改 compose.yaml 的 digest，重建
+
+# 3. 契約有沒有變 —— 這是關鍵
+python3 scripts/compat-check.py                # 13 項斷言
+python3 scripts/postprocess.py canary          # 規則行為有沒有漂移
+python3 scripts/parse-check.py                 # 解析品質
+python3 scripts/extract-check.py               # 抽取品質
+```
+
+`compat-check.py` 就是為升級寫的 —— 它把「後處理依賴的假設」變成可執行的斷言。
+文件會過期，斷言不會。任何一項 hard 失敗就**不要動工**，先查契約哪裡變了。
+
+已知的契約點（都有對應斷言）：`critical_file` 是 `content_list.json` 且驗
+size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列索引、
+`page_number` 被跳過而 `header`/`footer` 走 fallback 進索引。
+
 ## 已知待辦
 
 - **W7 `apply.py`** —— 第一個真的寫檔的步驟(消音 + 表格修補 + 更新 manifest)。

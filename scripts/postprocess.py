@@ -272,6 +272,68 @@ def cmd_apply(a, env) -> int:
     return rc
 
 
+def cmd_reindex(a, env) -> int:
+    """讓修補進索引。
+
+    修補**不會自動生效**：已索引的文件在 /scan 時會被 _archive + continue
+    直接跳過，parse() 根本不會被呼叫。「解析完、建 IR 前」這個插入時間窗
+    在程式上不存在。唯一的辦法是刪掉文件記錄再重新掃描。
+
+    刪除時 delete_file=false（PDF 留著）、delete_llm_cache=false（抽取快取
+    留著）。快取留著的話，沒改到的 chunk 會直接命中，重抽只跑真正變動的部分。
+    解析快取（.mineru_raw）也還在且已通過 is_bundle_valid，所以不會再向
+    MinerU 付費重抓。
+    """
+    import urllib.request
+
+    host = f"http://{env.get('BIND_ADDR','127.0.0.1')}:{env.get('HOST_PORT','9621')}"
+    key = env.get("LIGHTRAG_API_KEY", "")
+
+    def api(path, method="GET", body=None):
+        req = urllib.request.Request(
+            host + path, method=method,
+            data=json.dumps(body).encode() if body is not None else None,
+            headers={"X-API-Key": key, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            return json.loads(r.read() or "{}")
+
+    docs = api("/documents/paginated", "POST",
+               {"page": 1, "page_size": 200})
+    rows = docs.get("documents") or []
+    want = [d for d in rows
+            if not a.doc or a.doc.lower() in (d.get("file_path") or "").lower()]
+    if not want:
+        print("沒有符合的已索引文件")
+        return 0
+
+    print(f"將刪除索引並重新掃描 {len(want)} 份：")
+    for d in want:
+        print(f"  {(d.get('file_path') or '?')[:60]}  [{d.get('status')}]")
+    if not a.commit:
+        print("\n（dry-run。加 --commit 才會真的執行）")
+        return 0
+
+    ids = [d["id"] for d in want]
+    print(f"\n刪除索引記錄…（保留 PDF 與 LLM 快取）")
+    print(" ", json.dumps(api("/documents/delete_document", "DELETE",
+                              {"doc_ids": ids, "delete_file": False,
+                               "delete_llm_cache": False}), ensure_ascii=False)[:200])
+    # 刪除是背景執行的，而且會讓 pipeline 進入忙碌狀態 —— 立刻掃描會被
+    # scanning_skipped_pipeline_busy 擋掉，然後修補靜靜地沒有生效。等它閒下來。
+    import time as _t
+    for _ in range(120):
+        if not api("/health").get("pipeline_busy"):
+            break
+        _t.sleep(5)
+    else:
+        print("  ⚠ 等了 10 分鐘 pipeline 仍忙碌，請稍後自行觸發 /documents/scan")
+        return 2
+    print("觸發重新掃描…")
+    print(" ", json.dumps(api("/documents/scan", "POST"), ensure_ascii=False)[:200])
+    print("\n解析快取仍有效，不會重新向 MinerU 付費；抽取快取命中的 chunk 會直接跳過。")
+    return 0
+
+
 def cmd_revert(a, env) -> int:
     from pp import apply as ap_mod
     from pp.oracle import Oracle
@@ -310,6 +372,11 @@ def main():
     ap2.add_argument("--no-tables", action="store_true", help="只做消音，不碰表格")
     ap2.add_argument("--workers", type=int, default=3)
 
+    ri = sub.add_parser("reindex", help="刪索引記錄並重新掃描，讓修補生效")
+    ri.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    ri.add_argument("--doc", help="檔名關鍵字，預設全部")
+    ri.add_argument("--commit", action="store_true")
+
     rv = sub.add_parser("revert", help="還原（讀 _pp_original_* 欄位）")
     rv.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     rv.add_argument("--doc", help="檔名關鍵字，預設全部")
@@ -318,6 +385,8 @@ def main():
 
     if a.cmd == "apply":
         sys.exit(cmd_apply(a, env))
+    if a.cmd == "reindex":
+        sys.exit(cmd_reindex(a, env))
     if a.cmd == "revert":
         sys.exit(cmd_revert(a, env))
     if a.cmd == "check":
