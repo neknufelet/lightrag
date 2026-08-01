@@ -67,9 +67,14 @@ def render(p: dict, details: bool) -> None:
         return
 
     if noise.distinct:
+        # 標籤直接讀計畫，不要在這裡重算規則 —— 重算過一次就會跟 layout_noise
+        # 漂移（aside_text 用的是「是不是語言」而非重複次數，重算會標錯）。
+        muted = {m.text.strip() for m in noise.mutes}
+        held = {m.text.strip() for m in noise.held}
         print("\n  ── 版面雜訊的文字分布 ──")
         for text, n in sorted(noise.distinct.items(), key=lambda kv: -kv[1]):
-            act = "消音" if n >= layout_noise.RUNNING_HEAD_MIN_REPEAT else ("略過" if not text else "保留待查")
+            k = text.strip()
+            act = "消音" if k in muted else ("保留待查" if k in held else "略過")
             print(f"    ×{n:>3}  [{act}]  {text[:60]!r}")
 
     if noise.held:

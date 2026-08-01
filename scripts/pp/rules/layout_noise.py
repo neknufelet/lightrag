@@ -11,12 +11,17 @@
 from __future__ import annotations
 
 import collections
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from mineru_common import BODY_TYPES  # noqa: E402
+
+# 真正的字：至少三個字母且含母音。用來判斷一段文字是不是語言。
+_WORD = re.compile(r"[A-Za-z]{3,}")
+_VOWEL = re.compile(r"[aeiouAEIOU]")
 
 # 重複幾次以上才算書眉。書眉會在每頁重現，真正的章節標題只出現一次。
 # 實測 C Equivalent Networks 的 111 個 header 只有 4 種文字：
@@ -61,10 +66,27 @@ class NoisePlan:
                 + ("　⚠ 比例異常，請人工確認" if self.suspicious else ""))
 
 
+def is_gibberish(text: str) -> bool:
+    """一個真正的字都沒有 —— 不是語言，是 OCR 殘骸。
+
+    判準刻意保守（**零**個真字才算），因為這條規則用在只出現一次的項目上，
+    沒有「重複次數」可以當保險。實測論文頁邊直排那條抓到的是
+    '9r 0 1 -.s] :0006'：token 是 9r / 0 / 1 / s / 0006，零個真字。
+    真正的側欄註解一定有字，不會被誤傷。
+    """
+    return not any(_VOWEL.search(w) for w in _WORD.findall(text))
+
+
 def plan(items: list[dict]) -> NoisePlan:
-    """算出要消音哪些項目。只讀不寫。"""
+    """算出要消音哪些項目。只讀不寫。
+
+    兩種雜訊用兩條不同的規則，因為訊號不同：
+      header/footer —— 每頁重現，用重複次數判斷（真章節標題只出現一次）
+      aside_text    —— 頁邊直排的期刊資訊，**只出現一次**，重複次數對它無效；
+                       改用「這串文字是不是語言」判斷
+    """
     targets = [(i, it) for i, it in enumerate(items)
-               if it.get("type") in ("header", "footer")]
+               if it.get("type") in ("header", "footer", "aside_text")]
     counts = collections.Counter((it.get("text") or "").strip() for _, it in targets)
 
     mutes: list[Mute] = []
@@ -76,6 +98,9 @@ def plan(items: list[dict]) -> NoisePlan:
         m = Mute(index=i, item_type=it["type"], page=it.get("page_idx"), text=text, repeat=n)
         # 空字串消音沒有意義也沒有風險，直接跳過不列入計畫
         if not key:
+            continue
+        if it["type"] == "aside_text":
+            (mutes if is_gibberish(key) else held).append(m)
             continue
         (mutes if n >= RUNNING_HEAD_MIN_REPEAT else held).append(m)
 

@@ -16,12 +16,24 @@ from pathlib import Path
 KNOWN_TYPES = {
     "text", "header", "footer", "table", "equation", "image",
     "page_number", "page_footnote", "code", "list",
+    # 論文版面才會出現，C 那本教科書沒有：
+    #   aside_text —— 頁邊直排文字（期刊資訊那條）。實測抓到的是 OCR 殘骸
+    #     '9r 0 1 -.s] :0006'，而 ir_builder 的 fallback 走 _coerce_text，
+    #     它讀 ("text","content","body","code_body") —— aside_text 有 text，
+    #     所以**會進索引**。必須當版面雜訊處理。
+    #   chart —— 圖表。有 img_path 但 content 是空字串，caption/footnote 也空。
+    #     fallback 拿到空字串就不 append，所以**整個被丟掉**（img_path 不在
+    #     _coerce_text 的讀取清單裡，雜湊字串不會外洩進索引）。
+    #     這不是污染而是資訊遺失：image 走 _build_ir_drawing 有佔位符，
+    #     chart 沒有。實測一篇論文 15 張 chart 對索引的貢獻是零。
+    "aside_text", "chart",
 }
 
 # 會進 IR 正文的型別。header / footer 也在內 —— LightRAG 的 ir_builder 把它們
 # 落到 fallback「serialize unknown items as plain text」，所以它們確實會進索引。
 PROSE_TYPES = ("text", "header")
-BODY_TYPES = ("text", "header", "footer")
+# aside_text 也在內：它有 text 欄位，會經 fallback 進索引，跟 header/footer 同性質。
+BODY_TYPES = ("text", "header", "footer", "aside_text")
 
 # 掉字偵測器。務必用 \b 這種非消耗性邊界；寫成兩側都是 \s 的
 # (\s[a-z]{1,2}\s){5,} 會因為前一次匹配吃掉後一次的前導空白而永遠回 0。
