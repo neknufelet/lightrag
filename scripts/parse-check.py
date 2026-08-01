@@ -18,9 +18,17 @@ from pathlib import Path
 
 DEFAULT_ROOT = Path("/data/lightrag")
 
-# 掉字偵測器 —— 已驗證版本。務必用 \b 這種非消耗性邊界；
-# 寫成兩側都是 \s 的 (\s[a-z]{1,2}\s){5,} 會因為前一次匹配吃掉後一次的前導空白而永遠回 0。
+# 掉字偵測器 —— 務必用 \b 這種非消耗性邊界；寫成兩側都是 \s 的
+# (\s[a-z]{1,2}\s){5,} 會因為前一次匹配吃掉後一次的前導空白而永遠回 0。
 MANGLED = re.compile(r"(?:\s+[a-z]{1,2}\b){5,}")
+
+# 套用前必須先剔除數學式。LaTeX 會把字母拆開排版（\mathrm { i n t e r i o r }），
+# 長得跟掉字一模一樣 —— 在 C Equivalent Networks 上會把 8 個誤判成掉字，實際只有 1 個是真的。
+MATH = re.compile(r"\$[^$]*\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
+
+
+def strip_math(t: str) -> str:
+    return MATH.sub(" ", t or "")
 
 # 這些 prompt 範例字串若出現在正文，代表模型把提示詞當成內容（1.5.5 上游已移除，留著防退化）
 LEAK = re.compile(r"Noah Carter|World Athletics|Carbon-Fiber Spikes|100m Sprint|Knowledge Graph Specialist", re.I)
@@ -54,9 +62,10 @@ def check_doc(raw_dir: Path) -> dict:
 
         loc = {"i": idx, "type": t, "page": it.get("page_idx")}
 
-        if body and MANGLED.search(body):
-            m = MANGLED.search(body)
-            r["mangled"].append({**loc, "snippet": body[max(0, m.start() - 40): m.end() + 40]})
+        clean = strip_math(body)
+        if clean and MANGLED.search(clean):
+            m = MANGLED.search(clean)
+            r["mangled"].append({**loc, "snippet": clean[max(0, m.start() - 40): m.end() + 40]})
         if body and LEAK.search(body):
             r["洩漏"].append({**loc, "snippet": body[:120]})
 
