@@ -37,6 +37,7 @@ python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格
 python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
 python3 scripts/compat-check.py                   # LightRAG 契約斷言
 python3 scripts/extract-check.py                  # 抽取品質：實體與關係對照原文（三態）
+python3 scripts/eq-check.py --n 30                # 方程式：MinerU/qwen/luna 三票多數決
 python3 scripts/parse-check.py --details          # 解析品質
 ```
 

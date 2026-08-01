@@ -97,7 +97,7 @@ def main() -> int:
     sample = pick(a.workspace, a.n, a.doc)
     print(f"抽樣 {len(sample)} 條方程式（偏向數學密集文件）\n")
 
-    agree_ab = mineru_ok = flagged = errs = 0
+    consensus = mineru_bad = majority = threeway = errs = 0
     rows = []
     for k, (dens, ctx, idx, it, bbox) in enumerate(sample, 1):
         crops = out_root / ctx.doc_name / "crops"
@@ -122,26 +122,33 @@ def main() -> int:
         s_am = crosscheck.eq_similar(ha, mineru)
         s_bm = crosscheck.eq_similar(hb, mineru)
         if s_ab >= T_AGREE:
-            agree_ab += 1
-            # 兩眼一致才有資格評 MinerU
             if max(s_am, s_bm) >= T_AGREE:
-                mineru_ok += 1
+                consensus += 1
             else:
-                flagged += 1
-                rows.append((ctx.doc_name, idx, it.get("page_idx"), s_ab,
-                             max(s_am, s_bm), mineru, hb))
+                mineru_bad += 1
+                rows.append(("MinerU 可疑", ctx.doc_name, idx, it.get("page_idx"),
+                             s_ab, max(s_am, s_bm), mineru, hb))
+        elif max(s_am, s_bm) >= T_AGREE:
+            majority += 1      # 兩眼吵架，MinerU 當第三票
+        else:
+            threeway += 1
+            rows.append(("三方皆異", ctx.doc_name, idx, it.get("page_idx"),
+                         s_ab, max(s_am, s_bm), mineru, hb))
         if k % 10 == 0:
             print(f"  …{k}/{len(sample)}", flush=True)
 
-    judged = agree_ab
+    n = max(len(sample) - errs, 1)
+    auto = consensus + majority
     print(f"\n{'='*76}")
-    print(f"  抽樣            {len(sample)}　（取得失敗 {errs}）")
-    print(f"  兩眼一致        {agree_ab}　← 只有這些有資格評判 MinerU")
-    print(f"  MinerU 相符     {mineru_ok}　（{mineru_ok/max(judged,1):.1%}）")
-    print(f"  MinerU 可疑     {flagged}　（{flagged/max(judged,1):.1%}）← 兩眼一致但都跟它不同")
+    print(f"  抽樣          {len(sample)}　（取得失敗 {errs}）")
+    print(f"  三方共識      {consensus}　（{consensus/n:.0%}）確認正確")
+    print(f"  2 比 1        {majority}　（{majority/n:.0%}）兩眼吵架，MinerU 當第三票")
+    print(f"  ── 自動解決   {auto}　（{auto/n:.0%}）")
+    print(f"  MinerU 可疑   {mineru_bad}　（{mineru_bad/n:.0%}）兩眼一致但都跟它不同")
+    print(f"  三方皆異      {threeway}　（{threeway/n:.0%}）才需要第四方")
 
-    for doc, idx, pg, s_ab, s_m, mineru, hb in rows[:a.show]:
-        print(f"\n── {doc[:40]} #{idx} p{pg}　兩眼 {s_ab:.2f} / 對 MinerU {s_m:.2f}")
+    for kind, doc, idx, pg, s_ab, s_m, mineru, hb in rows[:a.show]:
+        print(f"\n── [{kind}] {doc[:34]} #{idx} p{pg}　兩眼 {s_ab:.2f} / 對 MinerU {s_m:.2f}")
         print(f"   MinerU: {mineru[:150]}")
         print(f"   兩眼  : {hb[:150]}")
     return 0
