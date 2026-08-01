@@ -28,6 +28,21 @@ _VOWEL = re.compile(r"[aeiouAEIOU]")
 # 'Equivalent Networks'×67、'C'×34、'd'×9、''×1 —— 全部遠高於門檻。
 RUNNING_HEAD_MIN_REPEAT = 3
 
+# 但絕對門檻對短文件失效：A Conventions 只有 3 頁，書眉 'Conventions' 只能
+# 出現 2 次，永遠達不到 3。書眉的本質是「大部分頁都出現」而不是「出現超過幾次」，
+# 所以門檻不能超過該文件的頁數所能產生的次數。
+RUNNING_HEAD_PAGE_FRACTION = 0.5
+
+
+def head_threshold(n_pages: int) -> int:
+    """實際門檻。短文件放寬，長文件維持 3 —— 68 頁時 min(3, 34) 仍是 3，
+    既有行為不變；3 頁時 min(3, 2) = 2，書眉抓得到。"""
+    if n_pages <= 0:
+        return RUNNING_HEAD_MIN_REPEAT
+    import math
+    return max(2, min(RUNNING_HEAD_MIN_REPEAT,
+                      math.ceil(n_pages * RUNNING_HEAD_PAGE_FRACTION)))
+
 # 消音佔比超過此值就標記待查。誤刪真內容不會有錯誤訊息，只能靠比例異常察覺。
 # 實測：論文 2.2%、J Duct 1.3%、C Equivalent Networks 5.58%。
 SUSPICIOUS_RATIO = 0.10
@@ -77,7 +92,7 @@ def is_gibberish(text: str) -> bool:
     return not any(_VOWEL.search(w) for w in _WORD.findall(text))
 
 
-def plan(items: list[dict]) -> NoisePlan:
+def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
     """算出要消音哪些項目。只讀不寫。
 
     兩種雜訊用兩條不同的規則，因為訊號不同：
@@ -85,6 +100,7 @@ def plan(items: list[dict]) -> NoisePlan:
       aside_text    —— 頁邊直排的期刊資訊，**只出現一次**，重複次數對它無效；
                        改用「這串文字是不是語言」判斷
     """
+    thr = head_threshold(n_pages)
     targets = [(i, it) for i, it in enumerate(items)
                if it.get("type") in ("header", "footer", "aside_text")]
     counts = collections.Counter((it.get("text") or "").strip() for _, it in targets)
@@ -102,7 +118,7 @@ def plan(items: list[dict]) -> NoisePlan:
         if it["type"] == "aside_text":
             (mutes if is_gibberish(key) else held).append(m)
             continue
-        (mutes if n >= RUNNING_HEAD_MIN_REPEAT else held).append(m)
+        (mutes if n >= thr else held).append(m)
 
     def body_chars(skip: set[int]) -> int:
         return sum(len(it.get("text") or "")

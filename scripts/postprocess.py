@@ -51,7 +51,7 @@ def plan_one(raw: Path) -> dict:
     ctx = DocContext(raw)
     ctx.preflight()
     w, h = ctx.page_size
-    noise = layout_noise.plan(ctx.items)
+    noise = layout_noise.plan(ctx.items, ctx.n_pages)
     tables = empty_table.plan(ctx.items, w, h)
     return {"ctx": ctx, "noise": noise, "tables": tables}
 
