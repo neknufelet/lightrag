@@ -24,14 +24,24 @@ services:
     volumes:
       # 執行期資料放 /data 的獨立 NVMe，不進 repo
       - ${DATA_ROOT:-/data/lightrag}/${WORKSPACE}/rag_storage:/app/data/rag_storage
-      # 語料來源：預設指向既有的知識庫 raw 目錄，唯讀掛載避免誤寫
-      - ${INPUTS_DIR:-/data/rag/knowledge_bases/${WORKSPACE}/raw}:/app/data/inputs:ro
+      # inputs 必須可寫 —— LightRAG 啟動時會在其下建立 ${WORKSPACE} 子目錄。
+      # 因此不直接掛既有語料目錄（/data/rag/knowledge_bases/*/raw），避免它寫進語料來源；
+      # 改用專屬目錄，檔案經 WebUI／API 上傳，或見 README 的批次匯入。
+      - ${INPUTS_DIR:-${DATA_ROOT:-/data/lightrag}/${WORKSPACE}/inputs}:/app/data/inputs
 
     networks:
       - rag
 
+    # 映像檔內沒有 curl／wget，只能用 python
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9621/health -H \"X-API-Key: $${LIGHTRAG_API_KEY}\" || exit 1"]
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import os, urllib.request as u
+          u.urlopen(u.Request("http://localhost:9621/health",
+                    headers={"X-API-Key": os.environ["LIGHTRAG_API_KEY"]}), timeout=5)
       interval: 30s
       timeout: 10s
       retries: 5
