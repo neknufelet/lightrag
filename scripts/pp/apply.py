@@ -34,7 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pp.docctx import DocContext  # noqa: E402
 from pp.oracle import Oracle, OracleError  # noqa: E402
-from pp.rules import empty_table, layout_noise  # noqa: E402
+from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
 
 
 class ApplyError(RuntimeError):
@@ -46,6 +46,7 @@ class ApplyResult:
     doc: str
     muted: int = 0
     tables: int = 0
+    charts: int = 0
     backup: Path | None = None
     items_before: int = 0
     items_after: int = 0
@@ -54,7 +55,7 @@ class ApplyResult:
 
     def line(self) -> str:
         v = {True: "認可", False: "**未認可**", None: "未檢查"}[self.valid_after]
-        return (f"消音 {self.muted}、修補表格 {self.tables}；"
+        return (f"消音 {self.muted}、修補表格 {self.tables}、chart→image {self.charts}；"
                 f"項目 {self.items_before} → {self.items_after}；bundle {v}")
 
 
@@ -117,10 +118,17 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     want = verified_tables or {}
     targets = [t for t in tables.repairable if str(t.index) in want]
 
+    # 所有計畫都在動手之前算完 —— chart→image 會改 type，先算好才不會讓後面的
+    # 規則看到被自己改過的狀態。
+    charts = chart_type.plan(items, ctx.raw_dir)
+
     if not commit:
         r.muted = len(noise.mutes)
         r.tables = len(targets)
+        r.charts = len(charts.convert)
         r.items_after = r.items_before
+        if charts.dangling:
+            r.notes.append(f"{len(charts.dangling)} 個 chart 的 img_path 指不到檔案，不轉")
         r.notes.append("dry-run，沒有寫任何檔案")
         return r
 
@@ -151,6 +159,9 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
         it["table_body"] = want[str(t.index)]
         it["_pp_repaired_at"] = stamp
         r.tables += 1
+    r.charts = chart_type.apply_to_items(items, charts)
+    if charts.dangling:
+        r.notes.append(f"{len(charts.dangling)} 個 chart 的 img_path 指不到檔案，未轉")
 
     # 項目數不得改變 —— sidecar 的 self_ref 是陣列索引，少一個就整串錯位
     if len(items) != r.items_before:
@@ -179,14 +190,20 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
 
 
 def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
-    """就地還原：消音讀 _pp_original_text，表格讀 _pp_original_table_body。
-    不需要備份檔 —— 但備份仍然存在，用於查帳。"""
+    """就地還原：消音讀 _pp_original_text，表格讀 _pp_original_table_body，
+    圖片型別讀 _pp_original_type。不需要備份檔 —— 但備份仍然存在，用於查帳。
+
+    注意這是**全部撤回**，不是「撤銷上一次 apply」。所有 _pp_* 欄位一起清掉，
+    所以拿它當 undo 用會連好幾輪之前的消音一起還原。實測 K Muffler：只想撤掉
+    3 個 chart 轉換，結果連同上一輪的 61 個 header 消音一起復原了。要回到
+    「撤掉某一項、其餘保留」就再跑一次 apply（規則是冪等的）。"""
     o = oracle or Oracle()
     ctx = DocContext(raw_dir)
     items = json.loads(ctx.content_list_path.read_text())
     r = ApplyResult(ctx.doc_name, items_before=len(items))
 
     r.muted = layout_noise.revert_items(items)
+    r.charts = chart_type.revert_items(items)
     for it in items:
         if "_pp_repaired_at" not in it:
             continue

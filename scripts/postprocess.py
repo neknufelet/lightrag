@@ -38,7 +38,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
-from pp.rules import empty_table, layout_noise  # noqa: E402
+from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
@@ -62,7 +62,8 @@ def plan_one(raw: Path) -> dict:
     w, h = ctx.page_size
     noise = layout_noise.plan(ctx.items, ctx.n_pages)
     tables = empty_table.plan(ctx.items, w, h)
-    return {"ctx": ctx, "noise": noise, "tables": tables}
+    charts = chart_type.plan(ctx.items, ctx.raw_dir)
+    return {"ctx": ctx, "noise": noise, "tables": tables, "charts": charts}
 
 
 def render(p: dict, details: bool) -> None:
@@ -71,6 +72,7 @@ def render(p: dict, details: bool) -> None:
     print(f"  {ctx.n_pages} 頁、{len(ctx.items)} 個項目、頁面 {ctx.page_size[0]:.0f}×{ctx.page_size[1]:.0f} pt")
     print(f"  過濾：{noise.summary()}")
     print(f"  表格：{tables.summary()}")
+    print(f"  圖片：{p['charts'].line()}")
 
     if not details:
         return
@@ -131,6 +133,12 @@ def as_json(p: dict) -> dict:
                         "caption": t.caption}
                        for t in tables.review],
         },
+        "charts": {
+            "convert": [{"index": c.index, "page": c.page, "img_path": c.img_path,
+                         "caption": c.caption} for c in p["charts"].convert],
+            "dangling": [{"index": c.index, "page": c.page, "img_path": c.img_path}
+                         for c in p["charts"].dangling],
+        },
     }
 
 
@@ -169,7 +177,8 @@ CANARY = REPO / "tests" / "canary-baseline.json"
 # 金絲雀只比這幾個數字。比全部欄位會被無關的變動洗版（頁數、caption 文字），
 # 比太少又抓不到漂移。這幾個是「規則改動一定會反映在上面」的量。
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
-                "tables_total", "repairable", "review")
+                "tables_total", "repairable", "review",
+                "charts_convert", "charts_dangling")
 
 
 def canary_row(p: dict) -> dict:
@@ -179,7 +188,11 @@ def canary_row(p: dict) -> dict:
             "ratio": round(noise.ratio, 4),
             "tables_total": tables.total,
             "repairable": len(tables.repairable),
-            "review": len(tables.review)}
+            "review": len(tables.review),
+            # 套用後這個數字會歸零（chart 都變成 image 了）。那是預期中的變化，
+            # 記在基準裡就是為了讓「什麼時候轉的、轉了幾個」留在 git diff 上。
+            "charts_convert": len(p["charts"].convert),
+            "charts_dangling": len(p["charts"].dangling)}
 
 
 def cmd_canary(a, env) -> int:
