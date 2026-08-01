@@ -23,6 +23,18 @@ from mineru_common import BODY_TYPES  # noqa: E402
 _WORD = re.compile(r"[A-Za-z]{3,}")
 _VOWEL = re.compile(r"[aeiouAEIOU]")
 
+# 書眉/頁尾要數的是**樣板**，不是字面字串。實測一篇 ASEE 論文的頁尾是
+# 'Page 24.417.1' … 'Page 24.417.15' —— 每頁一個、15 個全都不重複，
+# 字面計數永遠是 1，重複規則完全失效。把數字抹掉後 'Page ##.###.##' 出現
+# 15 次 = 100% 的頁，才看得出它是頁尾。
+# 只有「除了數字以外完全相同」才會併成同一個樣板，所以 '3.1 Reflection' 與
+# '3.2 Scattering' 不會被誤併（文字不同）。
+_DIGITS = re.compile(r"\d+")
+
+
+def template_key(text: str) -> str:
+    return _DIGITS.sub("#", text.strip())
+
 # 重複幾次以上才算書眉。書眉會在每頁重現，真正的章節標題只出現一次。
 # 實測 C Equivalent Networks 的 111 個 header 只有 4 種文字：
 # 'Equivalent Networks'×67、'C'×34、'd'×9、''×1 —— 全部遠高於門檻。
@@ -104,21 +116,34 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
     targets = [(i, it) for i, it in enumerate(items)
                if it.get("type") in ("header", "footer", "aside_text")]
     counts = collections.Counter((it.get("text") or "").strip() for _, it in targets)
+    # 樣板計數：抹掉數字後再數一次。頁碼型頁尾只有這樣才數得到。
+    tcounts = collections.Counter(template_key(it.get("text") or "") for _, it in targets)
 
     mutes: list[Mute] = []
     held: list[Mute] = []
     for i, it in targets:
         text = it.get("text") or ""
         key = text.strip()
-        n = counts[key]
+        # 取字面與樣板兩者的較大值 —— 樣板一定 >= 字面，這樣既有行為不變，
+        # 又補上頁碼型頁尾。
+        n = max(counts[key], tcounts[template_key(key)])
         m = Mute(index=i, item_type=it["type"], page=it.get("page_idx"), text=text, repeat=n)
         # 空字串消音沒有意義也沒有風險，直接跳過不列入計畫
         if not key:
             continue
-        if it["type"] == "aside_text":
-            (mutes if is_gibberish(key) else held).append(m)
-            continue
-        (mutes if n >= thr else held).append(m)
+        # 重複／樣板規則對三種型別都先跑。is_gibberish 只是後備，處理
+        # 「只出現一次而且不是語言」的殘骸。
+        #
+        # 先前把 aside_text 整個導向 is_gibberish 是錯的 —— 那是從一份文件
+        # （2016 論文的單次 OCR 殘骸）推論出「aside_text 只出現一次」。
+        # 另一份 ASEE 論文用 aside_text 放每頁的 'Page 24.417.N' 頁邊頁尾，
+        # 15 頁全都是，重複規則明明有效。同一個型別在不同期刊是不同東西。
+        if n >= thr:
+            mutes.append(m)
+        elif it["type"] == "aside_text" and is_gibberish(key):
+            mutes.append(m)
+        else:
+            held.append(m)
 
     def body_chars(skip: set[int]) -> int:
         return sum(len(it.get("text") or "")

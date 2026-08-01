@@ -60,6 +60,21 @@ class Oracle:
         except json.JSONDecodeError as e:
             raise OracleError(f"輸出不是 JSON：{tail[-1][:300]}") from e
 
+    def py_argv(self, code: str, argv: list[str], env: dict[str, str] | None = None):
+        """跟 py() 一樣，但可以傳位置參數（片段用 sys.argv[1:] 取）。
+
+        參數走 argv 而不是字串插值 —— 檔名裡有引號、空白、中文都不會壞掉，
+        也不會有把使用者資料當程式碼執行的問題。
+        """
+        out = self._run(["python", "-c", code, *argv], env)
+        tail = out.strip().splitlines()
+        if not tail:
+            raise OracleError(f"片段沒有輸出：\n{code[:300]}")
+        try:
+            return json.loads(tail[-1])
+        except json.JSONDecodeError as e:
+            raise OracleError(f"輸出不是 JSON：{tail[-1][:300]}") from e
+
     def sh(self, code: str) -> str:
         return self._run(["sh", "-lc", code])
 
