@@ -205,3 +205,44 @@ def compare(key: str, html_a: str, html_b: str) -> TableCheck:
             else:
                 chk.diffs.append(CellDiff(i + 1, c + 1, ca, cb, s))
     return chk
+
+
+# ── 方程式專用 ─────────────────────────────────────────────────────
+#
+# 抽記號那套（TOK）是為表格儲存格設計的，用在方程式上會壞：同一條式子的
+# 等價 LaTeX 寫法太多，正規表示式抓不完。實測 30 條裡有 20 條被誤判成不一致：
+#     luna  T_{12}                   qwen  \mathrm { T } _ { 1 2 }
+#     luna  p_1(z)                   qwen  { \bf p } _ { 1 } ( z )
+# 數字被拆成 `1 2`、底數被包進 `{ }`，`[A-Za-z]_` 這條規則完全配不到。
+#
+# 改成：把整串壓成「純符號序列」（剝排版指令、去括號空白、小寫），再比序列
+# 相似度。上面兩組壓完都是 t_12 與 p_1(z)，完全相同。
+# 不抽記號就不會漏抽 —— 方程式沒有欄列結構，不需要定位到某一格。
+_EQ_STRIP = re.compile(
+    # 字體／粗體類指令一律剝掉。實測漏掉 \mathtt 與 \boldsymbol 就產生兩條
+    # 假警報：MinerU 寫 \mathtt{p}_{1}(z)、兩眼寫 p_1(z)，內容完全相同。
+    r"\\(?:displaystyle|textstyle|scriptstyle|mathrm|mathit|mathbf|mathsf|mathcal|"
+    r"mathtt|mathfrak|mathbb|mathnormal|boldsymbol|boldmath|pmb|"
+    r"bf|rm|it|sf|tt|text|left|right|Bigg|bigg|Big|big|,|;|!|:|quad|qquad)"
+    r"(?![a-zA-Z])")
+_EQ_DELIM = re.compile(r"^\s*\$\$?|\$\$?\s*$|\\tag\{[^}]*\}")
+
+
+def eq_normalize(latex: str) -> str:
+    """壓成純符號序列。等價寫法收斂到同一個字串。"""
+    t = _EQ_DELIM.sub(" ", latex or "")
+    t = _EQ_STRIP.sub("", t)
+    for a, b in _ALIAS.items():
+        if a.startswith("\\"):
+            t = t.replace(a, b)
+    t = re.sub(r"[{}\s]", "", t)          # 括號與空白全部去掉
+    return t.lower()
+
+
+def eq_similar(a: str, b: str) -> float:
+    """兩條方程式的相似度。用序列比對而不是集合 —— 順序在數學裡有意義，
+    a/b 與 b/a 不是同一回事。"""
+    na, nb = eq_normalize(a), eq_normalize(b)
+    if not na or not nb:
+        return 0.0
+    return SequenceMatcher(None, na, nb, autojunk=False).ratio()

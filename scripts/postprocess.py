@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -314,7 +315,22 @@ def cmd_reindex(a, env) -> int:
         return 0
 
     ids = [d["id"] for d in want]
-    print(f"\n刪除索引記錄…（保留 PDF 與 LLM 快取）")
+
+    # 把 PDF 從 __parsed__/ 搬回掃描目錄。第一次索引時 archive_source 會把來源
+    # 搬進 __parsed__/，所以掃描目錄是空的 —— 刪掉記錄後直接 /scan 會找不到
+    # 任何檔案，「成功」執行但什麼都沒做，文件就這樣從索引消失。
+    # 實測踩過：C Equivalent Networks 被刪掉後索引從 20 剩 19。
+    inputs = DATA_ROOT / a.workspace / "inputs" / a.workspace
+    parsed = inputs / "__parsed__"
+    moved = 0
+    for d in want:
+        name = Path(d.get("file_path") or "").name
+        src, dst = parsed / name, inputs / name
+        if src.is_file() and not dst.is_file():
+            shutil.move(str(src), str(dst))
+            moved += 1
+    print(f"\n把 {moved} 份 PDF 從 __parsed__/ 搬回掃描目錄")
+    print(f"刪除索引記錄…（保留 PDF 與 LLM 快取）")
     print(" ", json.dumps(api("/documents/delete_document", "DELETE",
                               {"doc_ids": ids, "delete_file": False,
                                "delete_llm_cache": False}), ensure_ascii=False)[:200])
