@@ -220,12 +220,14 @@ size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列�
   多數與已記錄的 domain_fact「羅馬數字下標難讀」相關。
 - 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,
   命中率約 1/15 —— 要湊樣本得再抽十幾份。
-- **沒有任何檢查是排程跑的** —— `compat-check.py:9` 的 docstring 寫著「排程每天跑」,
-  但 crontab、systemd timer、/etc/cron.d 都沒有。135 項斷言、金絲雀、接地檢查
-  全部只在有人想到時才跑。**「誰會報錯」目前的答案是:沒有人。**
 - **首頁的期刊/會議資訊**(`Paper ID #8776`、`©American Society...`)只出現一次、
   只在第 0 頁,重複與樣板規則都抓不到,目前留在待查。要處理需要新的訊號
   （限第 0 頁 + 版權/會議標記），但只有 1 份文件的證據,先不動。
+
+排程檢查已存在(2026-08-02 起):`lightrag-daily-check.timer` 每天 08:30 跑
+compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本身
+掛掉走 systemd `OnFailure=` 獨立備援。狀態落地 `/data/rag/lightrag/checks/`。
+**「誰會報錯」的答案從「沒有人」改成它。**
 
 ## 抽取品質:接地檢查
 
