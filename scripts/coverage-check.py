@@ -20,6 +20,30 @@
 限制成 4 個字母以上的純英文詞，剩下的就都是真正的**詞彙**，兩邊該有的都有。
 這不是把門檻調鬆 —— 是把量錯的東西剔掉（鐵則 5）。
 
+## 偵測器版本
+
+**v2（2026-08-02）：加 LaTeX 字母間隔正規化**（`latex_unspace`）。上面那條
+「行內 LaTeX 會把字母拆開排版」原本只被拿來當「所以不比短詞」的理由，但它同時
+也把**長詞**打碎了：`\\mathrm { w i t h : ~ }` 裡的 `with`、被吞進顯示式的整句
+散文，`[a-z]{4,}` 全部配不到，於是記成漏詞。與階段 1 的 `ﬂ` 合字同族。
+20 份重量的結果見體檢表 note；v1 與 v2 的數字不可混用。
+
+**v3（2026-08-02）：`_pp_original_*` 改成有條件讀回**（`pp_skip`）。
+下面「為什麼要把 _pp_original_text 讀回來」寫的是消音那一類 —— 現值被清空、
+原文搬進 sidecar 欄位，不讀回來就會把我們自己的決定誤記成上游缺陷。但**修補**
+那一類的形狀正好相反：現值有新內容、`_pp_original_*` 還留著舊內容，兩份**同時**
+被數進 content 側，同一段文字算兩次。多重集合差是 `pdf - content`，content 側
+虛胖只會讓漏詞變少 —— **往看不見的方向錯**。
+
+實測（N Flow）：152 個項目同時有 `_pp_original_*` 與非空現值（∂ 誤讀修補寫回
+的方程式），重複計數把 4.796% 壓成 4.8% 以下並讓它跨過 5% 門檻；G Porous 4 個、
+C 2 個。其餘 17 份沒有這種項目，數字必須完全不變 —— 那是這次改動的對照錨點。
+
+判準是**現值有沒有內容**，不是項目型別：
+    現值已清空（消音）      → 讀回 `_pp_original_*`（否則消音被量成掉字）
+    現值仍有內容（修補過）  → 跳過 `_pp_original_*`（否則同一段算兩次）
+用型別判會錯：消音打的是 `text`，文字修補打的也是 `text`。
+
 ## 為什麼用多重集合而不是集合
 
 `{pdftotext 的詞} - {content 的詞}` 會漏掉最重要的一類失敗：同一個詞在文字層
@@ -63,6 +87,11 @@ DEFAULT_THRESHOLD = 0.05
 # ≥4 字母的純英文詞。理由見檔頭。
 WORD = re.compile(r"[a-z]{4,}")
 
+# LaTeX 命令的單層引數：`\mathrm { w i t h : ~ }`。刻意只吃 `[^{}]*`（不含巢狀
+# 大括號）—— 正則剖析不了配對括號，硬要吃巢狀只會在別的地方咬錯（judgement-flow
+# 第 3 節記過同一件事：`\hat{σ}` 的分類前兩版都敗在用正則找配對括號）。
+CMD_ARG = re.compile(r"(\\[A-Za-z]+\s*\{)([^{}]*)(\})")
+
 # content_list 裡**不算文字**的欄位。少列一個的代價只是漏詞被藏起來
 # （多出來的詞只會抵銷掉真正的缺漏），所以這裡寧可列滿：
 #   img_path          圖檔名，是 uuid/雜湊，字母碎片會假裝成詞彙
@@ -70,15 +99,87 @@ WORD = re.compile(r"[a-z]{4,}")
 #   text_format       'latex' 這類格式註記
 #   _pp_original_type chart→image 轉換前的型別，同樣是標籤
 #   _pp_repaired_at   修補時間戳
-# 注意 _pp_original_text **不在**這裡 —— 它是被消音的原文，要讀回來（見檔頭）。
+#   _pp_had_table_body 布林旗標，不是內容
+# 注意 `_pp_original_<內容欄位>` **不在**這裡 —— 它是消音前的原文，多數情況要
+# 讀回來。哪些該讀、哪些該跳，是**逐項**決定的，見 pp_skip()。
 SKIP_KEYS = {
     "img_path", "type", "sub_type", "text_format",
-    "_pp_original_type", "_pp_repaired_at",
+    "_pp_original_type", "_pp_repaired_at", "_pp_had_table_body",
 }
+
+# 後處理會就地改動、並把原文搬進 `_pp_original_<欄位>` 的內容欄位。
+# 前四個順序照 `_coerce_text`（compat-check A-06），第五個是表格修補。
+PP_FIELDS = ("text", "content", "body", "code_body", "table_body")
+
+TAGS = re.compile(r"<[^>]*>")
+
+
+def pp_skip(it: dict) -> set[str]:
+    """這個項目要**額外**跳過哪些 `_pp_original_*` 欄位（v3，見檔頭）。
+
+    只看現值有沒有內容，不看項目型別 —— 消音與文字修補打的是同一個 `text` 欄位，
+    用型別分不開。現值為空＝消音（原文要讀回來，否則消音被量成掉字）；
+    現值有內容＝修補過（原文要跳過，否則同一段被算兩次，漏詞被虛假地抵銷掉）。
+    """
+    out = set()
+    for f in PP_FIELDS:
+        k = f"_pp_original_{f}"
+        if k not in it:
+            continue
+        cur = it.get(f)
+        if isinstance(cur, str) and TAGS.sub("", cur).strip():
+            out.add(k)
+    return out
+
+
+def _glue_letters(arg: str) -> str:
+    """把一個 LaTeX 引數裡「被拆成單字母」的排版黏回單字。
+
+    `~` 是 LaTeX 的不斷行空白，在這種排版裡當的是**詞**的分隔；一般空白當的是
+    **字母**的分隔。所以先照 `~` 切成詞段，段內才把連續的單字母 token 黏起來。
+    分不清這兩層的後果實測過（本函式第一版）：
+    `\\mathrm{ ~ f l u c t u a t i n g ~ q u a n t i t y }` 會被黏成
+    `fluctuatingquantity` 一個詞，兩個字都還是配不到 —— 假訊號沒消掉，只是換了形狀。
+
+    不是單字母的 token（標點、`-`、多字母片段）原樣留下當邊界。`p o s s i b l y
+    a l s o` 這種原文就沒有分隔符的會黏成 `possiblyalso`，救不回來 ——
+    **寧可少救，不可亂黏**：黏出來的假詞會抵銷掉真正的缺漏，那是靜默少報。
+    """
+    out = []
+    for seg in arg.split("~"):
+        merged, buf = [], []
+        for t in seg.split():
+            if len(t) == 1 and t.isalpha():
+                buf.append(t)
+                continue
+            if buf:
+                merged.append("".join(buf))
+                buf = []
+            merged.append(t)
+        if buf:
+            merged.append("".join(buf))
+        out.append(" ".join(merged))
+    return " ".join(x for x in out if x)
+
+
+def latex_unspace(text: str) -> str:
+    """只在 LaTeX 命令引數內做字母黏合，**一般散文的空白一個都不動**。
+
+    實測踩過（2026-08-02，N Flow）：MinerU 把整句散文吞進顯示式，寫成
+    `\\mathrm { v e c t o r ~ f r o m ~ o r i g i n ~ o f ~ c o - o r d i n a t e s … }`。
+    那些字**在 content_list 裡，只是被逐字母拆開排版**，`[a-z]{4,}` 一個都配不到，
+    於是整段被記成「MinerU 弄丟了」。與階段 1 的 `ﬂ` 合字同族：偵測器量到的是
+    排版差異，不是內容缺漏（鐵則 5）。
+
+    範圍限制在 `\\cmd{…}` 之內是刻意的。若對整份文字無差別黏合，散文裡
+    `a b c` 這類真正分開的單字母也會被黏起來，那就從「修正假訊號」變成
+    「製造假內容」—— 而它會讓漏詞數變小，是往看不見的方向錯。
+    """
+    return CMD_ARG.sub(lambda m: m.group(1) + _glue_letters(m.group(2)) + m.group(3), text)
 
 
 def words(text: str) -> collections.Counter:
-    """斷詞前**必須先做 NFKC 正規化**。
+    """斷詞前**必須先做 NFKC 正規化**，再做 LaTeX 字母間隔正規化。
 
     實測踩過（本檔第一版）：`N Flow Acoustics` 量出 10.1%，已知答案是 8.7%，
     漏最多的詞是 `uctuations(41)`、`uctuating(20)`。看起來像 MinerU 把整段
@@ -89,8 +190,14 @@ def words(text: str) -> collections.Counter:
     也就是說偵測器量到的是 Unicode 正規化差異，不是內容缺漏（鐵則 5：
     門檻用量的不要用調的，而覺得數字不對時先查偵測器量了什麼）。
     NFKC 會把 ﬁ ﬂ ﬀ ﬃ ﬄ 這些相容字元攤回 ASCII 字母，兩邊才在同一個字母表上比。
+
+    兩道正規化**兩邊都做**，不是只做 content 側。實測驗過 `latex_unspace` 對
+    20 份的 pdftotext 輸出全部是 no-op（文字層本來就沒有 LaTeX 命令），所以
+    對稱套用不會動到分母；但寫成對稱的才不會有人日後把它挪成單邊而不自知 ——
+    單邊正規化正是「同一份資料兩個答案」的來源。
     """
-    return collections.Counter(WORD.findall(unicodedata.normalize("NFKC", text).lower()))
+    t = latex_unspace(unicodedata.normalize("NFKC", text))
+    return collections.Counter(WORD.findall(t.lower()))
 
 
 def _strings(v) -> list[str]:
@@ -109,8 +216,9 @@ def content_words(content_list: Path) -> tuple[collections.Counter, int]:
     items = json.loads(content_list.read_text())
     c = collections.Counter()
     for it in items:
+        skip = SKIP_KEYS | pp_skip(it)
         for k, v in it.items():
-            if k in SKIP_KEYS:
+            if k in skip:
                 continue
             for s in _strings(v):
                 c.update(words(s))
