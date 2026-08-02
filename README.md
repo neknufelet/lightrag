@@ -115,6 +115,8 @@ curl -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
 標籤，所以多個知識庫可共存於同一組資料庫。
 
 要跑第二個知識庫：複製本目錄為另一個 stack，改 `WORKSPACE` 與 `HOST_PORT` 即可。
+**kbapi 例外**：它的 9700 在 compose 裡是寫死的，第二個實例要嘛用 `profiles`
+停用 kbapi、要嘛先把埠改成變數（2026-08-02 建 acoustics_v2 時發現）。
 
 ## 拆解品質檢查（整批重跑前先用這個）
 

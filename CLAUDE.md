@@ -8,8 +8,10 @@ LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來�
 | 檔案 | 內容 | 什麼時候看 |
 |---|---|---|
 | **CLAUDE.md**(本檔) | 現況、鐵則、每條規則的證據基礎 | 每次開工 |
+| [NEXT.md](NEXT.md) | **待辦與進行中**(含 v155 凍結遺留、刻意不做的決策) | 每次開工 |
 | [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
 | [docs/judgement-flow.md](docs/judgement-flow.md) | **遇到新問題時的決策程序**：偵測 → 驗偵測器 → 分類 → 叫眼睛 → 判不準怎麼辦 | 發現一個沒見過的問題時 |
+| [docs/rebuild-plan.md](docs/rebuild-plan.md) | **acoustics_v2 乾淨重建**：階段與閘門、體檢表格式、分工（Opus 執行／主線驗收） | 動任何重建相關工作之前 |
 | [docs/postprocess-workorder.md](docs/postprocess-workorder.md) | 後處理的完整工單(W0–W14) | 要動 `scripts/pp/` 之前 |
 | [README.md](README.md) | 部署、解析選項實測、備份範圍 | 環境有問題時 |
 | [tests/canary-baseline.json](tests/canary-baseline.json) | 金絲雀基準數字 | 不要手改,用 `canary --update` |
@@ -94,6 +96,8 @@ skills    lightrag-search / fetch / images —— 全走 :9700，不需認證，
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
 兩雙眼睛  qwen3.6-35b-a3b(本機) + gpt-5.6-luna(雲端,$0.20/$1.20 per 1M)
+重建      acoustics_v2 進行中(worktree lightrag-v2、埠 9622,v155 凍結當對照)
+          階段與閘門見 docs/rebuild-plan.md,待辦見 NEXT.md
 ```
 
 ## 規則分兩類,不能混在一起
@@ -186,43 +190,17 @@ size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列�
 - **A-25 `chunk_top_k` 仍然控制回傳的片段數。** kbapi 的 `chunks` 參數就是
   下傳成它。失效時 `/kb/*/search` 會靜靜回到每次 55–60KB —— 不報錯,只是把
   呼叫端的 context 灌爆,所以每次都真的打一次查詢來驗。
+  注意:**空 workspace 上它結構性驗不了**(chunk 數恆 0,`b > a` 不可能成立),
+  該讀成「驗不了」而非紅燈 —— 2026-08-02 建 v2 時發現,三態化待辦在
+  rebuild-plan。
   **不要改用 `max_total_tokens` 收**:它先扣圖譜再給原文,設 8000 時
   `available_chunk_tokens` 變負數,chunk 直接回 0 個且不報錯。
 
-## 已知待辦
+## 待辦
 
-- **W7 `apply.py`** —— 第一個真的寫檔的步驟(消音 + 表格修補 + 更新 manifest)。
-  520 項消音已有 20 份文件證據,比表格修補成熟得多。
-- ~~**`chart` → `image`**~~ —— 已完成(2026-08-02)。184 個項目、11 份文件,
-  規則在 `pp/rules/chart_type.py`,由 A-24 守著前提。`image` 187 → 371。
-  欄位一併改名(`chart_caption` → `image_caption`),否則圖進得去但 caption 掉光。
-- **`K Muffler` 對照原文可疑率 12.8%** —— 20 份裡唯一超標,可疑關係大量是
-  「概念 → 引用文獻」（`Normalized Partition Impedance → Sullivan 1979`）,待查。
-- ~~**實體碎片化**~~ —— 前 8 組已合併(2026-08-02),7,211 → 7,191。
-  查詢的重複格位 4.8% → 3.0%。工具在 `scripts/entity-merge.py`
-  （plan / review / dump / apply）。**剩下的刻意不做**:51 組被檢索到的裡面
-  只有 8 組浪費 ≥2 格,另外 254 組從未出現在任何檢索結果 —— 收益 0。
-- **`C Equivalent Networks` 漏詞 15.2%** ← **目前已知最大的洞**(2026-08-02 發現)。
-  拿 `pdftotext` 的文字層對照 content_list 的全部文字欄位,只比 4 字母以上英文詞
-  （避開 LaTeX vs 字符的混淆）。20 份裡 18 份 ≤5%;C 15.2%、N Flow 8.7%、
-  41598 7.0%。C 漏最多的詞是 `with`(47) `neck`(26) `continued`(20)
-  `absorber`(19) `chamber`(17),分佈在 p15–p46 —— **表格內容的廣泛流失**,
-  比先前修的 6 張空表格大得多。57 張表裡還有 3 張 `table_body` 全空。
-- **943 處 ∂ 誤讀未修** —— `\hat{\sigma}` 909、`\hat{\partial}` 22、`\hat{o}` 10,
-  全部坐在微分的分子/分母位置,零例外（用配對括號掃描器驗過，不是正則）。
-  另有 2 處 Möhring 的 ö 誤讀。**做法是定點修補不是整條換掉** —— 兩眼會丟
-  `\tag{37}`、會把 `\nabla s` 誤改成 `\nabla_s`（前一條式子的 `T∇s` 證明 s 是熵）。
-- **23 處 `\mathsf{P}` 刻意不碰** —— P 在這個語料裡多義:ρ₀c₀ 的 ρ、ρ_P 的下標、
-  空間點 P₂、矩陣 [P]、以及 #1056 壓力波動方程的 p。沒有便宜可靠的訊號能分開。
-- **K Muffler #277 是誤報** —— `eq_similar` 把 `\begin{array}` 的排版結構算成差異。
-  MinerU 是對的,而且多帶著 `\tag{13}`。
-- **接地檢查的 47 個可疑實體** —— `Region I/II/III`、`Mechl`、`S1` 等,
-  多數與已記錄的 domain_fact「羅馬數字下標難讀」相關。
-- 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,
-  命中率約 1/15 —— 要湊樣本得再抽十幾份。
-- **首頁的期刊/會議資訊**(`Paper ID #8776`、`©American Society...`)只出現一次、
-  只在第 0 頁,重複與樣板規則都抓不到,目前留在待查。要處理需要新的訊號
-  （限第 0 頁 + 版權/會議標記），但只有 1 份文件的證據,先不動。
+在 [NEXT.md](NEXT.md) —— 本檔只放規則與契約,待辦與進行中的狀態不放這裡。
+待辦做完就從 NEXT 刪;過程學到的教訓沉澱回本檔或對應文件,不留屍體。
+「刻意不做」的決策記錄也在那裡,動它們之前先讀理由。
 
 排程檢查已存在(2026-08-02 起):`lightrag-daily-check.timer` 每天 08:30 跑
 compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本身
