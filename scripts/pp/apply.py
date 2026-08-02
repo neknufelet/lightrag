@@ -41,6 +41,21 @@ class ApplyError(RuntimeError):
     pass
 
 
+# `_coerce_text` 讀的欄位，順序照 compat-check 的 A-06 斷言。文字修補必須寫進
+# **LightRAG 實際會讀的那一個**，否則改了等於沒改：N Flow #8 是 `code` 項，
+# 內容在 `code_body`，硬塞一個 `text` 欄位反而會讓它蓋掉原本的 code_body
+# （`text` 在這串裡排第一）。
+TEXT_FIELDS = ("text", "content", "body", "code_body")
+
+
+def text_field(it: dict) -> str | None:
+    """這個項目的內容放在哪個欄位。找不到就回 None —— 由呼叫端拒絕，不猜。"""
+    for f in TEXT_FIELDS:
+        if isinstance(it.get(f), str):
+            return f
+    return None
+
+
 @dataclass
 class ApplyResult:
     doc: str
@@ -49,6 +64,8 @@ class ApplyResult:
     texts: int = 0
     charts: int = 0
     backup: Path | None = None
+    backup_manifest: Path | None = None
+    raw_dir: Path | None = None
     items_before: int = 0
     items_after: int = 0
     valid_after: bool | None = None
@@ -130,7 +147,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     o = oracle or Oracle()
     ctx = DocContext(raw_dir)
     ctx.preflight()
-    r = ApplyResult(ctx.doc_name)
+    r = ApplyResult(ctx.doc_name, raw_dir=raw_dir)
 
     items = json.loads(ctx.content_list_path.read_text())
     r.items_before = len(items)
@@ -150,13 +167,33 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     clash = sorted(muted_idx & {int(k) for k in want_text})
     if clash:
         raise ApplyError(f"{ctx.doc_name}：項目 {clash} 同時是消音目標與文字修補目標，拒絕")
+    # 原本這裡寫死 `type != "text"` 就拒收。方程式的 ∂ 誤讀修補要走同一條路
+    # （型別是 `equation`，內容一樣在 `text`），所以判準改成「這個項目有沒有
+    # `_coerce_text` 讀得到的內容欄位」—— 那才是「改了會不會生效」的真條件。
+    # 表格/圖片沒有這些欄位，仍然被擋下。
     for k in want_text:
-        if not (0 <= int(k) < len(items)) or items[int(k)].get("type") != "text":
-            raise ApplyError(f"{ctx.doc_name}：文字修補目標 #{k} 不存在或不是 text 項目")
-    missing_tbl = sorted(set(want) - {str(t.index) for t in tables.repairable})
+        if not (0 <= int(k) < len(items)) or text_field(items[int(k)]) is None:
+            raise ApplyError(f"{ctx.doc_name}：文字修補目標 #{k} 不存在，"
+                             f"或沒有 _coerce_text 讀得到的內容欄位（{TEXT_FIELDS}）")
+    # 「不在可修補集合裡」有兩個完全不同的原因，混成同一種失敗會很難用：
+    #   a) **我們自己上一輪已經修好了** —— 修好的表格當然不再是空表格。
+    #      這是正常的重跑，該安靜跳過（規則本來就該冪等）。
+    #   b) 規則或解析產物變了 —— 拿舊索引硬寫會改到別的項目，必須停。
+    # 分辨的訊號是該項目上有沒有我們蓋的 `_pp_repaired_at`。
+    # 不分辨的代價實測到了：C 的 5 張表在階段 2 修完後，再跑一次 apply 就整份
+    # 報錯；批次原子性加上去之後，這個假失敗會把同一輪已寫入的十幾份**一起回滾**。
+    repairable_idx = {str(t.index) for t in tables.repairable}
+    done_tbl = {k for k in want
+                if k not in repairable_idx and items[int(k)].get("_pp_repaired_at")}
+    missing_tbl = sorted(set(want) - repairable_idx - done_tbl)
     if missing_tbl:
-        raise ApplyError(f"{ctx.doc_name}：表格修補目標 {missing_tbl} 不在可修補集合裡 —— "
-                         "規則或解析產物變了，先重跑 plan")
+        raise ApplyError(f"{ctx.doc_name}：表格修補目標 {missing_tbl} 不在可修補集合裡，"
+                         "且沒有被本流程修補過的痕跡 —— 規則或解析產物變了，先重跑 plan")
+
+    # 文字修補同理：內容與裁定檔一致且已標記過的，就是上一輪的成果，不重寫。
+    done_txt = {k for k, v in want_text.items()
+                if items[int(k)].get("_pp_repaired_at")
+                and items[int(k)].get(text_field(items[int(k)]), "") == v}
 
     # 所有計畫都在動手之前算完 —— chart→image 會改 type，先算好才不會讓後面的
     # 規則看到被自己改過的狀態。
@@ -165,7 +202,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     if not commit:
         r.muted = len(noise.mutes)
         r.tables = len(targets)
-        r.texts = len(want_text)
+        r.texts = len(want_text) - len(done_txt)
         r.charts = len(charts.convert)
         r.items_after = r.items_before
         if charts.dangling:
@@ -187,19 +224,27 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     home.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     r.backup = home / f"content_list.{stamp}.json"
+    r.backup_manifest = home / f"_manifest.{stamp}.json"
     _backup(ctx.content_list_path, r.backup)
     try:
-        _backup(ctx.manifest_path, home / f"_manifest.{stamp}.json")
+        _backup(ctx.manifest_path, r.backup_manifest)
     except ApplyError:
         r.backup.unlink(missing_ok=True)      # 不留半套備份
+        r.backup_manifest = None
         raise
 
     # ── 改動 ──
     r.muted = layout_noise.apply_to_items(items, noise)
     for k, txt in sorted(want_text.items(), key=lambda kv: int(kv[0])):
+        if k in done_txt:                 # 上一輪就是這個內容，不重寫
+            continue
         it = items[int(k)]
-        it["_pp_original_text"] = it.get("text", "")
-        it["text"] = txt
+        fld = text_field(it)
+        # `setdefault`：`_pp_original_*` 只記**第一次**的原文。裁定檔被改過而
+        # 重跑時，直接覆寫會把 MinerU 的原始輸出換成上一輪的修補結果 ——
+        # 還原路徑看起來還在，還原出來的卻已經不是原文了。
+        it.setdefault(f"_pp_original_{fld}", it.get(fld, ""))
+        it[fld] = txt
         it["_pp_repaired_at"] = stamp
         r.texts += 1
     for t in targets:
@@ -243,6 +288,30 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     return r
 
 
+def rollback_from_backup(res: ApplyResult, *, oracle: Oracle | None = None) -> str:
+    """把一份文件還原成這一輪 apply **之前**的位元組。回傳一行說明。
+
+    為什麼不用 `revert_doc`：那支是「撤回全部 `_pp_*` 欄位」，會把好幾輪之前的
+    消音一起還原（它自己的 docstring 就記了 K Muffler 那次實測）。批次回滾要的是
+    「回到這一輪開始前」，唯一忠實的來源是這一輪剛照下來的時間戳備份。
+
+    還原後**重新算 sha256 比對備份**，不符就 raise —— 回滾自己也會靜默失敗，
+    而一個宣稱成功卻沒還原的回滾，比不回滾更危險（judgement-flow 第 9 節）。
+    """
+    if not (res.raw_dir and res.backup and res.backup_manifest):
+        raise ApplyError(f"{res.doc}：沒有完整的備份路徑，無法回滾")
+    ctx = DocContext(res.raw_dir)
+    for src, dst in ((res.backup, ctx.content_list_path),
+                     (res.backup_manifest, ctx.manifest_path)):
+        if not src.is_file():
+            raise ApplyError(f"{res.doc}：備份檔不存在，無法回滾：{src}")
+        shutil.copy2(src, dst)
+        if _sha256(dst) != _sha256(src):
+            raise ApplyError(f"{res.doc}：回滾後內容與備份不符：{dst}")
+    valid = bundle_valid(DocContext(res.raw_dir), oracle or Oracle())
+    return f"{res.doc}：已回滾到 {res.backup.name}；bundle {'認可' if valid else '**未認可**'}"
+
+
 def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
     """就地還原：消音讀 _pp_original_text，表格讀 _pp_original_table_body，
     圖片型別讀 _pp_original_type。不需要備份檔 —— 但備份仍然存在，用於查帳。
@@ -257,13 +326,22 @@ def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
     r = ApplyResult(ctx.doc_name, items_before=len(items))
 
     r.muted = layout_noise.revert_items(items)
+    # `layout_noise.revert_items` 只認 `_pp_original_text`（消音與大多數文字修補
+    # 都走那個欄位）。`code_body` 之類的其餘內容欄位在這裡補還原 —— 少了這段，
+    # 還原會宣稱成功卻把 #8 那種項目留在修補後的狀態。
+    for it in items:
+        for f in TEXT_FIELDS[1:]:
+            if f"_pp_original_{f}" in it:
+                it[f] = it.pop(f"_pp_original_{f}")
     r.charts = chart_type.revert_items(items)
     for it in items:
         if "_pp_repaired_at" not in it:
             continue
-        if it.get("type") == "text":
-            # 文字修補：text 已由 layout_noise.revert_items 從 _pp_original_text
-            # 還原（同一組欄位、同一條路徑），這裡只要收掉時間戳並記在正確的欄位。
+        # 判斷「這是文字修補還是表格修補」用**形狀**不用型別：表格修補一定留下
+        # `_pp_had_table_body`。原本寫 `type == "text"` 時，`equation` / `code`
+        # 會掉進表格那條分支，把 table_body 相關的鍵當成有東西可還原。
+        if "_pp_had_table_body" not in it and "_pp_original_table_body" not in it:
+            # 內容欄位已在上面（或 layout_noise）還原，這裡只收時間戳。
             it.pop("_pp_repaired_at", None)
             r.texts += 1
             continue
