@@ -89,7 +89,7 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 文件      20 份已完成「解析 → 修補 → 重新索引」全流程（processed 20/20、failed 0）
 服務      lightrag :9621 查詢　kbapi :9700 圖片與單篇結構（唯讀）
 skills    lightrag-search / fetch / images —— 全走 :9700，不需認證，任何機器可用
-索引      20 份共 7,211 實體、512 chunk、可疑率 3.2%
+索引      20 份共 7,191 實體、512 chunk、可疑率 3.2%（processed 20/20、failed 0）
 圖        image 371（含 chart 轉入的 184）；chunk 裡以 <drawing caption=… path=…/> 出現
 解析      pipeline + is_ocr=true + MinerU official
 embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
@@ -198,16 +198,31 @@ size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列�
   欄位一併改名(`chart_caption` → `image_caption`),否則圖進得去但 caption 掉光。
 - **`K Muffler` 對照原文可疑率 12.8%** —— 20 份裡唯一超標,可疑關係大量是
   「概念 → 引用文獻」（`Normalized Partition Impedance → Sullivan 1979`）,待查。
-- **實體碎片化 6.1%** —— `k_0` 抽成 5 個節點(`k_0`/`k0`/`K 0`/`K_0`/`K0`)。
-  LightRAG 有 `POST /graph/entities/merge`,**不必重跑抽取**。仍未動:合併
-  不可逆,而數學裡 `S_n` 與 `S_N` 可能真的是兩回事,要先出候選清單過目。
-- **3 條方程式已知錯但未回寫** —— `apply.py` 只寫 `table_body`。
-  例:`N Flow` #1005 的 `\hat{o}` 其實是 ∂、`P` 其實是 ρ。門檻比表格高 ——
-  表格是「從無到錯」,方程式是「從錯到另一種錯」。
+- ~~**實體碎片化**~~ —— 前 8 組已合併(2026-08-02),7,211 → 7,191。
+  查詢的重複格位 4.8% → 3.0%。工具在 `scripts/entity-merge.py`
+  （plan / review / dump / apply）。**剩下的刻意不做**:51 組被檢索到的裡面
+  只有 8 組浪費 ≥2 格,另外 254 組從未出現在任何檢索結果 —— 收益 0。
+- **`C Equivalent Networks` 漏詞 15.2%** ← **目前已知最大的洞**(2026-08-02 發現)。
+  拿 `pdftotext` 的文字層對照 content_list 的全部文字欄位,只比 4 字母以上英文詞
+  （避開 LaTeX vs 字符的混淆）。20 份裡 18 份 ≤5%;C 15.2%、N Flow 8.7%、
+  41598 7.0%。C 漏最多的詞是 `with`(47) `neck`(26) `continued`(20)
+  `absorber`(19) `chamber`(17),分佈在 p15–p46 —— **表格內容的廣泛流失**,
+  比先前修的 6 張空表格大得多。57 張表裡還有 3 張 `table_body` 全空。
+- **943 處 ∂ 誤讀未修** —— `\hat{\sigma}` 909、`\hat{\partial}` 22、`\hat{o}` 10,
+  全部坐在微分的分子/分母位置,零例外（用配對括號掃描器驗過，不是正則）。
+  另有 2 處 Möhring 的 ö 誤讀。**做法是定點修補不是整條換掉** —— 兩眼會丟
+  `\tag{37}`、會把 `\nabla s` 誤改成 `\nabla_s`（前一條式子的 `T∇s` 證明 s 是熵）。
+- **23 處 `\mathsf{P}` 刻意不碰** —— P 在這個語料裡多義:ρ₀c₀ 的 ρ、ρ_P 的下標、
+  空間點 P₂、矩陣 [P]、以及 #1056 壓力波動方程的 p。沒有便宜可靠的訊號能分開。
+- **K Muffler #277 是誤報** —— `eq_similar` 把 `\begin{array}` 的排版結構算成差異。
+  MinerU 是對的,而且多帶著 `\tag{13}`。
 - **接地檢查的 47 個可疑實體** —— `Region I/II/III`、`Mechl`、`S1` 等,
   多數與已記錄的 domain_fact「羅馬數字下標難讀」相關。
 - 「qwen 系統性切錯列」需要第二份有空表格的文件才能驗證。15 份裡只有 C 有,
   命中率約 1/15 —— 要湊樣本得再抽十幾份。
+- **沒有任何檢查是排程跑的** —— `compat-check.py:9` 的 docstring 寫著「排程每天跑」,
+  但 crontab、systemd timer、/etc/cron.d 都沒有。135 項斷言、金絲雀、接地檢查
+  全部只在有人想到時才跑。**「誰會報錯」目前的答案是:沒有人。**
 - **首頁的期刊/會議資訊**(`Paper ID #8776`、`©American Society...`)只出現一次、
   只在第 0 頁,重複與樣板規則都抓不到,目前留在待查。要處理需要新的訊號
   （限第 0 頁 + 版權/會議標記），但只有 1 份文件的證據,先不動。
