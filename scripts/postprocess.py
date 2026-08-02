@@ -366,6 +366,36 @@ def _curated(home: Path) -> tuple[dict[str, str], dict[str, str], list[str]]:
     return tables, texts, notes
 
 
+def _rollback_batch(ap_mod, done: list, o) -> None:
+    """單份失敗時，把這一輪**已經寫下去**的份全部退回去。
+
+    judgement-flow 第 9 節：「任何一條不成立就拒絕，而且是整批拒絕 —— 做到一半
+    停下來比不做更糟，因為你不知道停在哪裡。」原本這條只擋在單份之內（六個條件
+    任一不成立就不寫那一份），批次層卻是「壞的跳過、好的留下」：20 份跑到第 12 份
+    炸掉，磁碟上就是 11 份新、9 份舊，而**沒有任何地方記著分界線在哪**。下一個人
+    看到的是一個沒有名字的中間狀態。
+
+    回滾順序刻意反過來（後寫的先退），這樣中途再失敗時，還沒退的都是較早的份，
+    與備份檔的時間戳順序一致，查帳時看得懂。
+    """
+    if not done:
+        return
+    print(f"\n  ⟲ 批次回滾：本輪已寫入 {len(done)} 份，全部退回這一輪之前的狀態")
+    stuck = []
+    for res in reversed(done):
+        try:
+            print(f"      {ap_mod.rollback_from_backup(res, oracle=o)}")
+        except Exception as e:  # noqa: BLE001
+            stuck.append(f"{res.doc}：{e}")
+    if stuck:
+        # 回滾失敗是最糟的狀態：磁碟上是半套，而且自動路徑已經用盡。
+        # 必須吵得夠大聲，並且把人工還原需要的路徑直接印出來。
+        print("\n  ✗✗ 有文件回滾失敗，磁碟處於混合狀態，**不要再跑任何寫入指令**：")
+        for s in stuck:
+            print(f"        {s}")
+        print("      人工還原：把上列備份檔複製回 <bundle>/content_list.json 與 _manifest.json")
+
+
 def cmd_apply(a, env) -> int:
     from pp import apply as ap_mod, eyes
     from pp.oracle import Oracle, container_for
@@ -375,6 +405,8 @@ def cmd_apply(a, env) -> int:
     # 容器，等於拿 A 的 LightRAG 去認可 B 的 bundle —— 而且會成功。
     o = Oracle(container=container_for(a.workspace))
     rc = 0
+    # 本輪已經 commit 成功的份，用來在後面任何一份失敗時整批退回。
+    done: list = []
     for raw in find_bundles(a.workspace, a.doc):
         try:
             doc_home = out_root / raw.name.removesuffix(".mineru_raw")
@@ -402,8 +434,8 @@ def cmd_apply(a, env) -> int:
                 res.notes += [f"  裁定依據 {n}" for n in cur_notes]
         except (DocContextError, ap_mod.ApplyError) as e:
             print(f"  ✗ {raw.name.removesuffix('.mineru_raw')}：{e}")
-            rc = 2
-            continue
+            _rollback_batch(ap_mod, done, o)
+            return 2
         mark = "✓" if (res.valid_after is not False) else "✗"
         print(f"  {mark} {res.doc}\n      {res.line()}")
         if res.backup:
@@ -411,7 +443,15 @@ def cmd_apply(a, env) -> int:
         for n in res.notes:
             print(f"      {n}")
         if res.valid_after is False:
-            rc = 2
+            # 「寫完 LightRAG 不認可」跟丟例外一樣是失敗，處置必須一樣 ——
+            # 只把 rc 設成 2 卻繼續跑下一份，正是「做到一半」。
+            # 這一份自己也已經寫下去了，所以要先進 done 才回滾得到它。
+            if a.commit:
+                done.append(res)
+            _rollback_batch(ap_mod, done, o)
+            return 2
+        if a.commit:
+            done.append(res)
     if not a.commit:
         print("\n（dry-run。確認無誤後加 --commit 才會寫檔）")
     return rc
