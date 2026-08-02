@@ -23,14 +23,6 @@ rebuild-plan 階段 1）。下一張工單＝**階段 2：後處理與修補**�
       零例外才准自動套，一個反例降級逐條看）
 - [ ] 體檢表補 `pp.preflight`／`pp.tables`／`pp.equations` 三閘門
 
-## 待決策（使用者）
-
-- **commit 策略**：v1 checkout 積了未提交的文檔＋基礎設施改動（NEXT、
-  rebuild-plan、CLAUDE/README、daily-check、notify、階段 0 的腳本參數化），
-  worktree 分支積了階段 1 的工具與同款參數化。建議：v1 的改動先 commit 上
-  master → 分支 rebase（重複的參數化改動會對消）→ 分支只留階段 1 新增。
-  否則兩個 checkout 的文檔會愈岔愈遠（worktree 的 CLAUDE.md 現在還是舊版）。
-
 ## v155 遺留（凍結中——資料不修，由重建在對應階段了結）
 
 - W7 的消音＋表格修補**執行**（apply.py 已寫好未套用；520 項消音有 20 份證據）
