@@ -46,6 +46,7 @@ class ApplyResult:
     doc: str
     muted: int = 0
     tables: int = 0
+    texts: int = 0
     charts: int = 0
     backup: Path | None = None
     items_before: int = 0
@@ -55,7 +56,8 @@ class ApplyResult:
 
     def line(self) -> str:
         v = {True: "認可", False: "**未認可**", None: "未檢查"}[self.valid_after]
-        return (f"消音 {self.muted}、修補表格 {self.tables}、chart→image {self.charts}；"
+        return (f"消音 {self.muted}、修補表格 {self.tables}、修補文字 {self.texts}、"
+                f"chart→image {self.charts}；"
                 f"項目 {self.items_before} → {self.items_after}；bundle {v}")
 
 
@@ -94,13 +96,36 @@ def pipeline_idle(oracle: Oracle) -> bool:
         return False
 
 
+def _backup(src: Path, dst: Path) -> None:
+    """備份一個檔案。**打到任何一個「做不到」就直接失敗**，不留「備份了一半」。
+
+    judgement-flow 第 9 節記的兩個靜默失敗都在這裡擋：
+      - `dump` 直接覆蓋同名檔 → 拒絕覆蓋（同秒重跑會撞名，撞到就停）
+      - 截斷/部分寫入不報錯 → 寫完重讀算 sha256，跟來源不符就刪掉並失敗
+
+    不完整卻宣稱成功比沒有備份更危險 —— 你會因此放心動手。
+    """
+    if dst.exists():
+        raise ApplyError(f"備份檔已存在，拒絕覆蓋：{dst}")
+    shutil.copy2(src, dst)
+    if _sha256(dst) != _sha256(src):
+        dst.unlink(missing_ok=True)
+        raise ApplyError(f"備份內容與來源不符（複製途中被截斷？）：{dst}")
+
+
 def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] | None = None,
+              verified_text: dict[str, str] | None = None,
               oracle: Oracle | None = None, commit: bool = False) -> ApplyResult:
     """verified_tables: {content_list 索引(字串): 已通過交叉比對的 table HTML}
+    verified_text:   {content_list 索引(字串): 人工裁定過的 text}
 
     只寫**已驗證**的表格。沒有通過兩雙眼睛逐格比對的一律不寫 —— 拿沒把握的
     轉錄覆蓋原本的空表格，是把「明顯缺失」換成「看起來正常但可能是錯的」，
     那比缺失更難發現。
+
+    verified_text 是給「文字層有正確答案、MinerU 讀成亂碼」那一類的單點修補
+    （實測 C p64 的旋轉 90° 說明文字被 OCR 讀成 "Ab = = ze = etsosbd) te se…"）。
+    原文一律存進 `_pp_original_text`，還原路徑與消音共用同一條。
     """
     o = oracle or Oracle()
     ctx = DocContext(raw_dir)
@@ -116,7 +141,22 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
 
     tables = empty_table.plan(items, *ctx.page_size)
     want = verified_tables or {}
+    want_text = verified_text or {}
     targets = [t for t in tables.repairable if str(t.index) in want]
+
+    # 兩條規則不得打到同一個項目：消音會把 text 清空並寫 _pp_original_text，
+    # 文字修補會寫同一組欄位 —— 撞在一起時後跑的那條贏，而且不會有訊息。
+    muted_idx = {m.index for m in noise.mutes}
+    clash = sorted(muted_idx & {int(k) for k in want_text})
+    if clash:
+        raise ApplyError(f"{ctx.doc_name}：項目 {clash} 同時是消音目標與文字修補目標，拒絕")
+    for k in want_text:
+        if not (0 <= int(k) < len(items)) or items[int(k)].get("type") != "text":
+            raise ApplyError(f"{ctx.doc_name}：文字修補目標 #{k} 不存在或不是 text 項目")
+    missing_tbl = sorted(set(want) - {str(t.index) for t in tables.repairable})
+    if missing_tbl:
+        raise ApplyError(f"{ctx.doc_name}：表格修補目標 {missing_tbl} 不在可修補集合裡 —— "
+                         "規則或解析產物變了，先重跑 plan")
 
     # 所有計畫都在動手之前算完 —— chart→image 會改 type，先算好才不會讓後面的
     # 規則看到被自己改過的狀態。
@@ -125,6 +165,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     if not commit:
         r.muted = len(noise.mutes)
         r.tables = len(targets)
+        r.texts = len(want_text)
         r.charts = len(charts.convert)
         r.items_after = r.items_before
         if charts.dangling:
@@ -139,15 +180,28 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
         raise ApplyError(f"{ctx.doc_name}：bundle 目前就不被 LightRAG 認可，先修好再說")
 
     # ── 備份 ──
+    # 涵蓋範圍：要改的對象只有 content_list.json 與 _manifest.json 兩個檔，
+    # 而這裡備份的是**整個檔的位元組**，所以「涵蓋每一個要改的項目」由構造保證，
+    # 不必逐項列舉。兩個檔缺一份就整批停 —— 只備份到一半是最糟的狀態。
     home = out_root / ctx.doc_name / "backup"
     home.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     r.backup = home / f"content_list.{stamp}.json"
-    shutil.copy2(ctx.content_list_path, r.backup)
-    shutil.copy2(ctx.manifest_path, home / f"_manifest.{stamp}.json")
+    _backup(ctx.content_list_path, r.backup)
+    try:
+        _backup(ctx.manifest_path, home / f"_manifest.{stamp}.json")
+    except ApplyError:
+        r.backup.unlink(missing_ok=True)      # 不留半套備份
+        raise
 
     # ── 改動 ──
     r.muted = layout_noise.apply_to_items(items, noise)
+    for k, txt in sorted(want_text.items(), key=lambda kv: int(kv[0])):
+        it = items[int(k)]
+        it["_pp_original_text"] = it.get("text", "")
+        it["text"] = txt
+        it["_pp_repaired_at"] = stamp
+        r.texts += 1
     for t in targets:
         it = items[t.index]
         # 必須記下「原本有沒有這個鍵」。10 張待修表格裡有 9 張是連 table_body
@@ -206,6 +260,12 @@ def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
     r.charts = chart_type.revert_items(items)
     for it in items:
         if "_pp_repaired_at" not in it:
+            continue
+        if it.get("type") == "text":
+            # 文字修補：text 已由 layout_noise.revert_items 從 _pp_original_text
+            # 還原（同一組欄位、同一條路徑），這裡只要收掉時間戳並記在正確的欄位。
+            it.pop("_pp_repaired_at", None)
+            r.texts += 1
             continue
         had = it.pop("_pp_had_table_body", "_pp_original_table_body" in it)
         if had:
