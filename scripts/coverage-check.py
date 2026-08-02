@@ -100,11 +100,13 @@ CMD_ARG = re.compile(r"(\\[A-Za-z]+\s*\{)([^{}]*)(\})")
 #   _pp_original_type chart→image 轉換前的型別，同樣是標籤
 #   _pp_repaired_at   修補時間戳
 #   _pp_had_table_body 布林旗標，不是內容
+#   _pp_table_additive 布林旗標（走的是定點補格那條路），不是內容
 # 注意 `_pp_original_<內容欄位>` **不在**這裡 —— 它是消音前的原文，多數情況要
 # 讀回來。哪些該讀、哪些該跳，是**逐項**決定的，見 pp_skip()。
 SKIP_KEYS = {
     "img_path", "type", "sub_type", "text_format",
     "_pp_original_type", "_pp_repaired_at", "_pp_had_table_body",
+    "_pp_table_additive",
 }
 
 # 後處理會就地改動、並把原文搬進 `_pp_original_<欄位>` 的內容欄位。

@@ -48,6 +48,11 @@ class ApplyError(RuntimeError):
 # （`text` 在這串裡排第一）。
 TEXT_FIELDS = ("text", "content", "body", "code_body")
 
+# 標記這張表是**定點補格**寫的（在既有內容上只插入），不是整張寫入。
+# 兩條路的重跑判準相反，靠內容分不出來 —— 整張寫入之後現值就等於裁定檔，
+# 定點補格之後現值還會被機械規則動，所以要在資料上留下走過哪一條的痕跡。
+ADDITIVE = "_pp_table_additive"
+
 
 def text_field(it: dict) -> str | None:
     """這個項目的內容放在哪個欄位。找不到就回 None —— 由呼叫端拒絕，不猜。"""
@@ -235,30 +240,45 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     #   b) **人工裁定的定點補格**：現值有內容，裁定檔只在上面插入。走 assert_additive。
     #   c) 其餘 —— 規則或解析產物變了，拿舊索引硬寫會改到別的項目，必須停。
     repairable_idx = {str(t.index) for t in tables.repairable}
-    # 判「已完成」看內容而不只看時間戳：只看時間戳的話，裁定檔改過之後會被當成
-    # 已完成而**靜靜不生效**——改了東西卻沒有任何訊號，是這個專案一路在防的形狀。
-    done_tbl = {k for k in want
-                if items[int(k)].get("_pp_repaired_at")
-                and items[int(k)].get("table_body") == want[k]}
-    extra = sorted(set(want) - repairable_idx - done_tbl, key=int)
     add_notes: list[str] = []
-    for k in extra:
+    additive: set[str] = set()
+    for k in sorted(want, key=int):
         it = items[int(k)]
         if it.get("type") != "table":
             raise ApplyError(f"{ctx.doc_name}：表格修補目標 #{k} 不是 table 項目")
+        if k in repairable_idx or (it.get("_pp_repaired_at") and ADDITIVE not in it):
+            # 「整張寫入」那一條：現在是空表格，或上一輪就是被整張寫入的
+            # （所以現在當然不再是空表格 —— 冪等的重跑不該變成失敗。實測到過：
+            # C 的 5 張表在階段 2 修完後再跑一次 apply 就整份報錯，而批次原子性
+            # 會讓這個假失敗把同輪已寫入的十幾份一起回滾）。
+            continue
         if k not in curated:
             # 自動採用的轉錄永遠不准碰非空表格。`empty_table` 的耐久規則
             # （不得覆蓋非空表格）由這一行在 apply 層原樣守住。
             raise ApplyError(
                 f"{ctx.doc_name}：表格修補目標 #{k} 不在可修補集合裡，也不是人工裁定 —— "
                 "自動採用的轉錄不得寫進已有內容的表格，先重跑 plan")
-        ins = assert_additive(it.get("table_body") or "", want[k],
-                              f"{ctx.doc_name} #{k}")
+        # 比對基準是 **MinerU 的原值**，不是現值。後面還有機械規則會就地正規化
+        # `table_body`（\times 誤讀、格內逐字母排版），拿現值當基準的話，第二次
+        # 跑 apply 時裁定檔相對於「已被正規化的現值」就不再是純插入，會假失敗。
+        # 原值在第一次寫入時存進 `_pp_original_table_body`，之後不再變動。
+        base = it.get("_pp_original_table_body", it.get("table_body") or "")
+        ins = assert_additive(base, want[k], f"{ctx.doc_name} #{k}")
         if not ins:
-            raise ApplyError(f"{ctx.doc_name}：裁定檔 #{k} 與現值完全相同卻沒有修補痕跡 —— "
-                             "先確認這份 bundle 是不是被換過")
+            raise ApplyError(f"{ctx.doc_name}：裁定檔 #{k} 與 MinerU 原值完全相同，"
+                             "沒有補進任何東西 —— 先確認裁定檔是不是產錯了")
+        additive.add(k)
         add_notes.append(f"#{k} 定點補格 {len(ins)} 段插入：")
         add_notes += [f"    {s}" for s in ins]
+
+    # 判「已完成」看內容而不只看時間戳：只看時間戳的話，裁定檔改過之後會被當成
+    # 已完成而**靜靜不生效**——改了東西卻沒有任何訊號，是這個專案一路在防的形狀。
+    # 定點補格那些不進這個集合：它們的現值被後面的機械規則動過，與裁定檔本來就
+    # 不會逐位元相同，而重寫一次是冪等的（同一份裁定檔 → 同一組位元組）。
+    done_tbl = {k for k in want
+                if k not in additive
+                and items[int(k)].get("_pp_repaired_at")
+                and items[int(k)].get("table_body") == want[k]}
 
     # 文字修補同理：內容與裁定檔一致且已標記過的，就是上一輪的成果，不重寫。
     done_txt = {k for k, v in want_text.items()
@@ -333,6 +353,8 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
             it["_pp_had_table_body"] = "table_body" in it
             if "table_body" in it:
                 it["_pp_original_table_body"] = it["table_body"]
+        if k in additive:
+            it[ADDITIVE] = True
         it["table_body"] = want[k]
         it["_pp_repaired_at"] = stamp
         r.tables += 1
@@ -424,6 +446,7 @@ def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
             it.pop("_pp_repaired_at", None)
             r.texts += 1
             continue
+        it.pop(ADDITIVE, None)
         had = it.pop("_pp_had_table_body", "_pp_original_table_body" in it)
         if had:
             it["table_body"] = it.pop("_pp_original_table_body")
