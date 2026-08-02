@@ -31,12 +31,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
+from mineru_common import LEAK, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
 
@@ -306,6 +307,65 @@ def _api(env: dict, path: str, method: str = "GET", body=None):
         return json.loads(r.read() or "{}")
 
 
+def gate_table_html(body: str, where: str) -> str:
+    """寫進 content_list 之前的最後三道閘門。**自動採用與人工裁定走同一道**。
+
+    實測踩過（2026-08-02，C #525）：qwen 對含示意圖的儲存格**捏造了一個外部
+    圖片網址** `<img src="https://i.imgur.com/…">`。`crosscheck.compare` 只比
+    兩眼一不一致，完全不看 HTML 裡多出來什麼 —— 兩眼要是剛好都幻覺同一格，
+    這串網址就會靜靜進索引。`vlm.py` 的 V3/V4 本來就防這個，但 apply 走的是
+    快取直取那條路，沒有經過它們。
+    """
+    if not re.match(r"(?s)^<table\b.*</table>$", body, re.I):
+        sys.exit(f"{where} 不是單一完整的 <table>…</table>，拒絕使用")
+    m = re.search(r"<img\b[^>]*>", body, re.I)
+    if m:
+        sys.exit(f"{where} 含 {m.group(0)[:80]} —— 拒絕使用"
+                 "（不得把數學或示意圖換成圖片參照；示意圖格寫 [FIGURE]）")
+    if LEAK.search(body):
+        sys.exit(f"{where} 含 prompt 洩漏字樣，拒絕使用")
+    return body
+
+
+def _curated(home: Path) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """讀人工裁定過的修補內容。
+
+    為什麼需要這條路：兩雙眼睛比對只回答「兩邊一不一致」，寫進去的一律是眼睛 A
+    的轉錄。實測 C #507 兩眼**穩定分歧**且 A 的結構是錯的（把 2 列切成 3 列），
+    #439 兩眼各對一半（羅馬數字下標 I/II 兩邊錯的方向相反）—— 這兩種都不是
+    「換一隻眼睛」能解決的，是要人看圖之後**定點修補**。
+
+    裁定結果以檔案落在 `postprocess/<doc>/verified/<idx>.html|.txt`：
+      - 進得了 restic 備份範圍
+      - 內容可被 diff、可被重看，不是藏在某次執行的記憶體裡
+      - 換模型重跑時它仍然成立（它記的是圖上寫什麼，不是哪隻眼睛比較準）
+
+    第一行若是 `<!-- … -->` 註解，視為裁定依據，會被印出來但不寫進資料。
+    """
+    tables: dict[str, str] = {}
+    texts: dict[str, str] = {}
+    notes: list[str] = []
+    d = home / "verified"
+    if not d.is_dir():
+        return tables, texts, notes
+    for f in sorted(d.iterdir()):
+        if f.suffix not in (".html", ".txt") or not f.stem.isdigit():
+            continue
+        body = f.read_text()
+        m = re.match(r"\s*<!--(.*?)-->\s*", body, re.S)
+        if m:
+            notes.append(f"#{f.stem} {' '.join(m.group(1).split())[:160]}")
+            body = body[m.end():]
+        body = body.strip()
+        if f.suffix == ".html":
+            tables[f.stem] = gate_table_html(body, f"裁定檔 {f}")
+        else:
+            if not body or LEAK.search(body):
+                sys.exit(f"裁定檔 {f} 是空的或含 prompt 洩漏字樣，拒絕使用")
+            texts[f.stem] = body
+    return tables, texts, notes
+
+
 def cmd_apply(a, env) -> int:
     from pp import apply as ap_mod, eyes
     from pp.oracle import Oracle, container_for
@@ -317,19 +377,29 @@ def cmd_apply(a, env) -> int:
     rc = 0
     for raw in find_bundles(a.workspace, a.doc):
         try:
+            doc_home = out_root / raw.name.removesuffix(".mineru_raw")
+            cur_tbl, cur_txt, cur_notes = _curated(doc_home)
             verified: dict[str, str] = {}
             if not a.no_tables:
                 # 只採用兩雙眼睛逐格一致的。沒把握的轉錄一律不寫 ——
                 # 拿它覆蓋空表格，是把「明顯缺失」換成「看起來正常但可能是錯的」。
                 ctx, results = eyes.check_doc(raw, env, out_root, workers=a.workers)
                 for r_ in results:
-                    if r_.ok:
+                    if r_.ok and str(r_.index) not in cur_tbl:
                         html, err = eyes.look(eyes.eyes_from_env(env)[0], r_.png,
                                               out_root / ctx.doc_name / "cache")
                         if not err:
-                            verified[str(r_.index)] = html
+                            verified[str(r_.index)] = gate_table_html(
+                                html.strip(), f"{ctx.doc_name} #{r_.index} 的自動採用轉錄")
+            n_auto = len(verified)
+            verified.update(cur_tbl)          # 人工裁定優先於自動採用
             res = ap_mod.apply_doc(raw, out_root=out_root, verified_tables=verified,
-                                   oracle=o, commit=a.commit)
+                                   verified_text=cur_txt, oracle=o, commit=a.commit)
+            if cur_tbl or cur_txt:
+                res.notes.append(
+                    f"表格 {n_auto} 張自動採用、{len(cur_tbl)} 張人工裁定；"
+                    f"文字 {len(cur_txt)} 處人工裁定")
+                res.notes += [f"  裁定依據 {n}" for n in cur_notes]
         except (DocContextError, ap_mod.ApplyError) as e:
             print(f"  ✗ {raw.name.removesuffix('.mineru_raw')}：{e}")
             rc = 2
