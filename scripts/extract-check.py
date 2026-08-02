@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import load_env  # noqa: E402
+from pp.oracle import env_workspace  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 PG = os.environ.get("PP_PG_CONTAINER", "deeptutor-v4-postgres")
@@ -60,6 +61,11 @@ def is_symbolic(text: str) -> bool:
     if not text:
         return False
     return len("".join(_MARKUP.findall(text))) / max(len(text), 1) > SYMBOLIC_RATIO
+
+
+def q(s: str) -> str:
+    """SQL 字串字面值。自己包引號，不用 shell 插值。"""
+    return "'" + s.replace("'", "''") + "'"
 
 
 def psql(sql: str, env: dict) -> list[dict]:
@@ -113,6 +119,8 @@ def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="抽取品質：接地檢查與數量帳")
     ap.add_argument("--doc", help="file_path 關鍵字，預設全部")
+    ap.add_argument("--workspace", default=env_workspace(),
+                    help="預設讀本 checkout .env 的 WORKSPACE")
     ap.add_argument("--list-ungrounded", type=int, default=12)
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
@@ -120,14 +128,20 @@ def main() -> int:
     dim = env.get("EMBEDDING_DIM", "3072")
     model = env.get("EMBEDDING_MODEL", "text-embedding-3-large").replace("-", "_")
     etab = f"lightrag_vdb_entity_{model}_{dim}d"
+    # **每一句都要帶 workspace。** 多個知識庫共存於同一組 Postgres，靠 workspace
+    # 欄位隔離；沒有這個條件時 v155 與 v2 的列會混在一起，而且兩邊的 file_path
+    # 是同一批 PDF 檔名，逐份表會把兩個 workspace 的同一份文件併成一列——
+    # 數字看起來完全正常（只是大約兩倍），不會有任何錯誤訊息。
+    # 實測踩過（2026-08-03，v2 階段 3）：合計實體 14,402＝v155 7,191＋v2 7,211。
+    ws = q(a.workspace)
 
-    # 一次把 chunk 全撈進來（398 筆，很小），避免 N 次查詢
+    # 一次把 chunk 全撈進來（很小），避免 N 次查詢
     chunks = {r["id"]: r["content"] or "" for r in psql(
-        "select id, content from lightrag_doc_chunks", env)}
+        f"select id, content from lightrag_doc_chunks where workspace = {ws}", env)}
 
     rows = psql(f"""
         select entity_name, chunk_ids, coalesce(file_path, '') as file_path
-        from {etab} where chunk_ids is not null
+        from {etab} where chunk_ids is not null and workspace = {ws}
     """, env)
 
     per_doc: dict[str, dict] = {}
@@ -196,7 +210,7 @@ def main() -> int:
     rtab = etab.replace("_vdb_entity_", "_vdb_relation_")
     rels = psql(f"""
         select source_id, target_id, chunk_ids, coalesce(file_path,'') as file_path
-        from {rtab} where chunk_ids is not null
+        from {rtab} where chunk_ids is not null and workspace = {ws}
     """, env)
     if rels:
         rstat = {"total": 0, "ok": 0, "one_side": 0, "neither": 0, "symbolic": 0}

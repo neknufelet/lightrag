@@ -87,17 +87,29 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 
 ## 現況
 
+**這個 checkout 是 `rebuild/acoustics-v2` worktree,現況說的是 acoustics_v2。**
+
 ```
-文件      20 份已完成「解析 → 修補 → 重新索引」全流程（processed 20/20、failed 0）
-服務      lightrag :9621 查詢　kbapi :9700 圖片與單篇結構（唯讀）
-skills    lightrag-search / fetch / images —— 全走 :9700，不需認證，任何機器可用
-索引      20 份共 7,191 實體、512 chunk、可疑率 3.2%（processed 20/20、failed 0）
-圖        image 371（含 chart 轉入的 184）；chunk 裡以 <drawing caption=… path=…/> 出現
+文件      20 份已完成「解析 → 修補 → 抽取」全流程(processed 20/20、failed 0)
+          分 4 批索引,每批 5 份;總耗時 3 小時 58 分(61.1/70.1/46.1/61.1 分)
+服務      lightrag :9622 查詢(WORKSPACE=acoustics_v2、容器 lightrag-acoustics_v2)
+          kbapi 以 profile 停用中 —— 9700 被凍結的 v155 佔著,階段 5 才恢復
+索引      7,211 實體、10,500 關係、510 chunk;圖 7,211 節點 / 10,500 邊
+接地      可疑率 4.5%(260/5,729 個可判定實體);符號型 1,482 個「驗不了」
+          6 份 >5% 標黃(K Muffler 15.1%、00712 11.9%、G Porous 6.4%、01200_6 6.1%、
+          2025 5.7%、2023 FEM 5.0%),形狀逐份記在體檢表 —— 全部不是幻覺
+格式      Empty entity name 共 1,669 次(第 1 批 477 = 基線),全部帶得到 chunk key
+圖        image 371(含 chart 轉入的 184);chunk 裡以 <drawing caption=… path=…/> 出現
+          項目數 5,448:text 2,731、equation 1,273、header 514、page_number 353、table 82
 解析      pipeline + is_ocr=true + MinerU official
-embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
+embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC;本輪實際嵌入 4.56M 字元 ≈ US$0.15
 兩雙眼睛  qwen3.6-35b-a3b(本機) + gpt-5.6-luna(雲端,$0.20/$1.20 per 1M)
-重建      acoustics_v2 進行中(worktree lightrag-v2、埠 9622,v155 凍結當對照)
-          階段與閘門見 docs/rebuild-plan.md,待辦見 NEXT.md
+體檢表    20 份 × 8 閘門 = 160 格:通過 151、fail 9、驗不了 0、未設定 0
+          fail 9 = 3 份 waiver(41598/C 的 coverage、N Flow 的 equations)
+                 + 6 份 extract.grounding >5%
+對照      acoustics_v155 凍結中(:9621/:9700),同 DB 靠 workspace 欄位隔離
+          v155 → v2:chunk 512→510、實體 7,968→8,010、關係 10,407→10,535、
+          含掉字 chunk 86→27(-69%);逐份對照用 `compare-ws.py '' acoustics_v155`
 ```
 
 ## 規則分兩類,不能混在一起
@@ -191,10 +203,22 @@ size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列�
   下傳成它。失效時 `/kb/*/search` 會靜靜回到每次 55–60KB —— 不報錯,只是把
   呼叫端的 context 灌爆,所以每次都真的打一次查詢來驗。
   注意:**空 workspace 上它結構性驗不了**(chunk 數恆 0,`b > a` 不可能成立),
-  該讀成「驗不了」而非紅燈 —— 2026-08-02 建 v2 時發現,三態化待辦在
-  rebuild-plan。
+  該讀成「驗不了」而非紅燈 —— 2026-08-02 建 v2 時發現,已三態化。
+  **三態化的最終驗證在 2026-08-03 拿到**:v2 索引完 20 份後,同一條斷言
+  **自動從「驗不了」轉回真實判斷**(`chunk_top_k=2 → 2 個、=8 → 8 個,
+  母體 20 份已索引`),不必改任何一行程式。「母體不足」與「契約壞了」
+  被分開之後,兩種狀態各自都會在該響的時候響。
   **不要改用 `max_total_tokens` 收**:它先扣圖譜再給原文,設 8000 時
   `available_chunk_tokens` 變負數,chunk 直接回 0 個且不報錯。
+- **同一組 Postgres 裡多個 workspace 共存時,每一句 SQL 都要帶 `workspace`。**
+  儲存層靠這個欄位隔離,而兩個 workspace 的 `file_path` 是同一批 PDF 檔名 ——
+  漏掉條件時逐份報表會把兩邊的同一份文件**併成一列**,數字看起來完全正常
+  (大約兩倍)、不報錯、不會有任何訊號。實測踩過(2026-08-03,extract-check.py
+  三句 SQL 全漏):合計實體 14,402 = v155 7,191 + v2 7,211,而且**翻轉了三份
+  文件的閘門判定**。單一 checkout 時代這個 bug 不可觀測 —— 與階段 0 的
+  「容器名寫死」同一族,開第二個 workspace 的那一刻才引爆。
+  修完的驗證方式:**拿舊 workspace 重跑,要重現歷史數字**(v155 回 3.2%,
+  與本檔記載逐位元相同)。
 
 ## 待辦
 
@@ -220,8 +244,24 @@ compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本�
 分成「接地 / 符號型無法驗證 / 可疑」之後,C 從 55.1% 降到 3.4%,總計 3.7%。
 
 ```
-2,084 實體 → 接地 1,238、符號型 799（驗不了）、可疑 47
+acoustics_v2（2026-08-03，全 20 份）
+7,211 實體 → 接地 5,469、符號型 1,482（驗不了）、可疑 260 　可疑率 4.5%
+20,873 關係 → 兩端接地 12,459、符號型 7,491、只有一端 689、兩端皆無 234
 ```
+
+**「可疑」不等於「幻覺」——形狀要逐份看過才算量到。** v2 的 260 個可疑
+分成兩族,兩族都不是捏造:
+
+| 形狀 | 長相 | 例 |
+|---|---|---|
+| 符號→概念命名 | 模型替裸符號取描述性名字 | K Muffler `Coefficient Ta`、G Porous `Modified Bessel Function I0` |
+| 概念→引用文獻 | 參考文獻條目被拆成實體 | 01200_6 `Journal Of The Acoustical Society Of America`、2025 的作者縮寫名 |
+
+前者是**三態判準的邊界效應**:同一族的東西,散文比例低於
+`SYMBOLIC_RATIO=0.35` 的落進「驗不了」,高於的落進「可疑」。所以
+K Muffler 15.1%(全庫最高)的分子裡 92 個只有 1 個是引用文獻 ——
+**NEXT 記載的 v155 結論「K Muffler 大量概念→引用文獻型」在 v2 母體被推翻**。
+要真的降下來得重量 `is_symbolic` 的判準(門檻用量的不要用調的)。
 
 ## 兩雙眼睛:為什麼要兩個
 
