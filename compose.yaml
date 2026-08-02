@@ -61,6 +61,14 @@ services:
     image: python:3.12-slim
     container_name: kbapi-${WORKSPACE:-acoustics_v155}
     restart: unless-stopped
+    # rebuild/acoustics-v2 階段 0 起停用：本服務的 9700 是寫死的（不像 lightrag 走
+    # ${HOST_PORT}），而 :9700 已被凍結中的 kbapi-acoustics_v155 佔著，同時起會撞埠。
+    # 階段 0–4 的驗收只打 lightrag 的 API，用不到圖片與單篇結構端點，所以用 profile
+    # 關掉而不是刪掉——差異只有這一行，恢復也只是刪掉它。
+    # 何時恢復：階段 5「切換 kbapi 與 skills 指向 v2」時。屆時 v155 的 kbapi 退役、
+    # 9700 空出來，刪掉這行即可；若要兩邊並存則需先把 9700 改成 ${KBAPI_PORT:-9700}。
+    # 暫時要單獨起它：docker compose --profile kbapi up -d kbapi
+    profiles: ["kbapi"]
     command: ["python", "/app/scripts/kbapi.py", "--port", "9700"]
     working_dir: /app
     environment:

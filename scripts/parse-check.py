@@ -99,13 +99,18 @@ def severity(r: dict) -> str:
     return "OK"
 
 
-def scan(root: Path, workspace: str):
+def scan(root: Path, workspace: str, doc: str | None = None):
     pdir = root / workspace / "inputs" / workspace / "__parsed__"
     if not pdir.exists():
         print(f"找不到解析目錄：{pdir}", file=sys.stderr)
         return []
     out = []
     for raw in sorted(pdir.glob("*.mineru_raw")):
+        # --doc 只是**縮小範圍**，預設仍然掃全部。不可以把檢查本身關在
+        # `if doc:` 底下——那樣它就只驗「你已經在懷疑的那一份」，而你不會對
+        # 沒想到的那份指定關鍵字（鐵則 6：A-16 的 184 個 chart 就是這樣漏掉的）。
+        if doc and doc.lower() not in raw.name.lower():
+            continue
         r = check_doc(raw)
         out.append((raw.name.removesuffix(".pdf.mineru_raw"), r, severity(r)))
     # 最嚴重的排前面
@@ -162,16 +167,18 @@ def main():
                     default=os.environ.get("WORKSPACE")
                     or env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    ap.add_argument("--doc", help="檔名關鍵字，只檢查符合的文件（預設全部）")
     ap.add_argument("--details", action="store_true", help="印出問題的實際位置與內文")
     ap.add_argument("--watch", action="store_true", help="每 60 秒重掃一次，適合邊解析邊看")
     a = ap.parse_args()
 
     if not a.watch:
-        sys.exit(report(scan(a.root, a.workspace), a.details))
+        # 指定單一文件時就是在看那一份，細節一律印出來。
+        sys.exit(report(scan(a.root, a.workspace, a.doc), a.details or bool(a.doc)))
 
     seen = None
     while True:
-        results = scan(a.root, a.workspace)
+        results = scan(a.root, a.workspace, a.doc)
         sig = [(n, s) for n, _, s in results]
         if sig != seen:
             print(f"\n--- {time.strftime('%H:%M:%S')} ---")
