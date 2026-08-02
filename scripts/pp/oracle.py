@@ -227,17 +227,39 @@ class Oracle:
             "                  'fields': re.findall(r'item\\.get\\(\"([a-z_]+)\"\\)', d)}))"
         )
 
-    def chunk_top_k_effect(self, api_key: str, ks: tuple[int, ...] = (2, 8)) -> dict:
+    def indexed_docs(self, api_key: str, port: int = 9621) -> dict:
+        """A-25 的母體：這個 workspace 裡各狀態的文件數。
+
+        A-25 斷言「chunk_top_k=8 回的片段數 > =2 回的」。這在**沒有已索引文件**的
+        workspace 上結構性不可能成立 —— 兩邊恆為 0，不是契約壞了。所以要先問
+        母體，才知道紅燈該不該亮。
+
+        數的是 processed，不是 /documents 的總筆數：只有 processed 的文件才有
+        chunk 進索引。20 份全 pending 跟 0 份一樣驗不了，但兩者的原因不同，
+        回報要分得開，所以整份狀態表都帶回去。
+        """
+        return self.py(
+            "import json,os,urllib.request as u\n"
+            f"r=u.urlopen(u.Request('http://localhost:{port}/documents',"
+            f"headers={{'X-API-Key':{api_key!r}}}),timeout=30)\n"
+            "st=json.loads(r.read()).get('statuses') or {}\n"
+            "print(json.dumps({k:len(v or []) for k,v in st.items()}))"
+        )
+
+    def chunk_top_k_effect(self, api_key: str, ks: tuple[int, ...] = (2, 8),
+                           port: int = 9621) -> dict:
         """A-25：chunk_top_k 是否真的在控制回傳的片段數。
 
         在容器內打 localhost —— 服務只發佈到 ${BIND_ADDR}，從 host 打
         127.0.0.1 會連不上，而「連不上」跟「參數失效」在結果上長得一樣。
+        埠要用**容器自己監聽的 PORT**，不是發佈到宿主的 HOST_PORT（v155 兩者
+        同值把這個混用藏了一路，v2 換埠才會炸）。
         """
         code = (
             "import json,os,sys,urllib.request as u\n"
             "out={}\n"
             "for k in [int(x) for x in sys.argv[1:]]:\n"
-            "    r=u.Request('http://localhost:9621/query/data',method='POST',\n"
+            f"    r=u.Request('http://localhost:{port}/query/data',method='POST',\n"
             "        data=json.dumps({'query':'sound absorption coefficient','mode':'mix',\n"
             "                         'only_need_context':True,'chunk_top_k':k}).encode(),\n"
             "        headers={'X-API-Key':os.environ['LIGHTRAG_API_KEY'],\n"

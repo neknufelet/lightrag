@@ -213,14 +213,31 @@ class Checker:
 
             順帶記下不要用 max_total_tokens 收：它是先扣圖譜再給原文，設太小
             時 available_chunk_tokens 變負數，chunk 直接回 0 個且不報錯。
+
+            **先問母體再判斷。** 斷言要求 b > a，而沒有已索引文件的 workspace
+            兩邊恆為 0 —— 那是「這個母體驗不了」，不是「契約壞了」。判成 FAIL
+            的話，v2 這種乾淨新庫從建庫到索引完成的每一天都會亮紅燈，而每天都
+            亮的紅燈等於沒有紅燈：真的失效那天沒人會多看一眼。
+            這是第一個在空母體上結構性驗不了的斷言。
             """
             try:
-                got = self.o.chunk_top_k_effect(api_key)
+                st = self.o.indexed_docs(api_key, port)
             except OracleError as e:
-                return None, f"查不動（{str(e)[:60]}），跳過", {}
+                return None, f"問不到母體（{str(e)[:60]}），驗不了", {}
+            n_proc = int(st.get("processed") or 0)
+            if n_proc == 0:
+                other = {k: v for k, v in st.items() if k != "processed"}
+                return None, ("這個 workspace 沒有任何已索引文件"
+                              + (f"（其他狀態 {other}）" if other else "（/documents 全空）")
+                              + " —— chunk 數恆 0，b > a 結構性不可能成立，"
+                                "驗不了；索引完成後這條會自動恢復判斷"), {"statuses": st}
+            try:
+                got = self.o.chunk_top_k_effect(api_key, port=port)
+            except OracleError as e:
+                return None, f"查不動（{str(e)[:60]}），驗不了", {}
             a, b = got.get("2", -1), got.get("8", -1)
             return (a <= 2 and b <= 8 and b > a), \
-                   f"chunk_top_k=2 → {a} 個、=8 → {b} 個", got
+                   f"chunk_top_k=2 → {a} 個、=8 → {b} 個（母體 {n_proc} 份已索引）", got
 
         @self.check("A-22", "hard", "每張向量表都有向量索引")
         def _():
@@ -449,7 +466,9 @@ def main():
     if a.json:
         print(json.dumps([r.__dict__ for r in c.results], ensure_ascii=False, indent=1))
     else:
-        mark = {True: "  ok  ", False: " FAIL ", None: " skip "}
+        # ok=None 是三態的第三態「驗不了」，不是「跳過」—— 兩者的差別在於
+        # 驗不了會留下原因，而且**永遠要印出來**（收合只藏 ok）。
+        mark = {True: "  ok  ", False: " FAIL ", None: "驗不了"}
         print(f"{'ID':<7} {'層級':<6} {'結果':^6}  說明")
         print("-" * 100)
         # 20 份 × 6 支探針 = 120 行，全印會把契約層的結果洗掉。所以資料層
@@ -457,19 +476,24 @@ def main():
         for i, r in enumerate(c.results):
             if collapse and i >= doc_from and r.ok is True:
                 continue
-            print(f"{r.id:<7} {r.level:<6} {mark[r.ok]:^6}  {r.what}")
+            print(f"{r.id:<7} {r.level:<6} {mark[r.ok]}  {r.what}")
             if r.detail:
                 print(f"{'':<21}  └ {r.detail}")
 
     hard = [r for r in c.results if r.level == "hard" and r.ok is False]
     soft = [r for r in c.results if r.level == "soft" and r.ok is False]
+    # 「驗不了」自成一類，不計入 hard/soft 失敗，也不併進 ok。併進 ok 會讓
+    # 「驗過了」與「沒得驗」在畫面上長得一樣 —— 那正是三態要防的事。
+    unver = [r for r in c.results if r.ok is None]
     if not a.json:
         print("-" * 100)
         # 收合的那些必須報出數量，否則「沒印出來」跟「沒檢查」在畫面上一樣，
         # 而這整段修改就是為了修掉那種一樣。
         hidden = sum(1 for i, r in enumerate(c.results)
                      if collapse and i >= doc_from and r.ok is True)
-        print(f"hard 失敗 {len(hard)}　soft 失敗 {len(soft)}　共 {len(c.results)} 項"
+        print(f"hard 失敗 {len(hard)}　soft 失敗 {len(soft)}　"
+              f"驗不了 {len(unver)}{'（' + '、'.join(r.id for r in unver) + '）' if unver else ''}　"
+              f"共 {len(c.results)} 項"
               + (f"（{n_docs} 份文件的資料層檢查，{hidden} 項通過未列出）" if hidden else ""))
     sys.exit(2 if hard else (5 if soft else 0))
 
