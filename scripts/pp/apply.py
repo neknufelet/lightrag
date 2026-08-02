@@ -23,6 +23,7 @@
 """
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import shutil
@@ -54,6 +55,55 @@ def text_field(it: dict) -> str | None:
         if isinstance(it.get(f), str):
             return f
     return None
+
+
+def _is_subsequence(a: str, b: str) -> bool:
+    """a 的每一個字元都能在 b 裡依序找到 —— 等價於「b 是由 a 只做插入得到的」。
+
+    刻意不用 `difflib` 判定：`SequenceMatcher` 找的是**某一組**匹配區塊
+    （貪婪遞迴，不是最佳 LCS），純插入的情況它照樣可能回報 `replace`。
+    那會變成偶發的假失敗，而假失敗會逼人去放寬檢查 —— 判定必須是確定的。
+    difflib 只拿來**印給人看**，不參與判定。
+    """
+    it = iter(b)
+    return all(ch in it for ch in a)
+
+
+def additive_diff(current: str, new: str) -> list[str]:
+    """把 `new` 相對於 `current` 的每一段插入列出來（給人審）。
+
+    只在已經確定是純插入之後呼叫，所以 `replace`/`delete` 不該出現；真的出現時
+    照樣列進去，因為這個函式也被拿來印**失敗**時的證據。
+    """
+    out = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, current, new, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        head = current[max(0, i1 - 40):i1].replace("\n", " ")
+        out.append(f"{tag} @{i1}　…{head}⟦{new[j1:j2][:200]}⟧"
+                   + (f"　（刪/改掉：{current[i1:i2][:120]!r}）" if tag != "insert" else ""))
+    return out
+
+
+def assert_additive(current: str, new: str, where: str) -> list[str]:
+    """curated 表格補格的**只加不改**判準：現值的位元組一個都不准動。
+
+    定案（c-tables-disputes §7.2）沒有放寬 `empty_table` 的「不得覆蓋非空表格」
+    —— idx 7 的證據還在（完整五欄表、799 字元實質內容，拿 VLM 的猜測覆蓋它就是
+    製造靜默損壞）。放行的是另一條路：**填空格／截斷格前接前綴／新增格**，
+    三者的共同形狀就是「只插入，不刪不改」，所以判準直接寫成那個不變量，
+    而不是去枚舉三種操作 —— 枚舉會漏掉第四種形狀（實測到了：#373 的說明格是
+    中間漏字，要在句子當中插回去，不是前綴也不是新增格）。
+
+    回傳插入清單給呼叫端記進 notes：**每一段插入都要被看見**。
+    通過檢查但沒人看過的插入，跟沒有檢查的插入沒有差別。
+    """
+    if not _is_subsequence(current, new):
+        raise ApplyError(
+            f"{where}：裁定檔動到了現值已有的內容，拒絕（curated 補格只准插入）\n"
+            + "\n".join("        " + s for s in additive_diff(current, new)[:12]))
+    return additive_diff(current, new)
 
 
 @dataclass
@@ -132,9 +182,11 @@ def _backup(src: Path, dst: Path) -> None:
 
 def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] | None = None,
               verified_text: dict[str, str] | None = None,
+              curated_idx: set[str] | None = None,
               oracle: Oracle | None = None, commit: bool = False) -> ApplyResult:
     """verified_tables: {content_list 索引(字串): 已通過交叉比對的 table HTML}
     verified_text:   {content_list 索引(字串): 人工裁定過的 text}
+    curated_idx:     上面哪些索引來自**人工裁定檔**（其餘是自動採用的轉錄）
 
     只寫**已驗證**的表格。沒有通過兩雙眼睛逐格比對的一律不寫 —— 拿沒把握的
     轉錄覆蓋原本的空表格，是把「明顯缺失」換成「看起來正常但可能是錯的」，
@@ -159,7 +211,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     tables = empty_table.plan(items, *ctx.page_size)
     want = verified_tables or {}
     want_text = verified_text or {}
-    targets = [t for t in tables.repairable if str(t.index) in want]
+    curated = curated_idx or set()
 
     # 兩條規則不得打到同一個項目：消音會把 text 清空並寫 _pp_original_text，
     # 文字修補會寫同一組欄位 —— 撞在一起時後跑的那條贏，而且不會有訊息。
@@ -175,25 +227,46 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
         if not (0 <= int(k) < len(items)) or text_field(items[int(k)]) is None:
             raise ApplyError(f"{ctx.doc_name}：文字修補目標 #{k} 不存在，"
                              f"或沒有 _coerce_text 讀得到的內容欄位（{TEXT_FIELDS}）")
-    # 「不在可修補集合裡」有兩個完全不同的原因，混成同一種失敗會很難用：
-    #   a) **我們自己上一輪已經修好了** —— 修好的表格當然不再是空表格。
-    #      這是正常的重跑，該安靜跳過（規則本來就該冪等）。
-    #   b) 規則或解析產物變了 —— 拿舊索引硬寫會改到別的項目，必須停。
-    # 分辨的訊號是該項目上有沒有我們蓋的 `_pp_repaired_at`。
-    # 不分辨的代價實測到了：C 的 5 張表在階段 2 修完後，再跑一次 apply 就整份
-    # 報錯；批次原子性加上去之後，這個假失敗會把同一輪已寫入的十幾份**一起回滾**。
+    # 「不在可修補集合裡」現在有三個完全不同的原因，混成同一種失敗會很難用：
+    #   a) **我們自己上一輪已經修好了**（內容與裁定檔一致且有 `_pp_repaired_at`）
+    #      —— 修好的表格當然不再是空表格。正常重跑，安靜跳過（規則本來就該冪等）。
+    #      不分辨的代價實測到了：C 的 5 張表在階段 2 修完後，再跑一次 apply 就整份
+    #      報錯；批次原子性加上去之後，這個假失敗會把同輪已寫入的十幾份一起回滾。
+    #   b) **人工裁定的定點補格**：現值有內容，裁定檔只在上面插入。走 assert_additive。
+    #   c) 其餘 —— 規則或解析產物變了，拿舊索引硬寫會改到別的項目，必須停。
     repairable_idx = {str(t.index) for t in tables.repairable}
+    # 判「已完成」看內容而不只看時間戳：只看時間戳的話，裁定檔改過之後會被當成
+    # 已完成而**靜靜不生效**——改了東西卻沒有任何訊號，是這個專案一路在防的形狀。
     done_tbl = {k for k in want
-                if k not in repairable_idx and items[int(k)].get("_pp_repaired_at")}
-    missing_tbl = sorted(set(want) - repairable_idx - done_tbl)
-    if missing_tbl:
-        raise ApplyError(f"{ctx.doc_name}：表格修補目標 {missing_tbl} 不在可修補集合裡，"
-                         "且沒有被本流程修補過的痕跡 —— 規則或解析產物變了，先重跑 plan")
+                if items[int(k)].get("_pp_repaired_at")
+                and items[int(k)].get("table_body") == want[k]}
+    extra = sorted(set(want) - repairable_idx - done_tbl, key=int)
+    add_notes: list[str] = []
+    for k in extra:
+        it = items[int(k)]
+        if it.get("type") != "table":
+            raise ApplyError(f"{ctx.doc_name}：表格修補目標 #{k} 不是 table 項目")
+        if k not in curated:
+            # 自動採用的轉錄永遠不准碰非空表格。`empty_table` 的耐久規則
+            # （不得覆蓋非空表格）由這一行在 apply 層原樣守住。
+            raise ApplyError(
+                f"{ctx.doc_name}：表格修補目標 #{k} 不在可修補集合裡，也不是人工裁定 —— "
+                "自動採用的轉錄不得寫進已有內容的表格，先重跑 plan")
+        ins = assert_additive(it.get("table_body") or "", want[k],
+                              f"{ctx.doc_name} #{k}")
+        if not ins:
+            raise ApplyError(f"{ctx.doc_name}：裁定檔 #{k} 與現值完全相同卻沒有修補痕跡 —— "
+                             "先確認這份 bundle 是不是被換過")
+        add_notes.append(f"#{k} 定點補格 {len(ins)} 段插入：")
+        add_notes += [f"    {s}" for s in ins]
 
     # 文字修補同理：內容與裁定檔一致且已標記過的，就是上一輪的成果，不重寫。
     done_txt = {k for k, v in want_text.items()
                 if items[int(k)].get("_pp_repaired_at")
                 and items[int(k)].get(text_field(items[int(k)]), "") == v}
+
+    # 這一輪真的要寫的表格：可修補的空表格 ∪ 通過只加不改的定點補格，扣掉已完成的。
+    write_tbl = sorted(set(want) - done_tbl, key=int)
 
     # 所有計畫都在動手之前算完 —— chart→image 會改 type，先算好才不會讓後面的
     # 規則看到被自己改過的狀態。
@@ -201,7 +274,8 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
 
     if not commit:
         r.muted = len(noise.mutes)
-        r.tables = len(targets)
+        r.tables = len(write_tbl)
+        r.notes += add_notes
         r.texts = len(want_text) - len(done_txt)
         r.charts = len(charts.convert)
         r.items_after = r.items_before
@@ -247,17 +321,22 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
         it[fld] = txt
         it["_pp_repaired_at"] = stamp
         r.texts += 1
-    for t in targets:
-        it = items[t.index]
+    for k in write_tbl:
+        it = items[int(k)]
         # 必須記下「原本有沒有這個鍵」。10 張待修表格裡有 9 張是連 table_body
         # 都沒有（MISSING_KEY），只存 _pp_original_table_body 的話那 9 張沒有
         # 還原依據 —— 實測第一版就是這樣，revert 只還原了消音，表格 0 張。
-        it["_pp_had_table_body"] = "table_body" in it
-        if "table_body" in it:
-            it["_pp_original_table_body"] = it["table_body"]
-        it["table_body"] = want[str(t.index)]
+        # 與文字修補同一條理由：只記**第一次**的原文。裁定檔改過而重跑時，
+        # 無條件覆寫會把 MinerU 的原始輸出換成上一輪的修補結果，還原路徑看起來
+        # 還在，還原出來的卻已經不是原文了。
+        if "_pp_had_table_body" not in it:
+            it["_pp_had_table_body"] = "table_body" in it
+            if "table_body" in it:
+                it["_pp_original_table_body"] = it["table_body"]
+        it["table_body"] = want[k]
         it["_pp_repaired_at"] = stamp
         r.tables += 1
+    r.notes += add_notes
     r.charts = chart_type.apply_to_items(items, charts)
     if charts.dangling:
         r.notes.append(f"{len(charts.dangling)} 個 chart 的 img_path 指不到檔案，未轉")

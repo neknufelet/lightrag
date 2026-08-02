@@ -29,6 +29,7 @@ DATA_ROOT/<ws>/postprocess/<doc>/cache/，重跑不會重複付費。
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import os
 import re
@@ -307,27 +308,67 @@ def _api(env: dict, path: str, method: str = "GET", body=None):
         return json.loads(r.read() or "{}")
 
 
-def gate_table_html(body: str, where: str) -> str:
+IMG_TAG = re.compile(r"<img\b[^>]*>", re.I)
+# 「既有的本地參照」長這樣：`<img src="images/<sha>.jpg"/>`，MinerU 自己抽出來、
+# 檔案真的在 bundle 裡。src 只准是 `images/` 底下的相對路徑，不含 `..`、不含協定
+# 前綴 —— 一放行任意 src，`https://…` 只要改寫成 `images/../..` 就繞過去了。
+LOCAL_IMG = re.compile(r'^<img\b[^>]*\bsrc="images/(?!.*\.\.)[^"<>]+"[^>]*/?>$', re.I)
+
+
+def _gate_imgs(body: str, current: str, where: str) -> None:
+    """`<img>` 的准入判準：**與現值逐位元相同的既有本地參照**才准留。
+
+    閘門原本是「見到 `<img` 就拒絕」，擋的是**捏造**：qwen 對「這格是示意圖」的
+    預設行為就是編一個 `src` 出來（C 57 張表裡 24 張吐 `<img>`，其中 8 張是不存在
+    的 `https://i.imgur.com/…`）。但 C 有 26 張表的現值本來就帶 MinerU 抽出來的
+    `<img src="images/<sha>.jpg">`，而「定點補格」的前提是**現值對的格一個字不動**
+    —— 於是「保留既有參照」被「拒絕一切 `<img>`」一起擋掉了。
+
+    這兩件事不是同一件：一個是**新增**一條沒人見過的參照，一個是**原樣抄回**
+    現值已經有的那條。所以判準改成兩個條件同時成立：
+
+      1. 形狀是本地的 `images/…`（外部網址、`placeholder_figure_1.png` 這種
+         假檔名一律拒絕）；
+      2. 這個 tag 在**該表的現值**裡逐位元存在，而且用多重集合扣 —— 現值有一個
+         就只准出現一次。少了這條，「把現值的 img 複製貼上到第二格」也會通過。
+
+    現值為空（真正的空表格，自動採用走的那條路）時 `current` 是空字串，任何
+    `<img>` 都扣不到，行為與改動前完全相同。
+    """
+    have = collections.Counter(IMG_TAG.findall(current or ""))
+    for tag in IMG_TAG.findall(body):
+        if not LOCAL_IMG.match(tag):
+            sys.exit(f"{where} 含 {tag[:80]} —— 拒絕使用（只准保留 MinerU 既有的"
+                     "本地 images/ 參照；外部網址與假檔名一律不收，示意圖格寫 [FIGURE]）")
+        if have[tag] <= 0:
+            sys.exit(f"{where} 含 {tag[:80]} —— 拒絕使用（現值沒有這個參照，"
+                     "或出現次數比現值多；既有參照只准原樣保留，不得新增）")
+        have[tag] -= 1
+
+
+def gate_table_html(body: str, where: str, current: str = "") -> str:
     """寫進 content_list 之前的最後三道閘門。**自動採用與人工裁定走同一道**。
 
     實測踩過（2026-08-02，C #525）：qwen 對含示意圖的儲存格**捏造了一個外部
     圖片網址** `<img src="https://i.imgur.com/…">`。`crosscheck.compare` 只比
     兩眼一不一致，完全不看 HTML 裡多出來什麼 —— 兩眼要是剛好都幻覺同一格，
     這串網址就會靜靜進索引。`vlm.py` 的 V3/V4 本來就防這個，但 apply 走的是
-    快取直取那條路，沒有經過它們。
+    快取直取那條路，沒有經過它們。第二輪（57 張全表重轉錄）又收到 8 個 imgur
+    網址、16 個假本地檔名，證明那不是偶發，是 qwen 對「這格是圖」的預設行為。
+
+    `current` 是**該表在 content_list 裡的現值**，只給 `<img>` 那一道用
+    （見 `_gate_imgs`）。不傳就等於「現值沒有任何既有參照」，也就是改動前的行為。
     """
     if not re.match(r"(?s)^<table\b.*</table>$", body, re.I):
         sys.exit(f"{where} 不是單一完整的 <table>…</table>，拒絕使用")
-    m = re.search(r"<img\b[^>]*>", body, re.I)
-    if m:
-        sys.exit(f"{where} 含 {m.group(0)[:80]} —— 拒絕使用"
-                 "（不得把數學或示意圖換成圖片參照；示意圖格寫 [FIGURE]）")
+    _gate_imgs(body, current, where)
     if LEAK.search(body):
         sys.exit(f"{where} 含 prompt 洩漏字樣，拒絕使用")
     return body
 
 
-def _curated(home: Path) -> tuple[dict[str, str], dict[str, str], list[str]]:
+def _curated(home: Path, current: dict[str, str] | None = None,
+             ) -> tuple[dict[str, str], dict[str, str], list[str]]:
     """讀人工裁定過的修補內容。
 
     為什麼需要這條路：兩雙眼睛比對只回答「兩邊一不一致」，寫進去的一律是眼睛 A
@@ -341,7 +382,10 @@ def _curated(home: Path) -> tuple[dict[str, str], dict[str, str], list[str]]:
       - 換模型重跑時它仍然成立（它記的是圖上寫什麼，不是哪隻眼睛比較準）
 
     第一行若是 `<!-- … -->` 註解，視為裁定依據，會被印出來但不寫進資料。
+
+    `current` 是 {索引: 該表現值}，只給 `gate_table_html` 的 `<img>` 那一道用。
     """
+    current = current or {}
     tables: dict[str, str] = {}
     texts: dict[str, str] = {}
     notes: list[str] = []
@@ -358,7 +402,8 @@ def _curated(home: Path) -> tuple[dict[str, str], dict[str, str], list[str]]:
             body = body[m.end():]
         body = body.strip()
         if f.suffix == ".html":
-            tables[f.stem] = gate_table_html(body, f"裁定檔 {f}")
+            tables[f.stem] = gate_table_html(body, f"裁定檔 {f}",
+                                             current.get(f.stem, ""))
         else:
             if not body or LEAK.search(body):
                 sys.exit(f"裁定檔 {f} 是空的或含 prompt 洩漏字樣，拒絕使用")
@@ -410,7 +455,12 @@ def cmd_apply(a, env) -> int:
     for raw in find_bundles(a.workspace, a.doc):
         try:
             doc_home = out_root / raw.name.removesuffix(".mineru_raw")
-            cur_tbl, cur_txt, cur_notes = _curated(doc_home)
+            # 每張表在 content_list 裡的現值。閘門要拿它來分辨「保留既有的本地
+            # `images/` 參照」與「捏造一條新的」——兩者長得一樣，差別只在現值有沒有。
+            cur_body = {str(i): (it.get("table_body") or "")
+                        for i, it in enumerate(DocContext(raw).items)
+                        if it.get("type") == "table"}
+            cur_tbl, cur_txt, cur_notes = _curated(doc_home, cur_body)
             verified: dict[str, str] = {}
             if not a.no_tables:
                 # 只採用兩雙眼睛逐格一致的。沒把握的轉錄一律不寫 ——
@@ -422,11 +472,13 @@ def cmd_apply(a, env) -> int:
                                               out_root / ctx.doc_name / "cache")
                         if not err:
                             verified[str(r_.index)] = gate_table_html(
-                                html.strip(), f"{ctx.doc_name} #{r_.index} 的自動採用轉錄")
+                                html.strip(), f"{ctx.doc_name} #{r_.index} 的自動採用轉錄",
+                                cur_body.get(str(r_.index), ""))
             n_auto = len(verified)
             verified.update(cur_tbl)          # 人工裁定優先於自動採用
             res = ap_mod.apply_doc(raw, out_root=out_root, verified_tables=verified,
-                                   verified_text=cur_txt, oracle=o, commit=a.commit)
+                                   verified_text=cur_txt, curated_idx=set(cur_tbl),
+                                   oracle=o, commit=a.commit)
             if cur_tbl or cur_txt:
                 res.notes.append(
                     f"表格 {n_auto} 張自動採用、{len(cur_tbl)} 張人工裁定；"
