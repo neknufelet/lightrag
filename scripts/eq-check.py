@@ -86,6 +86,10 @@ def main() -> int:
     ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--doc")
     ap.add_argument("--n", type=int, default=50)
+    # 判讀結果要能存下來。原本只印在終端機，於是「哪三條可疑」這個資訊
+    # 隨著捲動消失，要用的時候只能重跑一次並祈禱抽樣一樣（pick 有 seed=7，
+    # 確實一樣，但那是巧合而不是設計）。
+    ap.add_argument("--json", metavar="PATH", help="把逐條判讀寫成 JSON")
     ap.add_argument("--show", type=int, default=8)
     ap.add_argument("--no-tiebreak", action="store_true",
                     help="不呼叫第三隻眼睛（三方皆異直接留給人工）")
@@ -163,6 +167,14 @@ def main() -> int:
                          s_ab, max(s_am, s_bm), mineru, hb))
         if k % 10 == 0:
             print(f"  …{k}/{len(sample)}", flush=True)
+
+    if a.json:
+        Path(a.json).write_text(json.dumps(
+            [{"verdict": r[0], "doc": r[1], "index": r[2], "page": r[3],
+              "sim_eyes": round(r[4], 3), "sim_best_vs_mineru": round(r[5], 3),
+              "mineru": r[6], "eyes": r[7]} for r in rows],
+            ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"逐條判讀 → {a.json}")
 
     n = max(len(sample) - errs, 1)
     auto = consensus + majority
