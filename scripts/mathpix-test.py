@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,13 +30,19 @@ from mineru_common import load_env  # noqa: E402
 from pp import crosscheck, mathpix  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-EQ = Path("/data/rag/lightrag/acoustics_v155/postprocess/_equations")
+DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
 
 
-def collect() -> list[dict]:
+def eq_dir(workspace: str) -> Path:
+    """eq-check 的裁圖與轉錄快取。路徑跟著 workspace 走，不寫死 —— 寫死的話
+    在 v2 的 checkout 跑會去讀 v155 的快取，然後把 v155 的式子當成 v2 的結論。"""
+    return DATA_ROOT / workspace / "postprocess" / "_equations"
+
+
+def collect(eq: Path) -> list[dict]:
     """把快取裡有兩份轉錄的都收起來，按兩眼分歧排序（分歧大的優先）。"""
     out = []
-    for doc in sorted(EQ.iterdir()):
+    for doc in sorted(eq.iterdir()):
         cache = doc / "cache"
         crops = doc / "crops"
         if not cache.is_dir():
@@ -63,11 +70,15 @@ def collect() -> list[dict]:
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="Mathpix 小額度驗證")
+    ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
-    rows = collect()[: a.limit]
+    eq = eq_dir(a.workspace)
+    if not eq.is_dir():
+        sys.exit(f"找不到 {eq}，先跑 eq-check.py")
+    rows = collect(eq)[: a.limit]
     if not rows:
         sys.exit("找不到快取的方程式轉錄，先跑 eq-check.py")
 

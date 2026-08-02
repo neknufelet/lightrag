@@ -32,7 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import load_env  # noqa: E402
-from pp.oracle import Oracle, OracleError  # noqa: E402
+from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
@@ -110,7 +110,9 @@ def main() -> int:
     if a.dry_run:
         return 0
 
-    o = Oracle()
+    # 容器跟著 --workspace 走：解析要寫進該 workspace 掛載的 inputs，
+    # 打錯容器的話 c_src 路徑在容器內根本不存在（或更糟，指到另一份同名檔）。
+    o = Oracle(container=container_for(ws))
     ok = bad = 0
     for pdf in todo:
         # 容器內路徑：宿主 DATA_ROOT/<ws> 對應容器 /app/data

@@ -12,8 +12,36 @@ import json
 import shlex
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
-DEFAULT_CONTAINER = "lightrag-acoustics_v155"
+_REPO = Path(__file__).resolve().parents[2]
+# 容器名不得寫死。compose 取的是 `lightrag-${WORKSPACE}`，而 WORKSPACE 由**這個
+# checkout 的 .env** 決定 —— 同一個 repo 會有第二個 worktree（rebuild/acoustics-v2）。
+# 寫死的話，在 v2 的 checkout 跑任何工具都會 docker exec 進 v155 的容器：讀到的是
+# 另一個 workspace 的檔案，而且**不會報錯**，只會安靜地驗錯對象、把結論貼到錯的庫上。
+# 讀不到 .env 時才退回舊常數，維持既有行為。
+_FALLBACK_WORKSPACE = "acoustics_v155"
+
+
+def env_workspace() -> str:
+    """本 checkout 的 .env 裡的 WORKSPACE。"""
+    p = _REPO / ".env"
+    if p.is_file():
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("WORKSPACE=") and not line.startswith("#"):
+                v = line.split("=", 1)[1].strip().strip("'\"")
+                if v:
+                    return v
+    return _FALLBACK_WORKSPACE
+
+
+def container_for(workspace: str) -> str:
+    """workspace → 容器名。單一推導處，改 compose 的命名時只改這裡。"""
+    return f"lightrag-{workspace}"
+
+
+DEFAULT_CONTAINER = container_for(env_workspace())
 
 
 class OracleError(RuntimeError):

@@ -26,8 +26,17 @@ import urllib.request
 from pathlib import Path
 
 # 設定來源：環境變數優先，其次讀 repo 的 .env（單一真實來源，改 key 只改一處）
+# 注意 resolve()：PATH 上的 askrag 是 symlink，這裡跟到真身，所以讀的一定是
+# **腳本所在那個 checkout** 的 .env。
 REPO_ENV = Path(__file__).resolve().parent.parent / ".env"
-DEFAULT_URL = "http://100.87.88.7:9621"
+# 位址同樣從 .env 推導。寫死的話，同一個 repo 的第二個 worktree（:9622）永遠
+# 問不到 —— 而 askrag 會照樣回一堆結果，只是全部來自另一個庫。
+_FALLBACK_URL = "http://100.87.88.7:9621"
+
+
+def default_url(env: dict) -> str:
+    host, port = env.get("BIND_ADDR"), env.get("HOST_PORT")
+    return f"http://{host}:{port}" if host and port else _FALLBACK_URL
 
 
 def load_env() -> dict:
@@ -122,7 +131,7 @@ def main():
     ap.add_argument("--chunk-top-k", type=int, default=8)
     ap.add_argument("--max-tokens", type=int, default=None, help="脈絡的 token 上限")
     ap.add_argument("--docs", action="store_true", help="列出已索引的文件後結束")
-    ap.add_argument("--url", default=os.environ.get("LIGHTRAG_URL", DEFAULT_URL))
+    ap.add_argument("--url", default=os.environ.get("LIGHTRAG_URL") or default_url(env))
     ap.add_argument("--key", default=os.environ.get("LIGHTRAG_API_KEY")
                     or env.get("LIGHTRAG_API_KEY", ""))
     ap.add_argument("--timeout", type=int, default=180)

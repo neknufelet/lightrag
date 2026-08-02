@@ -21,9 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # 這支腳本曾經自己複製 MANGLED，結果 mineru_common 修好了誤判、這裡還在用舊
 # 規則，同一份資料兩個答案 —— 正是 mineru_common 檔頭警告的漂移。
 from mineru_common import (  # noqa: E402
-    LEAK, MANGLED, MATH, TAG, is_mangled, strip_math, table_text,
+    LEAK, MANGLED, MATH, TAG, is_mangled, load_env, strip_math, table_text,
 )
 
+REPO = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = Path("/data/rag/lightrag")
 
 
@@ -152,8 +153,14 @@ def report(results, details=False):
 
 
 def main():
+    env = load_env(REPO)
     ap = argparse.ArgumentParser(description="檢查 MinerU 的 PDF 拆解品質")
-    ap.add_argument("--workspace", default=os.environ.get("WORKSPACE", "acoustics_v155"))
+    # 這支原本只看 shell 的 WORKSPACE，不讀本 checkout 的 .env —— 全 scripts/ 裡
+    # 唯一的例外。後果是在 v2 的 checkout 直接跑會靜靜地去檢查 v155 的 bundle，
+    # 數字看起來完全正常。改成與其他腳本一致：shell 環境變數優先，其次 .env。
+    ap.add_argument("--workspace",
+                    default=os.environ.get("WORKSPACE")
+                    or env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     ap.add_argument("--details", action="store_true", help="印出問題的實際位置與內文")
     ap.add_argument("--watch", action="store_true", help="每 60 秒重掃一次，適合邊解析邊看")

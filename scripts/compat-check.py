@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pp.oracle import Oracle, OracleError  # noqa: E402
+from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
@@ -397,7 +397,10 @@ def main():
     env = _load_env()
     ap = argparse.ArgumentParser(description="驗證 postprocess 依賴的假設")
     ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
-    ap.add_argument("--container", default="lightrag-acoustics_v155")
+    # 容器名由 workspace 推導，不寫死。寫死的後果是「在 v2 的 checkout 跑檢查，
+    # 探針卻打進 v155 的容器」—— 契約層全綠，但驗的是別的庫，而且沒有任何訊號。
+    ap.add_argument("--container", default=None,
+                    help="預設 lightrag-<workspace>")
     # 資料層檢查**預設跑全部文件**。原本是 `if a.doc:` 才跑，等於不指定就一份
     # 都不檢查 —— 而你只會對「正在處理的那一份」指定。實測代價：A-16
     # （沒有未知的項目型別）本來就抓得到 chart，但 184 個 chart 分散在 11 份
@@ -406,13 +409,19 @@ def main():
     ap.add_argument("--doc", help="檔名關鍵字，只檢查符合的文件（預設全部）")
     ap.add_argument("--no-docs", action="store_true",
                     help="跳過資料層檢查，只驗契約與環境")
-    ap.add_argument("--port", type=int, default=int(env.get("HOST_PORT", 9621)))
+    # A-19 的 pipeline_status 是**在容器內**打 localhost，所以要的是容器自己
+    # 監聽的 PORT，不是發佈到宿主的 HOST_PORT。v155 兩者剛好都是 9621，看不出
+    # 差別；v2 的 HOST_PORT=9622，沿用 HOST_PORT 會在容器內連不上 —— 而
+    # 「連不上」跟「pipeline 真的在忙」在結果上長得一樣，是假性 hard FAIL。
+    ap.add_argument("--port", type=int, default=int(env.get("PORT", 9621)),
+                    help="容器內監聽的埠（不是發佈到宿主的 HOST_PORT）")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
-    o = Oracle(container=a.container)
+    container = a.container or container_for(a.workspace)
+    o = Oracle(container=container)
     if not o.alive():
-        print(f"compat-check: 容器 {a.container} 連不上", file=sys.stderr)
+        print(f"compat-check: 容器 {container} 連不上", file=sys.stderr)
         sys.exit(2)
 
     c = Checker(o, a.workspace)

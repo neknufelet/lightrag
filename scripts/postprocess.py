@@ -308,10 +308,12 @@ def _api(env: dict, path: str, method: str = "GET", body=None):
 
 def cmd_apply(a, env) -> int:
     from pp import apply as ap_mod, eyes
-    from pp.oracle import Oracle
+    from pp.oracle import Oracle, container_for
 
     out_root = DATA_ROOT / a.workspace / "postprocess"
-    o = Oracle()
+    # 容器跟著 --workspace 走。指定了 workspace 卻 exec 進另一個 workspace 的
+    # 容器，等於拿 A 的 LightRAG 去認可 B 的 bundle —— 而且會成功。
+    o = Oracle(container=container_for(a.workspace))
     rc = 0
     for raw in find_bundles(a.workspace, a.doc):
         try:
@@ -428,8 +430,8 @@ def cmd_reindex(a, env) -> int:
 
 def cmd_revert(a, env) -> int:
     from pp import apply as ap_mod
-    from pp.oracle import Oracle
-    o = Oracle()
+    from pp.oracle import Oracle, container_for
+    o = Oracle(container=container_for(a.workspace))
     for raw in find_bundles(a.workspace, a.doc):
         res = ap_mod.revert_doc(raw, oracle=o)
         print(f"  ✓ {res.doc}：還原消音 {res.muted}、表格 {res.tables}；"
