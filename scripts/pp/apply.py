@@ -35,7 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pp.docctx import DocContext  # noqa: E402
 from pp.oracle import Oracle, OracleError  # noqa: E402
-from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
+from pp.rules import chart_type, empty_table, latex_fix, layout_noise  # noqa: E402
 
 
 class ApplyError(RuntimeError):
@@ -124,12 +124,14 @@ class ApplyResult:
     items_before: int = 0
     items_after: int = 0
     valid_after: bool | None = None
+    latex: "latex_fix.LatexPlan | None" = None
     notes: list[str] = field(default_factory=list)
 
     def line(self) -> str:
         v = {True: "認可", False: "**未認可**", None: "未檢查"}[self.valid_after]
+        tex = f"、LaTeX 正規化 {self.latex.items}" if self.latex else ""
         return (f"消音 {self.muted}、修補表格 {self.tables}、修補文字 {self.texts}、"
-                f"chart→image {self.charts}；"
+                f"chart→image {self.charts}{tex}；"
                 f"項目 {self.items_before} → {self.items_after}；bundle {v}")
 
 
@@ -240,8 +242,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     #   b) **人工裁定的定點補格**：現值有內容，裁定檔只在上面插入。走 assert_additive。
     #   c) 其餘 —— 規則或解析產物變了，拿舊索引硬寫會改到別的項目，必須停。
     repairable_idx = {str(t.index) for t in tables.repairable}
-    add_notes: list[str] = []
-    additive: set[str] = set()
+    add_notes: dict[str, list[str]] = {}
     for k in sorted(want, key=int):
         it = items[int(k)]
         if it.get("type") != "table":
@@ -267,23 +268,27 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
         if not ins:
             raise ApplyError(f"{ctx.doc_name}：裁定檔 #{k} 與 MinerU 原值完全相同，"
                              "沒有補進任何東西 —— 先確認裁定檔是不是產錯了")
-        additive.add(k)
-        add_notes.append(f"#{k} 定點補格 {len(ins)} 段插入：")
-        add_notes += [f"    {s}" for s in ins]
+        # **每一輪都重驗**（不只在會寫的時候）：裁定檔是磁碟上可以被人改的檔案，
+        # 「這一輪剛好不用寫」不代表它還是當初那份。
+        add_notes[k] = [f"#{k} 定點補格 {len(ins)} 段插入："] + [f"    {s}" for s in ins]
 
     # 判「已完成」看內容而不只看時間戳：只看時間戳的話，裁定檔改過之後會被當成
     # 已完成而**靜靜不生效**——改了東西卻沒有任何訊號，是這個專案一路在防的形狀。
-    # 定點補格那些不進這個集合：它們的現值被後面的機械規則動過，與裁定檔本來就
-    # 不會逐位元相同，而重寫一次是冪等的（同一份裁定檔 → 同一組位元組）。
+    #
+    # 比的是「裁定檔**經過機械正規化之後**長什麼樣」。裁定檔記的是圖上寫什麼，
+    # 停在正規化之前（定點補格的 diff 基準也是那個位元組串）；磁碟上的現值則是
+    # 正規化之後的。直接比裸位元組的話，每跑一次 apply 都會覺得「還沒寫」，
+    # 於是把同一批項目寫過來又正規化回去 —— 收斂到同一組位元組，但永遠報不出
+    # 「這一輪沒事可做」，而「沒事可做」正是重跑時唯一該看的訊號。
     done_tbl = {k for k in want
-                if k not in additive
-                and items[int(k)].get("_pp_repaired_at")
-                and items[int(k)].get("table_body") == want[k]}
+                if items[int(k)].get("_pp_repaired_at")
+                and items[int(k)].get("table_body") in (want[k], latex_fix.fix_one(want[k])[0])}
 
-    # 文字修補同理：內容與裁定檔一致且已標記過的，就是上一輪的成果，不重寫。
+    # 文字修補同理（包含上面那條「比正規化之後的樣子」）。
     done_txt = {k for k, v in want_text.items()
                 if items[int(k)].get("_pp_repaired_at")
-                and items[int(k)].get(text_field(items[int(k)]), "") == v}
+                and items[int(k)].get(text_field(items[int(k)]), "")
+                in (v, latex_fix.fix_one(v)[0])}
 
     # 這一輪真的要寫的表格：可修補的空表格 ∪ 通過只加不改的定點補格，扣掉已完成的。
     write_tbl = sorted(set(want) - done_tbl, key=int)
@@ -293,9 +298,20 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     charts = chart_type.plan(items, ctx.raw_dir)
 
     if not commit:
+        # 機械正規化跑在人工裁定寫完之後，dry-run 沒有寫檔，所以拿「裁定寫進去
+        # 之後」的副本去算，數字才跟 --commit 那條路一致。
+        preview = [dict(x) for x in items]
+        for k in write_tbl:
+            preview[int(k)]["table_body"] = want[k]
+        for k, txt in want_text.items():
+            if k not in done_txt:
+                preview[int(k)][text_field(preview[int(k)])] = txt
+        r.latex = latex_fix.plan(preview)
         r.muted = len(noise.mutes)
         r.tables = len(write_tbl)
-        r.notes += add_notes
+        for k in write_tbl:
+            r.notes += add_notes.get(k, [])
+        r.notes.append(r.latex.summary())
         r.texts = len(want_text) - len(done_txt)
         r.charts = len(charts.convert)
         r.items_after = r.items_before
@@ -353,12 +369,18 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
             it["_pp_had_table_body"] = "table_body" in it
             if "table_body" in it:
                 it["_pp_original_table_body"] = it["table_body"]
-        if k in additive:
+        if k in add_notes:               # 走定點補格那條路的痕跡
             it[ADDITIVE] = True
         it["table_body"] = want[k]
         it["_pp_repaired_at"] = stamp
         r.tables += 1
-    r.notes += add_notes
+    for k in write_tbl:
+        r.notes += add_notes.get(k, [])
+    # 機械正規化**最後**跑：人工裁定記的是「圖上寫什麼」，這條記的是「同一件事
+    # 怎麼寫才對」。順序反過來的話，下一輪裁定檔相對於現值就不再是純插入。
+    r.latex = latex_fix.plan(items)
+    latex_fix.apply_to_items(items, r.latex, stamp)
+    r.notes.append(r.latex.summary())
     r.charts = chart_type.apply_to_items(items, charts)
     if charts.dangling:
         r.notes.append(f"{len(charts.dangling)} 個 chart 的 img_path 指不到檔案，未轉")

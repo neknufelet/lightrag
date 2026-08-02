@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""兩道寫入閘門的自測。`python3 tests/test_gates.py`（不需要 pytest、不碰磁碟資料）。
+"""寫入路徑的自測。`python3 tests/test_gates.py`（不需要 pytest、不碰磁碟資料）。
 
-為什麼要有這支：這兩道閘門是**規則被放寬的地方**，而放寬的規則沒有測試就只剩
-註解在守著。三個案例對應 c-tables-disputes §7.1／7.2 定案的三條邊界：
+為什麼要有這支：這裡全是**規則被放寬的地方**，而放寬的規則沒有測試就只剩註解
+在守著。五個案例對應 c-tables-disputes §7.1／7.2／7.4／7.5 定案的邊界：
 
     捏造的外部網址        → 擋下（閘門存在的理由；qwen 交出過 8 個 imgur 網址）
     與現值逐位元相同的參照 → 放行（定點補格的前提：現值對的格一個字不動）
     動到現值的非空位元組   → 擋下（curated 補格只加不改）
+    `~` 當**詞**的分隔     → 只黏字母，`~`／`-`／文字模式命令一個位元組都不動
+    `\\times` 只在錨點換    → 真乘號、以及病因相同但位置不同的指數 x 都不碰
 
 閘門用 `sys.exit` 拒絕（它掛在 CLI 的寫入路徑上，拒絕就是停整批），所以測試接
 `SystemExit`；`assert_additive` 在函式庫層，拒絕丟 `ApplyError`。
@@ -26,6 +28,7 @@ pp = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pp)
 
 from pp.apply import ApplyError, assert_additive  # noqa: E402
+from pp.rules import latex_fix  # noqa: E402
 
 # C #520 的現值第 0 列：MinerU 抽出來的電路符號圖，檔案真的在 bundle 裡。
 IMG = '<img src="images/8674e6692d62c521e087bcb07373a5dc3e0bb38b9da55e6f59c3bf4bb8a28198.jpg"/>'
@@ -107,11 +110,55 @@ def t_additive_only():
             raise AssertionError(f"{name} 應該被擋下")
 
 
+# ── 案例 4：`~` 是**詞**的分隔，不是字母的分隔（2.5 輪的教訓）─────────
+def t_tilde_is_a_word_separator():
+    src = (r"\mathrm { v e c t o r ~ f r o m ~ o r i g i n ~ o f ~ "
+           r"c o - o r d i n a t e s ~ t o ~ t h e ~ o b s e r v e r ~ p o i n t }")
+    out, made = latex_fix.unspace(src)
+    assert "vector" in made and "from" in made and "origin" in made, made
+    assert "vectorfrom" not in out and "fromorigin" not in out, out
+    assert out.count("~") == src.count("~"), f"`~` 被吃掉了：{out}"
+    assert "co - ordinates" in out, f"`-` 沒有中斷黏合：{out}"
+    print(f"      {out}")
+
+    # `\mathrm { ~ ; ~ }`：一個單字母都沒有 → 一個位元組都不准動。
+    # coverage-check 的量測版會把它壓成 `;`（量測可以，寫回資料不行）。
+    for s in (r"\mathrm { ~ ; ~ }", r"\mathsf { a } ^ { 2 }", r"\begin{array} { c c }"):
+        assert latex_fix.unspace(s)[0] == s, f"{s} 被動到了：{latex_fix.unspace(s)[0]}"
+    print("      `\\mathrm { ~ ; ~ }`／單一字母／array 欄位規格：一個位元組都沒動")
+
+    # 文字模式命令（空白有意義）一律不碰
+    t = r"\text { w i t h }"
+    assert latex_fix.unspace(t)[0] == t, latex_fix.unspace(t)[0]
+    print("      `\\text{…}`（文字模式）不碰")
+
+    # 真正要救的那一類
+    assert latex_fix.unspace(r"\mathsf { t a n h }")[0] == r"\mathsf { tanh }"
+    print(r"      \mathsf { t a n h } → \mathsf { tanh }")
+
+
+# ── 案例 5：`\times` 只在羅馬數字下標那個位置換 ────────────────────────
+def t_times_anchor():
+    src = r"$Z _ { 0 } \mathsf { v } _ { \mathsf { I } \times } ( \mathsf { x } )$"
+    out, n = latex_fix.fix_times(src)
+    assert n == 1 and r"_ { \mathsf { I } \mathsf { x } }" in out, out
+    print(f"      {out}")
+
+    # 真的乘號、以及**病因相同但位置不同**的指數 x —— 兩者都不准碰
+    for s in (r"\right] $  $ \times \left[ 1 + \frac { j } { 4 a ^ { 2 } }",
+              r"\mathrm { e } ^ { - \gamma _ { n , v } \times } \cos ( \eta _ { n } y )",
+              r"\right\} \times \left\{"):
+        assert latex_fix.fix_times(s) == (s, 0), latex_fix.fix_times(s)[0]
+    print("      真乘號、以及指數裡同病因的 x：一處都沒動（錨點外＝不在授權範圍）")
+
+
 if __name__ == "__main__":
-    print("閘門自測")
+    print("寫入路徑自測")
     case("1 捏造的圖片參照被擋下", t_fabricated_url)
     case("2 與現值逐位元相同的既有本地參照放行", t_existing_local_img)
     case("3 動到現值非空位元組的裁定檔被擋下", t_additive_only)
+    case("4 `~` 當詞分隔，其餘位元組不動", t_tilde_is_a_word_separator)
+    case("5 `\\times` 只在羅馬數字下標的位置換", t_times_anchor)
     if FAILED:
         sys.exit(f"\n{len(FAILED)} 個案例失敗：{FAILED}")
-    print("\n3 個案例全部通過。")
+    print("\n5 個案例全部通過。")
