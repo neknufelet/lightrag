@@ -237,3 +237,9 @@ compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本�
 
 luna 不接受 `temperature=0`(只允許預設 1),所以**首次轉錄有抽樣變異**;
 快取之後才穩定。分歧要重抽一次才知道是真的還是雜訊。
+
+**一致不等於沒有多餘的東西。** 實測(2026-08-02,C #525):qwen 對示意圖格
+**捏造外部圖片網址**(`<img src="https://i.imgur.com/…">`)。crosscheck 只回答
+「兩眼一不一致」,不回答「多出了什麼」——兩眼剛好都幻覺時會全綠通過。
+所以**內容閘門掛在寫入點**(`postprocess.py` 的 `gate_table_html`:單一完整
+table、無 `<img>`、無 prompt 洩漏),且自動採用與人工裁定走同一道。
