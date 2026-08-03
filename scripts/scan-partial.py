@@ -73,17 +73,30 @@ _SYNONYM = {"overline": "bar", "widetilde": "tilde", "widehat": "hat"}
 _FONT = re.compile(r"\\(math(rm|sf|bf|it|tt|frak|cal|scr)|bf|rm|sf|it|boldsymbol|pmb)\s*")
 
 
-def canon(tok: str) -> str:
-    """把一個候選 token 正規化成可比較的形式。"""
+# accent 底下必須是**單一原子**（一個字母或一個 \命令），才可能是被讀錯的 ∂
+# ——∂ 是一個字形，讀錯之後也只會是一個字形戴帽子。accent 蓋在整段運算式上
+# （`\overline{v_1' v_2'}`、`\overline{[∂²T/∂t²]…}`）是**系綜平均**，不同族。
+_ATOM = re.compile(r"^(\\[A-Za-z]+|[A-Za-z0-9])$")
+
+
+def canon(tok: str) -> str | None:
+    r"""正規化成可比較的形式；不是「accent 蓋單一原子」就回 None（不是候選）。
+
+    **不剝下標。** 剝了會讓 `ρ̃_ss` 與 `ρ̃_ff` 變成同一個 token，於是
+    `\frac{ρ̃_ss}{ρ̃_ff}`（Biot 參數的比值）被誤判成上下同形。
+    實測 2026-08-03：這一個錯誤就製造了 15 處誤報中的 13 處。
+    上標則要剝——`∂²` 寫成 `\hat{\sigma}^{2}`，那是同一個算子。
+    """
     t = re.sub(r"\s+", "", tok)
     m = re.match(r"^\\([A-Za-z]+)\{(.*)\}$", t, re.S)
     if not m:
-        return t
+        return None
     cmd, inner = m.group(1), m.group(2)
     cmd = _SYNONYM.get(cmd, cmd)
     inner = _FONT.sub("", inner)
-    inner = re.sub(r"[{}]", "", inner)
-    inner = re.sub(r"(\^|_)\{?[^{}]*\}?|\\prime|'", "", inner)   # 去上下標與撇號
+    inner = re.sub(r"^\{+|\}+$", "", inner).strip()
+    if not _ATOM.match(inner):
+        return None                      # 蓋在運算式上 → 系綜平均，不是候選
     return f"\\{cmd}{{{inner}}}"
 
 
@@ -174,7 +187,17 @@ def side_tokens(side: str) -> list[str]:
         if norm(u) == r"\partial":
             pass                        # 真算子：吃掉被微分量，下一格仍是算子位
         elif CAND.match(u):
-            out.append(canon(u))
+            # **帶下標的 accent 不是算子**：算子不帶下標，`ρ̃_ss` 那種是具名的量。
+            # 下標在 skip_scripts 之前判斷，因為那一步會把它吃掉。
+            j = ni
+            while j < len(side) and side[j].isspace():
+                j += 1
+            if j < len(side) and side[j] == "_":
+                break
+            c = canon(u)
+            if c is None:
+                break                   # 蓋在運算式上（系綜平均）→ 不是這一族
+            out.append(c)
         else:
             break                       # 其餘（一般變數、\rho、\left…）不是這一族
         _, i2 = read_unit(side, i)      # 被微分量
