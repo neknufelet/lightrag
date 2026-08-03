@@ -107,6 +107,61 @@ services:
     networks:
       - rag
 
+  # ── 自己的儲存後端（2026-08-03 從 DeepTutor 的實例搬出來）──────────────
+  #
+  # 為什麼要搬：原本我們的資料寄住在 deeptutor-v4-postgres 與 deeptutor-v4-neo4j，
+  # 靠 Postgres 的 workspace 欄位與 Neo4j 的 label 與別人的資料分開。那個安排讓
+  # **同一族的 bug 咬過三次**，而且每一次都不報錯：
+  #   ① extract-check.py 三句 SQL 漏 workspace 條件 → 兩個庫的同一份文件被併成
+  #      一列，數字看起來完全正常（約兩倍），翻轉了三份文件的閘門判定
+  #   ② CLAUDE.md 記載的關係數 20,873 —— 上面那個 bug 的殘留，活過了修它的修復
+  #   ③ kbapi 的 search 不看 URL 的 workspace → 靜靜回別的庫的答案
+  # 有了自己的實例，「查到別的庫」在結構上不可能 —— 因為沒有別的庫。
+  #
+  # 附帶好處：備份從「怎麼只挑出我們那 688 MB」變成「抄 /data/lightrag 一個目錄」。
+  # 共用時做不到這件事：Postgres 的 base/<oid> 雖然一庫一目錄，但 global／pg_xact／
+  # pg_wal 是全叢集共用的，只抄我們那個目錄還原不回來（沒有 global 就不知道那個
+  # 目錄是哪個庫；pg_xact 對不上會讓資料列被判成「交易沒成功」而憑空消失）。
+  #
+  # 兩個都**不對外開埠**：同在 rag_default 網路上，用容器名互連就好，
+  # 少一個對外攻擊面、也不會跟既有的埠打架。
+  postgres:
+    image: pgvector/pgvector:pg16          # 與原實例同版：PG 16.14 + pgvector 0.8.2
+    container_name: lightrag-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
+      TZ: Asia/Taipei
+    volumes:
+      - ${LIGHTRAG_DB_ROOT:-/data/lightrag}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - rag
+
+  neo4j:
+    image: neo4j:5                          # 與原實例同版：5.26.26 community
+    container_name: lightrag-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+      NEO4J_PLUGINS: '["apoc"]'
+      TZ: Asia/Taipei
+    volumes:
+      - ${LIGHTRAG_DB_ROOT:-/data/lightrag}/neo4j:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - rag
+
 # Postgres 與 Neo4j 都在既有的 rag_default 網路上，此處只接上、不建立
 networks:
   rag:
