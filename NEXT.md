@@ -78,6 +78,11 @@ v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全�
 > 冷備份。在此之前 ① 一直沒有備份而文件宣稱有——詳見下方「接上備份」。
 > **仍缺的是還原演練（`BACKUP-3`）與冷備份的排程**，同節有處置。
 
+> **今天的裁決材料**：`SPEEDUP` 與 `SYMBOL-3` 兩條線的工單與終審判定全文
+> （15 份，含 fable 的設計單、sol 的五份判定）存在
+> `$RECORDS/review/20260803-speedup-symbol3/`——**在 `/data`、已在備份範圍內**。
+> 本檔引用它們一律用 `$RECORDS/…`，不要寫成 `/tmp` 的 session 路徑（一清就死）。
+
 > **路徑約定**：本檔寫 `$RECORDS/…` 一律指
 > `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git**
 > （已在 backrest 範圍內）。寫成相對路徑會被誤讀成 repo 內的檔案。
@@ -185,8 +190,7 @@ note 欄（`$RECORDS/ledger/`），不是口頭放行。要翻案先讀那三則
 
 - [ ] **`SYMBOL-5`：把 ② 落成抽取 prompt 的改動。** **重票**（會改變抽取行為）。
       排在 `SCALEUP-1` 之前做，效益才兌現得到。改動前後用 `symbol-hits.py` 當對照器。
-- [ ] **`SYMBOL-3.1` 工具本身待修**：終審判 **BLOCK**（判定原文在 scratchpad
-      `verdict-sym3.txt`）。四類問題：健全性檢查只是報告不是擋板、JSON 缺逐查詢
+- [ ] **`SYMBOL-3.1` 工具本身待修**：終審判 **BLOCK**（判定原文在 `$RECORDS/review/20260803-speedup-symbol3/verdict-sym3.txt`）。四類問題：健全性檢查只是報告不是擋板、JSON 缺逐查詢
       provenance（無法稽核哪個實體被哪個查詢命中）、判準一致性測試部分假綠
       （只用 AST 讀 3 個常數）、統計呈現會誤導。
       **票級也判錯了**：實際 diff 416 行命中觸發清單 #7（>200 行），
