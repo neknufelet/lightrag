@@ -267,8 +267,8 @@ def cmd_canary(a, env) -> int:
     cur = {}
     for raw in find_bundles(a.workspace, None):
         try:
-            cur[DocContext(raw, source_dir=source_dir).doc_name] = plan_one(
-                raw, source_dir=source_dir)
+            cur[DocContext(raw, source_dir=source_dir).doc_name] = canary_row(
+                plan_one(raw, source_dir=source_dir))
         except DocContextError as e:
             cur[raw.name.removesuffix(".mineru_raw")] = {"error": str(e)[:200]}
 
