@@ -17,14 +17,29 @@
 # Google Drive 要很久。先本機複製（實測 896 MB/s）再啟服務，**停機就與上傳
 # 速度脫鉤**。
 #
-# 用法：backup-cold.sh [--keep-stage]
+# 用法：backup-cold.sh [--keep-stage] [--force]
+#
+# **沒有新的抽取成果就不跑**（2026-08-03 加）：這支會停服務，而停機是它唯一真正的
+# 成本——restic 是內容去重的，重複上傳同樣的資料只增加 0 位元組（實測：兩份快照
+# `restic diff` 回 0 new / 0 removed）。所以「閒著也每天停一次」是純浪費。
+# 判斷依據是**資料庫的內容指紋**，不是時鐘；`--force` 可強制跑。
 set -uo pipefail
+
+KEEP_STAGE=0; FORCE=0
+for arg in "$@"; do
+  case "$arg" in
+    --keep-stage) KEEP_STAGE=1 ;;
+    --force)      FORCE=1 ;;
+    *) echo "未知參數：$arg（可用 --keep-stage --force）" >&2; exit 2 ;;
+  esac
+done
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck disable=SC1091
 DB_ROOT=$(grep -E '^LIGHTRAG_DB_ROOT=' "$REPO_DIR/.env" 2>/dev/null | cut -d= -f2)
 DB_ROOT=${DB_ROOT:-/data/lightrag}
 STAGE=/data/rag/coldstage
+STAMP=/data/rag/lightrag/.backup-cold.stamp
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
 DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)
 DBS=(lightrag-neo4j lightrag-postgres)
@@ -45,6 +60,35 @@ start_all() {
   for c in "${DEPS[@]}"; do docker start "$c" >/dev/null 2>&1 && log "  起 $c"; done
 }
 trap start_all EXIT INT TERM
+
+# ── 0. 有沒有新東西？沒有就別停機 ──────────────────────────────────
+# 指紋**不帶 workspace 條件**是刻意的：這支備份的是整個實例的目錄，
+# 指紋就該涵蓋整個實例。（與其他工具「每句 SQL 都要帶 workspace」的規則不衝突，
+# 那條防的是「兩個 workspace 被併成一列」，這裡要的正好是全部。）
+# 讀不到指紋時**照跑不誤**（fail-open 往「有備份」那邊倒）。
+fingerprint() {
+  printf '%s\n' "select
+      (select count(*) from lightrag_doc_status)      || ':' ||
+      (select count(*) from lightrag_doc_chunks)      || ':' ||
+      (select count(*) from lightrag_entity_chunks)   || ':' ||
+      (select count(*) from lightrag_relation_chunks) || ':' ||
+      coalesce((select max(updated_at)::text from lightrag_doc_status), '-');" \
+  | docker exec -i lightrag-postgres psql -U "${POSTGRES_USER:-deeptutor}" \
+      -d "${POSTGRES_DATABASE:-lightrag}" -tAqX -f - 2>/dev/null | tr -d '[:space:]'
+}
+
+NOW_FP=$(fingerprint)
+if [ -z "$NOW_FP" ]; then
+  log "讀不到資料庫指紋（PG 沒起來？）—— 照跑，寧可多備一份"
+elif [ "$FORCE" = "1" ]; then
+  log "指紋 $NOW_FP；--force，照跑"
+elif [ -f "$STAMP" ] && [ "$NOW_FP" = "$(tr -d '[:space:]' < "$STAMP")" ]; then
+  log "沒有新的抽取成果（指紋未變：$NOW_FP）"
+  log "上次備份：$(date -r "$STAMP" '+%Y-%m-%d %H:%M' 2>/dev/null || echo 未知)"
+  log "跳過 —— 不停機。要強制備份加 --force"
+  trap - EXIT INT TERM
+  exit 0
+fi
 
 log "備份根目錄 $DB_ROOT（$(sudo du -sh "$DB_ROOT" 2>/dev/null | cut -f1)）"
 
@@ -106,7 +150,12 @@ if [ -z "$FAILED" ]; then
         | python3 -c 'import sys,json;print(len(json.load(sys.stdin)))' 2>/dev/null || echo 0)
   if [ "${got:-0}" -ge 1 ]; then
     log "快照已在 repo（tag ts:$TS）"
-    [ "${1:-}" = "--keep-stage" ] || { sudo rm -rf "$STAGE"; log "暫存已清"; }
+    # 指紋只在「快照確定進了 repo」之後才落地。順序反過來的話，上傳失敗會讓
+    # 下一次誤以為已經備過而跳過 —— 那正是這個開關最不該犯的錯。
+    if [ -n "$NOW_FP" ]; then
+      printf '%s\n' "$NOW_FP" > "$STAMP" && log "指紋已記錄（$NOW_FP）"
+    fi
+    [ "$KEEP_STAGE" = "1" ] || { sudo rm -rf "$STAGE"; log "暫存已清"; }
   else
     fail "repo 裡找不到剛才那個快照 —— 暫存保留在 $STAGE"
   fi
