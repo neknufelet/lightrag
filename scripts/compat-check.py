@@ -187,7 +187,7 @@ class Checker:
         def _():
             import urllib.error
             import urllib.request
-            env = _load_env()
+            env = load_env(REPO)
             host = env.get("LLM_BINDING_HOST", "")
             if not host:
                 return False, "找不到 LLM_BINDING_HOST", {}
@@ -243,7 +243,7 @@ class Checker:
         @self.check("A-22", "hard", "每張向量表都有向量索引")
         def _():
             import subprocess
-            env = _load_env()
+            env = load_env(REPO)
             model = env.get("EMBEDDING_MODEL", "").replace("-", "_")
             dim = env.get("EMBEDDING_DIM", "")
             suffix = f"{model}_{dim}d".lower()
@@ -287,7 +287,7 @@ class Checker:
                 return False, f"缺少 {f.name}", {}
             rec = json.loads(f.read_text())
             want_a, want_b = rec.get("eye_a"), rec.get("eye_b")
-            env = _load_env()
+            env = load_env(REPO)
             got_a = env.get("LLM_MODEL")
             got_b = env.get("PP_EYE_B_MODEL", "gpt-5.6-luna")
             ok = (want_a == got_a) and (want_b == got_b)
@@ -301,7 +301,7 @@ class Checker:
         def _():
             import base64
             import time
-            env = _load_env()
+            env = load_env(REPO)
             tok = env.get("MINERU_API_TOKEN", "")
             if not tok or tok.count(".") != 2:
                 return False, "找不到或格式不對", {}
