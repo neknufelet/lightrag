@@ -21,7 +21,7 @@
 座標
   repo      ~/ghq/github.com/neknufelet/lightrag-v1（coder，工作台）
             ~/ghq/github.com/neknufelet/lightrag（dker，部署，唯讀只 pull）
-  GitHub    neknufelet/lightrag-v1（尚未改名，計畫改成 lightrag，卡在 gh 未登入）
+  GitHub    neknufelet/lightrag（已改名；本地路徑維持原狀）
   服務      dker: lightrag-acoustics_v2 :9621、kbapi-acoustics_v2 :9700
             自己的 lightrag-postgres 與 lightrag-neo4j（2026-08-03 從 DeepTutor 搬出）
   資料      /data/lightrag（DB）＋ /data/rag/lightrag（解析快取與裁決紀錄）
