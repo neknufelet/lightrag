@@ -61,14 +61,18 @@ services:
     image: python:3.12-slim
     container_name: kbapi-${WORKSPACE:-acoustics_v155}
     restart: unless-stopped
-    # rebuild/acoustics-v2 階段 0 起停用：本服務的 9700 是寫死的（不像 lightrag 走
-    # ${HOST_PORT}），而 :9700 已被凍結中的 kbapi-acoustics_v155 佔著，同時起會撞埠。
-    # 階段 0–4 的驗收只打 lightrag 的 API，用不到圖片與單篇結構端點，所以用 profile
-    # 關掉而不是刪掉——差異只有這一行，恢復也只是刪掉它。
-    # 何時恢復：階段 5「切換 kbapi 與 skills 指向 v2」時。屆時 v155 的 kbapi 退役、
-    # 9700 空出來，刪掉這行即可；若要兩邊並存則需先把 9700 改成 ${KBAPI_PORT:-9700}。
-    # 暫時要單獨起它：docker compose --profile kbapi up -d kbapi
-    profiles: ["kbapi"]
+    # 宿主埠走 ${KBAPI_PORT}，容器內恆為 9700（與 lightrag 的 ${HOST_PORT}:9621 同形）。
+    #
+    # 為什麼不是 profile：REBUILD 期間本服務曾以 `profiles: ["kbapi"]` 停用，理由是
+    # 9700 寫死、會撞到凍結中的 kbapi-acoustics_v155。但 profile 是**寫在檔案裡**的，
+    # 而 compose.yaml 進版控、被兩個 checkout 共用 —— 分支一合併回主線，主線的
+    # checkout 也會拿到那一行，下次 `docker compose up -d` 就不會起 kbapi，:9700
+    # 靜靜消失、三個 skill 一起啞掉且不報錯。埠參數化把「哪個 checkout 用哪個埠」
+    # 移到各自的 .env（不進版控），檔案本身對兩邊都正確。
+    #
+    # 容器名是 kbapi-${WORKSPACE}，兩個 workspace 不同名，只有埠需要錯開。
+    # CUTOVER 時 v155 的 kbapi 退役、9700 空出來，把新庫 .env 的 KBAPI_PORT 改成
+    # 9700 即可，compose.yaml 一個字都不用動。
     command: ["python", "/app/scripts/kbapi.py", "--port", "9700"]
     working_dir: /app
     environment:
@@ -78,7 +82,7 @@ services:
       - ./.env:/app/.env:ro
       - ${DATA_ROOT:-/data/rag/lightrag}:/data/rag/lightrag:ro
     ports:
-      - "${BIND_ADDR:-100.87.88.7}:9700:9700"
+      - "${BIND_ADDR:-100.87.88.7}:${KBAPI_PORT:-9700}:9700"
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request as u; u.urlopen('http://localhost:9700/health', timeout=5)"]
