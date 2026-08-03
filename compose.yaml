@@ -17,7 +17,7 @@ services:
     # 而無人察覺。釘 digest 後升級變成一個明確的動作（改這一行），而非某次重啟的副作用。
     # 對應 v1.5.5。升級時用 docker image inspect --format '{{.RepoDigests}}' 取新值。
     image: ghcr.io/hkuds/lightrag@sha256:206579ab1a2bc1f2b5f19fe97c01cb801ff409e6ae29a15542f82208a285640a
-    container_name: lightrag-${WORKSPACE}
+    container_name: lightrag-${WORKSPACE:?WORKSPACE 未設定}
     restart: unless-stopped
 
     env_file: .env
@@ -59,11 +59,11 @@ services:
   # ${BIND_ADDR}，跟 lightrag 一致。
   kbapi:
     image: python:3.12-slim
-    container_name: kbapi-${WORKSPACE:-acoustics_v155}
+    container_name: kbapi-${WORKSPACE:?WORKSPACE 未設定}
     restart: unless-stopped
     # 宿主埠走 ${KBAPI_PORT}，容器內恆為 9700（與 lightrag 的 ${HOST_PORT}:9621 同形）。
     #
-    # 為什麼不是 profile：REBUILD 期間本服務曾以 `profiles: ["kbapi"]` 停用，理由是
+    # 以下是歷史紀錄：REBUILD 期間本服務曾以 `profiles: ["kbapi"]` 停用，理由是
     # 9700 寫死、會撞到凍結中的 kbapi-acoustics_v155。但 profile 是**寫在檔案裡**的，
     # 而 compose.yaml 進版控、被兩個 checkout 共用 —— 分支一合併回主線，主線的
     # checkout 也會拿到那一行，下次 `docker compose up -d` 就不會起 kbapi，:9700

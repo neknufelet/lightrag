@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -397,23 +398,10 @@ class Checker:
             return True, "、".join(f"{k} {v}" for k, v in d.items()), d
 
 
-def _load_env() -> dict:
-    p = REPO / ".env"
-    if not p.exists():
-        return {}
-    out = {}
-    for line in p.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            k, v = line.split("=", 1)
-            out[k.strip()] = v.strip().strip("'\"")
-    return out
-
-
 def main():
-    env = _load_env()
+    env = load_env(REPO)
     ap = argparse.ArgumentParser(description="驗證 postprocess 依賴的假設")
-    ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ap, env)
     # 容器名由 workspace 推導，不寫死。寫死的後果是「在 v2 的 checkout 跑檢查，
     # 探針卻打進 v155 的容器」—— 契約層全綠，但驗的是別的庫，而且沒有任何訊號。
     ap.add_argument("--container", default=None,

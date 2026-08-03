@@ -26,7 +26,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.rules import layout_noise  # noqa: E402
 
@@ -80,7 +80,7 @@ def noise_index(workspace: str) -> dict[str, set[str]]:
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="量雜訊有沒有被檢索到")
-    ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ap, env)
     ap.add_argument("--query", action="append")
     ap.add_argument("--top-k", type=int, default=10)
     a = ap.parse_args()

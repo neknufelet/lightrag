@@ -52,7 +52,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
@@ -826,22 +826,22 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="實體碎片化：分層 + 依實際代價排序")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("plan", help="唯讀，產出候選清單")
-    p.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(p, env)
     p.add_argument("--queries", type=int, default=30, help="用幾個熱門標籤當查詢種子")
     p.add_argument("--top-k", type=int, default=40, help="每個查詢取幾筆圖譜內容")
 
     r = sub.add_parser("review", help="產人工審查表（附原文段落）")
-    r.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(r, env)
     r.add_argument("--top", type=int, default=8, help="審查前幾組")
 
     dp = sub.add_parser("dump", help="備份節點與邊（合併前必做）")
-    dp.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(dp, env)
     dp.add_argument("--name", action="append", help="節點名稱，可重複")
     dp.add_argument("--from-review", action="store_true",
                     help="備份審查表裡出現過的所有節點")
 
     apy = sub.add_parser("apply", help="依決定檔合併（唯一會改圖譜的地方）")
-    apy.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(apy, env)
     apy.add_argument("--decisions", required=True, help="決定檔（JSON）")
     apy.add_argument("--commit", action="store_true", help="真的合併（預設只檢查）")
 

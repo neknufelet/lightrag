@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp import crosscheck, mathpix  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -70,7 +70,7 @@ def collect(eq: Path) -> list[dict]:
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="Mathpix 小額度驗證")
-    ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ap, env)
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()

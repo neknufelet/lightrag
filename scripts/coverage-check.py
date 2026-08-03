@@ -61,7 +61,7 @@ v155（已消音）與 v2（全新解析）也才可比。
 用法：
     ./coverage-check.py                          # 本 checkout 的 workspace，全部文件
     ./coverage-check.py --doc 'Equivalent'       # 只看某一份，附漏最多的詞
-    ./coverage-check.py --workspace acoustics_v155   # 對照組（唯讀）
+    ./coverage-check.py --workspace <workspace>     # 對照組（唯讀）
     ./coverage-check.py --json                   # 給 ledger.py 之類的程式讀
 
 超過門檻的文件存在時 exit 1。

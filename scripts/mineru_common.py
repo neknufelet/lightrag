@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -109,7 +110,7 @@ def bbox_to_points(bbox: list, page_w: float, page_h: float) -> tuple[float, flo
             x1 / 1000 * page_w, y1 / 1000 * page_h)
 
 
-def load_env(repo: Path) -> dict:
+def load_env(repo: Path) -> dict[str, str]:
     p = repo / ".env"
     if not p.exists():
         return {}
@@ -120,6 +121,19 @@ def load_env(repo: Path) -> dict:
             k, v = line.split("=", 1)
             out[k.strip()] = v.strip().strip("'\"")
     return out
+
+
+def add_workspace_arg(
+    ap: argparse.ArgumentParser, env: dict[str, str], *, flag: str = "--workspace"
+) -> None:
+    """加上 `--workspace`：預設讀 .env，**.env 沒有就強制要求明確指定**。
+
+    為什麼不給字面預設值：見本函式被引入的那個 commit 的訊息。簡短版是——
+    這些工具用 workspace 決定 docker 容器名、SQL 的 where 條件與資料路徑，
+    猜錯的預設**不會報錯**，只會安靜地對別的庫做事。
+    """
+    workspace = env.get("WORKSPACE") or None
+    ap.add_argument(flag, default=workspace, required=workspace is None)
 
 
 def read_json(p: Path):

@@ -18,7 +18,7 @@ doc_id，會自己寫 manifest。**不重新實作任何契約** —— 呼叫�
 命中快取直接跳到抽取；說無效就是白花錢，要當場知道而不是等到下次掃描。
 
 用法：
-    parse-only.py --workspace acoustics_v155            # 掃描目錄裡所有未解析的
+    parse-only.py --workspace <workspace>               # 掃描目錄裡所有未解析的
     parse-only.py --doc <關鍵字>
     parse-only.py --dry-run
 """
@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -80,7 +80,7 @@ print(json.dumps({**out, "ok": valid, "items": n,
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="只跑 MinerU 解析，不觸發實體抽取")
-    ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ap, env)
     ap.add_argument("--doc", help="檔名關鍵字，預設全部未解析的")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--timeout", type=int, default=1800,

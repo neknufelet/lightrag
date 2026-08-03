@@ -26,9 +26,9 @@
 看起來像沒這份文件。
 
 用法：
-    compare-ws.py Equivalent acoustics_v155              # wsB 預設本 checkout 的 WORKSPACE
-    compare-ws.py Equivalent acoustics_v155 acoustics_v2
-    compare-ws.py '' acoustics_v155 acoustics_v2         # 空關鍵字＝全部文件
+    compare-ws.py Equivalent <workspace-a>               # wsB 預設本 checkout 的 WORKSPACE
+    compare-ws.py Equivalent <workspace-a> <workspace-b>
+    compare-ws.py '' <workspace-a> <workspace-b>         # 空關鍵字＝全部文件
 """
 from __future__ import annotations
 

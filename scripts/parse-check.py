@@ -186,9 +186,8 @@ def main():
     # 這支原本只看 shell 的 WORKSPACE，不讀本 checkout 的 .env —— 全 scripts/ 裡
     # 唯一的例外。後果是在 v2 的 checkout 直接跑會靜靜地去檢查 v155 的 bundle，
     # 數字看起來完全正常。改成與其他腳本一致：shell 環境變數優先，其次 .env。
-    ap.add_argument("--workspace",
-                    default=os.environ.get("WORKSPACE")
-                    or env.get("WORKSPACE", "acoustics_v155"))
+    workspace = os.environ.get("WORKSPACE") or env.get("WORKSPACE") or None
+    ap.add_argument("--workspace", default=workspace, required=workspace is None)
     ap.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     ap.add_argument("--doc", help="檔名關鍵字，只檢查符合的文件（預設全部）")
     ap.add_argument("--details", action="store_true", help="印出問題的實際位置與內文")

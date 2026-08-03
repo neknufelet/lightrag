@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import LEAK, load_env  # noqa: E402
+from mineru_common import LEAK, add_workspace_arg, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
 
@@ -607,42 +607,42 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("plan", help="只讀，算出打算改什麼")
-    p.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(p, env)
     p.add_argument("--doc", help="檔名關鍵字，預設全部")
     p.add_argument("--details", action="store_true")
     p.add_argument("--json", action="store_true")
 
     c = sub.add_parser("check", help="兩雙眼睛轉錄 + 逐格比對")
-    c.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(c, env)
     c.add_argument("--doc", help="檔名關鍵字，預設全部")
     c.add_argument("--workers", type=int, default=3)
 
     n = sub.add_parser("canary", help="比對 plan 結果與記錄的基準，抓規則漂移")
-    n.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(n, env)
     n.add_argument("--update", action="store_true", help="把目前結果寫成新基準")
 
     ap2 = sub.add_parser("apply", help="寫進 content_list.json 並更新 manifest")
-    ap2.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ap2, env)
     ap2.add_argument("--doc", help="檔名關鍵字，預設全部")
     ap2.add_argument("--commit", action="store_true", help="真的寫檔（預設只算不寫）")
     ap2.add_argument("--no-tables", action="store_true", help="只做消音，不碰表格")
     ap2.add_argument("--workers", type=int, default=3)
 
     ri = sub.add_parser("reindex", help="刪索引記錄並重新掃描，讓修補生效")
-    ri.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ri, env)
     ri.add_argument("--doc", action="append",
                     help="檔名關鍵字，可重複指定；預設全部。"
                          "只重建真正改過的那幾份，其餘的索引不必動")
     ri.add_argument("--commit", action="store_true")
 
     pr = sub.add_parser("prepare", help="新文件：解析 → 修補 → 掃描（只抽取一次）")
-    pr.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(pr, env)
     pr.add_argument("--commit", action="store_true")
     pr.add_argument("--no-tables", action="store_true")
     pr.add_argument("--workers", type=int, default=3)
 
     rv = sub.add_parser("revert", help="還原（讀 _pp_original_* 欄位）")
-    rv.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(rv, env)
     rv.add_argument("--doc", help="檔名關鍵字，預設全部")
 
     a = ap.parse_args()

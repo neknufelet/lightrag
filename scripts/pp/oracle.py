@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import shlex
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -19,8 +19,7 @@ _REPO = Path(__file__).resolve().parents[2]
 # checkout 的 .env** 決定 —— 同一個 repo 會有第二個 worktree（rebuild/acoustics-v2）。
 # 寫死的話，在 v2 的 checkout 跑任何工具都會 docker exec 進 v155 的容器：讀到的是
 # 另一個 workspace 的檔案，而且**不會報錯**，只會安靜地驗錯對象、把結論貼到錯的庫上。
-# 讀不到 .env 時才退回舊常數，維持既有行為。
-_FALLBACK_WORKSPACE = "acoustics_v155"
+# .env 沒有 WORKSPACE 時直接拋錯，讓呼叫端決定怎麼中止；不能猜容器名。
 
 
 def env_workspace() -> str:
@@ -33,7 +32,7 @@ def env_workspace() -> str:
                 v = line.split("=", 1)[1].strip().strip("'\"")
                 if v:
                     return v
-    return _FALLBACK_WORKSPACE
+    raise RuntimeError(".env 沒有 WORKSPACE，無法推導容器名")
 
 
 def container_for(workspace: str) -> str:
@@ -41,7 +40,9 @@ def container_for(workspace: str) -> str:
     return f"lightrag-{workspace}"
 
 
-DEFAULT_CONTAINER = container_for(env_workspace())
+def _default_container() -> str:
+    """延遲到真的需要預設容器時才讀 .env，讓明確容器不受影響。"""
+    return container_for(env_workspace())
 
 
 class OracleError(RuntimeError):
@@ -50,7 +51,7 @@ class OracleError(RuntimeError):
 
 @dataclass(frozen=True)
 class Oracle:
-    container: str = DEFAULT_CONTAINER
+    container: str = field(default_factory=_default_container)
     timeout: int = 120
 
     # ---- 底層 ----

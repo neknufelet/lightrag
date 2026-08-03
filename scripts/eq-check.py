@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import bbox_to_points, load_env  # noqa: E402
+from mineru_common import add_workspace_arg, bbox_to_points, load_env  # noqa: E402
 from pp import crosscheck, eyes, pdfcrop  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 
@@ -83,7 +83,7 @@ def pick(workspace: str, n: int, doc: str | None, seed: int = 7) -> list[tuple]:
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="方程式三方比對")
-    ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
+    add_workspace_arg(ap, env)
     ap.add_argument("--doc")
     ap.add_argument("--n", type=int, default=50)
     # 判讀結果要能存下來。原本只印在終端機，於是「哪三條可疑」這個資訊
