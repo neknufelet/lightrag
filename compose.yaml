@@ -9,6 +9,21 @@
 # 注意：compose 的 ${VAR} 插值讀的是本目錄的 .env（與 env_file 同一份），
 # 所以 WORKSPACE / HOST_PORT 改一處即同時生效於容器名、port 與資料路徑。
 
+# 容器名用 ${WORKSPACE:?…} 強制插值：沒設就整個 compose 指令失敗。
+#
+# 為什麼要強制：容器名決定所有工具 `docker exec` 進哪裡。一個猜錯的預設
+# （這裡曾是 `${WORKSPACE:-acoustics_v155}`）**不會報錯**，只會安靜地對
+# 另一個庫做事。看得見的壞 > 安靜的錯。
+#
+# ⚠ **代價（2026-08-03 sol 終審實測，Compose v5.1.4）**：`:?` 在讀取
+# compose model 時就擋下，所以 `.env` 消失且 shell 沒有 WORKSPACE 時，
+# config / up / down / ps **全部** exit 1 —— 包含 **`down`**。也就是說
+# 「連停都停不掉」。逃生方式：
+#
+#     WORKSPACE=acoustics_v2 docker compose down
+#
+# 這是刻意接受的取捨：緊急停機多打一個前綴，換掉「安靜連到錯的庫」。
+# 但別假裝沒有這個代價 —— 真的遇到時要知道逃生指令長什麼樣。
 services:
   lightrag:
     # 用 digest 而非 tag 釘死。標籤是可以被重推的 —— 作者修完 bug 常用同一個 v1.5.5

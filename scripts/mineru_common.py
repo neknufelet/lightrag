@@ -123,17 +123,36 @@ def load_env(repo: Path) -> dict[str, str]:
     return out
 
 
+def _workspace_value(v: str) -> str:
+    """argparse 的 type：workspace 不得是空白。
+
+    純空白會一路流進 SQL 的 where 條件、資料路徑與容器名，長出
+    `lightrag-  ` 這種東西——**不報錯，只是什麼都對不到**。在入口擋掉。
+    """
+    v = v.strip()
+    if not v:
+        raise argparse.ArgumentTypeError("workspace 不能是空字串或純空白")
+    return v
+
+
 def add_workspace_arg(
     ap: argparse.ArgumentParser, env: dict[str, str], *, flag: str = "--workspace"
 ) -> None:
     """加上 `--workspace`：預設讀 .env，**.env 沒有就強制要求明確指定**。
 
-    為什麼不給字面預設值：見本函式被引入的那個 commit 的訊息。簡短版是——
-    這些工具用 workspace 決定 docker 容器名、SQL 的 where 條件與資料路徑，
-    猜錯的預設**不會報錯**，只會安靜地對別的庫做事。
+    為什麼不給字面預設值：這些工具用 workspace 決定 docker 容器名、SQL 的
+    where 條件與資料路徑，猜錯的預設**不會報錯**，只會安靜地對別的庫做事。
+
+    **`default` 必須是「已求值的字串或 None」，不能是會讀 .env 的函式呼叫。**
+    argparse 的 default 在 parser 建構時就求值——若 default 是
+    `env_workspace()` 這種讀不到就 raise 的東西，缺 .env 時**連明確給
+    `--workspace` 都救不了**，因為它在 argparse 看到你的參數之前就炸了。
+    （2026-08-03 sol 終審抓到，實測 `extract-check.py --workspace X --help`
+    在無 .env 時 rc=1。）
     """
-    workspace = env.get("WORKSPACE") or None
-    ap.add_argument(flag, default=workspace, required=workspace is None)
+    workspace = (env.get("WORKSPACE") or "").strip() or None
+    ap.add_argument(flag, type=_workspace_value,
+                    default=workspace, required=workspace is None)
 
 
 def read_json(p: Path):

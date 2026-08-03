@@ -30,8 +30,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
-from pp.oracle import env_workspace  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 PG = os.environ.get("PP_PG_CONTAINER", "deeptutor-v4-postgres")
@@ -119,8 +118,7 @@ def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="抽取品質：接地檢查與數量帳")
     ap.add_argument("--doc", help="file_path 關鍵字，預設全部")
-    ap.add_argument("--workspace", default=env_workspace(),
-                    help="預設讀本 checkout .env 的 WORKSPACE")
+    add_workspace_arg(ap, env)
     ap.add_argument("--list-ungrounded", type=int, default=12)
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()

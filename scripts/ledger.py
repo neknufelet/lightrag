@@ -36,8 +36,9 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pp.oracle import env_workspace  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 
+REPO = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = Path("/data/rag/lightrag")
 
 # 閘門清單與順序照 rebuild-plan 的「體檢表格式」。這是白名單而不是提示：
@@ -263,7 +264,7 @@ def cmd_summary(a) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="體檢表：每份文件一張三態表")
-    ap.add_argument("--workspace", default=env_workspace())
+    add_workspace_arg(ap, load_env(REPO))
     ap.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     sub = ap.add_subparsers(dest="cmd", required=True)
 

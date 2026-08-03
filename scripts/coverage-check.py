@@ -79,8 +79,9 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pp.oracle import env_workspace  # noqa: E402
+from mineru_common import add_workspace_arg, load_env  # noqa: E402
 
+REPO = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = Path("/data/rag/lightrag")
 DEFAULT_THRESHOLD = 0.05
 
@@ -354,10 +355,10 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="coverage 閘門：pdftotext vs content_list")
-    # 預設 workspace 走 pp/oracle.env_workspace() —— 與所有其他腳本同一個推導處。
-    # 各自 f-string 或各自讀 shell 環境變數，就會出現「在 v2 的 checkout 跑，
-    # 卻安靜地驗了 v155 的產物」這種不會報錯的錯。
-    ap.add_argument("--workspace", default=env_workspace())
+    # 預設 workspace 走 mineru_common.add_workspace_arg —— 與所有其他腳本
+    # 同一個推導處。各自 f-string 或各自讀 shell 環境變數，就會出現「在某個
+    # checkout 跑，卻安靜地驗了另一個 workspace 的產物」這種不會報錯的錯。
+    add_workspace_arg(ap, load_env(REPO))
     ap.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     ap.add_argument("--doc", help="檔名關鍵字，只檢查符合的文件")
     ap.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)

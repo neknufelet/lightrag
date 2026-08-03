@@ -1,24 +1,253 @@
-# lightrag-v1
+# lightrag — 聲學知識庫（LightRAG 1.5.5 部署 ＋ MinerU 解析後處理）
 
-LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來源(SSOT)**,
-其他文件從這裡連出去。改動任何規則或流程時,這裡要跟著改。
+> **上位規範**：`~/ghq/github.com/neknufelet/standards/BASELINE.md`（SSOT，唯一可改源）。
+> **注意：那個 repo 只在 florian-coder 上**，florian-dker 沒有。所以下方
+> `BASELINE SNAPSHOT` 是核心規則的**唯讀凍結副本**（含版本戳記）——inline 於此是
+> 因為被引用的檔不會自動載入 session context，而這個專案有一半的工作在沒有
+> standards repo 的那台機器上進行。**勿手改 snapshot 區塊**；要改規則改 BASELINE
+> 並 bump `baseline_version`，再同步本區塊。
+
+---
+
+## 座標與身分（每次開工先確認自己在哪）
+
+這個專案有一半的 bug 來自身分搞混——「兩個 workspace 被併成一列」、
+「在 v2 的 checkout 驗到 v155 的容器」、「URL 說 v155 但答案來自 v2」，
+全是同一族。所以第一段就把座標釘死。
+
+| 維度 | 值 |
+|---|---|
+| GitHub repo | `neknufelet/lightrag`（單一） |
+| branch | `master`（單一；`rebuild/acoustics-v2` 已於 2026-08-03 合併並完成任務） |
+| **工作台** | **florian-coder**：`~/ghq/github.com/neknufelet/lightrag`。所有編輯在這裡。worker CLI（codex／opencode）只有這台有 |
+| **部署** | **florian-dker**（Tailscale `100.87.88.7`）：同路徑。**唯讀＋只 `git pull`，禁止直接編輯** |
+| 資料／容器 | 只在 florian-dker：`/data/rag/lightrag`、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700 |
+| LLM binding | 第三台 `100.71.26.77:8080`（qwen，llama.cpp 單 slot） |
+| workspace | **`acoustics_v2`（唯一）**。`acoustics_v155` 已完全退役，文件裡提到它的地方一律是歷史 |
+
+**為什麼 dker 的 checkout 必須唯讀**：雙 checkout 分岔**不會報錯**，只會靜靜分家，
+直到某天數字對不上。這與本專案已記載的「兩個 workspace 漏 SQL 條件」同族——
+雙來源、無訊號。要在 dker 現場迭代（例如改規則後反覆跑 canary）是可以的，
+但收斂後必須回 coder 走正式流程，不要在 dker 上累積未推的改動。
+
+---
+
+## 藍桶規則（9 條，BASELINE SNAPSHOT，勿手改此區塊）
+
+> `baseline_version: 1.8.0`　`rules_sha256: d31afca400873b28`
+
+1. **Read before write**：修改任何檔案前先讀取現有內容，禁止覆蓋未讀的內容。
+2. **No silent drops**：任何資料、欄位、邏輯在重構時不得無聲消失；刪除必須明確說明。
+3. **Type hints**：Python 函式簽名必須有 type hints；禁止裸 `Any` 作為逃生門。
+4. **No print for logging**：使用 `logging` 模組，禁止用 `print` 作為正式 log。
+5. **SOLID / single responsibility**：函式和類別只做一件事；超過 50 行的函式先問自己能否拆。
+6. **Explicit resource management**：file handle、DB connection、thread 必須用 `with` 或明確 `close()`。
+7. **Pathlib over string paths**：路徑全程用 `pathlib.Path`，不靠 `os.path` 字串拼接。
+8. **Tests before merge**：新功能必須有對應測試（至少一個 smoke test），無測試的 PR 不得合入主線。
+9. **Verify-then-claim（驗證再斷言）**：任何關於「跑著的系統行為／狀態」的陳述（checkpoint、PR、回覆）必須附**驗證指令及其輸出**（curl／`docker exec`／pytest／實測），不得只靠讀 code 推理；未驗證者明確標 `(未驗,推測)`，不混入事實陳述。涉及 baked image／容器／部署的系統，須區分「源碼狀態」與「as-built 跑著的狀態」。
+
+**第 9 條在本專案有加強版**：源碼在 coder、跑著的系統在 dker，兩者**物理隔離**。
+在 coder 跑的任何東西只能證明源碼層；凡是 canary 數字、閘門判定、契約斷言、
+容器狀態，一律附 dker 上的實跑輸出。這不是紀律問題，是事實問題——coder 上
+連 `.env` 都沒有（不進版控），碰 DB 的腳本在那裡根本跑不起來。
+
+**第 4 條的既有例外**：`scripts/` 是薄 CLI 層，`print` 是它的**輸出**不是 log，
+維持現狀。`lib` 性質的模組（`scripts/pp/`）不得用 `print` 做診斷輸出。
+
+---
+
+## 溝通方式（人話＋技術話雙軌，BASELINE ≥ 1.6.0 同步）
+
+- **雙軌（先人話、後技術話）**：有結論或設計判斷的回報一律兩段——①**人話**（白話短句、結論先行、非技術背景也讀得懂的因果）；②**技術話**（精確機制、`file:line`、函式／參數名、數值與單位、驗證指令／輸出）。
+- **缺一不可**：白話不得省略關鍵技術細節（否則無法驗證／接手）；技術不得取代白話結論（否則抓不到重點）。純確認／瑣碎回覆豁免。
+- 與第 9 條互補（技術話須附驗證），與既有風格相容（短句、結論先行、表格節制、decision 用 yes/no 收斂）。
+
+---
+
+## 提交紀律（Commit-on-done，BASELINE ≥ 1.8.0 同步）
+
+- **做完即提交**：完成且驗證（實跑綠）的閘門／工單／明確範圍當場提隔離 commit；禁「done 但 uncommitted」長存。
+- **開新線前驗乾淨基線**：`git status` 對範圍乾淨才開工。
+- **只顯式 staging**：禁 `git add .`／`-A`；共用檔 hunk-stage；永不提交 `.env`／金鑰。
+- **留髒須記**：真須留髒過 session，於 `NEXT.md` 明記「線 X：done、未提交、檔清單」。
+
+**本專案加一條——跨機鎖步**：commit 只發生在 coder。dker 只 `git pull`。
+一個線的生命週期是「coder 改 → commit → push → dker pull → **dker 實跑驗證** →
+把輸出貼回 commit 或 NEXT.md」。**驗證輸出沒拿到，那條線就還沒 done。**
+
+---
+
+## 執行方針與驗收路由
+
+| 角色 | 職責 |
+|---|---|
+| 你（product owner） | 決策、範圍確認、驗收 |
+| Claude（opus，指揮） | 技術決策討論、出單、調度、對抗驗收、docs |
+| codex terra | code 實作（受工單指派） |
+| codex sol／luna | 單審與終審 |
+| deepseek | 對抗找碴（路徑觸發） |
+
+執行模式：**線性**，不多開平行線。Workflow 是品質工具（對抗驗證、skeptic、
+回歸閘），不是人力並行化。
+
+### 一般票（三站＋回程）
+
+```
+opus 出單 → codex terra 實作 → sol 終審 → 【驗證回程：dker 實跑】
+```
+
+### 重票（五站＋回程）
+
+```
+fable 設計成單 → sol 單審 → codex terra 實作
+  → deepseek 找碴（碰 pp/rules 或閘門判準時觸發）
+  → 終審雙軌：sol（追溯 需求→單→diff→輸出）＋ opus-cold（親跑驗證）
+  → 【驗證回程：dker 實跑】
+```
+
+**重票觸發清單（命中任一即重票，不由指揮心證）**
+
+1. 動 `scripts/pp/rules/**` 或任何**閘門判準**（門檻、三態界線、`SYMBOLIC_RATIO`）
+2. 動 `compat-check.py` 的 `VERIFY-1-A##` 契約斷言
+3. **會改變 canary 基準數字**
+4. 動 `.env` 的鍵、`compose.yaml`、或任何部署契約
+5. 動既有測試語義或體檢表閘門定義
+6. **碰資料**：刪除、`reindex`、`apply --commit`、任何寫進 `/data` 或 DB 的操作
+7. diff > 200 行
+
+**有疑義＝重票。** 第 6 條是本專案特有的——這裡的資料操作**不可逆**，
+而且沒有備份時代的教訓還很新。
+
+**綁住指揮的兩條**：① 指揮**只能升檔、不得降檔**；判為一般票時必須寫明沒有
+命中清單哪一條。② 終審**任一方 BLOCK 即不過**，指揮不得推翻。
+
+**沒有人驗自己**：fable 寫設計⇒不進終審；指揮出單調度⇒不寫設計、不當終審
+（終審的 Anthropic 席是**冷啟動分身 opus-cold**）。
+
+### worker 速查與呼叫法
+
+**全部 worker CLI 只在 florian-coder。** dker 上只有 `claude`。
+
+| 角色 | worker | 模型 | 池子 |
+|---|---|---|---|
+| 指揮／對 PO 窗口 | opus | 本 session | anthropic ⚠ |
+| 重票設計成單 | fable | Agent tool subagent | anthropic ⚠ |
+| 實作 | codex terra | `gpt-5.6-terra` xhigh | openai |
+| 單審＋終審 | codex sol | `gpt-5.6-sol` xhigh | openai |
+| 終審 Anthropic 席 | opus-cold | Agent tool **冷啟動** subagent | anthropic ⚠ |
+| 對抗找碴 | deepseek | `deepseek/deepseek-v4-pro`（opencode） | deepseek |
+| 長文審閱／第二意見 | codex luna | `gpt-5.6-luna` xhigh | openai |
+
+```bash
+# 實作（模型必帶，否則吃 ~/.codex/config.toml 的全域預設＝sol）
+timeout <N> codex exec -C <repo> -s workspace-write \
+  -m gpt-5.6-terra -c model_reasoning_effort="xhigh" \
+  -o <scratch>/last.txt "$(cat ticket.md)" </dev/null > <scratch>/run.log 2>&1
+
+# 審查（唯讀）
+timeout <N> codex exec -C <repo> -s read-only \
+  -m gpt-5.6-sol -c model_reasoning_effort="xhigh" \
+  -o <scratch>/verdict.txt "$(cat brief.md)" </dev/null > <scratch>/run.log 2>&1
+
+# 對抗找碴
+timeout <N> opencode run -m deepseek/deepseek-v4-pro "<PROMPT>" > <scratch>/out.txt 2>&1
+```
+
+⚠ **實測踩過的坑**：① `--ask-for-approval` 在 `codex exec` 不存在。
+② 本機 shell 是 zsh，`${PIPESTATUS[0]}` 會靜默吃掉 exit code——用 `${pipestatus[1]}` 或別接 pipe。
+③ 兩支的 stdout 都有 ANSI＋banner，機器解析用 `-o <FILE>`。
+④ `~/.codex/config.toml` 全域是 `gpt-5.6-sol` ＋ `danger-full-access`，
+**不帶 `-m`／`-s` 的呼叫都會是 sol ＋ 全機存取**。
+⑤ 審查席要能查證就給它 repo（`-C <repo>`）＋額外材料目錄（`--add-dir`）——
+只給摘要它只能回「判不準」，實測第一輪就是這樣。
+
+**額度紀律**：Anthropic 池是唯一吃緊的。重活優先擺 OpenAI／DeepSeek 池；
+親跑驗證幾乎不花 token（綠的時候只回幾行），貴的是讀 diff 與長推理。
+
+---
+
+## 工作項目命名規則
+
+**格式**
+
+```
+<LINE>-<step>[-<KIND><n>]
+
+LINE   ≥4 個大寫字母。禁單字母、禁裸數字
+step   整數，單調遞增，不回頭、不重用
+KIND   子程序類別的單字母
+       ★ 只准出現在完整 label 裡，禁止單獨書寫
+n      子程序編號
+```
+
+例：`REBUILD-4`、`VERIFY-1-A25`、`PPWORK-7`。
+**禁**：`W7`、`A-25`、`階段 4`——單獨的單字母對人類是「項目／順序／章節」語意。
+
+**子程序類別**
+
+| 字母 | 意義 | 本專案對應 |
+|---|---|---|
+| `A` | 斷言 assertion | `compat-check.py` 的契約斷言 |
+| `G` | 閘門 gate | 體檢表的 8 個閘門 |
+| `R` | 回歸 regression | canary 追蹤的 8 個量 |
+| `D` | 決策 decision | `$RECORDS/review/` 的「定案」節 |
+
+**前綴註冊表**
+
+| 前綴 | 工作線 | 範圍 | 狀態 |
+|---|---|---|---|
+| `REBUILD` | acoustics_v2 乾淨重建（原「階段 0–5」） | `REBUILD-0`…`REBUILD-5` | ✅ 完成 2026-08-03 |
+| `CUTOVER` | v2 接手上線＋v155 退役 | `CUTOVER-1`…`CUTOVER-4` | ✅ 完成 2026-08-03 |
+| `PPWORK` | 後處理實作工單（原 `W0`–`W12`） | `PPWORK-0`…`PPWORK-12` | 大部分完成 |
+| `VERIFY` | 驗證程序 | `VERIFY-1`…（見下） | 常態 |
+| `BACKUP` | 備份接線與驗證 | `BACKUP-1`… | 進行中 |
+| `SYMBOL` | `is_symbolic` 判準重量（含 50 題考卷） | `SYMBOL-1`… | 待做 |
+| `SCANNER` | 封閉掃描器進版控、變常駐探針 | `SCANNER-1` | 待做 |
+| `SPEEDUP` | MTP 加速評估 | `SPEEDUP-1` | 待做 |
+| `SCALEUP` | 擴量到 390 份 | `SCALEUP-1`… | 待做 |
+
+**`VERIFY` 線的編號**（一支檢查腳本一個號）
+
+| label | 工具 | 子程序 |
+|---|---|---|
+| `VERIFY-1` | `compat-check.py` | `VERIFY-1-A01`…`A25`（契約斷言，缺號 04/08/09/12/15 是歷史刪除） |
+| `VERIFY-2` | `postprocess.py canary` | `VERIFY-2-R1`…`R8`（pages/items/mute/held/ratio/tables_total/repairable/review） |
+| `VERIFY-3` | `ledger.py summary` | `VERIFY-3-G1`…`G8`（8 個閘門） |
+| `VERIFY-4` | `coverage-check.py` | 解析漏詞 |
+| `VERIFY-5` | `extract-check.py` | 接地三態 |
+| `VERIFY-6` | `parse-check.py` | 解析品質 |
+| `VERIFY-7` | `eq-check.py` | 方程式三票多數決 |
+| `VERIFY-8` | `compare-ws.py` | 跨 workspace 對照 |
+
+**`A-##` 在程式裡先不改名。** 它是 `compat-check.py --json` 輸出的 `id` 欄，
+`/data/rag/lightrag/checks/` 底下的歷史紀錄以它為鍵，改名會讓歷史無法與新紀錄
+對照——而那正是漂移偵測的母體。**正解是輸出多帶一個 `suite: "VERIFY-1"` 欄**，
+完整 label 由兩者組出來；人讀的地方（文件、工單）一律寫全稱 `VERIFY-1-A01`。
+（這一項本身是 `VERIFY-1` 線的待辦，未做。）
+
+---
 
 ## 文件地圖
 
 | 檔案 | 內容 | 什麼時候看 |
 |---|---|---|
 | **CLAUDE.md**(本檔) | 現況、鐵則、每條規則的證據基礎 | 每次開工 |
-| [NEXT.md](NEXT.md) | **待辦與進行中**(含 v155 凍結遺留、刻意不做的決策) | 每次開工 |
+| [NEXT.md](NEXT.md) | **待辦與進行中**(含刻意不做的決策與理由) | 每次開工 |
 | [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
 | [docs/judgement-flow.md](docs/judgement-flow.md) | **遇到新問題時的決策程序**：偵測 → 驗偵測器 → 分類 → 叫眼睛 → 判不準怎麼辦 | 發現一個沒見過的問題時 |
-| [docs/rebuild-plan.md](docs/rebuild-plan.md) | **acoustics_v2 乾淨重建**：階段與閘門、體檢表格式、分工（Opus 執行／主線驗收） | 動任何重建相關工作之前 |
-| [docs/postprocess-workorder.md](docs/postprocess-workorder.md) | 後處理的完整工單(W0–W14) | 要動 `scripts/pp/` 之前 |
-| [README.md](README.md) | 部署、解析選項實測、備份範圍 | 環境有問題時 |
+| [docs/rebuild-plan.md](docs/rebuild-plan.md) | **歷史**：`REBUILD-0`…`REBUILD-5` 的階段、閘門與各階段驗收紀錄；體檢表格式 | 想知道某個數字當初怎麼來的 |
+| [docs/postprocess-workorder.md](docs/postprocess-workorder.md) | **歷史**：後處理實作工單 `PPWORK-0`…`PPWORK-12`(原 `W0`–`W12`;舊描述誤記為 W0–W14) | 要動 `scripts/pp/` 之前 |
+| [README.md](README.md) | 部署、解析選項實測、**備份現況(哪些有、哪些沒有)** | 環境有問題時 |
 | [tests/canary-baseline.json](tests/canary-baseline.json) | 金絲雀基準數字 | 不要手改,用 `canary --update` |
 
 ## 六條鐵則
 
 踩過坑換來的。違反前先讀工單。
+
+> **與上面藍桶 9 條的關係**：藍桶是**跨專案**的工程基線（唯讀，改要改
+> BASELINE）；這六條是**這個領域**的鐵則，從這個專案的實際事故長出來，
+> 只在這裡成立。兩者不衝突也不重疊——藍桶講「怎麼寫程式」，這六條講
+> 「處理 MinerU 產物時什麼會靜靜地錯」。兩套都要遵守，沒有優先序問題。
 
 1. **`preflight()` 拒絕,不猜。** 遇到未知型別就停整份文件。
    用不適用的規則硬跑會產生「有產出但產出錯誤」—— 這個專案一路在防的就是它。
@@ -43,6 +272,14 @@ LightRAG 1.5.5 的部署與 MinerU 解析後處理。**這份是唯一真相來�
    在畫面上長得一樣。
 
 ## 常用指令
+
+> **這些全部只在 florian-dker 跑得起來。** 它們要 `.env`（不進版控）、要
+> `docker exec` 進容器、要連 Postgres／Neo4j——工作台 coder 上一個都跑不動,
+> 會直接噴錯。**這是好事**:它讓「我在 coder 上驗過了」這種自我欺騙在物理上
+> 發生不了。凡是這些指令的輸出,一律是驗證回程的產物。
+>
+> `--workspace` 預設讀 `.env` 的 `WORKSPACE`;**`.env` 沒有就強制要求明確指定**,
+> 沒有字面預設值（猜錯的預設不會報錯,只會安靜地對別的庫做事）。
 
 ```bash
 python3 scripts/parse-only.py                     # 只解析不抽取（規則建立期用這個）
