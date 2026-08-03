@@ -489,13 +489,47 @@ restic restore 25a3048a → /data/backups/restoretest
       吃緊、GGUF 支援是實驗性的、兩張 3060 無 NVLink 走 PCIe 的 tensor parallel
       對 MoE 常是負收益，而且整條契約要重驗——**基礎設施搬遷換個位數百分比**。
 
-- [ ] **`SPEEDUP-4`：390 份是不是每一份都要跑 gleaning？** 比換引擎更大的槓桿。
-      `SPEEDUP-2` 的題本裡有大量 `---Task---\nBased on the last extraction task,
-      identify and extract any **missed or incorrectly described** entities…`
-      ——那是**二次抽取**，等於成倍的 LLM 呼叫。母體 `lightrag_llm_cache`
-      `cache_type='extract'` 共 1,019 筆，其中 gleaning 佔多少**還沒量**。
-      **先量比例，再談要不要調 gleaning 次數**（門檻用量的不要用調的）。
-      省下的比任何解碼加速都多，且不必動模型或引擎。
+### `SPEEDUP-4` — gleaning 佔比　🔵 已量一輪，**不足以下永久裁決**（2026-08-03）
+
+每個 chunk 被 LLM 讀兩次：① 初次抽取 ②「補抓遺漏或描述錯誤」。
+原假設是「補抓多半重工或撈渣，砍掉可省一半」。**實測推翻了這個假設**，
+但第二意見（luna）指出證據撐不起「不要砍」這個永久結論。
+
+**量到的**（dker，母體＝`lightrag_llm_cache` 的 1,019 筆 `extract`）：
+
+```
+            呼叫數  輸出字元佔比  抽出實體  每次實體   符號型佔比
+initial      510      60.3%      6,372     12.5      14.8%
+gleaning     509      39.7%      3,912      7.7      24.9%   ← 1.69 倍
+邊際（458 個兩輪都可解析的 chunk）：
+  補抓抽出 3,439 個名字 → 第一輪已有 227（6.6%）、真正新增 3,212（93.4%）
+  新增裡符號型 878、非符號型 2,334
+```
+
+**⚠ 這些數字有五個已知弱點（luna 逐條指出，主線接受）**：
+
+1. **「非符號型＝有用」只是弱代理。** 專案自己定義符號型是「驗不了」不是失敗；
+   50 題樣本裡符號型有 38% 是正確概念推論，且 `restated` 實測會被檢索命中。
+2. **分類母體對不上。** `--dump-symbolic` 是從**最終 VDB** 分類（已過解析、去重、
+   跨 chunk 合併），卻被拿來標**原始 cache 輸出**。
+3. **完全沒量關係。** gleaning 同時補 entities 與 relationships，可能補的是
+   「兩個已存在實體之間的邊」——只數名字會漏掉它真正的價值。
+4. **「同 chunk 內是新名字」≠「最終索引多一個節點」。** 2,334 很可能高估
+   （跨 chunk 合併會吃掉一部分；大小寫不敏感比對可能把別名／下標變體算成新的）。
+5. **字元佔比不是時間佔比。** 該用 completion tokens；gleaning 把第一輪內容放進
+   歷史，prefill 成本不同（且本庫 prompt 前綴分岔、快取幾乎命不中）。
+   可能超過 40% 也可能就是 40%，**沒量就不能斷言**。
+
+**現階段的結論（採 luna 的措辭）**：原始快取顯示 gleaning 產生大量新候選，
+**足以擋掉盲砍**，但尚未完成 parser-aware／merge-aware／relation-aware／
+query-aware 的 A/B，**不足以永久封殺 selective gleaning**。
+
+- [ ] 真要定案，缺的量測是：用實際 parser 重播、比對**最終 unique 節點與邊**的增量、
+      量 `prompt_tokens`／`completion_tokens` 與 prefill/decode 時間、
+      以及固定查詢集下的檢索品質 A/B。
+- [ ] **獨立問題：63 筆（6%）`return_value` 不是合法 JSON**（initial 41、gleaning 22）。
+      我的 `json.loads` 失敗**不等於** LightRAG 的 parser 也失敗——要用實際 parser
+      重播那 63 筆才知道內容有沒有整批掉。這條與 gleaning 無關，但同樣沒人在看。
 
 - [x] **`SPEEDUP-2.1`：受控吞吐基準工具**（`scripts/llm-bench.py`，commit `580a6f1`
       ＋ `3299ee9`）。四輪終審才過，每輪擋掉一個會產生錯數字的缺陷；判定原文四份。
