@@ -48,7 +48,7 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 | `SYMBOL` | `SYMBOL-3`（restated 怎麼處置） | 🔵 `SYMBOL-1`／`SYMBOL-2` ✅ 完成（答案卷＋三組實驗進版控）；`SYMBOL-2` 的**決策**未下 |
 | `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
 | `PPWORK` | `PPWORK-12` 之後無新項 | ✅ 大部分完成，殘項見「其他待辦」 |
-| `SPEEDUP` | `SPEEDUP-1`（MTP 加速評估） | ⬜ 擴量前做 |
+| `SPEEDUP` | `SPEEDUP-1`（MTP 加速評估） | 🔵 關卡① 定案：**現役 GGUF 沒有 MTP 頭**，要用得換檔；且「單 slot 所以 n_parallel=1 免費」的前提實測不成立（`n_slots = 4`）。衍生 `SPEEDUP-2`（先量 `MAX_ASYNC` 2→4）、`SPEEDUP-3`（啟動設定落檔） |
 | `SCALEUP` | `SCALEUP-1`（390 份） | ⬜ 等上面收斂 |
 
 ---
@@ -332,18 +332,58 @@ PO 2026-08-03 拍板：
 
 ### 效能（擴量前）
 
-- [ ] **MTP 加速評估**：`--spec-type mtp --spec-draft-n-max 3`。
-      `Qwen3.6-35B-A3B`（就是我們跑的那顆）**原生支援**，實測 1.7–2.5×。
-      它「強制 `n_parallel=1`」的限制**對我們免費**——llama.cpp 本來就只有
-      1 個 slot（所以 `.env` 的 `MAX_ASYNC=2`，再高只會排隊撞逾時）。
-      抽取吐的是結構化 JSON，格式可預測，草稿接受率應該偏高。
-      三關按順序：①那顆 GGUF（`Qwen3.6-35B-A3B-UD-IQ4_XS`）**有沒有帶
-      MTP 權重**——很多量化轉檔會把 MTP 頭丟掉；②顯存，GPU0 只剩 0.67 GiB；
-      ③**驗證不是相信**——同一個 chunk 開關各跑一次，比對輸出是否逐字相同
-      （貪婪解碼下應該無損，但要驗）＋實際 tok/s。輸出若有差就不只是加速，
-      是換了模型行為，要照 A-23 那套重新量測模型觀察。
-      **價值在 390 份擴量時**，抽取是那時的時間大宗。
+- [ ] **`SPEEDUP-1` MTP 加速評估 —— 三關已查兩關，`SPEEDUP-1` 原本的兩個前提都被實測推翻**
+      （2026-08-03 在 coder 上實查；**這台就是 `100.71.26.77`**，llama.cpp 跑在這裡）：
+
+      **關卡① GGUF 有沒有 MTP 權重 —— ❌ 沒有，定案。** 直接解析 GGUF 表頭
+      （不是 `strings` 猜的：`strings` 掃到的 `mtp`／`draft` 全是 tokenizer 詞表）：
+      `Qwen3.6-35B-A3B-UD-IQ4_XS.gguf` 有 **733 個張量、`blk.0`–`blk.39`、
+      `nextn`／MTP 相關 0 個**（arch `qwen35moe`、`block_count 40`）。
+      MTP 頭應該在 `blk.40.nextn.*`。**要用 MTP 就得換檔**——HF 上有保住 MTP 頭的
+      同階量化（`unsloth/Qwen3.6-35B-A3B-MTP-GGUF`、
+      `localweights/Qwen3.6-35B-A3B-MTP-IQ4_XS-GGUF` 等），不是重新轉檔才有。
+
+      **關卡② 顯存 —— 很緊，未驗。** 2× RTX 3060 共 24 GiB，目前已用 21.4 GiB
+      （free：GPU0 805 MiB、GPU1 1,601 MiB）。MTP 頭是 Q8_0 約 0.5–1 GiB 量級
+      `(未驗,推測)`，換檔後塞不塞得下要實測。
+
+      **關卡③ 驗證不是相信 —— 還沒到。** 做法不變：同一個 chunk 開關各跑一次，
+      比對輸出是否逐字相同＋實際 tok/s。輸出有差就不只是加速，是換了模型行為，
+      要照 `A-23` 重新量測模型觀察。
+
+      **前提壞掉之一：「強制 `n_parallel=1` 對我們免費」不成立。**
+      伺服器現在跑 `--parallel 4`（啟動 log `n_slots = 4`、`n_ctx_slot = 32768`），
+      不是文件寫的單 slot。開 MTP＝把 4 個 slot 降成 1 個，而 390 份抽取正是
+      併發批次負載。上游對 `n_parallel=1` 的強制我們**尚未在 build 10200 親驗**
+      `(未驗,推測，來源＝下方參考連結)`。
+
+      **前提壞掉之二：旗標名稱已改。** build 10200（`5f55650a7`）的列舉是
+      `--spec-type none,draft-simple,draft-eagle3,draft-mtp,draft-dflash,…`
+      ——是 **`draft-mtp`** 不是 `mtp`。`--spec-draft-n-max` 預設就是 3。
+
+      **旁證（不是我們的實測）**：同為 Ampere＋同一顆 A3B MoE 的公開 benchmark
+      （RTX 3090、`UD-Q4_K_XL`）在 llama.cpp 上**所有非 MTP 的投機變體都是負收益**：
+      baseline 135.7 tok/s、ngram-mod −4%、ngram-cache −13%、classic draft −11%、
+      DFlash −44.6%；作者明說是單流結果、**不能外推到併發批次**。
+      ⇒ 不需要換檔的 `ngram-*` 那條便宜路線，先驗期望值就偏低。
+      https://github.com/thc1006/qwen3.6-speculative-decoding-rtx3090
+
+      **我們自己的基準（從現役 server log 撿的，非受控）**：4 slot 併發下
+      tg 約 50–62 tok/s／slot、prompt eval 600–1,130 tok/s。
+      **受控基準還沒建**——沒有它，任何 A/B 都沒有尺。
+
       參考：https://ai-coding.wiselychen.com/llama-cpp-mtp-merged-local-llm-2x-speedup/
+
+- [ ] **`SPEEDUP-2`：先量「4 個 slot 只餵 2 路」的損失。** dker live `.env` 是
+      `MAX_ASYNC=2`，`.env.example` 寫 4，伺服器開著 4 個 slot。這條**不必換模型、
+      不必動伺服器、可逆**，而且與 MTP 方向相反（MTP 要求降到 1 路）。
+      **兩條互斥，先量哪條贏。**
+
+- [ ] **`SPEEDUP-3`：llama-server 的啟動設定沒有落檔。** 它是 `docker run` 起來的
+      （`restart: unless-stopped`、掛 `~/ghq/models:/models`），**沒有 compose、
+      沒有 systemd unit、repo 裡 grep 不到任何呼叫者**——參數只活在容器的 config 裡。
+      任何 A/B 都要重啟它，容器一旦被 `docker rm` 掉，現行參數就沒了。
+      **做實驗之前先把現況固化成檔**（含 image digest），否則回不去。
 - [ ] **TurboQuant 不適用**（查過了）：它是 Google 的 KV cache 量化，
       實作在 vLLM + Triton 不是 llama.cpp，而且針對長脈絡場景——
       我們是一次一個 chunk，12 GiB 裡塞滿的是模型權重不是 KV cache

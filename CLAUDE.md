@@ -24,7 +24,7 @@
 | **部署** | **florian-dker**（Tailscale `100.87.88.7`）：同路徑。**唯讀＋只 `git pull`，禁止直接編輯** |
 | 資料／容器 | 只在 florian-dker：`/data/rag/lightrag`（解析快取與裁決紀錄）、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700 |
 | 儲存後端 | 只在 florian-dker：`lightrag-postgres`（database `lightrag`）＋ `lightrag-neo4j`，資料在 `/data/lightrag`。**2026-08-03 從 DeepTutor 的共用實例搬出**，兩者都是專用實例（`lightrag-neo4j` 只有 `neo4j`／`system` 兩個 database），不再靠 workspace 欄位與 label 跟別的專案共處 |
-| LLM binding | 第三台 `100.71.26.77:8080`（qwen，llama.cpp 單 slot） |
+| LLM binding | **就是 florian-coder 這台**（Tailscale `100.71.26.77`）的 :8080，容器 `llama-qwen36-moe`（`ghcr.io/ggml-org/llama.cpp:server-cuda`，build 10200／`5f55650a7`，模型 `Qwen3.6-35B-A3B-UD-IQ4_XS`，2× RTX 3060）。**跑的是 `--parallel 4`，啟動 log `n_slots = 4`**（2026-08-03 實測）。舊文件寫「第三台」「單 slot」，**兩個都錯**——它不是第三台機器，slot 也不是 1 |
 | workspace | **`acoustics_v2`（唯一）**。`acoustics_v155` 已完全退役，文件裡提到它的地方一律是歷史 |
 
 **為什麼 dker 的 checkout 必須唯讀**：雙 checkout 分岔**不會報錯**，只會靜靜分家，
@@ -459,8 +459,13 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
 | `compose.yaml` | 映像以 digest 釘選 | ✅ |
 
 `.env.example` 才是真正的文件 —— 它記的不是「有這個鍵」，而是「為什麼是這個值」，
-例如 `MAX_ASYNC=2` 底下寫著 llama.cpp 只有 1 個 slot、4 個並行會排隊撞逾時。
+例如 `MAX_ASYNC` 底下寫著當初 10 次逾時、1 份文件整份失敗的成因，以及
+「真正要提升吞吐得在伺服器端開 `--parallel N`，開了之後 `MAX_ASYNC` 才有意義往上調」。
 換機器或換人接手時看那個檔就夠。
+
+**⚠ 2026-08-03 實測到的三方不一致**：伺服器已經開了 `--parallel 4`（`n_slots = 4`），
+`.env.example` 寫 `MAX_ASYNC=4`，但 **dker 的 live `.env` 仍是 `MAX_ASYNC=2`**——
+也就是 4 個 slot 開著卻只餵 2 路。這是 `SPEEDUP` 線要量的第一件事，別直接改。
 
 **升級的步驟：**
 
