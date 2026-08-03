@@ -45,9 +45,10 @@ workspace 是 `acoustics_v2`。
 # 1. 先看有哪些文件
 curl -s -m 30 "http://100.87.88.7:9700/kb/acoustics_v2/docs?format=md"
 
-# 2. 取某一篇（檔名有空格，用 -G --data-urlencode 讓 curl 自己編碼）
-curl -s -m 60 -G "http://100.87.88.7:9700/kb/acoustics_v2/doc/C Equivalent Networks.pdf" \
-  --data-urlencode "format=md"
+# 2. 取某一篇。檔名的空格要自己寫成 %20 —— **不能靠 -G --data-urlencode**，
+#    它只編碼 query string，不碰路徑。路徑留著字面空格 curl 會直接掛：
+#    實測回 HTTP 000、0 bytes、**沒有任何錯誤訊息**，看起來就像這篇不存在。
+curl -s -m 60 "http://100.87.88.7:9700/kb/acoustics_v2/doc/C%20Equivalent%20Networks.pdf?format=md"
 ```
 
 回傳的 Markdown 分四節：章節、表格（標「已修補」）、方程式、圖片（別名 + caption）。
