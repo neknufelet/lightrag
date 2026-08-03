@@ -1,6 +1,7 @@
 # lightrag — 聲學知識庫（LightRAG 1.5.5 部署 ＋ MinerU 解析後處理）
 
-> **上位規範**：`~/ghq/github.com/neknufelet/standards/BASELINE.md`（SSOT，唯一可改源）。
+> **上位規範**：`~/ghq/github.com/neknufelet/standards/BASELINE.md`（SSOT，唯一可改源；
+> 本次同步自 `baseline_version 1.9.0`，`date_modified 2026-08-03`）。
 > **注意：那個 repo 只在 florian-coder 上**，florian-dker 沒有。所以下方
 > `BASELINE SNAPSHOT` 是核心規則的**唯讀凍結副本**（含版本戳記）——inline 於此是
 > 因為被引用的檔不會自動載入 session context，而這個專案有一半的工作在沒有
@@ -34,7 +35,9 @@
 
 ## 藍桶規則（9 條，BASELINE SNAPSHOT，勿手改此區塊）
 
-> `baseline_version: 1.8.0`　`rules_sha256: d31afca400873b28`
+> `baseline_version: 1.9.0`　`rules_sha256: d31afca400873b28`
+> （9 條核心規則與上游逐字比對相同，已用程式驗過。1.9.0 相對 1.8.0 的改動
+> 在「工作項目命名規則」那個非核心 section，`rules_sha256` 因此未變。）
 
 1. **Read before write**：修改任何檔案前先讀取現有內容，禁止覆蓋未讀的內容。
 2. **No silent drops**：任何資料、欄位、邏輯在重構時不得無聲消失；刪除必須明確說明。
@@ -168,29 +171,40 @@ timeout <N> opencode run -m deepseek/deepseek-v4-pro "<PROMPT>" > <scratch>/out.
 
 ## 工作項目命名規則
 
-**格式**
+> 格式規則的 SSOT 是 BASELINE「工作項目命名規則」（≥ 1.9.0）。**本節只做兩件
+> 上游要求各專案自己做的事**：① 前綴註冊表（本專案有哪些線）②
+> 子程序字母的語意定義（上游明寫「由該線自行定義並在專案 CLAUDE.md 註記」）。
+
+**格式**（摘自 BASELINE 1.9.0，勿在此改規則）
 
 ```
-<LINE>-<step>[-<KIND><n>]
+<前綴><編號>[.<子步>][-<字母><編號>]
 
-LINE   ≥4 個大寫字母。禁單字母、禁裸數字
-step   整數，單調遞增，不回頭、不重用
-KIND   子程序類別的單字母
-       ★ 只准出現在完整 label 裡，禁止單獨書寫
-n      子程序編號
+前綴    工作線種類。**大寫 ≥4 字母**的描述性縮寫或全名
+編號    該線內單調遞增的 gate／步驟，不回頭、不重用
+.<n>    子步：同一個 gate 的細分
+-<字母><編號>   子程序：一個 gate 底下平行的驗證程序／分析臂／修正輪
 ```
 
-例：`REBUILD-4`、`VERIFY-1-A25`、`PPWORK-7`。
-**禁**：`W7`、`A-25`、`階段 4`——單獨的單字母對人類是「項目／順序／章節」語意。
+**單字母不是不能用，是不能「單獨站著」。** 判準只有一條：**這個 label 單獨
+出現時，讀者能不能認出它屬於哪條線。**
 
-**子程序類別**
+- ✅ `VERIFY-1-A25`、`REBUILD-4`、`PPWORK-7`
+- ❌ `A-25`、`W7`、`階段 4` 光禿禿站著
 
-| 字母 | 意義 | 本專案對應 |
+實務判準：同一份文件內第一次提及必寫全稱；**跨文件引用一律全稱**
+（NEXT.md、commit message、工單標題都算跨文件）。
+
+**本專案的子程序字母**（依上游要求在此定義；未在此註冊的字母不得使用）
+
+| 字母 | 語意 | 用在哪條線 |
 |---|---|---|
-| `A` | 斷言 assertion | `compat-check.py` 的契約斷言 |
-| `G` | 閘門 gate | 體檢表的 8 個閘門 |
-| `R` | 回歸 regression | canary 追蹤的 8 個量 |
-| `D` | 決策 decision | `$RECORDS/review/` 的「定案」節 |
+| `A` | assertion，契約斷言 | `VERIFY-1`（`compat-check.py` 的 25 條） |
+| `G` | gate，體檢表閘門 | `VERIFY-3`（`ledger.py` 的 8 個） |
+| `R` | round，同一 gate 的第 n 輪 | 各線通用（例：`SYMBOL-1-R2` ＝ 50 題考卷的第二輪） |
+
+**狀態標記**（BASELINE 統一 legend）：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`。
+NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標記）。
 
 **前綴註冊表**
 
