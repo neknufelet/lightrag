@@ -17,6 +17,7 @@ LLM 會合理地改寫大小寫與斷字。目標是抓**憑空捏造**，不是
     extract-check.py                     # 全部
     extract-check.py --doc Equivalent
     extract-check.py --list-ungrounded 30
+    extract-check.py --dump-symbolic symbolic.json
 """
 from __future__ import annotations
 
@@ -119,7 +120,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="抽取品質：接地檢查與數量帳")
     ap.add_argument("--doc", help="file_path 關鍵字，預設全部")
     add_workspace_arg(ap, env)
-    ap.add_argument("--list-ungrounded", type=int, default=12)
+    ap.add_argument("--list-ungrounded", type=int, default=12,
+                    help="列出「可疑」桶（非符號型且未接地）的前 N 個；不包含符號型／驗不了項目")
+    ap.add_argument("--dump-symbolic", type=Path, metavar="FILE",
+                    help="將符號型／驗不了的實體與其來源 chunk 原文寫成 JSON")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
@@ -144,6 +148,7 @@ def main() -> int:
 
     per_doc: dict[str, dict] = {}
     ungrounded: list[tuple[str, str]] = []
+    symbolic_entities: list[tuple[str, str, list[str]]] = []
     for row in rows:
         name, cids = row["entity_name"], row["chunk_ids"] or []
         doc = ((row["file_path"] or "").split("<SEP>")[0]).strip() or "?"
@@ -161,8 +166,23 @@ def main() -> int:
         elif all(is_symbolic(t) for t in texts if t):
             # 三態：來源全是符號型，字串比對沒有鑑別力 —— 無法驗證，不是失敗
             d["symbolic"] += 1
+            if a.dump_symbolic:
+                symbolic_entities.append((doc, name, sorted({c for c in cids if c in chunks})))
         else:
             ungrounded.append((doc, name))
+
+    if a.dump_symbolic:
+        symbolic_entities.sort(key=lambda entity: (entity[0], entity[1], entity[2]))
+        symbolic_chunk_ids = sorted({c for _, _, cids in symbolic_entities for c in cids})
+        a.dump_symbolic.write_text(json.dumps({
+            "workspace": a.workspace,
+            "generated_from": "extract-check.py --dump-symbolic",
+            "counts": {"entities": len(symbolic_entities),
+                       "chunks_referenced": len(symbolic_chunk_ids)},
+            "entities": [{"doc": doc, "name": name, "chunk_ids": cids}
+                         for doc, name, cids in symbolic_entities],
+            "chunks": {c: chunks[c] for c in symbolic_chunk_ids},
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     if not per_doc:
         print("沒有符合的實體")
