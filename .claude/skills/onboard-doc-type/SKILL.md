@@ -44,19 +44,20 @@ description: 把新的文件類型接進 LightRAG 後處理流程。當使用者
 
 ```bash
 cp <新PDF> /data/rag/lightrag/<ws>/inputs/<ws>/
-KEY=$(grep '^LIGHTRAG_API_KEY=' .env | cut -d= -f2-)
-curl -s -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
+python3 scripts/postprocess.py prepare --workspace <ws>
+python3 scripts/postprocess.py prepare --workspace <ws> --commit
 ```
 
-服務綁在 `BIND_ADDR`（不是 localhost）。pipeline 忙碌時 scan 會回
-`scanning_skipped_pipeline_busy`，要等閒置。
+第一個 `prepare` 是 dry-run，第二個才執行「解析 → 修補 → 掃描」。**不要直接
+curl `/documents/scan`**：scan 會把 MinerU 解析與實體抽取綁在一起；若先 scan
+再修補，就必須 reindex，等於同一份文件抽取兩次。`prepare` 刻意把修補放在
+scan 前，讓抽取只發生一次。
 
-**等待條件要等 `content_list.json`，不要等目錄** —— MinerU 先建目錄、最後才寫檔，
-等目錄會提早觸發。
+若 pipeline 忙碌，scan 可能回 `scanning_skipped_pipeline_busy`；這代表**沒有排程**，
+等閒置後重新執行 `prepare --workspace <ws> --commit`，不要把該回應當成成功。
 
-```bash
-until [ -f "$P/<檔名>.pdf.mineru_raw/content_list.json" ]; do sleep 20; done
-```
+`prepare` 會等待 `content_list.json` 產出後才進修補；MinerU 先建目錄、最後才寫檔，
+所以不要用「目錄出現」當解析完成訊號。
 
 ### 2. 看它壞在哪
 

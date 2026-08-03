@@ -35,6 +35,7 @@ import os
 import re
 import shutil
 import sys
+import subprocess
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -44,6 +45,55 @@ from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+
+
+def _postprocess_passed(raw: Path) -> bool:
+    """只用 manifest 的 pass marker 判斷是否已跑過後處理。"""
+    from pp.apply import POSTPROCESS_PASS_KEY, POSTPROCESS_PASS_VERSION
+
+    manifest_path = raw / "_manifest.json"
+    if not manifest_path.is_file():
+        return False
+    marker = json.loads(manifest_path.read_text()).get(POSTPROCESS_PASS_KEY)
+    return isinstance(marker, dict) and marker.get("version") == POSTPROCESS_PASS_VERSION
+
+
+def _prepare_inventory(workspace: str) -> tuple[list[Path], list[Path], list[Path]]:
+    """回傳待解析、已解析未修補、以及已完成後處理 pass 的 bundle。"""
+    inputs = DATA_ROOT / workspace / "inputs" / workspace
+    parsed = inputs / "__parsed__"
+    pending = [p for p in sorted(inputs.glob("*.pdf"))
+               if not (parsed / f"{p.name}.mineru_raw" / "content_list.json").is_file()]
+    ready: list[Path] = []
+    passed: list[Path] = []
+    for raw in sorted(parsed.glob("*.mineru_raw")):
+        if not (raw / "content_list.json").is_file():
+            continue
+        (passed if _postprocess_passed(raw) else ready).append(raw)
+    return pending, ready, passed
+
+
+def _prepare_target_state(bundles: list[Path]) -> str:
+    """描述本輪 prepare 目標在未送 scan 前的狀態。"""
+    if not bundles:
+        return "沒有本輪待修補的 bundle"
+    passed = sum(1 for raw in bundles if _postprocess_passed(raw))
+    pending = len(bundles) - passed
+    states = []
+    if pending:
+        states.append(f"已解析未修補 {pending} 份")
+    if passed:
+        states.append(f"已修補未索引 {passed} 份")
+    return "、".join(states)
+
+
+def _scan_was_skipped_pipeline_busy(response: object) -> bool:
+    """從 scan JSON 的任意巢狀欄位辨識「沒有排程」的回應。"""
+    if isinstance(response, dict):
+        return any(_scan_was_skipped_pipeline_busy(value) for value in response.values())
+    if isinstance(response, list):
+        return any(_scan_was_skipped_pipeline_busy(value) for value in response)
+    return response == "scanning_skipped_pipeline_busy"
 
 
 def find_bundles(workspace: str, doc: str | None) -> list[Path]:
@@ -250,7 +300,7 @@ def cmd_canary(a, env) -> int:
     return 2
 
 
-def cmd_prepare(a, env) -> int:
+def cmd_prepare(a: argparse.Namespace, env: dict[str, str]) -> int:
     """新文件的正確順序：解析 → 修補 → 才掃描。
 
     為什麼順序重要：/scan 會把解析與實體抽取綁在一起跑完，之後再修補就得
@@ -260,17 +310,7 @@ def cmd_prepare(a, env) -> int:
     先 apply 再 scan 就只抽一次。已經索引過的文件沒有這個選擇（要走
     apply + reindex），所以這條路只適用於還沒進索引的新文件。
     """
-    inputs = DATA_ROOT / a.workspace / "inputs" / a.workspace
-    parsed = inputs / "__parsed__"
-    pending = [p for p in sorted(inputs.glob("*.pdf"))
-               if not (parsed / f"{p.name}.mineru_raw" / "content_list.json").is_file()]
-    ready = []
-    for raw in sorted(parsed.glob("*.mineru_raw")):
-        if not (raw / "content_list.json").is_file():
-            continue
-        items = json.loads((raw / "content_list.json").read_text())
-        if not any("_pp_original_text" in i or "_pp_repaired_at" in i for i in items):
-            ready.append(raw)
+    pending, ready, _ = _prepare_inventory(a.workspace)
 
     print(f"待解析 {len(pending)} 份、待修補 {len(ready)} 份")
     if not a.commit:
@@ -283,17 +323,51 @@ def cmd_prepare(a, env) -> int:
 
     if pending:
         print("\n[1/3] 解析（不觸發抽取）")
-        import subprocess
-        subprocess.run([sys.executable, str(REPO / "scripts" / "parse-only.py"),
-                        "--workspace", a.workspace], check=False)
+        command = [sys.executable, str(REPO / "scripts" / "parse-only.py"),
+                   "--workspace", a.workspace]
+        try:
+            parsed = subprocess.run(command, check=False)
+        except OSError as e:
+            _, ready_after, _ = _prepare_inventory(a.workspace)
+            print(f"\n✗ 解析失敗（{type(e).__name__}: {e}），流程停止。")
+            print(f"  資料目前處於：待解析 {len(pending)} 份、已解析未修補 "
+                  f"{len(ready_after)} 份；未發出 scan。")
+            return 2
+        if parsed.returncode != 0:
+            _, ready_after, _ = _prepare_inventory(a.workspace)
+            detail = getattr(parsed, "stderr", None)
+            if detail:
+                print(f"  原因：{str(detail).strip()}")
+            print(f"\n✗ 解析失敗（parse-only exit {parsed.returncode}），流程停止。")
+            print(f"  資料目前處於：待解析 {len(_prepare_inventory(a.workspace)[0])} 份、"
+                  f"已解析未修補 {len(ready_after)} 份；未發出 scan。")
+            return parsed.returncode if parsed.returncode > 0 else 2
 
+    _, ready_after, _ = _prepare_inventory(a.workspace)
+    targets = ready_after
     print("\n[2/3] 修補")
     rc = cmd_apply(argparse.Namespace(workspace=a.workspace, doc=None, commit=True,
-                                      no_tables=a.no_tables, workers=a.workers), env)
+                                      no_tables=a.no_tables, workers=a.workers), env,
+                    bundles=targets)
+    if rc != 0:
+        print(f"\n✗ 修補失敗（exit {rc}），流程停止。")
+        print(f"  資料目前處於：{_prepare_target_state(targets)}；未發出 scan。")
+        return rc if rc > 0 else 2
 
     print("\n[3/3] 掃描（此時才進抽取，只跑一次）")
-    print(" ", json.dumps(_api(env, "/documents/scan", "POST"), ensure_ascii=False)[:200])
-    return rc
+    try:
+        response = _api(env, "/documents/scan", "POST")
+    except Exception as e:  # noqa: BLE001
+        print(f"\n✗ scan 呼叫失敗（{type(e).__name__}: {e}）。")
+        print(f"  資料目前處於：{_prepare_target_state(targets)}；請重跑 prepare --commit。")
+        return 2
+    print(" ", json.dumps(response, ensure_ascii=False)[:200])
+    if _scan_was_skipped_pipeline_busy(response):
+        print("\n✗ scan 沒有排程（scanning_skipped_pipeline_busy）；請等 pipeline 閒置後重跑 "
+              "prepare --commit。")
+        print(f"  資料目前處於：{_prepare_target_state(targets)}。")
+        return 2
+    return 0
 
 
 def _api(env: dict, path: str, method: str = "GET", body=None):
@@ -441,7 +515,8 @@ def _rollback_batch(ap_mod, done: list, o) -> None:
         print("      人工還原：把上列備份檔複製回 <bundle>/content_list.json 與 _manifest.json")
 
 
-def cmd_apply(a, env) -> int:
+def cmd_apply(a: argparse.Namespace, env: dict[str, str],
+              bundles: list[Path] | None = None) -> int:
     from pp import apply as ap_mod, eyes
     from pp.oracle import Oracle, container_for
 
@@ -452,7 +527,8 @@ def cmd_apply(a, env) -> int:
     rc = 0
     # 本輪已經 commit 成功的份，用來在後面任何一份失敗時整批退回。
     done: list = []
-    for raw in find_bundles(a.workspace, a.doc):
+    targets = find_bundles(a.workspace, a.doc) if bundles is None else bundles
+    for raw in targets:
         try:
             doc_home = out_root / raw.name.removesuffix(".mineru_raw")
             # 每張表在 content_list 裡的現值。閘門要拿它來分辨「保留既有的本地

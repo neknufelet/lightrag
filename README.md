@@ -114,17 +114,22 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 
 ```bash
 cp foo.pdf /data/rag/lightrag/acoustics_v2/inputs/acoustics_v2/
-curl -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
+python3 scripts/postprocess.py prepare --workspace acoustics_v2
+python3 scripts/postprocess.py prepare --workspace acoustics_v2 --commit
 ```
+
+`prepare --commit` 固定依序做「解析 → 修補 → 掃描」。**不要直接呼叫
+`/documents/scan`**：scan 會把解析與實體抽取綁在一起；先掃描再修補會讓之後的
+reindex 再抽取一次。修補必須在 scan 前完成，才能讓每份文件只抽取一次。
 
 `inputs` 也**不能唯讀掛載** —— 容器啟動時要建上述子目錄，掛 `:ro` 會直接 crash loop。
 這是為什麼此處用專屬目錄而非直接掛 `/data/rag/knowledge_bases/*/raw`。
 
 ### 儲存後端
 
-沿用既有的 `deeptutor-v4-postgres`（DB `lightrag`，pgvector 0.8.2）與 `deeptutor-v4-neo4j`，
-接在 `rag_default` 網路上。**靠 `WORKSPACE` 隔離** —— Postgres 用 workspace 欄位、Neo4j 用節點
-標籤，所以多個知識庫可共存於同一組資料庫。
+使用本專案專用的 `lightrag-postgres`（DB `lightrag`，pgvector 0.8.2）與
+`lightrag-neo4j`，接在 `rag_default` 網路上。兩者不再與 DeepTutor 共用；查詢仍以
+`WORKSPACE` 作為本專案的資料邊界。
 
 要跑第二個知識庫：複製本目錄為另一個 stack，改 `WORKSPACE`、`HOST_PORT`
 與 `KBAPI_PORT` 即可。三個埠都走 `.env`，compose.yaml 不必改。

@@ -42,6 +42,12 @@ class ApplyError(RuntimeError):
     pass
 
 
+# 顶層 manifest 的 pass marker：內容沒有任何改動時，仍能記住這份 bundle 已經完整
+# 跑過後處理，避免用「有沒有 _pp_* 改動痕跡」反推執行歷史。
+POSTPROCESS_PASS_KEY = "_pp_pass"
+POSTPROCESS_PASS_VERSION = 1
+
+
 # `_coerce_text` 讀的欄位，順序照 compat-check 的 A-06 斷言。文字修補必須寫進
 # **LightRAG 實際會讀的那一個**，否則改了等於沒改：N Flow #8 是 `code` 項，
 # 內容在 `code_body`，硬塞一個 `text` 欄位反而會讓它蓋掉原本的 code_body
@@ -408,6 +414,12 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     r.valid_after = bundle_valid(ctx2, o)
     if not r.valid_after:
         r.notes.append("⚠ 寫完後 LightRAG 不認可這份 bundle —— 用 revert 還原")
+    else:
+        man[POSTPROCESS_PASS_KEY] = {
+            "version": POSTPROCESS_PASS_VERSION,
+            "completed_at": stamp,
+        }
+        ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
     return r
 
 
@@ -485,6 +497,7 @@ def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
     man = json.loads(ctx.manifest_path.read_text())
     man["critical_file"]["size"] = ctx.content_list_path.stat().st_size
     man["critical_file"]["sha256"] = _sha256(ctx.content_list_path)
+    man.pop(POSTPROCESS_PASS_KEY, None)
     ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
 
     r.valid_after = bundle_valid(DocContext(raw_dir), o)
