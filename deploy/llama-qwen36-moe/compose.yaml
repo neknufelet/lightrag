@@ -1,0 +1,88 @@
+# llama.cpp server —— 本專案的 LLM binding（`.env` 的 `LLM_BINDING_HOST`）
+#
+# ⚠ 這個檔是**現況的謄本，不是它的出生證明**。跑著的 `llama-qwen36-moe` 是用
+#   `docker run` 起來的，參數只活在容器自己的 config 裡：沒有 compose、沒有
+#   systemd unit、repo 裡 grep 不到任何呼叫者。**容器一旦被 docker rm，
+#   現行參數就沒了**，所以先把它抄下來。
+#
+# ⚠ **本檔尚未被用來啟動過任何容器（未驗）**。拿它 `docker compose up` 會是
+#   一次真正的部署動作（停現役、換啟動路徑），照 CLAUDE.md 觸發清單 #4 屬**重票**，
+#   不要順手執行。它現在的用途是「回得去」與「A/B 有基準」。
+#
+# 來源：2026-08-03 `docker inspect llama-qwen36-moe`，逐欄謄寫。
+# 服務對象：florian-dker 的 lightrag（`LLM_BINDING_HOST=http://100.71.26.77:8080/v1`）。
+#   **這台機器就是 florian-coder 自己**——舊文件寫「第三台」是錯的。
+#   其他專案是否也打這個埠**未查證**，重啟前要先確認，別只想著 lightrag。
+
+services:
+  llama-qwen36-moe:
+    container_name: llama-qwen36-moe
+    # tag `server-cuda` 是會動的，釘 digest 才有「跑的是哪一版」這回事。
+    # 這個 digest 對應 build 10200（5f55650a7）—— 就是實測支援
+    # `--spec-type draft-mtp` 的那一版（見 NEXT.md 的 SPEEDUP 線）。
+    image: ghcr.io/ggml-org/llama.cpp@sha256:48b8053c05319cde97e64463d117b5747d3fb27475b176f85edf27bd503fa7f9
+    restart: unless-stopped
+
+    # 模型目錄唯讀掛入：伺服器沒有任何理由寫模型檔。
+    volumes:
+      - /home/florian/ghq/models:/models:ro
+
+    # 只綁 Tailscale 位址，不綁 0.0.0.0 —— 這台同時跑著別的服務。
+    ports:
+      - "100.71.26.77:8080:8080"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]     # 兩張 RTX 3060 都給它（NVIDIA_VISIBLE_DEVICES=all）
+
+    environment:
+      # 金鑰不進版控也不進命令列（命令列會出現在 `ps` 裡，本機任何使用者可見）。
+      # 值放同目錄的 `.env`（已被 .gitignore 擋住），見 .env.example。
+      #
+      # ⚠ **變數名是 `LLAMA_API_KEY`，不是 `LLAMA_ARG_API_KEY`。** 這支的旗標
+      #   幾乎都走 `LLAMA_ARG_*`（`--host` → `LLAMA_ARG_HOST`），唯獨 `--api-key`
+      #   是光禿禿的 `LLAMA_API_KEY`（`--api-key-file` 又是 `LLAMA_ARG_API_KEY_FILE`，
+      #   更容易記反）。名字打錯**不會報錯**：伺服器會以「沒設金鑰」啟動，
+      #   而沒設金鑰的 llama-server 是**全部放行**——dker 照樣通、監控照樣綠，
+      #   只是這個埠對 Tailnet 敞開了。以 `--help` 的 `(env: …)` 為準，別靠慣例推。
+      LLAMA_API_KEY: ${LLAMA_API_KEY:?deploy/llama-qwen36-moe/.env 缺 LLAMA_API_KEY}
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+
+    # ── 啟動參數：與 2026-08-03 跑著的那一份逐字相同 ──────────────────
+    # 標「原因未記錄」的是謄寫時就查不到理由的，不要當成有人想過才這樣設；
+    # 要改先量（CLAUDE.md 鐵則 5：門檻用量的，不要用調的）。
+    command:
+      - --model
+      - /models/qwen3.6-35b-a3b/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
+      # ⚠ 這顆 GGUF **沒有 MTP 頭**（實測：733 張量、blk.0–39、nextn 0 個）。
+      #   要走 SPEEDUP-1 的 MTP 路線必須換成保住 blk.40.nextn.* 的同階量化。
+      - --mmproj
+      - /models/qwen3.6-35b-a3b/mmproj-F16.gguf
+      - -ngl
+      - "99"                          # 全部層上 GPU
+      - -sm
+      - layer                         # 層分割（不是 row）
+      - -ts
+      - "0.94,1.06"                   # 兩張卡的權重比；GPU0 要多留一點給別的東西
+      - -c
+      - "131072"                      # 總脈絡；÷ --parallel 4 ⇒ 每 slot 32768（實測 log 相符）
+      - --parallel
+      - "4"                           # **4 個 slot**。文件曾寫「單 slot」，錯了。
+                                      # 這一項與 SPEEDUP-1 的 MTP 直接衝突：
+                                      # MTP 會強制 n_parallel=1（未在本 build 親驗）。
+      - -fa
+      - "on"                          # flash attention
+      - --jinja                       # 用模型自帶的 chat template
+      - --reasoning
+      - "off"                         # 不吐 reasoning 段
+      - --image-min-tokens
+      - "1024"                        # 原因未記錄
+      - --host
+      - 0.0.0.0                       # 容器內部；對外由上面的 ports 限定在 Tailscale 位址
+      - --port
+      - "8080"
+      - --metrics                     # 開 /metrics，SPEEDUP 的量測要用
