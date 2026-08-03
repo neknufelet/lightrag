@@ -29,18 +29,29 @@ CLAUDE.md 前半是治理層（座標、藍桶 9 條、雙軌溝通、提交紀�
   - coder 上沒有 .env、沒有 docker，碰 DB 的腳本在那裡跑不起來——這是刻意的。
   - 重票觸發清單見 CLAUDE.md「執行方針與驗收路由」，有疑義＝重票。
 
-下一步照 NEXT.md 的狀態總表。**2026-08-03 收完一大批，目前只剩一條主線：**
-  SCALEUP-1  擴量到 390 份。前置都已收斂（見下），開跑前先讀「擴量到 390 份」那節
+下一步：**跑第一份新文件**（`SCALEUP-1` 的第一步，之前一直沒做到）。
 
-當天收掉的（都有實測，別重做）：
-  BACKUP 全線 —— 還原演練通過、排程已接、還原點 1→3
+  1. PDF 放到 dker：/data/rag/lightrag/acoustics_v2/inputs/acoustics_v2/
+  2. python3 scripts/postprocess.py prepare          # dry-run，只看它打算做什麼
+  3. python3 scripts/postprocess.py prepare --commit # 解析 → 修補 → 才掃描
+
+  **順序不能反**：先掃描再修補要重建索引＝抽取兩次（一份約 12 分鐘）。
+  **不要用 WebUI 上傳**：/documents/upload 會直接觸發抽取，跳過修補（讀過原始碼確認）。
+
+  跑完會知道：preflight 擋不擋、有沒有空表格要兩雙眼睛、會冒出什麼沒見過的東西。
+  **那些才是值得記的先例** —— 現在的 75 條盤點是猜的，第一份文件是量的。
+
+2026-08-03～04 收完一大批（都有實測，別重做）：
+  BACKUP 全線 —— 還原演練通過、每天 03:00 自動、還原點 1→3、警報驗過送達手機
   SPEEDUP-2  —— MAX_ASYNC 2→4（+28% 吞吐，已生效）
-  SPEEDUP-1  —— MTP 不做（GPU 在 c=4 已飽和，換不到東西）；vLLM 同理
-  SPEEDUP-4  —— gleaning 不能盲砍（它撈到的 93% 是新東西）
-  SYMBOL 全線 —— -2 不掃、-4 不修（OCR 污染僅 0.3%）、-5 第一版反效果暫緩、
-               -3.1 量測工具停在未過審（數字只當線索）
+  SPEEDUP-1  —— MTP 不做（GGUF 沒 MTP 頭＋GPU 在 c=4 已飽和）；vLLM 同理
+  SPEEDUP-4  —— gleaning 不能盲砍（撈到的 93% 是新東西）
+  SYMBOL 全線 —— 不掃、不修、-5 改 prompt 第一版反效果暫緩、量測工具停在未過審
+  先例表     —— **判定先不做**（消費者不存在；盤點抽驗 5 條錯 3 條，見
+                docs/precedents-inventory-20260804.md）
 
-**這批多數是「查完決定不做」。動它們之前先讀理由，那些理由都是實測換來的。**
+**這批多數是「查完決定不做」。動它們之前先讀理由 —— 過程與依據在
+docs/log_20260803.md，裁決材料在 $RECORDS/review/20260803-speedup-symbol3/。**
 ```
 
 ## 狀態總表
