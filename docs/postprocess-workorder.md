@@ -1,5 +1,17 @@
 # postprocess.py 實作工單 v1
 
+> **這是歷史文件。** 記錄 `postprocess.py`（`PPWORK-0`…`PPWORK-12`，原編號
+> `W0`–`W12`）的實作工單，寫於 2026-08-02 之前。**文中的容器名、資料路徑、
+> repo 路徑一律是當時的實況**：`lightrag-acoustics_v155`、
+> `/data/rag/lightrag/acoustics_v155`、`.../neknufelet/lightrag-v1`。
+> `acoustics_v155` 已於 2026-08-03 完全退役，repo 目錄也已更名為 `lightrag`。
+> **刻意不改寫這些路徑**——改了會讓這份紀錄看起來像在描述現況，而它不是。
+> 現況見 [CLAUDE.md](../CLAUDE.md)。
+>
+> 另有一處 as-built 漂移未修：§3.1 的模組佈局寫了 `pp/reindex.py` 與
+> `pp/verify.py`，實作時功能落在 `postprocess.py` 的 `cmd_reindex`，那兩個檔
+> 從未存在。
+
 **適用**：LightRAG 1.5.5（image digest `sha256:206579ab…`）／容器 `lightrag-acoustics_v155`／設定 repo `/home/florian/ghq/github.com/neknufelet/lightrag-v1`／資料 `/data/rag/lightrag/acoustics_v155`
 
 本工單綜合三份設計與三份對抗式審查。**審查提出的每一條缺陷在附錄 A 有對應處置**（採納 / 降級 / 明確接受風險）。

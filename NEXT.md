@@ -23,15 +23,14 @@ checkout  ~/ghq/github.com/neknufelet/lightrag（單一，無 worktree、無 v1/
 v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全部移除，數字見 CLAUDE.md
 ```
 
-> ⚠️ **`/data/rag/lightrag` 沒有備份。** 本檔與 `.env.example` 曾寫它在
-> 「restic 備份範圍」——**那是假的**。backrest 的 `rag-snapshot` plan 備的是
-> `/userdata/data/rag/knowledge_bases`（DeepTutor 的庫），不是我們這個。
-> 現在 v2 是唯一的庫，`__parsed__` 重解析要 6–10 小時，`records/` 那套人工
-> 裁決重跑也回不來。**處置見下方「接上備份」。**
+> **備份**：`/data/rag/lightrag`（含 `__parsed__` 與 `records/`）已於 2026-08-03
+> 接上 backrest（plan `lightrag-snapshot`，每 6 小時），**並驗過能還原**。
+> 在此之前它一直沒有備份，而文件宣稱有——詳見下方「接上備份」。
+> **索引本體（Postgres 15 GB／Neo4j 1.6 GB）目前仍無備份**，同節有處置。
 
 > **路徑約定**：本檔寫 `$RECORDS/…` 一律指
-> `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git，
-> 且目前沒有備份**（見上）。寫成相對路徑會被誤讀成 repo 內的檔案。
+> `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git**
+> （已在 backrest 範圍內）。寫成相對路徑會被誤讀成 repo 內的檔案。
 
 **體檢表**（`$RECORDS/ledger/`，工具 `scripts/ledger.py summary`）：
 160 格全滿，通過 151、fail 9、驗不了 0。
@@ -110,32 +109,39 @@ v2 有 **1,482 個實體**落在接地檢查的「符號型／驗不了」格（
 
 ---
 
-## 接上備份　← **最優先，因為 v2 現在是唯一的一份**
+## 接上備份
 
-`/data/rag/lightrag` 不在任何備份計畫裡。文件曾宣稱它在 restic 範圍，
-**那句話是假的**——假的安全宣稱比沒有宣稱更危險，因為你會照著它做決定。
+**已完成一半。** 2026-08-03 查證：文件宣稱 `/data/rag` 在 restic 備份範圍，
+**那是假的**——backrest 當時只涵蓋 `/data/rag/knowledge_bases`（DeepTutor 的庫）。
+假的安全宣稱比沒有宣稱更危險，因為你會照著它做決定。
 
-實測（2026-08-03，`docker exec backrest` 讀 config.json）：
+- [x] **`/data/rag/lightrag` 已接上**（plan `lightrag-snapshot` → repo `rag-db`，
+      cron `30 */6 * * *`，保留 14 日／8 週／3 月）。backrest 容器早就把 `/data`
+      唯讀掛成 `/userdata/data`，所以不用改掛載、不用重建容器。
+      **已驗過能還原**：首份快照 `f2d40c9f`（203.198 MiB／3,118 檔），
+      `restic restore` 取回 `records/` 的 73 個檔，**sha256 逐位元與現役相同**。
+- [x] 修掉 `.env.example` 與 README 裡「restic 備份範圍」的假宣稱
 
-```
-plan project-daily   /data/project_source
-plan lih-obsidian    /data/learning_source/obsidian
-plan lih-zotero      /data/learning_source/zotero
-plan lih-calibre     /data/learning_source/Calibre
-plan rag-snapshot    /userdata/data/rag/knowledge_bases   ← DeepTutor 的，不是我們的
-我們的               /data/rag/lightrag  210 MB           ← 不在任何 plan
-systemd timer        只有 lightrag-daily-check.timer，沒有備份 timer；crontab 空
-```
+### 還沒接的：索引本體
 
-- [ ] **加一條 backrest plan 指向 `/userdata/data/rag/lightrag`**。backrest 容器
-      已經把 `/data` 以唯讀掛成 `/userdata/data`，所以**不用改掛載、不用重建容器**，
-      加 plan 就行。
-- [ ] 跑一次完整備份並**驗證取得回來**（不是看到「成功」就算——restic 要
-      `restore` 一份出來比對）。沒驗過的備份等於沒有備份。
-- [ ] 修掉 `.env.example` 與各文件裡「restic 備份範圍」的假宣稱
+| 路徑 | 大小 | 備份 |
+|---|---|---|
+| `/data/rag/lightrag` | 210 MB | ✅ 已接 |
+| `/data/rag/postgres_data`（**7,211 實體／10,500 關係／向量都在這**） | 15 GB | ❌ **無** |
+| `/data/rag/neo4j_data`（圖） | 1.6 GB | ❌ **無** |
 
-優先序理由：`__parsed__` 重解析要 6–10 小時（花時間但做得到），
-`records/` 那套人工裁決**重跑也回不來**（那是人的判斷）。
+- [ ] **Postgres 的備份要用 `pg_dump`，不能複製資料目錄。** 跑著的 PG 資料目錄
+      直接檔案複製出來是**不一致的快照**，還原時可能起不來——而且失敗會發生在
+      你最需要它的時候。做法：定時 `docker exec deeptutor-v4-postgres pg_dump`
+      到某個路徑，再讓 backrest 備那個路徑。
+      **注意這個 PG 是與 DeepTutor 共用的**（15 GB 不全是我們的），
+      要嘛只 dump `lightrag` 這個 database，要嘛跟那邊一起規劃。
+- [ ] Neo4j 同理，用 `neo4j-admin database dump`。同樣是共用實例
+      （`acoustics_books`、`Room_Optimizer` 等六個庫在裡面）。
+- [ ] **算一次「全毀要多久重建」**再決定要做到什麼程度。目前已知：
+      `__parsed__` 重解析 6–10 小時（已有備份，不必重跑）、抽取 3 小時 58 分、
+      嵌入 4.56M 字元 ≈ US$0.15。**人工裁決那部分重跑也回不來**，但它在
+      `records/` 裡，已經備份到了。
 
 ---
 
@@ -195,8 +201,9 @@ systemd timer        只有 lightrag-daily-check.timer，沒有備份 timer；cr
       ② 讓它改報相異字串數而不是命中率。不動它就等於留一個永遠亮紅的假訊號。
 - [ ] **裁決材料進版控**。今天的定案（∂ 族白名單、C 補格、為什麼某些東西
       刻意不碰）寫在 `$RECORDS/review/` 底下，
-      有 restic 備份但**不在 git**——三個月後問「為什麼 `\mathfrak{O}` 在
-      白名單上」，答案存在但不在版控裡、不會出現在任何 diff。
+      **2026-08-03 起真的有備份了**（在那之前這句是空話），但仍**不在 git**——
+      三個月後問「為什麼 `\mathfrak{O}` 在白名單上」，答案存在但不在版控裡、
+      不會出現在任何 diff。
       建議把各檔的**「定案」節**抽出來進 git，龐大的原始材料與裁圖留在 `/data`
 - [ ] `cmd_apply` 的批次原子性已實作並用注入失敗測過，但**新的機械規則對
       canary 是隱形的**（它的計數不在被追蹤的八個量裡）——內容變動型的規則

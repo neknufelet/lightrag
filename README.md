@@ -1,4 +1,4 @@
-# lightrag-v1
+# lightrag
 
 以 [LightRAG](https://github.com/HKUDS/LightRAG) 1.5.5 取代自製 RAG 管線的部署設定。
 由 Dockge 管理，設定進版控，執行期資料留在 `/data`。
@@ -78,13 +78,25 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 | 設定（版控） | 本 repo |
 | rag_storage | `/data/rag/lightrag/${WORKSPACE}/rag_storage` |
 | 待匯入文件 | `/data/rag/lightrag/${WORKSPACE}/inputs/${WORKSPACE}/` ← 注意多一層 |
-| MinerU 解析快取 | `.../inputs/${WORKSPACE}/__parsed__/` ← 貴，務必納入備份 |
+| MinerU 解析快取 | `.../inputs/${WORKSPACE}/__parsed__/` ← 貴（6–10 h），已納入備份 |
 | 過程紀錄 | `/data/rag/lightrag/${WORKSPACE}/records/` |
 | 語料來源 | `/data/rag/knowledge_bases/*/raw`（不掛進容器） |
 
-執行期資料刻意全部放在 `/data/rag` 底下，因為該路徑已納入 restic 備份 —— Postgres
-（`/data/rag/postgres_data`）與 Neo4j（`/data/rag/neo4j_data`）也在其中。解析快取尤其
-不能掉：390 份重新解析要 6–10 小時的 MinerU 呼叫。
+執行期資料全部放在 `/data/rag` 底下。
+
+> ⚠️ **本段原本寫「該路徑已納入 restic 備份」——2026-08-03 查證是假的。**
+> backrest 當時的 plan 只涵蓋 `/data/rag/knowledge_bases`（DeepTutor 的庫）。
+> 現況：
+>
+> | 路徑 | 大小 | 備份 |
+> |---|---|---|
+> | `/data/rag/lightrag`（含 `__parsed__`、`records`） | 210 MB | ✅ plan `lightrag-snapshot`，每 6 小時，已驗過可還原 |
+> | `/data/rag/postgres_data`（**索引本體**） | 15 GB | ❌ **無** |
+> | `/data/rag/neo4j_data`（圖） | 1.6 GB | ❌ **無** |
+>
+> Postgres／Neo4j **不能用檔案複製備份**（跑著的資料目錄複製出來是不一致的快照），
+> 要用 `pg_dump` / `neo4j-admin dump`，那是另一件事，見 NEXT.md「接上備份」。
+> 解析快取尤其不能掉：390 份重新解析要 6–10 小時的 MinerU 呼叫。
 
 ### 映像用 digest 釘死
 
@@ -101,7 +113,7 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 啟動時自動建立。
 
 ```bash
-cp foo.pdf /data/rag/lightrag/acoustics_v155/inputs/acoustics_v155/
+cp foo.pdf /data/rag/lightrag/acoustics_v2/inputs/acoustics_v2/
 curl -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
 ```
 
@@ -114,9 +126,13 @@ curl -X POST -H "X-API-Key: $KEY" http://100.87.88.7:9621/documents/scan
 接在 `rag_default` 網路上。**靠 `WORKSPACE` 隔離** —— Postgres 用 workspace 欄位、Neo4j 用節點
 標籤，所以多個知識庫可共存於同一組資料庫。
 
-要跑第二個知識庫：複製本目錄為另一個 stack，改 `WORKSPACE` 與 `HOST_PORT` 即可。
-**kbapi 例外**：它的 9700 在 compose 裡是寫死的，第二個實例要嘛用 `profiles`
-停用 kbapi、要嘛先把埠改成變數（2026-08-02 建 acoustics_v2 時發現）。
+要跑第二個知識庫：複製本目錄為另一個 stack，改 `WORKSPACE`、`HOST_PORT`
+與 `KBAPI_PORT` 即可。三個埠都走 `.env`，compose.yaml 不必改。
+
+**不要用 `profiles:` 停用某一邊的 kbapi。** 2026-08-02 曾這樣做，理由是當時
+9700 寫死。但 profile 停用的是**檔案**不是 checkout，而 compose.yaml 進版控、
+被多個 checkout 共用 —— 分支一合併回主線，主線也會拿到那一行，下次
+`docker compose up -d` 就不會起 kbapi，:9700 靜靜消失且不報錯。埠參數化才是解。
 
 ## 拆解品質檢查（整批重跑前先用這個）
 
@@ -173,8 +189,8 @@ stdio 傳輸的 MCP 需要每台機器各自安裝 server，Windows／Mac／Linu
 ## 比對工具
 
 ```bash
-python3 scripts/compare-ws.py 'Equivalent' acoustics_v155 acoustics_v2
-python3 scripts/compare-ws.py '' acoustics_v155            # 空關鍵字＝全部文件；第二個 ws 預設讀本 checkout .env
+python3 scripts/compare-ws.py 'Equivalent' <ws-a> <ws-b>
+python3 scripts/compare-ws.py '' <ws-a>                    # 空關鍵字＝全部文件；第二個 ws 預設讀本 checkout .env
 ```
 
 直接查資料庫比對兩個 workspace 對同一份文件的索引結果，不依賴人工記錄的數字（記錄會抄錯、會

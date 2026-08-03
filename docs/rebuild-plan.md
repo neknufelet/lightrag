@@ -1,5 +1,11 @@
 # 乾淨重建：acoustics_v2
 
+> **這是歷史文件，計畫已完成。** `REBUILD-0`…`REBUILD-5`（原稱「階段 0–5」）
+> 於 2026-08-03 全部收尾：0–3 經主線獨立驗收，4／5 的切換與 `acoustics_v155`
+> 退役同日執行完畢。**文中對 v155 的描述（凍結當對照組、繼續服務查詢）是
+> 當時的計畫，不是現況**——它已經不存在了。
+> 各階段的驗收紀錄留在本檔；現況與退役數字見 [CLAUDE.md](../CLAUDE.md)。
+
 2026-08-02 定案。目標：把原 20 份 PDF 在新 workspace 重新走一遍完整流程，
 **每一段的閘門在該段結束時立刻跑、全綠才進下一段**——不是索引完再回頭補檢查。
 
@@ -39,40 +45,6 @@
 2. **每份文件一張三態體檢表**（格式見下）：接手的人看表，不翻 commit。
 3. **排程第一天就裝**：`lightrag-daily-check.timer` 每天 08:30 跑
    compat-check + canary，失敗打 ntfy。「誰會報錯」不再是「沒有人」。
-
-## 檢查跑在哪裡：兩群腳本＋一個常駐
-
-分界就是**貴的那一步**（LLM 抽取）：抽取前的檢查全免費、可無限重跑，所以
-全部驗完才讓 LLM 上工；抽取後的檢查驗的是 LLM 的產出。另有每日 timer 常駐，
-與階段無關。
-
-```mermaid
-flowchart TD
-    PDF["20 份 PDF"] -->|"MinerU（pipeline + is_ocr）"| CL["content_list.json<br>__parsed__ 快取"]
-    CL --> G1
-    subgraph G1["第一群：解析後、抽取前（免費，逐份落地即跑）"]
-        direction TB
-        C1["coverage：pdftotext 詞彙對照 ≤5%"]
-        C2["parse-check：掉字／空表格／整頁無正文／prompt 洩漏"]
-        C3["postprocess plan/check：preflight、消音、表格修補（兩眼）"]
-        C4["eq-check：方程式三票多數決"]
-        C5["canary：規則漂移（改規則後必跑）"]
-    end
-    G1 -->|"體檢表本段非 fail"| EX["LLM 抽取＋索引（貴、慢）"]
-    EX --> G2
-    subgraph G2["第二群：抽取後"]
-        direction TB
-        E1["extract-check：接地三態"]
-        E2["extract.format：Empty entity name 計數"]
-        E3["retrieval-check ＋ A-25：檢索行為"]
-        E4["entity-merge：量了才修"]
-    end
-    G2 -->|"全綠"| SV["服務：:9622 query／kbapi／skills"]
-    TIMER["常駐：daily-check 每天 08:30<br>compat-check＋canary → 紅燈打 ntfy"]
-```
-
-`compat-check` 跨兩群：契約層 15 項隨時可跑（`--no-docs`），資料層每份 6 項
-在解析產物存在後就有效。
 
 ## 檢查跑在哪裡：兩群腳本＋一個常駐
 
