@@ -163,6 +163,12 @@ timeout <N> opencode run -m deepseek/deepseek-v4-pro "<PROMPT>" > <scratch>/out.
 **不帶 `-m`／`-s` 的呼叫都會是 sol ＋ 全機存取**。
 ⑤ 審查席要能查證就給它 repo（`-C <repo>`）＋額外材料目錄（`--add-dir`）——
 只給摘要它只能回「判不準」，實測第一輪就是這樣。
+⑥ **prompt 超過 128 KiB 不能當參數傳，要走 stdin：`codex exec - < prompt.txt`。**
+上面那個 `"$(cat ticket.md)"` 的慣用寫法對大題本會死在
+`argument list too long`。**不是 `ARG_MAX`**（那是 2 MB），是 Linux 的
+**單一參數上限 `MAX_ARG_STRLEN` = 128 KiB**。而且錯誤訊息指向 `timeout`
+不是 codex（`run:1: argument list too long: timeout`），很容易誤判成別的問題。
+實測 2026-08-03：149,890 字元的題本直接失敗，改 stdin 後正常。
 
 **額度紀律**：Anthropic 池是唯一吃緊的。重活優先擺 OpenAI／DeepSeek 池；
 親跑驗證幾乎不花 token（綠的時候只回幾行），貴的是讀 diff 與長推理。
