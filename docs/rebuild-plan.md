@@ -296,11 +296,16 @@ US$0.15（遠低於預估的 $1）。
 ### 階段 5：驗收與切換
 
 - v2 對 v155：同文件的 chunks／entities／relations／可疑率逐份對照
-  （`compare.sh` 改指向 v2。注意它的向量表名還寫死
-  `text_embedding_3_small_1536d`，3-large 遷移後 entities/relations 兩列
-  已恆空——重寫時一併處理）
+  （`python3 scripts/compare-ws.py '' acoustics_v155 acoustics_v2`。
+  `compare.sh` 已於階段 1 退役——**寫死向量表名 `text_embedding_3_small_1536d`
+  導致 3-large 遷移後 entities/relations 兩列恆空**的問題，就是靠改從
+  `lightrag_full_entities.count`／`lightrag_full_relations.count` 取數解掉的，
+  不是另外補的修）
 - 全部體檢表無 fail（unverifiable 允許，但都要有 note）
-- 切換 kbapi 與 skills 指向 v2 → 合併 `rebuild/acoustics-v2` 回主線 → v155 退役
+- ~~切換 kbapi 與 skills 指向 v2 → 合併 `rebuild/acoustics-v2` 回主線~~
+  → **合併已提前執行**（理由見 NEXT.md「切換上線」節：原本綁在切換時的兩個
+  理由，一個在 `24c651b` 之後不成立，另一個已在合併同批拆掉）。
+  剩下的順序是：起 v2 的 kbapi（錯開埠）→ 切 skills → v155 退役
 
 ## 體檢表格式
 

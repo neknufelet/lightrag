@@ -173,12 +173,18 @@ stdio 傳輸的 MCP 需要每台機器各自安裝 server，Windows／Mac／Linu
 ## 比對工具
 
 ```bash
-./scripts/compare.sh 'Equivalent' acoustics_v155
+python3 scripts/compare-ws.py 'Equivalent' acoustics_v155 acoustics_v2
+python3 scripts/compare-ws.py '' acoustics_v155            # 空關鍵字＝全部文件；第二個 ws 預設讀本 checkout .env
 ```
 
-直接查兩邊資料庫比對舊管線與 1.5.5 對同一份文件的索引結果，不依賴人工記錄的數字。內含已驗證的
+直接查資料庫比對兩個 workspace 對同一份文件的索引結果，不依賴人工記錄的數字（記錄會抄錯、會
+過期，抄錯時沒有任何訊號）。量 chunks／entities／relations／含掉字 chunk 四個數。內含已驗證的
 掉字偵測器 —— 注意用的是 `(?:\s+[a-z]{1,2}\y){5,}`，**不要**改成兩側都是 `\s` 的版本，那會因為
 前一次匹配吃掉後一次的前導空白而永遠回 0。
+
+前身 `compare.sh` 已退役（階段 1）：它把向量表名寫死成 `text_embedding_3_small_1536d`，
+3-large 遷移後 entities/relations 兩列恆空。改從 `lightrag_full_entities.count` /
+`lightrag_full_relations.count` 取數之後這個問題消失。
 
 ## 未解問題
 

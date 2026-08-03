@@ -13,8 +13,8 @@
 但**還沒接手上線**——kbapi 與三個 skill 目前仍指向舊庫 v155。
 
 ```
-v2   worktree ~/ghq/github.com/neknufelet/lightrag-v2（分支 rebuild/acoustics-v2）
-     WORKSPACE=acoustics_v2、lightrag :9622、kbapi 以 profile 停用（9700 被 v155 佔著）
+v2   worktree ~/ghq/github.com/neknufelet/lightrag-v2（分支已合併回 master）
+     WORKSPACE=acoustics_v2、lightrag :9622、kbapi 未起（埠走 ${KBAPI_PORT}，錯開 9700）
      20 份 processed / 0 failed、7,211 實體、510 chunk、接地可疑率 4.5%
 v155 凍結中，仍在服務查詢（:9621 lightrag、:9700 kbapi）。資料不再寫入。
      切換上線後先停容器觀察數日再刪，__parsed__ 快取重解析要 6–10 小時，別急著刪
@@ -22,8 +22,13 @@ v155 凍結中，仍在服務查詢（:9621 lightrag、:9700 kbapi）。資料�
      紅燈打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉走 systemd OnFailure 備援
 ```
 
-**體檢表**（`/data/rag/lightrag/acoustics_v2/records/ledger/`，工具
-`scripts/ledger.py summary`）：160 格全滿，通過 151、fail 9、驗不了 0。
+> **路徑約定**：本檔寫 `$RECORDS/…` 一律指
+> `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git**
+> （restic 備份範圍內）。寫成相對路徑會被誤讀成 repo 內的檔案。
+> 進版控的計畫見下方「裁決材料進版控」那一項。
+
+**體檢表**（`$RECORDS/ledger/`，工具 `scripts/ledger.py summary`）：
+160 格全滿，通過 151、fail 9、驗不了 0。
 9 個 fail 全部已查明並記錄，**沒有一個是未知問題**：
 
 | fail | 份數 | 已查明的性質 |
@@ -31,6 +36,10 @@ v155 凍結中，仍在服務查詢（:9621 lightrag、:9700 kbapi）。資料�
 | `parse.coverage` | 2 | **waiver 放行**：41598 7.0% 全為 chart 圖例軸標（政策性遺失）；C 10.5% 主要是黏字假訊號與圖說標籤，全修也只到 8.0%，是 MinerU 上限 |
 | `pp.equations` | 1 | N Flow：#1410 單處已知缺陷（見下） |
 | `extract.grounding` | 6 | **全部查過不是幻覺**，分兩族：符號→概念命名、概念→引用文獻（見下） |
+
+**waiver 的 provenance**：三份 waiver（41598／C 的 `parse.coverage`、N Flow 的
+`pp.equations`）由**主線於 2026-08-02 裁決「准進階段 3」**，原文追加在體檢表的
+note 欄（`$RECORDS/ledger/`），不是口頭放行。要翻案先讀那三則 note。
 
 ---
 
@@ -101,13 +110,22 @@ v2 已經**測得比 v155 好**：含掉字 chunk 86→27（−69%）、相異�
 670→13、實體 +0.5%／關係 +1.2%（增加的不是垃圾）。切換是可逆的
 （kbapi 換個網址），且不刪任何東西。
 
-- [ ] **kbapi 指向 v2**：compose 的 9700 是寫死的，要先變成變數
-      （`${KBAPI_PORT:-9700}`）或停掉 v155 的 kbapi 再啟用 v2 的
-      （v2 的 compose 目前用 `profiles: ["kbapi"]` 停用中）
-- [ ] 三個 skill（lightrag-search／fetch／images）換位址
-- [ ] 分支 `rebuild/acoustics-v2` 合併回 master（**合併時機是切換時**，
-      提早合併會讓 master 的腳本指向還沒接手的庫）
-- [ ] v155 退役：先停容器觀察數日 → 確認備份涵蓋 `__parsed__` → 才刪資料
+- [x] ~~compose 的 9700 寫死要參數化~~ → **已做**（`${KBAPI_PORT:-9700}`），
+      同批把 `profiles: ["kbapi"]` 拿掉：profile 停用的是**檔案**不是 checkout，
+      合併會把它帶進主線讓 :9700 靜靜消失。兩邊靠各自 `.env` 的埠錯開。
+- [x] ~~分支 `rebuild/acoustics-v2` 合併回 master~~ → **已做（提早於切換）**。
+      原記載的理由「提早合併會讓 master 的腳本指向還沒接手的庫」在
+      commit `24c651b`（腳本一律從 `.env` 推導 workspace）之後已不成立：
+      實測 `lightrag-v1/.env` 仍是 `WORKSPACE=acoustics_v155`、
+      `lightrag-v2/.env` 是 `acoustics_v2`，兩個 checkout 各跑各的。
+      唯一還成立的是 compose 那條，已在上一項同批拆掉。
+- [ ] **起 v2 的 kbapi**：v2 的 `.env` 設 `KBAPI_PORT=9701` → `docker compose
+      up -d kbapi` → 打 `:9701/kb/acoustics_v2/search` 驗端點可用。
+      **先並存再切換**，不要一步跳到搶 9700。
+- [ ] 三個 skill（lightrag-search／fetch／images）換位址。注意有兩份：
+      repo 的 `skills/` 與各機器的 `~/.claude/skills/`，兩邊都要換。
+- [ ] v155 退役：改 v2 的 `KBAPI_PORT=9700` → 先停 v155 容器觀察數日
+      → 確認備份涵蓋 `__parsed__` → 才刪資料
 
 ---
 
@@ -122,16 +140,35 @@ v2 已經**測得比 v155 好**：含掉字 chunk 86→27（−69%）、相異�
       **這推翻了 v155 時代「大量概念→引用文獻」的歸因**，根因是
       `SYMBOLIC_RATIO=0.35` 把同一族切成兩半，一半進「驗不了」一半進「可疑」。
       **調門檻前先照鐵則 5「看差在哪些具體記號」。**
+      G Porous 6.4% 是**同一件事的 Bessel 版**（`Modified Bessel Function I0`
+      這類裸符號被取描述性名字），不是另一個病因。
+      **材料＝那 120 個名字，全在體檢表的 note 欄**（`$RECORDS/ledger/`）——
+      要重量 `is_symbolic` 直接讀那份，不必重跑。
       **概念→引用文獻**（01200_6 6.1%、2025 5.7%、2023 FEM 5.0%）——
       作者縮寫名、期刊全名 vs 原文縮寫。
+- [ ] **C 的羅馬數字下標族維持不修**（v155 47 個可疑 → v2 C 剩 14 個，重驗過）：
+      `Region I/II/III`、`Mechl` 同一族，對應 `model-observations.json` 的
+      domain_fact「羅馬數字下標難讀」——**兩雙眼睛方向相反地都會錯**，
+      不是抽取器的問題。列在這裡是因為它會一直出現在可疑清單上，
+      **看到它不必再查一次**。
 - [ ] **N Flow #1410**（式 27，p59）`\mathbf{\overline{\partial}}^{2}`：
       overbar 被 MinerU 掛到 ∂ 上（應為系綜平均的範圍，Proudman 四階相關），
       同一式旁邊就有讀對的 `\frac{\partial^2}{\partial t^2}`。
       **屬整條重轉錄不屬換記號**，所以 `pp.equations` 對 N Flow 維持 fail。
 - [ ] `eq-check` 三票多數決還沒對 v2 跑過（∂ 族已用裁圖定案了結，
       這項現在的用途是方程式的一般性品質，不急）
-- [ ] C 的 `\times` 誤讀還有 6 處未修：`e^{-\gamma_{n,v}\times}` 型
-      （同一個成因——座標 x 被讀成乘號——但**位置不同**，不在已授權的錨點內）
+- [ ] C 的 `\times` 誤讀還有 6 處未修：`e^{-\gamma_{n,v}\times}` 型。
+      同一個成因——座標 x 被讀成乘號，裁圖 `t373` 上寫的是 `e^{-γ_n x}`——
+      但**位置不同**（在指數裡，不是下標），不在已授權的錨點內。
+      **不一起放寬的理由：規則一次只放寬一條，否則漂移是哪一條造成的分不出來。**
+- [ ] **C 的 91 個「bbox 未覆蓋」詞往哪裡併，尚未裁決**（歸因見
+      `$RECORDS/review/c-uncovered-words.md`）：19 個 `continued` 續表標籤、
+      19 個表格標題行、53 個在 p33／p51 兩頁（MinerU 整塊發成 image、
+      caption 是 OCR 亂碼）。前兩類位置固定、字面單一，機械可修，但
+      **會增加項目數**，與鐵則 2「項目數不得改變」衝突（sidecar 的 `self_ref`
+      是陣列索引），只能併進既有 item 的 caption——**併到哪個 item 要先裁決**。
+      第三類比照 p64 `#540` 逐塊人工裁定。全修 → 10.5% 降到 8.0%，**仍高於 5%**，
+      所以這項不影響 waiver 成立與否，但未決的裁決本身不該消失。
 - [ ] 首頁的期刊／會議資訊（`Paper ID #8776`、`©American Society…`）
       只在第 0 頁出現一次，重複與樣板規則都抓不到。要處理需要新訊號
       （限第 0 頁 ＋ 版權標記），但只有 1 份文件的證據，先不動
@@ -142,15 +179,26 @@ v2 已經**測得比 v155 好**：含掉字 chunk 86→27（−69%）、相異�
       「目前索引裡 19 份是未經處理的」，而且**頭條數字是假訊號**——
       它報 0.57%／55% chunk 含雜訊，實際命中集中在單字元消音字串
       （`d` 9,059 次、`C` 385）與同時是真標題的書眉。
-      真正該看的量是**相異雜訊字串 670（v155）→ 13（v2）**
+      真正該看的量是**相異雜訊字串數 670（v155）→ 13（v2）**，
+      按這個量**消音確實生效**。
+      **兩條出路，擇一**：① 給它一個新問題（現在這個已經被消音解掉了）；
+      ② 讓它改報相異字串數而不是命中率。不動它就等於留一個永遠亮紅的假訊號。
 - [ ] **裁決材料進版控**。今天的定案（∂ 族白名單、C 補格、為什麼某些東西
-      刻意不碰）寫在 `/data/rag/lightrag/acoustics_v2/records/review/` 底下，
+      刻意不碰）寫在 `$RECORDS/review/` 底下，
       有 restic 備份但**不在 git**——三個月後問「為什麼 `\mathfrak{O}` 在
       白名單上」，答案存在但不在版控裡、不會出現在任何 diff。
       建議把各檔的**「定案」節**抽出來進 git，龐大的原始材料與裁圖留在 `/data`
 - [ ] `cmd_apply` 的批次原子性已實作並用注入失敗測過，但**新的機械規則對
       canary 是隱形的**（它的計數不在被追蹤的八個量裡）——內容變動型的規則
       需要自己的漂移偵測
+- [ ] **實體碎片化在 v2 還沒量**（rebuild-plan 階段 4「量了才修」的殘留）。
+      下面「刻意不做」那條的 388／254／51／8 全是**舊庫 v155 的數字**，
+      v2 的對應數字一個都沒有。不合併的結論目前**借的是舊母體**——
+      要嘛在 v2 重量一次確認結論仍成立，要嘛把那條改寫成「依 v155 證據暫緩」。
+- [ ] **「qwen 系統性切錯列」還缺第二份樣本**：命中率約 1/15，目前只有一份
+      有空表格的文件當證據。**一份證據的觀察是那份文件的巧合**（CLAUDE.md
+      「規則分兩類」的判準），所以它現在只能留在 `model-observations.json`
+      的易腐觀察，不得升格成裁決規則。要升格得先找到第二份。
 
 ### 效能（擴量前）
 
@@ -178,8 +226,12 @@ v2 已經**測得比 v155 好**：含掉字 chunk 86→27（−69%）、相異�
 - [ ] 新期刊／新版面預期會冒出新型態，照
       `.claude/skills/onboard-doc-type/SKILL.md` 走，預期幾輪介入後穩定
 - [ ] **解析階段議題**：表格結構黏連（`<td rowspan=2>ResistorCapacitorCoil</td>`
-      ——三個詞塞一格沒有分隔符）無法在後處理層修，要救必須重排結構＝整表換掉，
-      與「定點補格」互斥。屬 MinerU 上限，可能該在解析階段解
+      ——三個詞塞一格沒有分隔符）。**內容沒有掉，掉的是分隔符**，後果是
+      檢索 `Resistor` 配不到。**這一類佔 C 的 table 漏詞 72%**，是最大的一族。
+      無法在後處理層修：要救必須重排表格結構＝整表換掉，與「定點補格、
+      現值一個字不動」互斥。屬 MinerU 上限，該在解析階段解（MinerU 選項／版面規則）。
+      同輪的另一半 `\mathsf{t a n h}` 逐字母排版**已了結**，走機械正規化
+      2,399 段（commit `32276f9`，20 份／679 項）
 
 ---
 
@@ -211,7 +263,7 @@ v2 已經**測得比 v155 好**：含掉字 chunk 86→27（−69%）、相異�
   重跑關鍵指令驗收，這一路抓到過執行者漏報與歸因錯誤。
 - **停損**：這次階段 2 的後半花了三小時追兩份文件的最後 1%，換回 39 個詞而
   閘門仍然不翻。**有問題 ≠ 值得修，先量代價再排序**（judgement-flow 第 8 節）。
-- **審計軌跡**在 `/data/rag/lightrag/acoustics_v2/records/`：
+- **審計軌跡**在 `$RECORDS/`：
   `ledger/`（每份文件的三態體檢表）、`review/`（裁決材料，每份都有
   「建議／依據／信心」與主線的「定案」節）、`review/crops/`（裁圖）。
 - **常用驗收指令**（在 v2 worktree 跑）：

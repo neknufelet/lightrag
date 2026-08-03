@@ -83,6 +83,9 @@ def main() -> int:
     ap.add_argument("--workspace", default=env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--doc", help="檔名關鍵字，預設全部未解析的")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--timeout", type=int, default=1800,
+                    help="單份解析的容器呼叫上限（秒）。預設 1800 —— 超過這個"
+                         "還沒 content_list 才算真的卡住")
     a = ap.parse_args()
 
     ws = a.workspace
@@ -112,7 +115,14 @@ def main() -> int:
 
     # 容器跟著 --workspace 走：解析要寫進該 workspace 掛載的 inputs，
     # 打錯容器的話 c_src 路徑在容器內根本不存在（或更糟，指到另一份同名檔）。
-    o = Oracle(container=container_for(ws))
+    #
+    # timeout 一定要放大。Oracle 預設 120 秒是為契約探針設的（問一個常數、算一個
+    # 簽章），而這裡是**整份 PDF 送雲端解析**，大檔要好幾分鐘。實測踩過：v2 的
+    # 20 份裡最大的兩份（3.8MB、33.7MB）都在 120 秒撞上限，回報「容器呼叫失敗：
+    # 逾時」——但 docker exec 逾時只殺掉客戶端，容器內的解析照跑完、bundle 也
+    # 照樣寫進去且 is_bundle_valid 通過。也就是說**訊息是假的失敗**：照著它重跑
+    # 會再付一次 MinerU 的錢，而且看不出上一次其實成功了。
+    o = Oracle(container=container_for(ws), timeout=a.timeout)
     ok = bad = 0
     for pdf in todo:
         # 容器內路徑：宿主 DATA_ROOT/<ws> 對應容器 /app/data

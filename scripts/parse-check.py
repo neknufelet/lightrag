@@ -33,6 +33,29 @@ DEFAULT_ROOT = Path("/data/rag/lightrag")
 # 這些 prompt 範例字串若出現在正文，代表模型把提示詞當成內容（1.5.5 上游已移除，留著防退化）
 
 
+def body_of(it: dict) -> str:
+    """項目的正文，**消音過的要把原文讀回來**。
+
+    這支腳本驗的是「MinerU 把 PDF 拆得好不好」，而消音是**我們自己**在後處理裡
+    把書眉/頁尾的 `text` 清空、原文存進 `_pp_original_text`。不讀回來的話，同一份
+    解析產物在後處理前後會量出兩個答案，而且後處理後那個看起來像 MinerU 變爛了
+    ——把自己的決定誤記成上游的缺陷。實測：階段 2 寫回後全庫空塊 11→111、
+    C 的無文字頁 0→36，全部是這個假訊號（coverage-check 早就修好了同一個 bug，
+    這支漏掉，於是兩支腳本對同一份資料給兩個答案）。
+
+    **只在現值是空的時候才讀回。** `_pp_original_text` 有兩種寫入者：
+      - 消音 → `text` 清空，原文在 `_pp_original_text`　→ 要讀回
+      - 文字修補（verified_text）→ `text` 是人工裁定的**正確**內容，
+        `_pp_original_text` 是 MinerU 的亂碼　→ **絕對不能讀回**
+    無條件讀回會把 C p64 那段 OCR 亂碼 "Ab = = ze = etsosbd) te se…" 請回來，
+    掉字偵測立刻再度紅燈——修好的東西被檢查自己還原成壞的。
+    """
+    body = it.get("text") or it.get("table_body") or it.get("code_body") or ""
+    if not body.strip():
+        body = it.get("_pp_original_text") or ""
+    return body
+
+
 def check_doc(raw_dir: Path) -> dict:
     """檢查單一文件的 MinerU 輸出。回傳問題統計與細節。"""
     cl = raw_dir / "content_list.json"
@@ -53,8 +76,8 @@ def check_doc(raw_dir: Path) -> dict:
     text_by_page = collections.Counter()
     for idx, it in enumerate(items):
         t = it.get("type")
-        # 各類型的正文欄位不同
-        body = it.get("text") or it.get("table_body") or it.get("code_body") or ""
+        # 各類型的正文欄位不同；消音過的要還原（見 body_of）
+        body = body_of(it)
         if t in ("text", "header"):
             r["字元數"] += len(body)
             text_by_page[it.get("page_idx")] += len(body)
@@ -99,13 +122,18 @@ def severity(r: dict) -> str:
     return "OK"
 
 
-def scan(root: Path, workspace: str):
+def scan(root: Path, workspace: str, doc: str | None = None):
     pdir = root / workspace / "inputs" / workspace / "__parsed__"
     if not pdir.exists():
         print(f"找不到解析目錄：{pdir}", file=sys.stderr)
         return []
     out = []
     for raw in sorted(pdir.glob("*.mineru_raw")):
+        # --doc 只是**縮小範圍**，預設仍然掃全部。不可以把檢查本身關在
+        # `if doc:` 底下——那樣它就只驗「你已經在懷疑的那一份」，而你不會對
+        # 沒想到的那份指定關鍵字（鐵則 6：A-16 的 184 個 chart 就是這樣漏掉的）。
+        if doc and doc.lower() not in raw.name.lower():
+            continue
         r = check_doc(raw)
         out.append((raw.name.removesuffix(".pdf.mineru_raw"), r, severity(r)))
     # 最嚴重的排前面
@@ -162,16 +190,18 @@ def main():
                     default=os.environ.get("WORKSPACE")
                     or env.get("WORKSPACE", "acoustics_v155"))
     ap.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    ap.add_argument("--doc", help="檔名關鍵字，只檢查符合的文件（預設全部）")
     ap.add_argument("--details", action="store_true", help="印出問題的實際位置與內文")
     ap.add_argument("--watch", action="store_true", help="每 60 秒重掃一次，適合邊解析邊看")
     a = ap.parse_args()
 
     if not a.watch:
-        sys.exit(report(scan(a.root, a.workspace), a.details))
+        # 指定單一文件時就是在看那一份，細節一律印出來。
+        sys.exit(report(scan(a.root, a.workspace, a.doc), a.details or bool(a.doc)))
 
     seen = None
     while True:
-        results = scan(a.root, a.workspace)
+        results = scan(a.root, a.workspace, a.doc)
         sig = [(n, s) for n, _, s in results]
         if sig != seen:
             print(f"\n--- {time.strftime('%H:%M:%S')} ---")
