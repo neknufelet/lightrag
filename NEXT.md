@@ -24,40 +24,49 @@
   GitHub    neknufelet/lightrag（已改名；本地路徑維持原狀）
   服務      dker: lightrag-acoustics_v2 :9621、kbapi-acoustics_v2 :9700
             自己的 lightrag-postgres 與 lightrag-neo4j（2026-08-03 從 DeepTutor 搬出）
-  資料      /data/lightrag（DB）＋ /data/rag/lightrag（解析快取與裁決紀錄）
+  資料      **/data/lightrag 是唯一的根**（2026-08-04 乾淨重建後）。
+            底下：inbox / library / work/{parsed,crops} / records / inputs/<ws>
+                  / rag_storage / checks / postgres / neo4j
+            **/data/rag 從此與本專案無關**（那是 DeepTutor 的地盤）
 
-先讀 CLAUDE.md 與 NEXT.md，兩份都是 2026-08-03 大改過的。
-CLAUDE.md 前半是治理層（座標、藍桶 9 條、雙軌溝通、提交紀律、驗收路由、命名規則），
-後半是原本的六條鐵則與現況。
+先讀 CLAUDE.md 與 NEXT.md。⚠ CLAUDE.md 的「現況」與路徑那幾節**還停在重建前**，
+2026-08-04 的乾淨重建尚未寫回去（見下方待辦）。以本檔為準。
 
 規矩重點：
   - 改在 coder、驗在 dker。**驗證輸出沒拿到就還沒 done。**
   - coder 上沒有 .env、沒有 docker，碰 DB 的腳本在那裡跑不起來——這是刻意的。
   - 重票觸發清單見 CLAUDE.md「執行方針與驗收路由」，有疑義＝重票。
+  - ⚠ **在 dker 跑任何 `--update`（canary／scan-partial）會弄髒它的 checkout**，
+    違反唯讀原則。正確做法：dker 跑 `--update` 產生內容 → 讀出來 →
+    `git checkout --` 還原 dker → 在 coder 寫入並 commit → dker pull。
 
-下一步：**跑第一份新文件**（`SCALEUP-1` 的第一步，之前一直沒做到）。
+下一步：**繼續一份一份拉**（`SCALEUP-1`）。前兩份已經進索引。
 
-  1. PDF 放到 dker：/data/rag/lightrag/acoustics_v2/inputs/acoustics_v2/
-  2. python3 scripts/postprocess.py prepare          # dry-run，只看它打算做什麼
-  3. python3 scripts/postprocess.py prepare --commit # 解析 → 修補 → 才掃描
+  瀏覽器開 http://100.87.88.7:9710 —— 收件匣／審核台
+  （若沒開：`ssh 100.87.88.7`，`cd ~/ghq/github.com/neknufelet/lightrag`，
+    `setsid nohup python3 scripts/intake.py --port 9710 --workspace acoustics_v2 \
+       --source /data/rag/knowledge_bases/Room_Optimizer/raw \
+       >> /data/lightrag/intake/service.log 2>&1 < /dev/null &`）
 
-  **順序不能反**：先掃描再修補要重建索引＝抽取兩次（一份約 12 分鐘）。
-  **不要用 WebUI 上傳**：/documents/upload 會直接觸發抽取，跳過修補（讀過原始碼確認）。
+  流程：選片 → 只解析 → 看審核卡片 → 過就放行、不過就跳過進待確認。
+  **它還沒進 compose，重開機不會自己起來**（待辦）。
 
-  跑完會知道：preflight 擋不擋、有沒有空表格要兩雙眼睛、會冒出什麼沒見過的東西。
-  **那些才是值得記的先例** —— 現在的 75 條盤點是猜的，第一份文件是量的。
+  ⚠ **每放行一份之前要先 `sudo chown -R florian:florian /data/lightrag/work/parsed`**
+  —— 容器以 root 寫檔，宿主改不動。根本解法未做，見待辦 #11。
 
-2026-08-03～04 收完一大批（都有實測，別重做）：
-  BACKUP 全線 —— 還原演練通過、每天 03:00 自動、還原點 1→3、警報驗過送達手機
-  SPEEDUP-2  —— MAX_ASYNC 2→4（+28% 吞吐，已生效）
-  SPEEDUP-1  —— MTP 不做（GGUF 沒 MTP 頭＋GPU 在 c=4 已飽和）；vLLM 同理
-  SPEEDUP-4  —— gleaning 不能盲砍（撈到的 93% 是新東西）
-  SYMBOL 全線 —— 不掃、不修、-5 改 prompt 第一版反效果暫緩、量測工具停在未過審
-  先例表     —— **判定先不做**（消費者不存在；盤點抽驗 5 條錯 3 條，見
-                docs/precedents-inventory-20260804.md）
+2026-08-04 凌晨的乾淨重建（全部有實測輸出，別重做）：
+  索引重建   postgres/neo4j 資料目錄清空重建 → 11 張表（不是 14，
+             那 3 張 *_3_small_1536d 是舊 embedding 模型的殭屍表，順帶清掉）
+  路徑遷移   DATA_ROOT → /data/lightrag，19 處路徑組合集中到 scripts/pp/paths.py
+  前端       scripts/intake.py（1783 行、純標準函式庫、:9710）
+  兩份文件   TD_DG method_CH7（CLI 流程）、CH3（走審核台）
+             2 docs / 5 chunks / 103 實體 / 102 關係，接地可疑率 0.0%
+  閘門       G1 清空／G2 結構／G3 備份／G4 bug／G6 前端／G7 端到端 全綠
+  基準重置   canary 與 scan-partial 都重置為 2 份（舊 20 份的基準已退場）
+  排程       兩個 timer 已恢復，daily-check 實跑 status=pass
 
-**這批多數是「查完決定不做」。動它們之前先讀理由 —— 過程與依據在
-docs/log_20260803.md，裁決材料在 $RECORDS/review/20260803-speedup-symbol3/。**
+**這批是「做完並驗過」，與 08-03 那批「查完決定不做」性質不同。**
+過程紀錄在 `$RECORDS/REBUILD-20260804.md`（在 /data，已在備份範圍）。
 ```
 
 ## 狀態總表
@@ -75,7 +84,8 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 | `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
 | `PPWORK` | `PPWORK-12` 之後無新項 | ✅ 大部分完成，殘項見「其他待辦」 |
 | `SPEEDUP` | `SPEEDUP-2`（`MAX_ASYNC` 2→4） | ✅ **已改並實測驗證**（PO 2026-08-03 拍板降檔為一般票）。`SPEEDUP-2.1`／`SPEEDUP-3` ✅；`SPEEDUP-1`（MTP）⏸ **PO 判不划算，不做**——理由見下 |
-| `SCALEUP` | `SCALEUP-1`（390 份） | ⬜ 等上面收斂 |
+| `SCALEUP` | `SCALEUP-1`（一份一份拉） | 🔵 **已跑 2 份**，走 :9710 審核台 |
+| `REBUILD` | `REBUILD-1`…`REBUILD-11` | 🔵 **2026-08-04 乾淨重建的殘項**，見下方專節。`-1`／`-2` 是 🔴 |
 
 ---
 
@@ -132,6 +142,85 @@ v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全�
 **waiver 的 provenance**：三份 waiver（41598／C 的 `parse.coverage`、N Flow 的
 `pp.equations`）由**主線於 2026-08-02 裁決「准進階段 3」**，原文追加在體檢表的
 note 欄（`$RECORDS/ledger/`），不是口頭放行。要翻案先讀那三則 note。
+
+---
+
+## 2026-08-04 乾淨重建後的待辦（**新對話優先看這節**）
+
+依嚴重度排序。全部有實測證據，過程在 `$RECORDS/REBUILD-20260804.md`。
+
+### 🔴 必修
+
+- [ ] **`REBUILD-1`：檢查工具讀的是 DeepTutor 的舊資料庫。**
+      `extract-check.py:37` 預設 `PP_PG_CONTAINER=deeptutor-v4-postgres`、
+      `compat-check.py:262` **硬編**同一個字串、`compare-ws.py:59` 同型。
+      `.env` 沒設那個變數所以全部吃預設值。實測對照：
+      `lightrag-postgres` 有 2 份（我們的）、`deeptutor-v4-postgres` 有 20 份
+      （舊的，最後更新 2026-08-02 17:47）。
+      **「從 DeepTutor 搬出」只是複製，舊庫從來沒刪**，而工具一直讀舊的那個。
+      兩邊資料相同時看不出來——清空一邊才暴露。CLAUDE.md 開篇說的「雙來源、無訊號」。
+      ⇒ 三處改成從 `.env` 讀、預設 `lightrag-postgres`；**再加一條斷言**確認
+      連到的容器與 `WORKSPACE` 屬於同一套（鐵則 6：探針要在沒人問的時候會響）。
+      ⇒ 順帶決定 `deeptutor-v4-postgres` 裡那 20 份 `acoustics_v2` 要不要刪。
+      工單已寫好：`scratchpad/ticket-fixes.md`（含缺陷 B）。
+
+- [ ] **`REBUILD-2`：容器以 root 寫 `work/parsed`，宿主 postprocess 改不動。**
+      每一份新文件都會撞，目前靠手動 `sudo chown -R florian:florian
+      /data/lightrag/work/parsed` 繞過。實測撞過兩次（CLI 流程一次、審核台一次）。
+      根本解法待評估：① compose 給 lightrag 加 `user: "1000:1000"`（最乾淨，
+      但要驗 LightRAG 在非 root 下能否啟動）② 解析後自動 chown ③ setgid 目錄。
+      ⚠ 舊結構下 `__parsed__` 的檔案 owner 是 florian，**查清楚舊結構為什麼是
+      florian，那可能就是解法**。
+
+### 🟡 該修
+
+- [ ] **`REBUILD-3`：canary／compat-check 在母體為 0 時硬失敗而非「驗不了」。**
+      `find_bundles()` 空集合直接 `sys.exit()`。空庫狀態下 daily-check 會天天
+      紅燈打 ntfy——`judgement-flow.md:219`「假警報會讓人開始忽略警報」。
+      **正解已有先例**：`A-25` 對「空 workspace 上 `chunk_top_k` 驗不了」已三態化。
+      （目前有 2 份文件所以暫時不會觸發，但下次清空又會。）
+
+- [ ] **`REBUILD-4`：intake 的 failed job 是死路且畫面上看不見。**
+      `/api/state` 五節都不含 failed 的 job；admit／return／parse 三條路都拒絕它；
+      只能手動刪 `/data/lightrag/intake/jobs/<id>/`。而且 `job.json` 裡有正確的
+      `error` 欄位，卻沒被 `/api/jobs/<id>` 序列化出去（`reasons`／`details` 都是空陣列）。
+      ⇒ 加 failed 區、顯示 error、提供「重置為候選」。
+
+- [ ] **`REBUILD-5`：假綠測試。** `postprocess.py:337-339` 讀 `parsed.stderr`，
+      但 `subprocess.run` 沒帶 `capture_output`，該分支**永遠不會執行**；
+      而 `tests/test_prepare.py:64` 捏了假的 `CompletedProcess` 去測它。
+      鐵則 7 那一族。二選一：讓分支真的有用，或拿掉分支與假測試。
+      同檔另一項：`cmd_reindex` 的 scan 沒有 `_scan_was_skipped_pipeline_busy`
+      守衛（**pre-existing**，來自 `3346e451`，不是這次的回歸）。
+
+- [ ] **`REBUILD-6`：測試環境。** 兩台原本都沒有 pytest，所以既有測試
+      **從來沒被執行過**（藍桶第 8 條形同虛設）。已在 coder 裝 pytest 9.1.1。
+      ⇒ dker 也要裝；`test_gates.py` 用自製框架 pytest 收集不到，要單獨跑
+      `python3 tests/test_gates.py`——**提供單一入口**否則永遠會漏一邊；
+      並把測試接進 `daily-check.sh`。
+
+- [ ] **`REBUILD-7`：intake 尚未進 compose**，重開機不會自己起來。
+      目前是手動 `setsid nohup` 跑的。
+
+### 🟢 記著就好
+
+- [ ] **`REBUILD-8`：MinerU token 2026-09-04 到期**（查時剩 31.7 天）。
+      `compat-check` 的 `A-21` 有在報，但**是 info 級別、不會變紅**，
+      所以剩 3 天和剩 30 天在畫面上長得一樣。⇒ 低於 14 天時升為 soft 失敗。
+
+- [ ] **`REBUILD-9`：舊體檢表要歸檔。** `records/ledger/` 還有重建前 20 份的表，
+      `ledger.py summary` 因此報 168 格、9 個 fail（全是已不存在的文件）。
+      ⇒ 移到 `records/ledger-archive-20260804/` 並放 README 說明（No silent drops，
+      不要刪）。`records/review/` 的 7 項是耐久的規則證據，**留在原位不要動**。
+
+- [ ] **`REBUILD-10`：CLAUDE.md 還停在重建前。** 路徑（`/data/rag/lightrag`）、
+      現況（20 份文件、7,211 實體）、`extract-check` 的數字全部過期。
+      ⚠ 引用 `extract-check` 數字的地方要標明**量測來源容器**——見 `REBUILD-1`，
+      那些數字很可能量的是 DeepTutor 的庫。
+
+- [ ] **`REBUILD-11`：舊目錄 `/data/rag/lightrag`（217 MB）尚未刪。**
+      `records` 與 `crops` 已 sha256 逐位元驗證複製完成，但保險起見留著。
+      確認新環境穩定後再刪。
 
 ---
 
