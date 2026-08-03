@@ -10,6 +10,12 @@
 ## 開新對話直接貼這段
 
 ```
+⚠️ 先確認工作目錄是 ~/ghq/github.com/neknufelet/lightrag-v1
+   （在別處開 session 會載到別的專案的 CLAUDE.md、找不到本檔。
+     特別注意 ~/ghq/github.com/neknufelet/florian-dker/ ——
+     那個資料夾只有一個 CLAUDE.md，而且是 **AOSR 專案**的，不是這裡的。
+     2026-08-04 實際發生過兩次。）
+
 專案 lightrag（聲學知識庫）。我在 florian-coder，透過 ssh 操作 florian-dker。
 
 座標
