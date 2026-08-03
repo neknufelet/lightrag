@@ -48,7 +48,7 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 | `SYMBOL` | `SYMBOL-3`（restated 怎麼處置） | 🔵 `SYMBOL-1`／`SYMBOL-2` ✅ 完成（答案卷＋三組實驗進版控）；`SYMBOL-2` 的**決策**未下 |
 | `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
 | `PPWORK` | `PPWORK-12` 之後無新項 | ✅ 大部分完成，殘項見「其他待辦」 |
-| `SPEEDUP` | `SPEEDUP-2`（`MAX_ASYNC` 2→4） | 🔵 **已量完，等 PO 拍板**：實測 +28% 吞吐。`SPEEDUP-2.1`（基準工具）✅、`SPEEDUP-3`（啟動設定落檔）✅、`SPEEDUP-1`（MTP）⏸ 卡在 GGUF 沒有 MTP 頭 |
+| `SPEEDUP` | `SPEEDUP-2`（`MAX_ASYNC` 2→4） | ✅ **已改並實測驗證**（PO 2026-08-03 拍板降檔為一般票）。`SPEEDUP-2.1`／`SPEEDUP-3` ✅；`SPEEDUP-1`（MTP）⏸ **PO 判不划算，不做**——理由見下 |
 | `SCALEUP` | `SCALEUP-1`（390 份） | ⬜ 等上面收斂 |
 
 ---
@@ -379,11 +379,49 @@ PO 2026-08-03 拍板：
 
       參考：https://ai-coding.wiselychen.com/llama-cpp-mtp-merged-local-llm-2x-speedup/
 
+      **⏸ PO 2026-08-03 拍板：MTP 與 vLLM 都不做。理由是 `SPEEDUP-2` 量出來的
+      新事實 —— GPU 在 c=4 已接近飽和**（c=4→c=8 只 +4.6%，曲線壓平）。
+      投機解碼的收益來自「單流解碼時算力閒著」，而**批次吃的是同一塊 headroom**，
+      我們已經用併發吃掉了。用實測的 server 端 decode 速率估：
+
+      | 情境 | 單題 decode | 併發 | 等效總 decode |
+      |---|---:|---:|---:|
+      | c=1（現況） | 77 tok/s | 1 | 77 |
+      | **c=4（現況）** | 35 tok/s | 4 | **≈140** |
+      | MTP ＋ 強制 c=1（樂觀 1.7×） | ≈131 tok/s | 1 | **≈131** |
+
+      ⇒ **MTP 單流跑到最好，大約就是四路併發已經有的水準**，代價是 19.4 GB
+      下載、換模型檔、顯存只剩 2.4 GB、還要照 `A-23` 重新量測模型觀察。
+      **唯一的翻盤條件**：若 build 10200 的 `draft-mtp` 其實**沒有**強制
+      `n_parallel=1`（旗標從 `mtp` 改名成 `draft-mtp` 說明實作動過），
+      疊在 4 路併發上才可能真贏。驗法很便宜（起測試伺服器讀 log 的 `n_slots`），
+      但要先下載 19.4 GB 且顯存不夠同時跑兩個伺服器。
+      **vLLM 不做**：MTP 實作確實較好（同硬體 +27.5% decode），但 24 GB 顯存
+      吃緊、GGUF 支援是實驗性的、兩張 3060 無 NVLink 走 PCIe 的 tensor parallel
+      對 MoE 常是負收益，而且整條契約要重驗——**基礎設施搬遷換個位數百分比**。
+
+- [ ] **`SPEEDUP-4`：390 份是不是每一份都要跑 gleaning？** 比換引擎更大的槓桿。
+      `SPEEDUP-2` 的題本裡有大量 `---Task---\nBased on the last extraction task,
+      identify and extract any **missed or incorrectly described** entities…`
+      ——那是**二次抽取**，等於成倍的 LLM 呼叫。母體 `lightrag_llm_cache`
+      `cache_type='extract'` 共 1,019 筆，其中 gleaning 佔多少**還沒量**。
+      **先量比例，再談要不要調 gleaning 次數**（門檻用量的不要用調的）。
+      省下的比任何解碼加速都多，且不必動模型或引擎。
+
 - [x] **`SPEEDUP-2.1`：受控吞吐基準工具**（`scripts/llm-bench.py`，commit `580a6f1`
       ＋ `3299ee9`）。四輪終審才過，每輪擋掉一個會產生錯數字的缺陷；判定原文四份。
       題本走 `$RECORDS/bench/`（含論文原文，不進 git）。
 
-- [ ] **`SPEEDUP-2`：`MAX_ASYNC` 2 → 4 —— 已量完，等 PO 拍板（重票）。**
+- [x] **`SPEEDUP-2`：`MAX_ASYNC` 2 → 4 —— ✅ 已改並驗證（2026-08-03）。**
+
+      dker `.env` 改 `MAX_ASYNC=2` → `4`（備份 `.env.bak-20260803-maxasync`），
+      `docker compose up -d lightrag` recreate（**`restart` 不會重讀環境變數**）。
+      驗證輸出：健康檢查 5 秒轉 healthy、容器內 `printenv MAX_ASYNC` → `4`、
+      `/health` `status=healthy pipeline_busy=False core_version=1.5.5`、
+      kbapi :9700 HTTP 200、索引完整 510 chunk／7,211 實體／10,500 關係。
+      **PO 拍板降檔為一般票**（單一數值、可逆、已有實測支撐）。
+      ⚠ **真正的 4 路併發要到下一次抽取才會被實際行使**——目前只驗到
+      「設定已生效、服務健在」，吞吐改善本身 `(未驗,推測)` 直到 `SCALEUP-1`。
 
       **量測結果**（2026-08-03，coder 實跑；報告在 `$RECORDS/bench/`，
       題本 `fixture-8.json` sha `7bfaf16d…`，伺服器 `b10200-5f55650a7`、
