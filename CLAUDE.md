@@ -87,21 +87,21 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 
 ## 現況
 
-**兩個 workspace 並存,`WORKSPACE` 由各 checkout 自己的 `.env` 決定
-(不進版控)。下面的數字說的是 `acoustics_v2`;`acoustics_v155` 是現役服務中
-的那個,兩者的分工見「服務」與「對照」兩列。**
+**唯一的 workspace 是 `acoustics_v2`**(`WORKSPACE` 在 `.env`,不進版控)。
+`acoustics_v155` 已於 2026-08-03 完全退役——容器、Postgres 列、Neo4j label、
+磁碟目錄全數移除。本檔提到 v155 的地方一律是**歷史**,不是現況。
 
 ```
 文件      20 份已完成「解析 → 修補 → 抽取」全流程(processed 20/20、failed 0)
           分 4 批索引,每批 5 份;總耗時 3 小時 58 分(61.1/70.1/46.1/61.1 分)
-服務      v155(現役) lightrag :9621 查詢(容器 lightrag-acoustics_v155)
-                     kbapi :9700 圖片與單篇結構,唯讀(容器 kbapi-acoustics_v155)
-          v2(候補)   lightrag :9622 查詢(容器 lightrag-acoustics_v2)
-                     kbapi 未起(容器名 kbapi-acoustics_v2,埠走 ${KBAPI_PORT} 錯開 9700)
+服務      lightrag :9621 查詢(容器 lightrag-acoustics_v2)
+          kbapi    :9700 圖片與單篇結構,唯讀(容器 kbapi-acoustics_v2)
+          兩者由同一份 compose.yaml + 同一個 checkout 起,埠走 ${HOST_PORT}/${KBAPI_PORT}
 skills    lightrag-search / fetch / images —— 全走 :9700,不需認證,任何機器可用
-          **目前打的是 v155**;CUTOVER 時才換位址,見 NEXT.md
+          **URL 的 workspace 打錯會 400**(kbapi 的擋板)——因為 search 端點不看
+          URL 的 ws、檔案類端點看,不擋會回一半對的東西且不報錯
 索引      7,211 實體、10,500 關係、510 chunk;圖 7,211 節點 / 10,500 邊
-          ↑ 來源＝**vdb 列數**(extract-check.py)。與下面「對照」列的
+          ↑ 來源＝**vdb 列數**(extract-check.py)。與下面「歷史對照」列的
           8,010／10,535 **不衝突,是兩把不同的尺**:那邊來源是 LightRAG 自己的
           逐文件計數欄 `lightrag_full_entities.count`(compare-ws.py),同一個實體
           出現在兩份文件會被數兩次。差值 799 實體／35 關係就是跨文件重複。
@@ -118,11 +118,33 @@ embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC;本輪實際嵌入 4.56M 
 體檢表    20 份 × 8 閘門 = 160 格:通過 151、fail 9、驗不了 0、未設定 0
           fail 9 = 3 份 waiver(41598/C 的 coverage、N Flow 的 equations)
                  + 6 份 extract.grounding >5%
-對照      acoustics_v155 凍結中(:9621/:9700),同 DB 靠 workspace 欄位隔離
-          v155 → v2:chunk 512→510、實體 7,968→8,010、關係 10,407→10,535、
+歷史對照  v155 → v2(重建當時量的,v155 已不存在,這組數字**不可能再重現**):
+          chunk 512→510、實體 7,968→8,010、關係 10,407→10,535、
           含掉字 chunk 86→27(-69%) ← 來源＝逐文件計數欄,見「索引」列的說明
-          2026-08-03 重跑 `compare-ws.py '' acoustics_v155 acoustics_v2` 逐位元重現
+          最後一次重跑驗證 2026-08-03(退役前),逐位元相同
 ```
+
+**退役時的實測數字**(2026-08-03,拆除前後各量一次):
+
+| 位置 | v155 移除量 | v2 移除後 |
+|---|---|---|
+| Neo4j label `acoustics_v155` | 7,191 節點 / 10,373 關係 | v2 7,211 節點,其他專案(`acoustics_books` 72,289 等)未受影響 |
+| `lightrag_doc_chunks` | 512 列 | 510 |
+| `lightrag_entity_chunks` | 7,191 列 | 7,211 |
+| `lightrag_relation_chunks` | 10,373 列 | **10,500** |
+| `lightrag_llm_cache` | 2,367 列 | 1,126 |
+| `*_3_small_1536d` 三張表 | 148 / 1,135 / 1,812 列(**100% 是 v155**,舊 embedding 模型的遺留) | 全空 |
+| 磁碟 `/data/rag/lightrag/acoustics_v155` | 198 MB | — |
+
+`lightrag_relation_chunks` 全表退役前是 **20,873**——那正是本檔接地檢查一節
+曾經寫錯的數字。**它從來不是 v2 的關係數,是兩個 workspace 的和。**
+拆掉 v155 之後全表剩 10,500,與 `extract-check.py` 的報告一致,這件事到此
+獨立印證完畢。
+
+**Neo4j 是跨專案共用的**(DeepTutor 的 `Room_Optimizer`、`acoustics_books` 等
+都在同一個實例,靠 label 隔離)。動它之前必須先驗兩件事,兩件都驗過才准刪:
+① v155 的節點**只有** `acoustics_v155` 一個 label(7,191/7,191);
+② 對外跨界關係為 **0**。
 
 ## 規則分兩類,不能混在一起
 

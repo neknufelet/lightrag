@@ -9,23 +9,29 @@
 
 ## 現況（2026-08-03）
 
-**acoustics_v2 重建的階段 0–3 已全部完成並經主線獨立驗收。** 新庫已經可用，
-但**還沒接手上線**——kbapi 與三個 skill 目前仍指向舊庫 v155。
+**acoustics_v2 已接手上線，acoustics_v155 已完全退役。** 重建的階段 0–5 全部
+完成：0–3 經主線獨立驗收，切換與退役於 2026-08-03 執行完畢並實測驗證。
 
 ```
-v2   worktree ~/ghq/github.com/neknufelet/lightrag-v2（分支已合併回 master）
-     WORKSPACE=acoustics_v2、lightrag :9622、kbapi 未起（埠走 ${KBAPI_PORT}，錯開 9700）
-     20 份 processed / 0 failed、7,211 實體、510 chunk、接地可疑率 4.5%
-v155 凍結中，仍在服務查詢（:9621 lightrag、:9700 kbapi）。資料不再寫入。
-     切換上線後先停容器觀察數日再刪，__parsed__ 快取重解析要 6–10 小時，別急著刪
-排程 lightrag-daily-check.timer 每天 08:30 跑兩庫的 compat-check + canary，
-     紅燈打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉走 systemd OnFailure 備援
+唯一的庫  acoustics_v2
+checkout  ~/ghq/github.com/neknufelet/lightrag（單一，無 worktree、無 v1/v2 分身）
+服務      lightrag :9621（容器 lightrag-acoustics_v2）
+          kbapi    :9700（容器 kbapi-acoustics_v2）—— 三個 skill 全走這裡
+內容      20 份 processed / 0 failed、7,211 實體、10,500 關係、510 chunk、可疑率 4.5%
+排程      lightrag-daily-check.timer 每天 08:30 跑 compat-check + canary，
+          紅燈打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉走 systemd OnFailure 備援
+v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全部移除，數字見 CLAUDE.md
 ```
+
+> ⚠️ **`/data/rag/lightrag` 沒有備份。** 本檔與 `.env.example` 曾寫它在
+> 「restic 備份範圍」——**那是假的**。backrest 的 `rag-snapshot` plan 備的是
+> `/userdata/data/rag/knowledge_bases`（DeepTutor 的庫），不是我們這個。
+> 現在 v2 是唯一的庫，`__parsed__` 重解析要 6–10 小時，`records/` 那套人工
+> 裁決重跑也回不來。**處置見下方「接上備份」。**
 
 > **路徑約定**：本檔寫 `$RECORDS/…` 一律指
-> `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git**
-> （restic 備份範圍內）。寫成相對路徑會被誤讀成 repo 內的檔案。
-> 進版控的計畫見下方「裁決材料進版控」那一項。
+> `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git，
+> 且目前沒有備份**（見上）。寫成相對路徑會被誤讀成 repo 內的檔案。
 
 **體檢表**（`$RECORDS/ledger/`，工具 `scripts/ledger.py summary`）：
 160 格全滿，通過 151、fail 9、驗不了 0。
@@ -104,28 +110,32 @@ v2 有 **1,482 個實體**落在接地檢查的「符號型／驗不了」格（
 
 ---
 
-## 切換上線（階段 4／5）
+## 接上備份　← **最優先，因為 v2 現在是唯一的一份**
 
-v2 已經**測得比 v155 好**：含掉字 chunk 86→27（−69%）、相異雜訊字串
-670→13、實體 +0.5%／關係 +1.2%（增加的不是垃圾）。切換是可逆的
-（kbapi 換個網址），且不刪任何東西。
+`/data/rag/lightrag` 不在任何備份計畫裡。文件曾宣稱它在 restic 範圍，
+**那句話是假的**——假的安全宣稱比沒有宣稱更危險，因為你會照著它做決定。
 
-- [x] ~~compose 的 9700 寫死要參數化~~ → **已做**（`${KBAPI_PORT:-9700}`），
-      同批把 `profiles: ["kbapi"]` 拿掉：profile 停用的是**檔案**不是 checkout，
-      合併會把它帶進主線讓 :9700 靜靜消失。兩邊靠各自 `.env` 的埠錯開。
-- [x] ~~分支 `rebuild/acoustics-v2` 合併回 master~~ → **已做（提早於切換）**。
-      原記載的理由「提早合併會讓 master 的腳本指向還沒接手的庫」在
-      commit `24c651b`（腳本一律從 `.env` 推導 workspace）之後已不成立：
-      實測 `lightrag-v1/.env` 仍是 `WORKSPACE=acoustics_v155`、
-      `lightrag-v2/.env` 是 `acoustics_v2`，兩個 checkout 各跑各的。
-      唯一還成立的是 compose 那條，已在上一項同批拆掉。
-- [ ] **起 v2 的 kbapi**：v2 的 `.env` 設 `KBAPI_PORT=9701` → `docker compose
-      up -d kbapi` → 打 `:9701/kb/acoustics_v2/search` 驗端點可用。
-      **先並存再切換**，不要一步跳到搶 9700。
-- [ ] 三個 skill（lightrag-search／fetch／images）換位址。注意有兩份：
-      repo 的 `skills/` 與各機器的 `~/.claude/skills/`，兩邊都要換。
-- [ ] v155 退役：改 v2 的 `KBAPI_PORT=9700` → 先停 v155 容器觀察數日
-      → 確認備份涵蓋 `__parsed__` → 才刪資料
+實測（2026-08-03，`docker exec backrest` 讀 config.json）：
+
+```
+plan project-daily   /data/project_source
+plan lih-obsidian    /data/learning_source/obsidian
+plan lih-zotero      /data/learning_source/zotero
+plan lih-calibre     /data/learning_source/Calibre
+plan rag-snapshot    /userdata/data/rag/knowledge_bases   ← DeepTutor 的，不是我們的
+我們的               /data/rag/lightrag  210 MB           ← 不在任何 plan
+systemd timer        只有 lightrag-daily-check.timer，沒有備份 timer；crontab 空
+```
+
+- [ ] **加一條 backrest plan 指向 `/userdata/data/rag/lightrag`**。backrest 容器
+      已經把 `/data` 以唯讀掛成 `/userdata/data`，所以**不用改掛載、不用重建容器**，
+      加 plan 就行。
+- [ ] 跑一次完整備份並**驗證取得回來**（不是看到「成功」就算——restic 要
+      `restore` 一份出來比對）。沒驗過的備份等於沒有備份。
+- [ ] 修掉 `.env.example` 與各文件裡「restic 備份範圍」的假宣稱
+
+優先序理由：`__parsed__` 重解析要 6–10 小時（花時間但做得到），
+`records/` 那套人工裁決**重跑也回不來**（那是人的判斷）。
 
 ---
 

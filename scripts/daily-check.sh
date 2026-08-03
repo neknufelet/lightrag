@@ -35,43 +35,23 @@ esac
 python3 scripts/postprocess.py canary > "$CHECK_DIR/canary-$ts.txt" 2>&1 ||
   fail_msgs+=("canary 規則漂移 (rc=$?) → $CHECK_DIR/canary-$ts.txt")
 
-# --- acoustics_v2 重建（worktree）---
-# 用 worktree 自己的 scripts 與 .env 跑：容器名、埠、workspace 全都由那個
-# checkout 的 .env 推導。從這裡用 v1 的腳本去驗 v2，會安靜地驗錯對象。
+# 2026-08-03 CUTOVER：這裡原本有第二段，去 ../lightrag-v2 那個 worktree 再跑一次
+# compat-check 與 canary。worktree 已收掉、acoustics_v155 已退役，現在只有一個
+# checkout、一個 workspace，上面那一段就是全部。
 #
-# v2 現在 compat-check 與 canary 都跑。canary 原本被關著，理由是「v2 還沒有
-# 自己的基準，拿 v155 的去對每天噴假漂移」——2026-08-02 階段 2 的規則實際跑完
-# 並 `canary --update` 建了 v2 自己的基準（worktree 的 tests/canary-baseline.json），
-# 那個理由消失，所以打開。基準只跟 v2 的資料比，不會再借 v155 的數字。
-V2_DIR="${LIGHTRAG_V2_DIR:-$(cd "$REPO_DIR/.." && pwd)/lightrag-v2}"
-v2_rc=0
-v2_canary_rc=0
-v2_detail=""
-if [ -d "$V2_DIR/scripts" ]; then
-  v2_detail="$CHECK_DIR/v2-compat-$ts.json"
-  ( cd "$V2_DIR" && python3 scripts/compat-check.py --json ) \
-    > "$v2_detail" 2> "$CHECK_DIR/v2-compat-$ts.err"
-  v2_rc=$?
-  case $v2_rc in
-    0) ;;
-    5) fail_msgs+=("v2 compat-check 軟失敗 (rc=5) → $v2_detail") ;;
-    *) fail_msgs+=("v2 compat-check 硬失敗 (rc=$v2_rc) → $v2_detail") ;;
-  esac
-
-  ( cd "$V2_DIR" && python3 scripts/postprocess.py canary ) \
-    > "$CHECK_DIR/v2-canary-$ts.txt" 2>&1
-  v2_canary_rc=$?
-  [ $v2_canary_rc -eq 0 ] ||
-    fail_msgs+=("v2 canary 規則漂移 (rc=$v2_canary_rc) → $CHECK_DIR/v2-canary-$ts.txt")
-fi
+# 刪掉而不是留著讓 `if [ -d ]` 靜靜跳過 —— 那個 if 會讓「worktree 沒了」與
+# 「檢查跑過了」在報表上長得一樣（鐵則 6）。將來真要同時顧兩個庫，正確做法
+# 是讓這支腳本吃一份明確的 workspace 清單，而不是猜隔壁目錄存不存在。
 
 status=pass
 [ ${#fail_msgs[@]} -gt 0 ] && status=fail
-printf '{"at":"%s","status":"%s","compat_rc":%d,"detail":"%s","v2_compat_rc":%d,"v2_detail":"%s","v2_canary_rc":%d}\n' \
-  "$ts" "$status" "$rc" "$CHECK_DIR/compat-$ts.json" "$v2_rc" "$v2_detail" "$v2_canary_rc" \
+printf '{"at":"%s","status":"%s","compat_rc":%d,"detail":"%s"}\n' \
+  "$ts" "$status" "$rc" "$CHECK_DIR/compat-$ts.json" \
   > "$CHECK_DIR/latest.json"
 
-# 保留規則要涵蓋 v2 的檔名，否則 v2-* 只增不減，永遠不會被清掉。
+# 保留最新 120 份。`v2-*` 那組是 CUTOVER 之前雙 checkout 時代留下的**歷史**
+# 紀錄（本腳本已不再產生它們），仍列在這裡是為了讓它們也會隨時間被清掉——
+# 漏掉的話就是一堆只增不減、永遠不會過期的檔案。
 find "$CHECK_DIR" \( -name 'compat-2*' -o -name 'canary-2*' \
                      -o -name 'v2-compat-2*' -o -name 'v2-canary-2*' \) |
   sort | head -n -120 | xargs -r rm --
