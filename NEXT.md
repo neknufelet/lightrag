@@ -79,6 +79,10 @@ checkout  ~/ghq/github.com/neknufelet/lightrag（單一，無 worktree、無 v1/
 排程      lightrag-daily-check.timer   每天 08:30 跑 compat-check + canary
           lightrag-cold-backup.timer   每天 03:00 冷備份（沒有新抽取成果就跳過不停機）
           兩者紅燈都打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉各有 OnFailure 備援
+警報      **2026-08-03 端到端驗過送達**：兩條路徑各發一則測試，伺服器收下
+          （22:39:48，優先度 4／5），**PO 確認手機收到**。兩條路徑刻意獨立——
+          備援不走 notify.sh，因為備援不能依賴可能正是故障原因的主路徑。
+          ⚠ 「送達手機」這一段**沒有任何自動檢查驗得到**，只能靠人實際發一次確認。
 v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全部移除，數字見 CLAUDE.md
 ```
 
