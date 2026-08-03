@@ -43,7 +43,7 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 |---|---|---|
 | `REBUILD` | `REBUILD-5`（驗收與切換） | ✅ |
 | `CUTOVER` | `CUTOVER-4`（v155 退役） | ✅ |
-| `BACKUP` | `BACKUP-4`（冷備份排程） | 🔵 `BACKUP-1`／`-2`／**`-3` 還原演練 ✅ 通過**（2026-08-03 實測，數字逐項對上）。⚠️ 但實測發現**索引本體只有一個還原點**（兩份快照逐位元相同），且無排程 |
+| `BACKUP` | — | ✅ **全線完成 2026-08-03**：`-1` 檔案備份／`-2` 索引冷備份／`-3` 還原演練通過（數字逐項對上）／`-4` 排程已接（每日 03:00，無新抽取成果則跳過）。還原點 1 → **3** |
 | `SCANNER` | `SCANNER-1`（∂ 誤讀探針接進 daily-check） | ✅ 完成 2026-08-03（commit `f637aea`，基準 `tests/scan-partial-baseline.json` 進版控） |
 | `SYMBOL` | `SYMBOL-5`（把決策落成抽取 prompt 改動） | 🔵 `SYMBOL-1`／`SYMBOL-2` ✅；**`SYMBOL-3` ✅ 已量＋PO 拍板選 ②改 prompt**；`SYMBOL-3.1`（量測工具）⚠️ 終審 BLOCK、票級判錯，補走重票中；`SYMBOL-2` 的決策仍未下 |
 | `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
@@ -67,8 +67,9 @@ checkout  ~/ghq/github.com/neknufelet/lightrag（單一，無 worktree、無 v1/
           DeepTutor 共用實例搬出，資料在 /data/lightrag（postgres 622 MB、neo4j 2.1 GB）。
           lightrag-neo4j 只有 neo4j／system 兩個 database ＝ 專用實例，不再跨專案共用
 內容      20 份 processed / 0 failed、7,211 實體、10,500 關係、510 chunk、可疑率 4.5%
-排程      lightrag-daily-check.timer 每天 08:30 跑 compat-check + canary，
-          紅燈打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉走 systemd OnFailure 備援
+排程      lightrag-daily-check.timer   每天 08:30 跑 compat-check + canary
+          lightrag-cold-backup.timer   每天 03:00 冷備份（沒有新抽取成果就跳過不停機）
+          兩者紅燈都打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉各有 OnFailure 備援
 v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全部移除，數字見 CLAUDE.md
 ```
 
@@ -276,7 +277,7 @@ McNemar p=0.34 不顯著），**在脈絡之上再加推理又 +10pp**（B→C�
 `--tag plan:lightrag-snapshot` 兩份 `f2d40c9f`（10:45／203.198 MiB）、
 `07289a88`（12:30／207.263 MiB）——**後者是 cron 自己跑出來的，排程確實在動。**
 
-- [ ] **`BACKUP-4`：冷備份的排程。** ⚠️ 起因是 `BACKUP-3` 演練查出的事：
+- [x] **`BACKUP-4`：冷備份的排程　✅ 完成 2026-08-03。** ⚠️ 起因是 `BACKUP-3` 演練查出的事：
       restic 的兩份 `lightrag-db` 快照（`e8af6a5b` 12:59、`25a3048a` 13:54）
       **逐位元相同**——`restic diff` 回 `0 new, 0 removed, 0 changed`。
       13:54 那份不是新的停機複製（若是，`pg_control` 的關機時戳一定會變），
@@ -297,10 +298,15 @@ McNemar p=0.34 不顯著），**在脈絡之上再加推理又 +10pp**（B→C�
 
       ⇒ **現在有兩個還原點**（12:59、21:30）。
 
-      - [ ] **還沒做的：systemd timer 本身。** 建議 `OnCalendar=*-*-* 03:00`
-            （與 08:30 的 daily-check 錯開，也避開白天查詢時段），
-            照 `lightrag-daily-check.service` 的慣例接 `OnFailure=` 獨立備援通知
-            ——「排程沒跑」與「排程跑了但沒事」在畫面上長得一樣。
+      **✅ systemd timer 已接（2026-08-03）**：`lightrag-cold-backup.timer`
+      每日 `03:00`（與 08:30 的 daily-check 錯開，也避開白天查詢時段）、
+      `Persistent=true`（關機錯過會補跑）、`TimeoutStartSec=3600`（上傳走 Google Drive
+      要留餘裕，但不能無上限否則掛住沒人知道）。失敗走
+      `lightrag-cold-backup-crashed.service` 獨立備援通知——**刻意不走 `notify.sh`**，
+      照既有慣例：備援不能依賴可能正是故障原因的主路徑。該通知的內容特別提醒
+      **「服務可能停著」**，因為冷備份失敗與 daily-check 失敗的後果不同。
+      實測：`systemctl start` 觸發 → `Result=success`、輸出在 journal 看得到、
+      正確跳過、四個容器 Up 時間未被重置。
       - [ ] **擴量期間改成每批跑一次**：390 份分批索引，每批完是自然停頓點，
             那時停 75 秒不影響任何事。不必改排程，手動跑即可。
 

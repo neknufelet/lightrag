@@ -528,6 +528,12 @@ compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本�
 掛掉走 systemd `OnFailure=` 獨立備援。狀態落地 `/data/rag/lightrag/checks/`。
 **「誰會報錯」的答案從「沒有人」改成它。**
 
+第二支排程於 2026-08-03 接上：`lightrag-cold-backup.timer` 每天 03:00 跑
+`scripts/backup-cold.sh`。它會**停服務抄目錄**（停機約 75 秒，幾乎全花在容器優雅
+關機與健康檢查，本地複製只要 1 秒），但**沒有新的抽取成果就自己跳過、完全不停機**
+——判準是資料庫內容指紋不是時鐘。兩支排程各有自己的 `OnFailure=` 備援單元，
+且備援**刻意不走 `notify.sh`**：備援不能依賴可能正是故障原因的主路徑。
+
 ## 抽取品質:接地檢查
 
 `extract-check.py` 拿每個實體名字去對它來源的 chunk。原理跟 `pdfcrop` 抽文字層
