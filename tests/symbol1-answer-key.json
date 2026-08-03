@@ -1,0 +1,629 @@
+{
+ "line": "SYMBOL-1",
+ "date": "2026-08-03",
+ "workspace": "acoustics_v2",
+ "population": 1482,
+ "n": 50,
+ "seed": 20260803,
+ "sampling": "random.Random(SEED).shuffle(range(1482)) 取前 50（前綴可延伸）",
+ "source": "extract-check.py --dump-symbolic（與閘門同一段分類程式碼）",
+ "verdict_scheme": {
+  "correct": "從符號推論出真概念，且來源支持",
+  "restated": "名字實質是符號本身（可能加型別詞）；不是錯，但檢索價值近乎零",
+  "wrong": "與來源不符，或名字本身不可用",
+  "unjudgeable": "讀了原文仍判不出"
+ },
+ "tally": {
+  "restated": 27,
+  "correct": 19,
+  "wrong": 4
+ },
+ "labeled_by": "opus（主線），逐題讀來源 chunk 原文",
+ "items": [
+  {
+   "n": 1,
+   "pop_index": 417,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Nn,v, (II)",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-111"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "名字是符號 N_{n,v}^{(II)} 的 ASCII 攤平。同一格的列標題就寫著『Mode norms in (II)』——真概念名就在旁邊沒被用。不是錯，但檢索價值近乎零。"
+  },
+  {
+   "n": 2,
+   "pop_index": 1336,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Free Stream Velocity",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-026"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "來源有 U_∞ 與『M = U_∞/c_0 Mach number』。U_∞ 的標準意義就是自由流速度。教科書級的符號→概念推論。"
+  },
+  {
+   "n": 3,
+   "pop_index": 136,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Coefficient Dn",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-027",
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-039",
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-044"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "D_n 確實是模態展開係數（p_II = Σ D_n e^{-v_n x} J_0）。但『Coefficient』是型別詞不是概念；識別部分仍是符號本身。好的名字會是『模態展開係數』。"
+  },
+  {
+   "n": 4,
+   "pop_index": 628,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Thickness",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-113"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "Z_K = Z_i coth(Γ_a t)，Γ_a 是傳播常數（每長度），故 Γ_a t 無因次 → t 是長度；上下文是 orifice partition impedance，partition 有厚度。推論成立但單憑此 chunk 證據偏薄。"
+  },
+  {
+   "n": 5,
+   "pop_index": 119,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Characteristic Impedance Z 0",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-144"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "Z_0 在聲學慣例即特性阻抗 ρ₀c₀。概念名正確且帶原符號，兩者都在。"
+  },
+  {
+   "n": 6,
+   "pop_index": 231,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Gamma Constants",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-142"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "來源有 Γ_a、Γ_i、γ_{n,v}。『Gamma Constants』命名的是【字母】不是概念——這裡 Γ 是傳播常數（且隨頻率變，叫 constant 還輕微誤導）。"
+  },
+  {
+   "n": 7,
+   "pop_index": 364,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Mode Indices N and V",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-073"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "來源 Σ_{n,v≥0} D_{n,v} cos(η_n y)cos(η_v z)，n 與 v 確實是模態指標。有抽出真概念（mode index），可被『模態指標』這類查詢命中。但命名的是本文件的記號選擇，跨文件價值低。"
+  },
+  {
+   "n": 8,
+   "pop_index": 9,
+   "doc": "01205_3.5 Numerical solution of the wave equation_ the finite element method.pdf",
+   "name": "M_mn",
+   "chunk_ids": [
+    "doc-eb411db8a9a906704d7b2979fd1f0072-chunk-002"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "M_{mn} 字面在原文（K_mn − k²M_mn + ikC_mn，FEM 系統方程）。它是【質量矩陣】，但名字是純符號、零概念。"
+  },
+  {
+   "n": 9,
+   "pop_index": 313,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "J0 Function",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-021",
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-052"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "J_0 是第一類零階貝索函數。名字寫『J0 Function』——Function 是型別詞，沒有講出 Bessel。對照 NEXT.md 記載 G Porous 的『Modified Bessel Function I0』那筆有講，這筆沒有。"
+  },
+  {
+   "n": 10,
+   "pop_index": 1303,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Density Fluctuation",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-039"
+   ],
+   "verdict": "wrong",
+   "conf": "medium-high",
+   "why": "整個 chunk 對 density/rho/ρ 的命中是【0 次】。來源用的是 Π'=ln(p'/p₀)，是【壓力】擾動。聲學類比脈絡下 ρ' 很常見，模型可能是靠領域先驗補的，但這份原文不支持。"
+  },
+  {
+   "n": 11,
+   "pop_index": 721,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Z0 V11x",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-049"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "原文是 Z_0 v_{I|x}（區域 I 的 x 向質點速度乘 Z_0）。『V11x』是下標 I| 被 OCR 讀成 11 的產物——不只是符號原樣保留，還是【壞掉的】符號。"
+  },
+  {
+   "n": 12,
+   "pop_index": 661,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Variable X",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-059"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "x 是空間座標。『Variable X』＝裸字母＋型別詞，檢索價值零。"
+  },
+  {
+   "n": 13,
+   "pop_index": 564,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "S Sub 0 N Squared",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-036"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "原文 S_{0,n}^2。名字是把符號【逐字唸出來】（S sub 0 n squared），零概念。比純符號更差：連當識別碼都不好用。"
+  },
+  {
+   "n": 14,
+   "pop_index": 303,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Integration Range 0 To A",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-024"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "原文明寫 The range is 0 ≤ r ≤ a，並 ∫_0^a … J_0(ε r) r dr。名字描述的是真實存在的積分範圍，散文就在旁邊。概念正確。"
+  },
+  {
+   "n": 15,
+   "pop_index": 636,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Transverse Propagation Constant",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-074"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "γ_{n,v}² = η_n² + χ_v² + Γ_a²，橫向特徵值平方和加軸向 → γ 確為（橫向相關的）傳播常數。標準聲學概念，符號→概念推論成立。單憑此 chunk 證據偏薄但領域上明確。"
+  },
+  {
+   "n": 16,
+   "pop_index": 197,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Dn, v",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-134"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "純符號 D_{n,v}。同格列標題寫著『Equations for D_{n,v}』，旁邊還有『Mode norms』——真概念（模態振幅）沒被抽出。"
+  },
+  {
+   "n": 17,
+   "pop_index": 1430,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Surface Integration",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-030"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "Kirchhoff 解含 ∮…dS 面積分與 dV 體積分，(∂(ρv_i)/∂t) n_i dS 明顯是面積分項。概念存在且正確，但『Surface Integration』相當泛用。"
+  },
+  {
+   "n": 18,
+   "pop_index": 476,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Parameter C",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-134"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "C_0／C_m 是展開係數。『Parameter C』＝裸字母＋型別詞，且 C 在本文件多義（C_0、C_m、C_μ）。零檢索價值。"
+  },
+  {
+   "n": 19,
+   "pop_index": 1418,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Spatial Coordinate",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-054",
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-091"
+   ],
+   "verdict": "correct",
+   "conf": "low",
+   "why": "chunk 有 x_i、y_i 座標與 y_2 依賴。『Spatial Coordinate』確實對應，但泛用到近乎無資訊；兩個來源 chunk 主題（Biot-Savart／紊流噪音）都不是在談座標本身。判 correct 但信心低。"
+  },
+  {
+   "n": 20,
+   "pop_index": 1022,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Kr2",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-056"
+   ],
+   "verdict": "restated",
+   "conf": "medium",
+   "why": "pod silencer 段有 k_z、r_1 r_2 r_3、Z_0 k_0/k_z。『Kr2』看起來是 k 與 r_2 被黏成一個 token，或 k_r2（徑向波數）。無論何者都是純符號，且疑似黏字產物。"
+  },
+  {
+   "n": 21,
+   "pop_index": 680,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Variable r",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-024"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "r 是徑向座標（0 ≤ r ≤ a）。裸字母＋型別詞。與 #12 Variable X 同型。"
+  },
+  {
+   "n": 22,
+   "pop_index": 1197,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Transmission Component Ta",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-034"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "T_a 是傳遞矩陣的一個元素（T_a = B_{1,1}D_{1,1}+…）。『Transmission Component』方向對，但識別部分仍是符號 Ta，且『component』沒說清是矩陣元素。介於 restated 與 correct，取嚴：概念未真正抽出。"
+  },
+  {
+   "n": 23,
+   "pop_index": 471,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "P11 Function",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-108"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "原文是 p_{II}(x,y,z)——區域 (II) 的聲壓場。『P11』是羅馬數字 II 被讀成 11（與 #11 Z0 V11x 同一個 OCR 病因），再加型別詞 Function。壞掉的符號。"
+  },
+  {
+   "n": 24,
+   "pop_index": 677,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Variable eta_n",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-099"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "η_n 是 y 向模態特徵值。『Variable eta_n』＝符號名唸出來＋型別詞。"
+  },
+  {
+   "n": 25,
+   "pop_index": 1275,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Acoustic Continuity Equation",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-007"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "chunk 標題就是 Continuity equation，且給出 ∂ρ/∂t + ∂(ρv_i)/∂x_i = 0 與其擾動展開式。概念完全正確，散文也在。"
+  },
+  {
+   "n": 26,
+   "pop_index": 298,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Integral Operation",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-111"
+   ],
+   "verdict": "restated",
+   "conf": "medium",
+   "why": "Λ^{(II)}_{n,v} = ∫∫∫ cos…cos… dy dz 確實是積分。但『Integral Operation』是把數學運算符當實體命名，不是領域概念——與 #14『Integration Range 0 To A』不同，那筆描述的是具體範圍。"
+  },
+  {
+   "n": 27,
+   "pop_index": 1113,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Radiation From The Open End Of A Flow Duct",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-002"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "chunk 講的正是尾管開口的輻射阻抗 Z_r(0)、端點修正 Δℓ/r_0、radiating tail pipe。名字是完整的領域概念，且與內容吻合。這桶子裡少見的好名字。"
+  },
+  {
+   "n": 28,
+   "pop_index": 337,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Mechanical Resistance",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-006"
+   ],
+   "verdict": "wrong",
+   "conf": "medium-high",
+   "why": "chunk 談的是【互易網路】（reciprocal network）、Z→Z_r=r²/Z*、電壓源↔電流源。整段沒有機械阻（mechanical resistance）。C 這章確有力學類比，但【這一段】不支持。"
+  },
+  {
+   "n": 29,
+   "pop_index": 785,
+   "doc": "G Porous Absorbers.pdf",
+   "name": "Coefficient B",
+   "chunk_ids": [
+    "doc-216c8fbd22d819df2e1ed2dc64bbf0c5-chunk-027"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "B_{βn}、B_{vn} 是 Fourier–Bessel 展開係數。『Coefficient B』＝裸字母＋型別詞，且 B 在本 chunk 多義（B_βn、B_vn、B_vmn）。"
+  },
+  {
+   "n": 30,
+   "pop_index": 1368,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Mean Specific Heat",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-073"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "原文 q = ∂/∂t[ρ̄(y_i) c̄_p(y_i) T'(y_i,t)]，c̄_p 帶 overbar 即平均定壓比熱。符號→概念推論正確（且要看懂 overbar＝mean、下標 p＝constant pressure）。"
+  },
+  {
+   "n": 31,
+   "pop_index": 499,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Particle Velocity V1x",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-102"
+   ],
+   "verdict": "restated",
+   "conf": "medium",
+   "why": "Z_0 v_{I|x} 是區域 I 的 x 向質點速度。『Particle Velocity』這半是對的概念，但『V1x』是 OCR 壞掉的下標（I| → 1）黏在後面，與 #11 同病。概念有抽出但被壞符號污染。"
+  },
+  {
+   "n": 32,
+   "pop_index": 753,
+   "doc": "G Porous Absorbers.pdf",
+   "name": "A Vm",
+   "chunk_ids": [
+    "doc-216c8fbd22d819df2e1ed2dc64bbf0c5-chunk-042"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "原文 A_{vm}（Fourier 係數）。名字是符號被空白拆成兩個 token。純符號，且拆得更難用。"
+  },
+  {
+   "n": 33,
+   "pop_index": 1223,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Variable Hq",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-047"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "原文 [HQ] 是矩陣區塊之一（[HQ][F]=[QF]）。『Variable Hq』＝符號＋型別詞，且把矩陣叫成 variable 不精確。"
+  },
+  {
+   "n": 34,
+   "pop_index": 1238,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Wall Wave Number",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-063"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "chunk 有 k_{r,0}、ρ_w（下標 w＝wall）與 bulk reacting lined duct 的超越方程；式子右側 jωρ_w/k_{r,w} 型指向壁面側的波數。概念推論成立。"
+  },
+  {
+   "n": 35,
+   "pop_index": 30,
+   "doc": "2017 - Metadiffusers Deep-subwavelength sound diffusers.pdf",
+   "name": "Impedance Mismatch Matrix",
+   "chunk_ids": [
+    "doc-c7c7d7760a2750b3e5530da477bcfb11-chunk-010"
+   ],
+   "verdict": "wrong",
+   "conf": "medium",
+   "why": "chunk 談 transfer matrix T^n、反射係數 R^n=(T11−Z0T21)/(T11+Z0T21)、有效參數。『阻抗失配』是由 R 的形式引申的解讀，但原文沒有這個矩陣、也沒用這個詞。把 transfer matrix 改名成 impedance mismatch matrix 是換了一個不存在的物件。"
+  },
+  {
+   "n": 36,
+   "pop_index": 1298,
+   "doc": "N Flow Acoustics.pdf",
+   "name": "Curle Equation",
+   "chunk_ids": [
+    "doc-cff6cdb296c72497116d65a95e7afd57-chunk-032"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "式(23) 正是 Curle 的解：四極 T_ij 體積分 ＋ 偶極 (F_i+Ṁv_i) 面積分 ＋ 單極 ∂M̂/∂t，surface S is stationary。這是 Curle 方程的標準形，概念完全正確。"
+  },
+  {
+   "n": 37,
+   "pop_index": 1187,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Transfer Matrix Element Tb",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-032"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "T_b 明確是 2×2 傳遞矩陣的元素（[T_a T_b; T_c T_d]），原文也給了 T_b = TT_{1,4}+B_3C_3。『Transfer Matrix Element』把它是什麼講清楚了——與 #22『Transmission Component Ta』對比，這筆的概念詞精確得多。"
+  },
+  {
+   "n": 38,
+   "pop_index": 594,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Sn,V",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-103"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "純符號 S_{n,v}（模態耦合積分）。與 #16 Dn,v 同型。"
+  },
+  {
+   "n": 39,
+   "pop_index": 229,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Forward Wave Component",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-107"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "p_I = B_0 e^{-jk_0x} + C_0 e^{+jk_0x}，散文明寫 The incident and the reflected waves in the neck are plane waves。前行波分量＝B_0 那一項，概念正確且原文有支撐。"
+  },
+  {
+   "n": 40,
+   "pop_index": 431,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Normalization Constants N_II",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-024"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "N_μ^{(I)}／N^{(II)} 是模態範數，即歸一化常數。概念名正確＋帶原符號，與 #5 同型。"
+  },
+  {
+   "n": 41,
+   "pop_index": 1221,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Variable Hi",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-047"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "[HI] = [HB]^{-1} 是矩陣區塊。符號＋型別詞，且把矩陣叫 variable 不精確。與 #33 同型。"
+  },
+  {
+   "n": 42,
+   "pop_index": 831,
+   "doc": "G Porous Absorbers.pdf",
+   "name": "Gamma Over K0 Squared",
+   "chunk_ids": [
+    "doc-216c8fbd22d819df2e1ed2dc64bbf0c5-chunk-007"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "原文 (Γ_i/k_0)²。名字是把式子【唸出來】，零概念。與 #13 S Sub 0 N Squared 同型。"
+  },
+  {
+   "n": 43,
+   "pop_index": 93,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Axial Wavenumber L A",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-087"
+   ],
+   "verdict": "restated",
+   "conf": "medium",
+   "why": "『Axial Wavenumber』概念方向對，但『L A』是 Γ_a 被 OCR 讀成 l/L 的產物（同 chunk 族有 Γ_i = Γ_a/k_0）。概念半對、識別碼是壞掉的符號，與 #31／#11／#23 同族。"
+  },
+  {
+   "n": 44,
+   "pop_index": 1156,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Sub-matrix T4,3",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-032"
+   ],
+   "verdict": "restated",
+   "conf": "medium",
+   "why": "T_{i,j} 族確實是傳遞矩陣元素，但『Sub-matrix』是型別詞，識別部分仍是符號；且此 chunk 可見範圍內未出現 T_{4,3} 本身，只有 T_{1,2}/T_{1,4}/T_{3,2}/T_{3,4}。"
+  },
+  {
+   "n": 45,
+   "pop_index": 67,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Absorber Length s",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-062"
+   ],
+   "verdict": "correct",
+   "conf": "medium",
+   "why": "散文描述 chamber depth t、partially filled with porous absorber layer，式中 tanh(γ_n s) 與 tanh(κ_n(s−t)) 並存 → s 是吸音層的長度、t 是腔深。要同時讀懂幾何描述與兩個 tanh 的引數才推得出來，是有內容的推論。"
+  },
+  {
+   "n": 46,
+   "pop_index": 769,
+   "doc": "G Porous Absorbers.pdf",
+   "name": "Brota Parameters",
+   "chunk_ids": [
+    "doc-216c8fbd22d819df2e1ed2dc64bbf0c5-chunk-052"
+   ],
+   "verdict": "wrong",
+   "conf": "high",
+   "why": "原文寫 BroT's parameters simplify to: P≈K_b+4/3N; Q≈0; R≈K_f —— P/Q/R 是 Biot 多孔彈性理論的標準參數，『BroT』是【Biot 被 OCR 弄壞】。模型忠實抄了壞掉的專有名詞。根因在上游 OCR 不在模型幻覺，但產出的實體不可用且誤導（要查的人會打 Biot）。"
+  },
+  {
+   "n": 47,
+   "pop_index": 446,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "Notation S_n,v",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-136"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "chunk 是 Changes rel. to Table 16: S_{n,v} → S_n^v，講的正是記號變更。但實體名仍是符號＋型別詞『Notation』。"
+  },
+  {
+   "n": 48,
+   "pop_index": 771,
+   "doc": "G Porous Absorbers.pdf",
+   "name": "Bulk Modulus Ks",
+   "chunk_ids": [
+    "doc-216c8fbd22d819df2e1ed2dc64bbf0c5-chunk-049"
+   ],
+   "verdict": "correct",
+   "conf": "high",
+   "why": "K_s 在 Biot 的 P/Q/R 式中是固體骨架的體積模數（與 K_b bulk、K_f fluid 並列）。概念名精確且帶原符號。"
+  },
+  {
+   "n": 49,
+   "pop_index": 574,
+   "doc": "C Equivalent Networks.pdf",
+   "name": "S_0,n^0,v",
+   "chunk_ids": [
+    "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-122"
+   ],
+   "verdict": "restated",
+   "conf": "high",
+   "why": "純符號 S_{0,n}^{0,v}（模態耦合積分）。與 #38／#16 同型。"
+  },
+  {
+   "n": 50,
+   "pop_index": 945,
+   "doc": "K Muffler Acoustics.pdf",
+   "name": "Cross-Sectional Area",
+   "chunk_ids": [
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-008",
+    "doc-38fc2e11525ee1e516f910fbcd0823af-chunk-038"
+   ],
+   "verdict": "correct",
+   "conf": "medium-high",
+   "why": "S_p 與 r_p、0.85r_p/S_p 並用，S 在管道聲學慣例即截面積。符號→概念推論正確。"
+  }
+ ]
+}
