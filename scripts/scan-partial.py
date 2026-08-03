@@ -245,13 +245,30 @@ def scan(root: Path) -> tuple[list[dict], list[dict]]:
     return hits, bad
 
 
+BASELINE = REPO / "tests" / "scan-partial-baseline.json"
+
+
+def tally(hits: list[dict]) -> dict[str, dict[str, int]]:
+    """（文件 → token → 處數）。
+
+    **不記位置。** 位置會隨任何一次補格／修補整段位移，那樣每次都是漂移，
+    等於沒有基準（`canary` 也是比每份文件的數字，不是比位元組偏移）。
+    """
+    out: dict[str, dict[str, int]] = {}
+    for h in hits:
+        out.setdefault(h["doc"], {}).setdefault(h["token"], 0)
+        out[h["doc"]][h["token"]] += 1
+    return {d: dict(sorted(t.items())) for d, t in sorted(out.items())}
+
+
 def main() -> int:
     env = load_env(REPO)
-    ap = argparse.ArgumentParser(description="∂ 誤讀探針：上下同形判定")
+    ap = argparse.ArgumentParser(description="∂ 誤讀探針：上下同形判定＋基準漂移")
     add_workspace_arg(ap, env)
     ap.add_argument("--root", type=Path,
                     default=Path(env.get("DATA_ROOT", "/data/rag/lightrag")))
     ap.add_argument("--details", action="store_true", help="逐處印出上下文")
+    ap.add_argument("--update", action="store_true", help="把目前結果認可為新基準")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
@@ -259,50 +276,60 @@ def main() -> int:
     if not parsed.is_dir():
         sys.exit(f"找不到 {parsed}")
     hits, bad = scan(parsed)
+    cur = tally(hits)
+    ndocs = len(list(parsed.glob("*.mineru_raw")))
+
+    if a.update:
+        BASELINE.parent.mkdir(parents=True, exist_ok=True)
+        BASELINE.write_text(json.dumps(
+            {"workspace": a.workspace, "docs_scanned": ndocs,
+             "unparsed_frac": len(bad), "hits": cur},
+            ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+        print(f"基準已更新 → {BASELINE}")
+        print(f"  {sum(sum(t.values()) for t in cur.values())} 處、"
+              f"{len({k for t in cur.values() for k in t})} 種 token")
+        print("記得在 commit 訊息說明每一個數字為什麼變 —— 沒說明的變動"
+              "等同未被察覺的漂移。")
+        return 0
 
     if a.json:
-        print(json.dumps({"workspace": a.workspace, "hits": hits, "unparsed": bad},
-                         ensure_ascii=False, indent=1))
-        return 2 if hits else 0
+        print(json.dumps({"workspace": a.workspace, "hits": hits,
+                          "unparsed": bad, "tally": cur}, ensure_ascii=False, indent=1))
+    else:
+        by_tok: dict[str, list[dict]] = {}
+        for h in hits:
+            by_tok.setdefault(h["token"], []).append(h)
+        print(f"=== ∂ 誤讀探針（上下同形）：{a.workspace} ===")
+        print(f"掃過 {ndocs} 份；命中 {len(by_tok)} 種 token、{len(hits)} 處；"
+              f"剖析不了的 frac {len(bad)} 處\n")
+        for tok, xs in sorted(by_tok.items(), key=lambda kv: -len(kv[1])):
+            docs = sorted({x["doc"] for x in xs})
+            print(f"  {tok!r:30s} {len(xs):4d} 處　{', '.join(d[:28] for d in docs)}")
+            for x in (xs if a.details else xs[:3]):
+                print(f"        {x['doc'][:26]} #{x['item']} {x['field']}@{x['off']}　{x['ctx']}")
 
-    by_tok: dict[str, list[dict]] = {}
-    for h in hits:
-        by_tok.setdefault(h["token"], []).append(h)
-    print(f"=== ∂ 誤讀探針（上下同形）：{a.workspace} ===")
-    print(f"掃過 {len(list(parsed.glob('*.mineru_raw')))} 份；"
-          f"疑似誤讀 {len(by_tok)} 種 token、{len(hits)} 處；剖析不了的 frac {len(bad)} 處\n")
-    for tok, xs in sorted(by_tok.items(), key=lambda kv: -len(kv[1])):
-        docs = sorted({x["doc"] for x in xs})
-        print(f"  ⚠ {tok!r:30s} {len(xs):4d} 處　{', '.join(d[:28] for d in docs)}")
-        for x in (xs if a.details else xs[:4]):
-            print(f"        {x['doc'][:26]} #{x['item']} {x['field']}@{x['off']}　{x['ctx']}")
-    if bad:
-        print(f"\n  ⚠ 剖析不了的 frac：{len(bad)} 處"
-              f"（**這也是訊號**：剖析器跟不上新的排版形狀）")
-        for x in bad[:6]:
-            print(f"        {x['doc'][:26]} #{x['item']} {x['field']}@{x['off']}　{x['ctx']}")
-    if hits or bad:
-        print("\n**停下回報。** 上下同形＝導數形狀，而站在算子位置的不是 \\partial。")
+    # ── 與基準比對 ───────────────────────────────────────────────────
+    # 為什麼是基準而不是「命中就報」：有些命中**結構上不可分**——
+    # `\frac{ρ̄f̄}{ρ̄}`（Favre 平均）與 `\frac{∂}{∂x}` 的形狀完全鏡像，
+    # 沒有結構差異可用。硬要濾掉它會連 `∂v̄/∂x` 一起濾（試過，見 docstring）。
+    # 所以照 canary 的辦法：**記下現況，冒出新的才響**。
+    if not BASELINE.is_file():
+        print(f"\n沒有基準檔 {BASELINE}")
+        print("先逐條看過目前的命中，確認每一筆都是已知的合法情形，再跑 --update。")
+        return 3                      # 未設定 ≠ 通過，也 ≠ 漂移
+    base = json.loads(BASELINE.read_text()).get("hits", {})
+
+    drift: list[str] = []
+    for doc in sorted(set(base) | set(cur)):
+        b, c = base.get(doc, {}), cur.get(doc, {})
+        for tok in sorted(set(b) | set(c)):
+            if b.get(tok, 0) != c.get(tok, 0):
+                drift.append(f"  {doc[:34]:<36}{tok!r:26s} {b.get(tok,0)} → {c.get(tok,0)}")
+    if drift:
+        print(f"\n**漂移 {len(drift)} 項** —— 冒出基準沒有的東西，停下回報：")
+        print("\n".join(drift))
+        print("\n若是預期中的改動，逐條確認後跑 `--update`，"
+              "並在 commit 訊息說明每個數字為什麼變。")
         return 2
-    print("乾淨：沒有上下同形的非 \\partial 算子。")
+    print("\n與基準相同：沒有新的上下同形算子。")
     return 0
-
-
-# ── 前兩代白名單累積的判斷（保留當文件，不再參與判定）────────────────────
-# 這些 token 曾被逐一裁決為「真符號，不是誤讀的 ∂」。上下同形規則之下它們
-# 本來就不會被報（沒有人寫 c̄x/c̄y），所以不需要排除清單——但這些判斷是花
-# 時間換來的，刪掉就沒了。
-#
-#   \bar{c}              真 c̄／c̄_p（#724 #766 #957 #1123）
-#   \bar{\mathrm{D}}     真物質導數 D̄/Dt（#187 #692）
-#   \bar{\mathbf{D}}     真物質導數 D̄/Dt（#726）
-#   \mathrm{D} \mathbf{D} \mathrm{Dt} \mathbf{Dt}   真物質導數（#494 #942 #947）
-#   \tilde{\rho} \bar{\rho} \bar{\Psi}              真 ρ̃ ρ̄ Ψ̄
-#   \mathfrak{O}         孔隙率符號 𝔒（C，非算子位置）
-#   \mathcal{O}          大 O 複雜度記號（2026-JAX-BEM #60）
-#                        ——注意它**同時**出現在誤讀清單裡（\hat{\mathcal{O}}），
-#                        所以「這個 token 是不是真符號」本來就不能只看 token，
-#                        必須看位置與形狀。這正是換成規則的理由。
-
-if __name__ == "__main__":
-    sys.exit(main())
