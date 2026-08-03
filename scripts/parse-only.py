@@ -18,7 +18,9 @@ doc_id，會自己寫 manifest。**不重新實作任何契約** —— 呼叫�
 命中快取直接跳到抽取；說無效就是白花錢，要當場知道而不是等到下次掃描。
 
 用法：
-    parse-only.py --workspace <workspace>               # 掃描目錄裡所有未解析的
+    parse-only.py --workspace <workspace>               # 掃描 inputs 裡所有未解析的
+    parse-only.py --workspace <workspace> --source-kind parsed
+                                                        # 審核台的 work/parsed 暫存來源
     parse-only.py --doc <關鍵字>
     parse-only.py --dry-run
 """
@@ -79,6 +81,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="只跑 MinerU 解析，不觸發實體抽取")
     add_workspace_arg(ap, env)
     ap.add_argument("--doc", help="檔名關鍵字，預設全部未解析的")
+    ap.add_argument("--source-kind", choices=("inputs", "parsed"), default="inputs",
+                    help="來源只能是 inputs 或 work/parsed；審核台解析用 parsed")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--timeout", type=int, default=1800,
                     help="單份解析的容器呼叫上限（秒）。預設 1800 —— 超過這個"
@@ -87,12 +91,12 @@ def main() -> int:
 
     ws = a.workspace
     paths = DataPaths(DATA_ROOT)
-    inputs = paths.inputs_dir(ws)
-    if not inputs.is_dir():
-        sys.exit(f"parse-only: 找不到 {inputs}")
+    source_dir = paths.inputs_dir(ws) if a.source_kind == "inputs" else paths.parsed_dir
+    if not source_dir.is_dir():
+        sys.exit(f"parse-only: 找不到 {source_dir}")
 
     todo = []
-    for pdf in sorted(inputs.glob("*.pdf")):
+    for pdf in sorted(source_dir.glob("*.pdf")):
         raw = paths.parsed_bundle_dir(pdf.name)
         if (raw / "content_list.json").is_file():
             continue
@@ -127,7 +131,9 @@ def main() -> int:
         # /app/data/inputs/<ws>/__parsed__。這些是容器內 LightRAG 契約路徑，
         # coder 沒有容器，實際 mount 生效與否必須在 dker 回程確認（未驗,推測）。
         container = ContainerPaths()
-        c_src = container.inputs_dir(ws) / pdf.name
+        c_src_root = (container.inputs_dir(ws) if a.source_kind == "inputs"
+                      else container.parsed_dir(ws))
+        c_src = c_src_root / pdf.name
         c_raw = container.parsed_bundle_dir(ws, pdf.name)
         print(f"\n→ {pdf.name}")
         try:

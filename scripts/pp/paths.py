@@ -40,6 +40,26 @@ class DataPaths:
         return self.root / "library"
 
     @property
+    def intake_dir(self) -> Path:
+        """審核台自己的狀態根；不與 LightRAG 的輸入或解析快取混用。"""
+        return self.root / "intake"
+
+    @property
+    def intake_jobs_dir(self) -> Path:
+        return self.intake_dir / "jobs"
+
+    @property
+    def intake_events_path(self) -> Path:
+        return self.intake_dir / "teaching-events.jsonl"
+
+    def intake_job_dir(self, job_id: str) -> Path:
+        return self.intake_jobs_dir / job_id
+
+    def library_source_dir(self, source_key: str) -> Path:
+        """單一來源庫的審核台複本目錄。"""
+        return self.library_dir / source_key
+
+    @property
     def work_dir(self) -> Path:
         return self.root / "work"
 
@@ -68,6 +88,10 @@ class DataPaths:
         return self.root / "checks"
 
     @property
+    def inputs_root(self) -> Path:
+        return self.root / "inputs"
+
+    @property
     def rag_storage_dir(self) -> Path:
         return self.root / "rag_storage"
 
@@ -77,7 +101,7 @@ class DataPaths:
 
     def inputs_dir(self, workspace: str) -> Path:
         """LightRAG 掃描入口；workspace 子目錄不可省略。"""
-        return self.root / "inputs" / workspace
+        return self.inputs_root / workspace
 
     def parsed_bundle_dir(self, document: str) -> Path:
         return self.parsed_dir / f"{document}.mineru_raw"

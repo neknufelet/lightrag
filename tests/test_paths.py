@@ -19,6 +19,11 @@ def test_data_and_container_paths_cover_new_layout() -> None:
 
     assert paths.inbox_dir == root / "inbox"
     assert paths.library_dir == root / "library"
+    assert paths.intake_dir == root / "intake"
+    assert paths.intake_jobs_dir == root / "intake" / "jobs"
+    assert paths.intake_events_path == root / "intake" / "teaching-events.jsonl"
+    assert paths.intake_job_dir("job") == root / "intake" / "jobs" / "job"
+    assert paths.library_source_dir("source") == root / "library" / "source"
     assert paths.work_dir == root / "work"
     assert paths.parsed_dir == root / "work" / "parsed"
     assert paths.crops_dir == root / "work" / "crops"
@@ -26,6 +31,7 @@ def test_data_and_container_paths_cover_new_layout() -> None:
     assert paths.records_dir == root / "records"
     assert paths.ledger_dir == root / "records" / "ledger"
     assert paths.checks_dir == root / "checks"
+    assert paths.inputs_root == root / "inputs"
     assert paths.rag_storage_dir == root / "rag_storage"
     assert paths.backup_stamp == root / ".backup-cold.stamp"
     assert paths.inputs_dir(workspace) == root / "inputs" / workspace
