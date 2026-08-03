@@ -43,7 +43,7 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 |---|---|---|
 | `REBUILD` | `REBUILD-5`（驗收與切換） | ✅ |
 | `CUTOVER` | `CUTOVER-4`（v155 退役） | ✅ |
-| `BACKUP` | `BACKUP-3`（還原演練：還原出來起不起得來） | ⏸ PO 2026-08-03 拍板：驗到 **DB 層**、走**重票五站**，但**暫緩**，先做 `SYMBOL-3`。`BACKUP-1`／`BACKUP-2` ✅ |
+| `BACKUP` | `BACKUP-4`（冷備份排程） | 🔵 `BACKUP-1`／`-2`／**`-3` 還原演練 ✅ 通過**（2026-08-03 實測，數字逐項對上）。⚠️ 但實測發現**索引本體只有一個還原點**（兩份快照逐位元相同），且無排程 |
 | `SCANNER` | `SCANNER-1`（∂ 誤讀探針接進 daily-check） | ✅ 完成 2026-08-03（commit `f637aea`，基準 `tests/scan-partial-baseline.json` 進版控） |
 | `SYMBOL` | `SYMBOL-5`（把決策落成抽取 prompt 改動） | 🔵 `SYMBOL-1`／`SYMBOL-2` ✅；**`SYMBOL-3` ✅ 已量＋PO 拍板選 ②改 prompt**；`SYMBOL-3.1`（量測工具）⚠️ 終審 BLOCK、票級判錯，補走重票中；`SYMBOL-2` 的決策仍未下 |
 | `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
@@ -76,7 +76,8 @@ v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全�
 > 與 `records/`）走 backrest plan `lightrag-snapshot`，每 6 小時，**並驗過能還原**。
 > ② 索引本體（`/data/lightrag` 的 Postgres＋Neo4j）走 `scripts/backup-cold.sh`
 > 冷備份。在此之前 ① 一直沒有備份而文件宣稱有——詳見下方「接上備份」。
-> **仍缺的是還原演練（`BACKUP-3`）與冷備份的排程**，同節有處置。
+> **還原演練 `BACKUP-3` 已於 2026-08-03 通過**（拉回雲端快照、起臨時 DB、數字逐項對上）。
+> **仍缺的是冷備份的排程**——實測發現索引本體目前只有**一個**還原點，同節有處置。
 
 > **今天的裁決材料**：`SPEEDUP` 與 `SYMBOL-3` 兩條線的工單與終審判定全文
 > （15 份，含 fable 的設計單、sol 的五份判定）存在
@@ -275,25 +276,47 @@ McNemar p=0.34 不顯著），**在脈絡之上再加推理又 +10pp**（B→C�
 `--tag plan:lightrag-snapshot` 兩份 `f2d40c9f`（10:45／203.198 MiB）、
 `07289a88`（12:30／207.263 MiB）——**後者是 cron 自己跑出來的，排程確實在動。**
 
-- [ ] **`BACKUP-4`：冷備份沒有排程。** `grep -rn backup-cold` 全 repo 只命中它
-      自己的 usage 註解，`systemctl list-timers` 只有 `lightrag-daily-check.timer`
-      ——**目前要有人記得手動跑**。它會停服務（停機窗＝本機複製時間），
-      所以排程時段、以及要不要與 daily-check 串接，需要先決定。
+- [ ] **`BACKUP-4`：冷備份沒有排程，而且實際上只有一個還原點。** ⚠️ **本輪演練查出來的**：
+      restic 的兩份 `lightrag-db` 快照（`e8af6a5b` 12:59、`25a3048a` 13:54）
+      **逐位元相同**——`restic diff` 回 `0 new, 0 removed, 0 changed`。
+      13:54 那份不是新的停機複製（若是，`pg_control` 的關機時戳一定會變），
+      是同一份 stage 被重複上傳。
+      ⇒ **索引本體目前只有「今天 12:59」這一個還原點**，而且沒有任何東西會產生下一個：
+      `grep -rn backup-cold` 全 repo 只命中它自己的 usage 註解，
+      `systemctl list-timers` 只有 `lightrag-daily-check.timer`。
+      它會停服務（停機窗＝本機複製時間），所以排程時段、以及要不要與 daily-check 串接，
+      需要先決定。**這是 `BACKUP` 線現在最大的洞**——還原路徑已驗證可用，
+      但可還原的時間點只有一個。
 
-### `BACKUP-3` — 還原演練：還原出來起不起得來　⏸ 暫緩
+### `BACKUP-3` — 還原演練　✅ 完成 2026-08-03，**通過**
 
-**目前只驗了「快照存在」與「檔案抄得回來」，沒驗「還原出來的資料庫起得來」。**
-`backup-cold.sh:74` 自己就寫著這件事是 BACKUP-3。**沒驗過的還原路徑等於沒有備份。**
+**從雲端整份拉回來、起臨時資料庫、逐項對數字，全部對上。** 現役未被觸碰。
 
-PO 2026-08-03 拍板：
+實測（dker，主線親跑，臨時容器 `-restoretest` 後綴、不綁埠、拆乾淨）：
 
-- **深度＝DB 層**：`restic restore` 到 `/data/rag/restoretest`（**不碰 `/data/lightrag`**）
-  → 起臨時 PG／Neo4j 容器（`-restoretest` 後綴、**不綁對外埠**、image digest 同現役）
-  → 逐張比對列數與節點／邊數是否與現役相同 → 拆乾淨。
-  **全鏈層（再起臨時 lightrag 容器實跑查詢）不做**：要 embedding 金鑰＋打第三台 LLM，
-  而 DB 層已足以回答「起得來且資料完整」。
-- **票別＝重票**：命中觸發清單 #6（寫進 `/data`）與 #4（起容器／部署契約），走五站。
-- **順序＝暫緩**，先做 `SYMBOL-3`。
+```
+restic restore 25a3048a → /data/backups/restoretest
+  Restored 1724 files/dirs (2.633 GiB) in 3:12        ← 下載方向首次被走過
+
+臨時 PG（pgvector/pgvector:pg16，掛還原目錄）
+  log: database system was shut down at 12:59:37      ← 乾淨關機，非崩潰復原
+  chunks|entities|relations|docs = 510|7211|10500|20  ← 與現役逐項相同
+  向量表 7211|10500|510                                ← 檢索本體也完整
+
+臨時 Neo4j（neo4j:5，掛還原目錄）
+  15 秒 Started.
+  7211 節點 / 10500 關係                               ← 與現役相同
+  抽樣實體帶得到 description，不是空殼
+```
+
+**三件實測換來的事：**
+
+1. **「權限會擋住 PG」這個擔心是錯的。** 還原出來的 `postgres/` 是 `755`（`backup-cold.sh`
+   的 `chmod -R a+rX` 造成），現役是 `700`——但官方映像的 entrypoint 會自己修正，PG 正常啟動。
+   **不必為此改備份腳本**（記在這裡，免得下次有人又擔心一次）。
+2. **冷備份真的抓到一致狀態**：PG 開機 log 是乾淨關機，沒有崩潰復原。停機再抄這個做法成立。
+3. **還原只能落在 `/data/backups`**：backrest 容器把 `/data` 唯讀掛成 `/userdata/data`，
+   只有 `/data/backups` 是可寫的。下次還原時直接用那裡，別浪費時間試別的路徑。
 
 - [ ] **算一次「全毀要多久重建」**再決定要做到什麼程度。目前已知：
       `__parsed__` 重解析 6–10 小時（已有備份，不必重跑）、抽取 3 小時 58 分、
