@@ -22,7 +22,8 @@
 | branch | `master`（單一；`rebuild/acoustics-v2` 已於 2026-08-03 合併並完成任務） |
 | **工作台** | **florian-coder**：`~/ghq/github.com/neknufelet/lightrag`。所有編輯在這裡。worker CLI（codex／opencode）只有這台有 |
 | **部署** | **florian-dker**（Tailscale `100.87.88.7`）：同路徑。**唯讀＋只 `git pull`，禁止直接編輯** |
-| 資料／容器 | 只在 florian-dker：`/data/rag/lightrag`、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700 |
+| 資料／容器 | 只在 florian-dker：`/data/rag/lightrag`（解析快取與裁決紀錄）、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700 |
+| 儲存後端 | 只在 florian-dker：`lightrag-postgres`（database `lightrag`）＋ `lightrag-neo4j`，資料在 `/data/lightrag`。**2026-08-03 從 DeepTutor 的共用實例搬出**，兩者都是專用實例（`lightrag-neo4j` 只有 `neo4j`／`system` 兩個 database），不再靠 workspace 欄位與 label 跟別的專案共處 |
 | LLM binding | 第三台 `100.71.26.77:8080`（qwen，llama.cpp 單 slot） |
 | workspace | **`acoustics_v2`（唯一）**。`acoustics_v155` 已完全退役，文件裡提到它的地方一律是歷史 |
 

@@ -43,8 +43,8 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 |---|---|---|
 | `REBUILD` | `REBUILD-5`（驗收與切換） | ✅ |
 | `CUTOVER` | `CUTOVER-4`（v155 退役） | ✅ |
-| `BACKUP` | `BACKUP-2`（Postgres／Neo4j 的 dump） | 🔵 `BACKUP-1`（`/data/rag/lightrag`）已完成並驗過還原 |
-| `SCANNER` | `SCANNER-1`（封閉掃描器進版控） | ⬜ 最優先的工程項 |
+| `BACKUP` | `BACKUP-3`（還原演練：還原出來起不起得來） | ⏸ PO 2026-08-03 拍板：驗到 **DB 層**、走**重票五站**，但**暫緩**，先做 `SYMBOL-3`。`BACKUP-1`／`BACKUP-2` ✅ |
+| `SCANNER` | `SCANNER-1`（∂ 誤讀探針接進 daily-check） | ✅ 完成 2026-08-03（commit `f637aea`，基準 `tests/scan-partial-baseline.json` 進版控） |
 | `SYMBOL` | `SYMBOL-3`（restated 怎麼處置） | 🔵 `SYMBOL-1`／`SYMBOL-2` ✅ 完成（答案卷＋三組實驗進版控）；`SYMBOL-2` 的**決策**未下 |
 | `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
 | `PPWORK` | `PPWORK-12` 之後無新項 | ✅ 大部分完成，殘項見「其他待辦」 |
@@ -63,16 +63,20 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 checkout  ~/ghq/github.com/neknufelet/lightrag（單一，無 worktree、無 v1/v2 分身）
 服務      lightrag :9621（容器 lightrag-acoustics_v2）
           kbapi    :9700（容器 kbapi-acoustics_v2）—— 三個 skill 全走這裡
+儲存      lightrag-postgres（database `lightrag`）＋ lightrag-neo4j，2026-08-03 從
+          DeepTutor 共用實例搬出，資料在 /data/lightrag（postgres 622 MB、neo4j 2.1 GB）。
+          lightrag-neo4j 只有 neo4j／system 兩個 database ＝ 專用實例，不再跨專案共用
 內容      20 份 processed / 0 failed、7,211 實體、10,500 關係、510 chunk、可疑率 4.5%
 排程      lightrag-daily-check.timer 每天 08:30 跑 compat-check + canary，
           紅燈打自架 ntfy（/opt/stacks/ntfy :9800），腳本自己掛掉走 systemd OnFailure 備援
 v155      已不存在。Neo4j label、Postgres 列、磁碟目錄、容器全部移除，數字見 CLAUDE.md
 ```
 
-> **備份**：`/data/rag/lightrag`（含 `__parsed__` 與 `records/`）已於 2026-08-03
-> 接上 backrest（plan `lightrag-snapshot`，每 6 小時），**並驗過能還原**。
-> 在此之前它一直沒有備份，而文件宣稱有——詳見下方「接上備份」。
-> **索引本體（Postgres 15 GB／Neo4j 1.6 GB）目前仍無備份**，同節有處置。
+> **備份**：兩條都已接上（2026-08-03）。① `/data/rag/lightrag`（含 `__parsed__`
+> 與 `records/`）走 backrest plan `lightrag-snapshot`，每 6 小時，**並驗過能還原**。
+> ② 索引本體（`/data/lightrag` 的 Postgres＋Neo4j）走 `scripts/backup-cold.sh`
+> 冷備份。在此之前 ① 一直沒有備份而文件宣稱有——詳見下方「接上備份」。
+> **仍缺的是還原演練（`BACKUP-3`）與冷備份的排程**，同節有處置。
 
 > **路徑約定**：本檔寫 `$RECORDS/…` 一律指
 > `/data/rag/lightrag/acoustics_v2/records/`——**在 `/data`，不在 git**
@@ -196,7 +200,8 @@ McNemar p=0.34 不顯著），**在脈絡之上再加推理又 +10pp**（B→C�
 
 ## `BACKUP` — 接上備份
 
-**已完成一半。** 2026-08-03 查證：文件宣稱 `/data/rag` 在 restic 備份範圍，
+**兩條都接上了（`BACKUP-1`／`BACKUP-2` ✅），缺的是還原演練與排程。**
+2026-08-03 查證：文件宣稱 `/data/rag` 在 restic 備份範圍，
 **那是假的**——backrest 當時只涵蓋 `/data/rag/knowledge_bases`（DeepTutor 的庫）。
 假的安全宣稱比沒有宣稱更危險，因為你會照著它做決定。
 
@@ -207,22 +212,45 @@ McNemar p=0.34 不顯著），**在脈絡之上再加推理又 +10pp**（B→C�
       `restic restore` 取回 `records/` 的 73 個檔，**sha256 逐位元與現役相同**。
 - [x] 修掉 `.env.example` 與 README 裡「restic 備份範圍」的假宣稱
 
-### 還沒接的：索引本體
+### `BACKUP-2` — 索引本體　✅ 完成 2026-08-03
+
+**搬家把這題變簡單了。** DB 從 DeepTutor 的共用實例搬進自己的 `lightrag-postgres`／
+`lightrag-neo4j` 之後，「只備我們的」不再需要 `pg_dump`／`neo4j-admin dump`——
+整個 `/data/lightrag` 就是我們的，停機抄目錄即可。**pg_dump 路線為什麼被取代、
+為什麼要停機、為什麼先抄本地再上傳**，理由都寫在 `scripts/backup-cold.sh` 檔頭
+（commit `c6d07da`、`54f86f7`），這裡不重抄。
 
 | 路徑 | 大小 | 備份 |
 |---|---|---|
-| `/data/rag/lightrag` | 210 MB | ✅ 已接 |
-| `/data/rag/postgres_data`（**7,211 實體／10,500 關係／向量都在這**） | 15 GB | ❌ **無** |
-| `/data/rag/neo4j_data`（圖） | 1.6 GB | ❌ **無** |
+| `/data/rag/lightrag`（解析快取＋裁決紀錄） | 215 MB | ✅ backrest plan `lightrag-snapshot`，每 6 小時 |
+| `/data/lightrag/postgres`（**7,211 實體／10,500 關係／向量都在這**） | 622 MB | ✅ `backup-cold.sh` 冷備份 |
+| `/data/lightrag/neo4j`（圖） | 2.1 GB | ✅ 同上 |
 
-- [ ] **Postgres 的備份要用 `pg_dump`，不能複製資料目錄。** 跑著的 PG 資料目錄
-      直接檔案複製出來是**不一致的快照**，還原時可能起不來——而且失敗會發生在
-      你最需要它的時候。做法：定時 `docker exec deeptutor-v4-postgres pg_dump`
-      到某個路徑，再讓 backrest 備那個路徑。
-      **注意這個 PG 是與 DeepTutor 共用的**（15 GB 不全是我們的），
-      要嘛只 dump `lightrag` 這個 database，要嘛跟那邊一起規劃。
-- [ ] Neo4j 同理，用 `neo4j-admin database dump`。同樣是共用實例
-      （`acoustics_books`、`Room_Optimizer` 等六個庫在裡面）。
+實測 2026-08-03（restic repo `rag-db`）：`--tag lightrag-db` 兩份
+`e8af6a5b`（12:59）、`25a3048a`（13:54），各 2.633 GiB；
+`--tag plan:lightrag-snapshot` 兩份 `f2d40c9f`（10:45／203.198 MiB）、
+`07289a88`（12:30／207.263 MiB）——**後者是 cron 自己跑出來的，排程確實在動。**
+
+- [ ] **`BACKUP-4`：冷備份沒有排程。** `grep -rn backup-cold` 全 repo 只命中它
+      自己的 usage 註解，`systemctl list-timers` 只有 `lightrag-daily-check.timer`
+      ——**目前要有人記得手動跑**。它會停服務（停機窗＝本機複製時間），
+      所以排程時段、以及要不要與 daily-check 串接，需要先決定。
+
+### `BACKUP-3` — 還原演練：還原出來起不起得來　⏸ 暫緩
+
+**目前只驗了「快照存在」與「檔案抄得回來」，沒驗「還原出來的資料庫起得來」。**
+`backup-cold.sh:74` 自己就寫著這件事是 BACKUP-3。**沒驗過的還原路徑等於沒有備份。**
+
+PO 2026-08-03 拍板：
+
+- **深度＝DB 層**：`restic restore` 到 `/data/rag/restoretest`（**不碰 `/data/lightrag`**）
+  → 起臨時 PG／Neo4j 容器（`-restoretest` 後綴、**不綁對外埠**、image digest 同現役）
+  → 逐張比對列數與節點／邊數是否與現役相同 → 拆乾淨。
+  **全鏈層（再起臨時 lightrag 容器實跑查詢）不做**：要 embedding 金鑰＋打第三台 LLM，
+  而 DB 層已足以回答「起得來且資料完整」。
+- **票別＝重票**：命中觸發清單 #6（寫進 `/data`）與 #4（起容器／部署契約），走五站。
+- **順序＝暫緩**，先做 `SYMBOL-3`。
+
 - [ ] **算一次「全毀要多久重建」**再決定要做到什麼程度。目前已知：
       `__parsed__` 重解析 6–10 小時（已有備份，不必重跑）、抽取 3 小時 58 分、
       嵌入 4.56M 字元 ≈ US$0.15。**人工裁決那部分重跑也回不來**，但它在
