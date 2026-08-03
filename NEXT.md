@@ -7,6 +7,33 @@
 
 ---
 
+## 開新對話直接貼這段
+
+```
+專案 lightrag（聲學知識庫）。我在 florian-coder，透過 ssh 操作 florian-dker。
+
+座標
+  repo      ~/ghq/github.com/neknufelet/lightrag-v1（coder，工作台）
+            ~/ghq/github.com/neknufelet/lightrag（dker，部署，唯讀只 pull）
+  GitHub    neknufelet/lightrag-v1（尚未改名，計畫改成 lightrag，卡在 gh 未登入）
+  服務      dker: lightrag-acoustics_v2 :9621、kbapi-acoustics_v2 :9700
+            自己的 lightrag-postgres 與 lightrag-neo4j（2026-08-03 從 DeepTutor 搬出）
+  資料      /data/lightrag（DB）＋ /data/rag/lightrag（解析快取與裁決紀錄）
+
+先讀 CLAUDE.md 與 NEXT.md，兩份都是 2026-08-03 大改過的。
+CLAUDE.md 前半是治理層（座標、藍桶 9 條、雙軌溝通、提交紀律、驗收路由、命名規則），
+後半是原本的六條鐵則與現況。
+
+規矩重點：
+  - 改在 coder、驗在 dker。**驗證輸出沒拿到就還沒 done。**
+  - coder 上沒有 .env、沒有 docker，碰 DB 的腳本在那裡跑不起來——這是刻意的。
+  - 重票觸發清單見 CLAUDE.md「執行方針與驗收路由」，有疑義＝重票。
+
+下一步照 NEXT.md 的狀態總表。最優先：
+  BACKUP-3  還原測試——目前只驗了「快照存在」，沒驗「還原出來起得來」
+  SYMBOL-3  先量 restated 那 600–990 個實體實際被檢索命中幾次，再決定動不動
+```
+
 ## 狀態總表
 
 label 格式與字母語意見 [CLAUDE.md](CLAUDE.md)「工作項目命名規則」。
