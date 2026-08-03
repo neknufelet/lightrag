@@ -613,9 +613,31 @@ query-aware 的 A/B，**不足以永久封殺 selective gleaning**。
 - [ ] 真要定案，缺的量測是：用實際 parser 重播、比對**最終 unique 節點與邊**的增量、
       量 `prompt_tokens`／`completion_tokens` 與 prefill/decode 時間、
       以及固定查詢集下的檢索品質 A/B。
-- [ ] **獨立問題：63 筆（6%）`return_value` 不是合法 JSON**（initial 41、gleaning 22）。
-      我的 `json.loads` 失敗**不等於** LightRAG 的 parser 也失敗——要用實際 parser
-      重播那 63 筆才知道內容有沒有整批掉。這條與 gleaning 無關，但同樣沒人在看。
+- [x] **✅ 已查：64 筆（6%）`return_value` 不是合法 JSON —— 內容沒有掉。**
+
+      成因是 **`Invalid \escape`**：模型在描述裡寫 LaTeX（`\gamma`、`\frac`），
+      **反斜線在 JSON 裡是非法轉義**。內容與格式天生衝突，不是模型亂答。
+
+      **決定性的比對**（`$RECORDS/review/20260803-speedup-symbol3/invalid_json_audit.py`）
+      不是「JSON 合不合法」，是「該 chunk 在索引裡還有沒有實體」：
+
+      ```
+      兩輪都合法   458 chunk   9,581 實體   平均 20.9   （其中 7 個 0 實體）
+      壞一輪        40 chunk   1,140 實體   平均 28.5   （0 個 0 實體）
+      兩輪都壞      12 chunk     259 實體   平均 21.6   （0 個 0 實體）
+      ```
+
+      ⇒ **壞 JSON 的 chunk 實體不但沒少、還更多**。LightRAG 的 parser 比
+      `json.loads` 寬容，那 64 筆都進了索引。方向也合理：**輸出越豐富越容易寫到
+      LaTeX，也越容易有很多實體**——「JSON 壞」與「內容豐富」正相關。
+
+      ⚠ **但這回頭修正了 `SPEEDUP-4` 的數字**：那些統計把這 64 筆當 0 或直接排除，
+      而它們比平均更豐富。initial 有 41 筆壞、gleaning 只有 22 筆
+      ⇒ **initial 被低估得更多 ⇒ gleaning 的相對貢獻被高估**。
+      （luna 當時預測了這個偏差存在但「不能由筆數判斷方向」——現在可以了。）
+
+      ⚠ **給未來寫工具的人**：任何用嚴格 `json.loads` 去讀這批快取的工具，
+      **會靜靜漏掉 6% 而且是最豐富的那 6%**。主線今天就踩了兩次。
 
 - [x] **`SPEEDUP-2.1`：受控吞吐基準工具**（`scripts/llm-bench.py`，commit `580a6f1`
       ＋ `3299ee9`）。四輪終審才過，每輪擋掉一個會產生錯數字的缺陷；判定原文四份。
