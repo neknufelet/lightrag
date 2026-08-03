@@ -81,8 +81,13 @@ LightRAG 的 token 總額固定 30,000，圖譜與原文共用；`top_k` 開大�
 `mode` 同樣沒有節流效果（mix/local/global/naive 都是 14,000–21,000 tokens）。
 
 **所以要控制量就只調 `chunks` 與 `chars`。** 這兩個由 :9700 處理：`chunks`
-下傳成 LightRAG 真正的片段旋鈕，`chars` 在回傳前截斷。它們與 `top_k` 正交
-——`top_k` 3/10/20/40 配同一個 `chunks`，拿到的原文完全一樣，只有實體清單長短不同。
+下傳成 LightRAG 真正的片段旋鈕，`chars` 在回傳前截斷。它們與 `top_k` 在**量**上
+正交 ——`top_k` 3/10/20/40 配同一個 `chunks`，原文長度完全一樣（實測皆 12,125
+字元），實體清單則從 8 個增為 30 個後飽和。
+
+但**選到哪些片段會變**：同一組 `chunks=6&chars=12000`，`top_k` 3/10/20 四個片段
+全來自 `K Muffler Acoustics.pdf`，`top_k=40` 時第四個換成了 `N Flow Acoustics.pdf`。
+所以 `top_k` 不是完全無副作用 —— 它不改變回傳量，但會換掉內容。
 
 一次搜尋預設約 3,000–4,000 tokens；答案不足時把 `chunks` 提到 12、
 `chars` 提到 24000 再試一次。要多一點實體當線索時才動 `top_k`。
