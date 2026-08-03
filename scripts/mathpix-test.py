@@ -21,22 +21,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp import crosscheck, mathpix  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
 
 
 def eq_dir(workspace: str) -> Path:
     """eq-check 的裁圖與轉錄快取。路徑跟著 workspace 走，不寫死 —— 寫死的話
     在 v2 的 checkout 跑會去讀 v155 的快取，然後把 v155 的式子當成 v2 的結論。"""
-    return DATA_ROOT / workspace / "postprocess" / "_equations"
+    return DataPaths(DATA_ROOT).equations_dir
 
 
 def collect(eq: Path) -> list[dict]:

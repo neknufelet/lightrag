@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import random
 import sys
 from pathlib import Path
@@ -33,9 +32,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, bbox_to_points, load_env  # noqa: E402
 from pp import crosscheck, eyes, pdfcrop  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
 
 # 兩份轉錄視為一致的門檻。方程式沒有列結構，比表格單純，用整體記號集合即可。
 T_AGREE = 0.85
@@ -51,13 +51,15 @@ PROMPT_EQ = (
 
 def pick(workspace: str, n: int, doc: str | None, seed: int = 7) -> list[tuple]:
     """挑樣本。偏向數學密集與已知有瑕疵的文件 —— 均勻抽會低估錯誤率。"""
-    pdir = DATA_ROOT / workspace / "inputs" / workspace / "__parsed__"
+    paths = DataPaths(DATA_ROOT)
+    pdir = paths.parsed_dir
+    source_dir = paths.inputs_dir(workspace)
     pool: list[tuple] = []
     for raw in sorted(pdir.glob("*.mineru_raw")):
         if doc and doc.lower() not in raw.name.lower():
             continue
         try:
-            ctx = DocContext(raw)
+            ctx = DocContext(raw, source_dir=source_dir)
             ctx.preflight()
             w, h = ctx.page_size
         except (DocContextError, Exception):            # noqa: BLE001
@@ -95,7 +97,7 @@ def main() -> int:
                     help="不呼叫第三隻眼睛（三方皆異直接留給人工）")
     a = ap.parse_args()
 
-    out_root = DATA_ROOT / a.workspace / "postprocess" / "_equations"
+    out_root = DataPaths(DATA_ROOT).equations_dir
     eye_a, eye_b = eyes.eyes_from_env(env)
     # 第三隻眼睛只在「三方皆異」時才呼叫 —— 其餘 87% 的案例多數決已經解決，
     # 對它們付費不會改變任何結論。沒設定就跳過，那些留給人工。

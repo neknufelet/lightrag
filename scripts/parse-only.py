@@ -26,19 +26,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
+from pp.paths import ContainerPaths, DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
-
-# 容器內看到的路徑。宿主的 DATA_ROOT/<ws> 掛在容器的 /app/data。
-CONTAINER_DATA = "/app/data"
+DATA_ROOT = configured_data_root()
 
 _SNIPPET = r'''
 import asyncio, json, sys
@@ -89,14 +86,14 @@ def main() -> int:
     a = ap.parse_args()
 
     ws = a.workspace
-    inputs = DATA_ROOT / ws / "inputs" / ws
-    parsed = inputs / "__parsed__"
+    paths = DataPaths(DATA_ROOT)
+    inputs = paths.inputs_dir(ws)
     if not inputs.is_dir():
         sys.exit(f"parse-only: 找不到 {inputs}")
 
     todo = []
     for pdf in sorted(inputs.glob("*.pdf")):
-        raw = parsed / f"{pdf.name}.mineru_raw"
+        raw = paths.parsed_bundle_dir(pdf.name)
         if (raw / "content_list.json").is_file():
             continue
         if a.doc and a.doc.lower() not in pdf.name.lower():
@@ -125,12 +122,16 @@ def main() -> int:
     o = Oracle(container=container_for(ws), timeout=a.timeout)
     ok = bad = 0
     for pdf in todo:
-        # 容器內路徑：宿主 DATA_ROOT/<ws> 對應容器 /app/data
-        c_src = f"{CONTAINER_DATA}/inputs/{ws}/{pdf.name}"
-        c_raw = f"{CONTAINER_DATA}/inputs/{ws}/__parsed__/{pdf.name}.mineru_raw"
+        # compose 的兩個 mount 對齊為：宿主 DATA_ROOT/inputs/<ws> →
+        # /app/data/inputs/<ws>；宿主 DATA_ROOT/work/parsed →
+        # /app/data/inputs/<ws>/__parsed__。這些是容器內 LightRAG 契約路徑，
+        # coder 沒有容器，實際 mount 生效與否必須在 dker 回程確認（未驗,推測）。
+        container = ContainerPaths()
+        c_src = container.inputs_dir(ws) / pdf.name
+        c_raw = container.parsed_bundle_dir(ws, pdf.name)
         print(f"\n→ {pdf.name}")
         try:
-            r = o.py_argv(_SNIPPET, [c_src, c_raw, pdf.name])
+            r = o.py_argv(_SNIPPET, [str(c_src), str(c_raw), pdf.name])
         except OracleError as e:
             print(f"   ✗ 容器呼叫失敗：{e}")
             bad += 1

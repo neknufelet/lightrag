@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pp.docctx import DocContext  # noqa: E402
 from pp.oracle import Oracle, OracleError  # noqa: E402
+from pp.paths import ContainerPaths  # noqa: E402
 from pp.rules import chart_type, empty_table, latex_fix, layout_noise  # noqa: E402
 
 
@@ -145,7 +146,7 @@ def _sha256(p: Path) -> str:
     return "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def bundle_valid(ctx: DocContext, oracle: Oracle) -> bool:
+def bundle_valid(ctx: DocContext, oracle: Oracle, *, workspace: str) -> bool:
     """問 LightRAG 本人這份 bundle 還算不算數。不要自己重算 —— 驗證邏輯
     包含 options_signature 等我們不該複製的東西。"""
     code = r'''
@@ -154,12 +155,16 @@ from pathlib import Path
 from lightrag.parser.external.mineru import is_bundle_valid
 print(json.dumps({"valid": bool(is_bundle_valid(Path(sys.argv[1]), Path(sys.argv[2]), overrides=None))}))
 '''
-    ws = ctx.raw_dir.parent.parent.name
-    c_raw = f"/app/data/inputs/{ws}/__parsed__/{ctx.raw_dir.name}"
-    c_src = f"/app/data/inputs/{ws}/__parsed__/{ctx.doc_name}"
-    if not (ctx.raw_dir.parent / ctx.doc_name).is_file():
-        c_src = f"/app/data/inputs/{ws}/{ctx.doc_name}"
-    return bool(oracle.py_argv(code, [c_raw, c_src])["valid"])
+    container = ContainerPaths()
+    c_raw = container.parsed_bundle_dir(workspace, ctx.doc_name)
+    source = ctx.source_pdf
+    if source.parent == ctx.raw_dir.parent:
+        c_src = container.parsed_dir(workspace) / source.name
+    elif source.parent == ctx.raw_dir:
+        c_src = c_raw / source.name
+    else:
+        c_src = container.inputs_dir(workspace) / source.name
+    return bool(oracle.py_argv(code, [str(c_raw), str(c_src)])["valid"])
 
 
 def pipeline_idle(oracle: Oracle) -> bool:
@@ -193,10 +198,18 @@ def _backup(src: Path, dst: Path) -> None:
         raise ApplyError(f"備份內容與來源不符（複製途中被截斷？）：{dst}")
 
 
-def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] | None = None,
-              verified_text: dict[str, str] | None = None,
-              curated_idx: set[str] | None = None,
-              oracle: Oracle | None = None, commit: bool = False) -> ApplyResult:
+def apply_doc(
+    raw_dir: Path,
+    *,
+    workspace: str,
+    source_dir: Path,
+    out_root: Path,
+    verified_tables: dict[str, str] | None = None,
+    verified_text: dict[str, str] | None = None,
+    curated_idx: set[str] | None = None,
+    oracle: Oracle | None = None,
+    commit: bool = False,
+) -> ApplyResult:
     """verified_tables: {content_list 索引(字串): 已通過交叉比對的 table HTML}
     verified_text:   {content_list 索引(字串): 人工裁定過的 text}
     curated_idx:     上面哪些索引來自**人工裁定檔**（其餘是自動採用的轉錄）
@@ -210,7 +223,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     原文一律存進 `_pp_original_text`，還原路徑與消音共用同一條。
     """
     o = oracle or Oracle()
-    ctx = DocContext(raw_dir)
+    ctx = DocContext(raw_dir, source_dir=source_dir)
     ctx.preflight()
     r = ApplyResult(ctx.doc_name, raw_dir=raw_dir)
 
@@ -329,7 +342,7 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     # ── 寫檔前的安全條件 ──
     if not pipeline_idle(o):
         raise ApplyError("pipeline 忙碌中，拒絕改檔（掃描會跟我們搶同一份檔案）")
-    if not bundle_valid(ctx, o):
+    if not bundle_valid(ctx, o, workspace=workspace):
         raise ApplyError(f"{ctx.doc_name}：bundle 目前就不被 LightRAG 認可，先修好再說")
 
     # ── 備份 ──
@@ -410,8 +423,8 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
 
     # ── 寫完必須再問一次 ──
-    ctx2 = DocContext(raw_dir)
-    r.valid_after = bundle_valid(ctx2, o)
+    ctx2 = DocContext(raw_dir, source_dir=source_dir)
+    r.valid_after = bundle_valid(ctx2, o, workspace=workspace)
     if not r.valid_after:
         r.notes.append("⚠ 寫完後 LightRAG 不認可這份 bundle —— 用 revert 還原")
     else:
@@ -423,7 +436,13 @@ def apply_doc(raw_dir: Path, *, out_root: Path, verified_tables: dict[str, str] 
     return r
 
 
-def rollback_from_backup(res: ApplyResult, *, oracle: Oracle | None = None) -> str:
+def rollback_from_backup(
+    res: ApplyResult,
+    *,
+    workspace: str,
+    source_dir: Path,
+    oracle: Oracle | None = None,
+) -> str:
     """把一份文件還原成這一輪 apply **之前**的位元組。回傳一行說明。
 
     為什麼不用 `revert_doc`：那支是「撤回全部 `_pp_*` 欄位」，會把好幾輪之前的
@@ -435,7 +454,7 @@ def rollback_from_backup(res: ApplyResult, *, oracle: Oracle | None = None) -> s
     """
     if not (res.raw_dir and res.backup and res.backup_manifest):
         raise ApplyError(f"{res.doc}：沒有完整的備份路徑，無法回滾")
-    ctx = DocContext(res.raw_dir)
+    ctx = DocContext(res.raw_dir, source_dir=source_dir)
     for src, dst in ((res.backup, ctx.content_list_path),
                      (res.backup_manifest, ctx.manifest_path)):
         if not src.is_file():
@@ -443,11 +462,18 @@ def rollback_from_backup(res: ApplyResult, *, oracle: Oracle | None = None) -> s
         shutil.copy2(src, dst)
         if _sha256(dst) != _sha256(src):
             raise ApplyError(f"{res.doc}：回滾後內容與備份不符：{dst}")
-    valid = bundle_valid(DocContext(res.raw_dir), oracle or Oracle())
+    valid = bundle_valid(DocContext(res.raw_dir, source_dir=source_dir), oracle or Oracle(),
+                         workspace=workspace)
     return f"{res.doc}：已回滾到 {res.backup.name}；bundle {'認可' if valid else '**未認可**'}"
 
 
-def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
+def revert_doc(
+    raw_dir: Path,
+    *,
+    workspace: str,
+    source_dir: Path,
+    oracle: Oracle | None = None,
+) -> ApplyResult:
     """就地還原：消音讀 _pp_original_text，表格讀 _pp_original_table_body，
     圖片型別讀 _pp_original_type。不需要備份檔 —— 但備份仍然存在，用於查帳。
 
@@ -456,7 +482,7 @@ def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
     3 個 chart 轉換，結果連同上一輪的 61 個 header 消音一起復原了。要回到
     「撤掉某一項、其餘保留」就再跑一次 apply（規則是冪等的）。"""
     o = oracle or Oracle()
-    ctx = DocContext(raw_dir)
+    ctx = DocContext(raw_dir, source_dir=source_dir)
     items = json.loads(ctx.content_list_path.read_text())
     r = ApplyResult(ctx.doc_name, items_before=len(items))
 
@@ -500,5 +526,6 @@ def revert_doc(raw_dir: Path, *, oracle: Oracle | None = None) -> ApplyResult:
     man.pop(POSTPROCESS_PASS_KEY, None)
     ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
 
-    r.valid_after = bundle_valid(DocContext(raw_dir), o)
+    r.valid_after = bundle_valid(DocContext(raw_dir, source_dir=source_dir), o,
+                                 workspace=workspace)
     return r

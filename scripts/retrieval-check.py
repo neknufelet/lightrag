@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -28,10 +27,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 from pp.rules import layout_noise  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
 
 # 涵蓋這批文件主題的題組。刻意混合具體與概念性的問題 —— 兩者檢索到的
 # chunk 型態不同（具體題容易命中表格與數值，概念題容易命中散文）。
@@ -58,11 +58,13 @@ def ask(host: str, key: str, q: str, top_k: int) -> list[dict]:
 
 def noise_index(workspace: str) -> dict[str, set[str]]:
     """每份文件的消音字串集合。用檔名當鍵，對得上 chunk 的 file_path。"""
-    pdir = DATA_ROOT / workspace / "inputs" / workspace / "__parsed__"
+    paths = DataPaths(DATA_ROOT)
+    pdir = paths.parsed_dir
+    source_dir = paths.inputs_dir(workspace)
     out: dict[str, set[str]] = {}
     for raw in sorted(pdir.glob("*.mineru_raw")):
         try:
-            ctx = DocContext(raw)
+            ctx = DocContext(raw, source_dir=source_dir)
             plan = layout_noise.plan(ctx.items, ctx.n_pages)
         except (DocContextError, Exception):       # noqa: BLE001
             continue

@@ -64,6 +64,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 FIELDS = ("text", "content", "body", "code_body", "table_body")
@@ -266,13 +267,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="∂ 誤讀探針：上下同形判定＋基準漂移")
     add_workspace_arg(ap, env)
     ap.add_argument("--root", type=Path,
-                    default=Path(env.get("DATA_ROOT", "/data/rag/lightrag")))
+                    default=Path(env.get("DATA_ROOT", str(DEFAULT_DATA_ROOT))))
     ap.add_argument("--details", action="store_true", help="逐處印出上下文")
     ap.add_argument("--update", action="store_true", help="把目前結果認可為新基準")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
-    parsed = a.root / a.workspace / "inputs" / a.workspace / "__parsed__"
+    parsed = DataPaths(a.root).parsed_dir
     if not parsed.is_dir():
         sys.exit(f"找不到 {parsed}")
     hits, bad = scan(parsed)

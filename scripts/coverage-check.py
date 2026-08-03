@@ -80,9 +80,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_ROOT = Path("/data/rag/lightrag")
+DEFAULT_ROOT = DEFAULT_DATA_ROOT
 DEFAULT_THRESHOLD = 0.05
 
 # ≥4 字母的純英文詞。理由見檔頭。
@@ -237,15 +238,17 @@ def pdf_words(pdf: Path) -> collections.Counter:
     return words(p.stdout)
 
 
-def find_source_pdf(raw_dir: Path) -> Path | None:
+def find_source_pdf(raw_dir: Path, source_dir: Path | None = None) -> Path | None:
     """來源 PDF 的位置**不得寫死**：LightRAG 的 archive_source 會把它從
-    inputs 根層搬進 __parsed__/，所以同一份文件在解析前後路徑不同。
+    inputs/<workspace>/ 搬進 work/parsed/，所以同一份文件在解析前後路徑不同。
     有 manifest 就用 source_content_hash 內容定址確認（與 compat-check A-13
     同一套判準），沒有就退回檔名比對。
     """
     name = raw_dir.name.removesuffix(".mineru_raw")
-    cands = [raw_dir.parent / name, raw_dir.parent.parent / name,
-             *sorted(raw_dir.glob("*_origin.pdf"))]
+    cands = []
+    if source_dir is not None:
+        cands.append(source_dir / name)
+    cands.extend([raw_dir.parent / name, *sorted(raw_dir.glob("*_origin.pdf"))])
     want = None
     mf = raw_dir / "_manifest.json"
     if mf.is_file():
@@ -269,12 +272,12 @@ def find_source_pdf(raw_dir: Path) -> Path | None:
     return fallback
 
 
-def check_doc(raw_dir: Path) -> dict:
+def check_doc(raw_dir: Path, source_dir: Path | None = None) -> dict:
     cl = raw_dir / "content_list.json"
     name = raw_dir.name.removesuffix(".pdf.mineru_raw")
     if not cl.is_file():
         return {"doc": name, "error": "缺少 content_list.json（解析未完成或失敗）"}
-    pdf = find_source_pdf(raw_dir)
+    pdf = find_source_pdf(raw_dir, source_dir)
     if pdf is None:
         return {"doc": name, "error": "找不到來源 PDF，無法取得文字層對照"}
     try:
@@ -305,7 +308,9 @@ def check_doc(raw_dir: Path) -> dict:
 
 
 def scan(root: Path, workspace: str, doc: str | None) -> list[dict]:
-    pdir = root / workspace / "inputs" / workspace / "__parsed__"
+    paths = DataPaths(root)
+    pdir = paths.parsed_dir
+    source_dir = paths.inputs_dir(workspace)
     if not pdir.is_dir():
         print(f"coverage-check: 找不到解析目錄 {pdir}", file=sys.stderr)
         return []
@@ -313,7 +318,7 @@ def scan(root: Path, workspace: str, doc: str | None) -> list[dict]:
     for raw in sorted(pdir.glob("*.mineru_raw")):
         if doc and doc.lower() not in raw.name.lower():
             continue
-        out.append(check_doc(raw))
+        out.append(check_doc(raw, source_dir))
     return out
 
 

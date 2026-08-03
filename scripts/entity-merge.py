@@ -24,8 +24,8 @@ r"""實體碎片化：找出同一個概念被抽成多個節點的情形，並*
     ./entity-merge.py plan --queries 30    # 多跑幾個查詢，統計更穩
     ./entity-merge.py review --top 8       # 產人工審查表（附原文段落）
 
-輸出：DATA_ROOT/<ws>/postprocess/entity-merge.json（含分層、代價、建議正規名）
-      DATA_ROOT/<ws>/postprocess/entity-merge-review.md（審查表）
+輸出：DATA_ROOT/work/crops/entity-merge.json（含分層、代價、建議正規名）
+      DATA_ROOT/work/crops/entity-merge-review.md（審查表）
 
 為什麼審查表一定要附原文：實測第一組 `Z m` / `ZM` / `Zm`，三個節點的
 description 看起來像三個相關概念，撈出原文才發現
@@ -42,7 +42,6 @@ from __future__ import annotations
 import argparse
 import collections
 import json
-import os
 import re
 import subprocess
 import sys
@@ -53,9 +52,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
+
+
+def _paths() -> DataPaths:
+    return DataPaths(DATA_ROOT)
 SEP = re.compile(r"[\s_\-.,()]+")
 # LightRAG 用這個字串串接多值欄位（source_id、file_path）
 def SEPS(v: str) -> list[str]:
@@ -206,7 +210,7 @@ def cmd_plan(a, env) -> int:
                        "seen_together": sorted(hits[k]), "suggest_keep": canonical(g)})
     silent = [k for k in dups if k not in cost]
 
-    out_dir = DATA_ROOT / a.workspace / "postprocess"
+    out_dir = _paths().crops_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "entity-merge.json"
     out.write_text(json.dumps({
@@ -533,7 +537,7 @@ def render_html(groups: list[dict]) -> str:
 
 def cmd_review(a, env) -> int:
     rag, pg = Rag(env), Pg(env)
-    src = DATA_ROOT / a.workspace / "postprocess" / "entity-merge.json"
+    src = _paths().crops_dir / "entity-merge.json"
     if not src.is_file():
         sys.exit(f"找不到 {src}，先跑 `entity-merge.py plan`")
     plan = json.loads(src.read_text())
@@ -598,7 +602,7 @@ def cmd_review(a, env) -> int:
                        "wasted": g["wasted_slots"], "keep": g["suggest_keep"],
                        "rows": rows})
 
-    out_dir = DATA_ROOT / a.workspace / "postprocess"
+    out_dir = _paths().crops_dir
     (out_dir / "entity-merge-review.json").write_text(
         json.dumps(groups, ensure_ascii=False, indent=1), encoding="utf-8")
 
@@ -647,7 +651,7 @@ def cmd_review(a, env) -> int:
                   "> 那代表名字是模型「推」出來的，不是照抄 —— 特別要看原文再決定。", ""]
         L += ["---", ""]
 
-    out = DATA_ROOT / a.workspace / "postprocess" / "entity-merge-review.md"
+    out = _paths().crops_dir / "entity-merge-review.md"
     out.write_text("\n".join(L), encoding="utf-8")
     html = out.with_suffix(".html")
     html.write_text(render_html(groups), encoding="utf-8")
@@ -670,7 +674,7 @@ def cmd_dump(a, env) -> int:
     rag = Rag(env)
     names = a.name or []
     if a.from_review:
-        src = DATA_ROOT / a.workspace / "postprocess" / "entity-merge-review.json"
+        src = _paths().crops_dir / "entity-merge-review.json"
         if not src.is_file():
             sys.exit(f"找不到 {src}，先跑 review")
         names += [r["name"] for g in json.loads(src.read_text()) for r in g["rows"]]
@@ -717,7 +721,7 @@ def cmd_dump(a, env) -> int:
     # 檔名帶時間戳，而且不覆蓋既有的。實測踩過：合併完之後為了驗證又跑了一次
     # dump，直接蓋掉合併**前**那份 —— 新的那份只剩活著的 9 個節點，被刪掉的
     # 20 個連同它們的邊就沒有記錄了。備份被自己的工具蓋掉，是最沒必要的損失。
-    home = DATA_ROOT / a.workspace / "postprocess"
+    home = _paths().crops_dir
     home.mkdir(parents=True, exist_ok=True)
     dst = home / f"entity-merge-backup.{time.strftime('%Y%m%d-%H%M%S')}.json"
     if dst.exists():
@@ -752,7 +756,7 @@ def cmd_apply(a, env) -> int:
     dec = json.loads(Path(a.decisions).read_text(encoding="utf-8"))
     # 找所有時間戳備份，合起來看有沒有涵蓋要刪的節點。只看 latest 的話，
     # 一次無心的 dump 就會讓「有備份」這件事變成假的。
-    home = DATA_ROOT / a.workspace / "postprocess"
+    home = _paths().crops_dir
     bkps = sorted(home.glob("entity-merge-backup.*.json"))
 
     srcs = [x for g in dec for x in g["from"]]

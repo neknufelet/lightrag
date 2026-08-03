@@ -2,7 +2,7 @@
 # 發警報到自架 ntfy（/opt/stacks/ntfy，手機 app 訂閱 http://100.87.88.7:9800 的 lightrag 主題）。
 # 用法: notify.sh <標題> [內文...]
 # NTFY_URL 從 .env 讀（沒設就用本機預設）。所有排程檢查的失敗都必須經過這裡——
-# 通知管道只負責打斷人，紅綠狀態一律另外落地在 /data/rag/lightrag/checks/。
+# 通知管道只負責打斷人，紅綠狀態一律另外落地在 /data/lightrag/checks/。
 set -u
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 NTFY_URL="$(grep -s '^NTFY_URL=' "$REPO_DIR/.env" | cut -d= -f2-)"

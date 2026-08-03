@@ -31,8 +31,10 @@ def _args(workspace: str = "test", *, commit: bool = True) -> argparse.Namespace
 
 def _paths(module: ModuleType, tmp_path: Path) -> tuple[Path, Path]:
     module.DATA_ROOT = tmp_path / "data"
-    inputs = module.DATA_ROOT / "test" / "inputs" / "test"
-    parsed = inputs / "__parsed__"
+    paths = module._paths()
+    inputs = paths.inputs_dir("test")
+    parsed = paths.parsed_dir
+    inputs.mkdir(parents=True)
     parsed.mkdir(parents=True)
     return inputs, parsed
 

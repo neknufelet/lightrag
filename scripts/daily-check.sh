@@ -10,7 +10,7 @@
 #   daily-check.sh --selftest   只驗通知管道（裝好 app 後跑一次確認收得到）
 set -u
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CHECK_DIR=/data/rag/lightrag/checks
+CHECK_DIR=/data/lightrag/checks
 cd "$REPO_DIR"
 mkdir -p "$CHECK_DIR"
 

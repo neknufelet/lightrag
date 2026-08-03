@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """檢查 MinerU 把 PDF 拆得好不好 —— 不需要等 LLM 抽取。
 
-MinerU 的原始輸出會快取在 inputs/<workspace>/__parsed__/<檔名>.mineru_raw/，
+MinerU 的原始輸出會快取在 work/parsed/<檔名>.pdf.mineru_raw/，
 所以解析一結束就能驗，不必等後面幾十小時的實體抽取跑完。整批重新 parsing 時，
 先跑這個確認拆得對，再讓 LLM 上工。
 
@@ -23,9 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import (  # noqa: E402
     LEAK, MANGLED, MATH, TAG, is_mangled, load_env, strip_math, table_text,
 )
+from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_ROOT = Path("/data/rag/lightrag")
+DEFAULT_ROOT = DEFAULT_DATA_ROOT
 
 
 
@@ -123,7 +124,8 @@ def severity(r: dict) -> str:
 
 
 def scan(root: Path, workspace: str, doc: str | None = None):
-    pdir = root / workspace / "inputs" / workspace / "__parsed__"
+    paths = DataPaths(root)
+    pdir = paths.parsed_dir
     if not pdir.exists():
         print(f"找不到解析目錄：{pdir}", file=sys.stderr)
         return []

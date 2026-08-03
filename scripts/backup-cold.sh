@@ -39,7 +39,7 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DB_ROOT=$(grep -E '^LIGHTRAG_DB_ROOT=' "$REPO_DIR/.env" 2>/dev/null | cut -d= -f2)
 DB_ROOT=${DB_ROOT:-/data/lightrag}
 STAGE=/data/rag/coldstage
-STAMP=/data/rag/lightrag/.backup-cold.stamp
+STAMP=/data/lightrag/.backup-cold.stamp
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
 DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)
 DBS=(lightrag-neo4j lightrag-postgres)

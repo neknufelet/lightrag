@@ -24,14 +24,13 @@
     postprocess.py revert --doc X          # 還原
 
 check 會呼叫外部模型（本機 qwen + 雲端 luna），結果快取在
-DATA_ROOT/<ws>/postprocess/<doc>/cache/，重跑不會重複付費。
+DATA_ROOT/work/crops/<doc>/cache/，重跑不會重複付費。
 """
 from __future__ import annotations
 
 import argparse
 import collections
 import json
-import os
 import re
 import shutil
 import sys
@@ -41,10 +40,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import LEAK, add_workspace_arg, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
+
+
+def _paths() -> DataPaths:
+    return DataPaths(DATA_ROOT)
 
 
 def _postprocess_passed(raw: Path) -> bool:
@@ -60,10 +64,11 @@ def _postprocess_passed(raw: Path) -> bool:
 
 def _prepare_inventory(workspace: str) -> tuple[list[Path], list[Path], list[Path]]:
     """回傳待解析、已解析未修補、以及已完成後處理 pass 的 bundle。"""
-    inputs = DATA_ROOT / workspace / "inputs" / workspace
-    parsed = inputs / "__parsed__"
+    paths = _paths()
+    inputs = paths.inputs_dir(workspace)
+    parsed = paths.parsed_dir
     pending = [p for p in sorted(inputs.glob("*.pdf"))
-               if not (parsed / f"{p.name}.mineru_raw" / "content_list.json").is_file()]
+               if not (paths.parsed_bundle_dir(p.name) / "content_list.json").is_file()]
     ready: list[Path] = []
     passed: list[Path] = []
     for raw in sorted(parsed.glob("*.mineru_raw")):
@@ -97,7 +102,7 @@ def _scan_was_skipped_pipeline_busy(response: object) -> bool:
 
 
 def find_bundles(workspace: str, doc: str | None) -> list[Path]:
-    pdir = DATA_ROOT / workspace / "inputs" / workspace / "__parsed__"
+    pdir = _paths().parsed_dir
     if not pdir.is_dir():
         sys.exit(f"postprocess: 找不到解析目錄 {pdir}")
     hits = sorted(pdir.glob("*.mineru_raw"))
@@ -108,8 +113,8 @@ def find_bundles(workspace: str, doc: str | None) -> list[Path]:
     return hits
 
 
-def plan_one(raw: Path) -> dict:
-    ctx = DocContext(raw)
+def plan_one(raw: Path, *, source_dir: Path | None = None) -> dict:
+    ctx = DocContext(raw, source_dir=source_dir)
     ctx.preflight()
     w, h = ctx.page_size
     noise = layout_noise.plan(ctx.items, ctx.n_pages)
@@ -197,11 +202,14 @@ def as_json(p: dict) -> dict:
 def cmd_check(a, env) -> int:
     from pp import eyes                                    # 只有 check 需要，延後載入
 
-    out_root = DATA_ROOT / a.workspace / "postprocess"
+    paths = _paths()
+    out_root = paths.crops_dir
+    source_dir = paths.inputs_dir(a.workspace)
     n_auto = n_need = n_err = 0
     for raw in find_bundles(a.workspace, a.doc):
         try:
-            ctx, results = eyes.check_doc(raw, env, out_root, workers=a.workers)
+            ctx, results = eyes.check_doc(raw, env, out_root, source_dir=source_dir,
+                                          workers=a.workers)
         except DocContextError as e:
             print(f"\n=== 略過 ===\n  {e}")
             n_err += 1
@@ -254,10 +262,13 @@ def cmd_canary(a, env) -> int:
     手動逐份比對數字會漏，而漏掉的漂移不會有錯誤訊息。基準進版控，
     所以規則改動造成的行為變化會直接出現在 git diff 裡，賴不掉。
     """
+    paths = _paths()
+    source_dir = paths.inputs_dir(a.workspace)
     cur = {}
     for raw in find_bundles(a.workspace, None):
         try:
-            cur[DocContext(raw).doc_name] = canary_row(plan_one(raw))
+            cur[DocContext(raw, source_dir=source_dir).doc_name] = plan_one(
+                raw, source_dir=source_dir)
         except DocContextError as e:
             cur[raw.name.removesuffix(".mineru_raw")] = {"error": str(e)[:200]}
 
@@ -450,7 +461,7 @@ def _curated(home: Path, current: dict[str, str] | None = None,
     #439 兩眼各對一半（羅馬數字下標 I/II 兩邊錯的方向相反）—— 這兩種都不是
     「換一隻眼睛」能解決的，是要人看圖之後**定點修補**。
 
-    裁定結果以檔案落在 `postprocess/<doc>/verified/<idx>.html|.txt`：
+    裁定結果以檔案落在 `work/crops/<doc>/verified/<idx>.html|.txt`：
       - 進得了 restic 備份範圍
       - 內容可被 diff、可被重看，不是藏在某次執行的記憶體裡
       - 換模型重跑時它仍然成立（它記的是圖上寫什麼，不是哪隻眼睛比較準）
@@ -485,7 +496,14 @@ def _curated(home: Path, current: dict[str, str] | None = None,
     return tables, texts, notes
 
 
-def _rollback_batch(ap_mod, done: list, o) -> None:
+def _rollback_batch(
+    ap_mod,
+    done: list,
+    o,
+    *,
+    workspace: str,
+    source_dir: Path,
+) -> None:
     """單份失敗時，把這一輪**已經寫下去**的份全部退回去。
 
     judgement-flow 第 9 節：「任何一條不成立就拒絕，而且是整批拒絕 —— 做到一半
@@ -503,7 +521,8 @@ def _rollback_batch(ap_mod, done: list, o) -> None:
     stuck = []
     for res in reversed(done):
         try:
-            print(f"      {ap_mod.rollback_from_backup(res, oracle=o)}")
+            print(f"      {ap_mod.rollback_from_backup(
+                res, workspace=workspace, source_dir=source_dir, oracle=o)}")
         except Exception as e:  # noqa: BLE001
             stuck.append(f"{res.doc}：{e}")
     if stuck:
@@ -520,7 +539,9 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
     from pp import apply as ap_mod, eyes
     from pp.oracle import Oracle, container_for
 
-    out_root = DATA_ROOT / a.workspace / "postprocess"
+    paths = _paths()
+    out_root = paths.crops_dir
+    source_dir = paths.inputs_dir(a.workspace)
     # 容器跟著 --workspace 走。指定了 workspace 卻 exec 進另一個 workspace 的
     # 容器，等於拿 A 的 LightRAG 去認可 B 的 bundle —— 而且會成功。
     o = Oracle(container=container_for(a.workspace))
@@ -534,14 +555,15 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
             # 每張表在 content_list 裡的現值。閘門要拿它來分辨「保留既有的本地
             # `images/` 參照」與「捏造一條新的」——兩者長得一樣，差別只在現值有沒有。
             cur_body = {str(i): (it.get("table_body") or "")
-                        for i, it in enumerate(DocContext(raw).items)
+                        for i, it in enumerate(DocContext(raw, source_dir=source_dir).items)
                         if it.get("type") == "table"}
             cur_tbl, cur_txt, cur_notes = _curated(doc_home, cur_body)
             verified: dict[str, str] = {}
             if not a.no_tables:
                 # 只採用兩雙眼睛逐格一致的。沒把握的轉錄一律不寫 ——
                 # 拿它覆蓋空表格，是把「明顯缺失」換成「看起來正常但可能是錯的」。
-                ctx, results = eyes.check_doc(raw, env, out_root, workers=a.workers)
+                ctx, results = eyes.check_doc(raw, env, out_root, source_dir=source_dir,
+                                              workers=a.workers)
                 for r_ in results:
                     if r_.ok and str(r_.index) not in cur_tbl:
                         html, err = eyes.look(eyes.eyes_from_env(env)[0], r_.png,
@@ -552,7 +574,8 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
                                 cur_body.get(str(r_.index), ""))
             n_auto = len(verified)
             verified.update(cur_tbl)          # 人工裁定優先於自動採用
-            res = ap_mod.apply_doc(raw, out_root=out_root, verified_tables=verified,
+            res = ap_mod.apply_doc(raw, workspace=a.workspace, source_dir=source_dir,
+                                   out_root=out_root, verified_tables=verified,
                                    verified_text=cur_txt, curated_idx=set(cur_tbl),
                                    oracle=o, commit=a.commit)
             if cur_tbl or cur_txt:
@@ -562,7 +585,7 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
                 res.notes += [f"  裁定依據 {n}" for n in cur_notes]
         except (DocContextError, ap_mod.ApplyError) as e:
             print(f"  ✗ {raw.name.removesuffix('.mineru_raw')}：{e}")
-            _rollback_batch(ap_mod, done, o)
+            _rollback_batch(ap_mod, done, o, workspace=a.workspace, source_dir=source_dir)
             return 2
         mark = "✓" if (res.valid_after is not False) else "✗"
         print(f"  {mark} {res.doc}\n      {res.line()}")
@@ -576,7 +599,7 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
             # 這一份自己也已經寫下去了，所以要先進 done 才回滾得到它。
             if a.commit:
                 done.append(res)
-            _rollback_batch(ap_mod, done, o)
+            _rollback_batch(ap_mod, done, o, workspace=a.workspace, source_dir=source_dir)
             return 2
         if a.commit:
             done.append(res)
@@ -632,12 +655,13 @@ def cmd_reindex(a, env) -> int:
 
     ids = [d["id"] for d in want]
 
-    # 把 PDF 從 __parsed__/ 搬回掃描目錄。第一次索引時 archive_source 會把來源
-    # 搬進 __parsed__/，所以掃描目錄是空的 —— 刪掉記錄後直接 /scan 會找不到
+    # 把 PDF 從 work/parsed/ 搬回 inputs/<workspace>/。第一次索引時 archive_source
+    # 會把來源搬進 work/parsed/，所以掃描目錄是空的 —— 刪掉記錄後直接 /scan 會找不到
     # 任何檔案，「成功」執行但什麼都沒做，文件就這樣從索引消失。
     # 實測踩過：C Equivalent Networks 被刪掉後索引從 20 剩 19。
-    inputs = DATA_ROOT / a.workspace / "inputs" / a.workspace
-    parsed = inputs / "__parsed__"
+    paths = _paths()
+    inputs = paths.inputs_dir(a.workspace)
+    parsed = paths.parsed_dir
     moved = 0
     for d in want:
         name = Path(d.get("file_path") or "").name
@@ -645,7 +669,7 @@ def cmd_reindex(a, env) -> int:
         if src.is_file() and not dst.is_file():
             shutil.move(str(src), str(dst))
             moved += 1
-    print(f"\n把 {moved} 份 PDF 從 __parsed__/ 搬回掃描目錄")
+    print(f"\n把 {moved} 份 PDF 從 work/parsed/ 搬回 inputs/{a.workspace}/")
     print(f"刪除索引記錄…（保留 PDF 與 LLM 快取）")
     print(" ", json.dumps(api("/documents/delete_document", "DELETE",
                               {"doc_ids": ids, "delete_file": False,
@@ -669,9 +693,10 @@ def cmd_reindex(a, env) -> int:
 def cmd_revert(a, env) -> int:
     from pp import apply as ap_mod
     from pp.oracle import Oracle, container_for
+    source_dir = _paths().inputs_dir(a.workspace)
     o = Oracle(container=container_for(a.workspace))
     for raw in find_bundles(a.workspace, a.doc):
-        res = ap_mod.revert_doc(raw, oracle=o)
+        res = ap_mod.revert_doc(raw, workspace=a.workspace, source_dir=source_dir, oracle=o)
         print(f"  ✓ {res.doc}：還原消音 {res.muted}、表格 {res.tables}；"
               f"bundle {'認可' if res.valid_after else '**未認可**'}")
     return 0
@@ -736,10 +761,11 @@ def main():
     if a.cmd == "canary":
         sys.exit(cmd_canary(a, env))
 
+    source_dir = _paths().inputs_dir(a.workspace)
     plans, failed = [], []
     for raw in find_bundles(a.workspace, a.doc):
         try:
-            plans.append(plan_one(raw))
+            plans.append(plan_one(raw, source_dir=source_dir))
         except DocContextError as e:
             failed.append(str(e))
 

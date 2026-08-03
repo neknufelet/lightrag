@@ -37,9 +37,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_ROOT = Path("/data/rag/lightrag")
+DEFAULT_ROOT = DEFAULT_DATA_ROOT
 
 # 閘門清單與順序照 rebuild-plan 的「體檢表格式」。這是白名單而不是提示：
 # 打錯字的閘門名會安靜地長出第八個欄位，總表少一格沒人會發現（鐵則 1：拒絕，不猜）。
@@ -65,22 +66,23 @@ def now() -> str:
 
 
 def ledger_dir(root: Path, ws: str) -> Path:
-    return root / ws / "records" / "ledger"
+    return DataPaths(root).ledger_dir
 
 
 def inputs_dir(root: Path, ws: str) -> Path:
-    return root / ws / "inputs" / ws
+    return DataPaths(root).inputs_dir(ws)
 
 
 def known_pdfs(root: Path, ws: str) -> list[str]:
     """這個 workspace 認得的 PDF 檔名。
 
-    兩個地方都要看：解析前 PDF 在 inputs 根層，解析後 LightRAG 的 archive_source
-    會把它搬進 __parsed__/。只看一邊的話，體檢表在流程中途會突然找不到文件。
+    兩個地方都要看：解析前 PDF 在 `inputs/<workspace>/`，解析後 LightRAG 的
+    archive_source 會把它搬進 `work/parsed/`。只看一邊的話，體檢表在流程中途會
+    突然找不到文件。
     """
     d = inputs_dir(root, ws)
     names = {p.name for p in d.glob("*.pdf")} if d.is_dir() else set()
-    par = d / "__parsed__"
+    par = DataPaths(root).parsed_dir
     if par.is_dir():
         names |= {p.name for p in par.glob("*.pdf")}
     return sorted(names)
@@ -115,7 +117,7 @@ def sha256_of(p: Path) -> str:
 
 
 def find_pdf(root: Path, ws: str, doc: str) -> Path | None:
-    for c in (inputs_dir(root, ws) / doc, inputs_dir(root, ws) / "__parsed__" / doc):
+    for c in (inputs_dir(root, ws) / doc, DataPaths(root).parsed_dir / doc):
         if c.is_file():
             return c
     return None

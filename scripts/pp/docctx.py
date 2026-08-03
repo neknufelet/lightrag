@@ -1,8 +1,8 @@
 """DocContext：一份文件的所有相關檔案，以及它們之間該有的一致性。
 
-存在的理由是「不得寫死路徑」。來源 PDF 會被 archive_source 搬進 __parsed__/，
-處理中又會被移回掃描目錄 —— 路徑是浮動的，唯一可靠的識別是 manifest 記錄的
-source_content_hash。用內容定址找檔案，找不到就停，不猜。
+來源 PDF 在掃描前位於 `inputs/<workspace>/`，LightRAG 歸檔後與 bundle 一起位於
+`work/parsed/`。唯一可靠的識別是 manifest 記錄的 source_content_hash；用內容定址
+找檔案，找不到就停，不猜。
 """
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ class DocContextError(RuntimeError):
 @dataclass
 class DocContext:
     raw_dir: Path
+    source_dir: Path | None = None
 
     # ---- 基本 ----
 
@@ -78,11 +79,13 @@ class DocContext:
     @cached_property
     def source_pdf(self) -> Path:
         want = self.manifest["source_content_hash"]
-        cands = [
-            self.raw_dir.parent / self.doc_name,          # __parsed__/ 內（已歸檔）
-            self.raw_dir.parent.parent / self.doc_name,   # 掃描目錄（待處理）
-            *sorted(self.raw_dir.glob("*_origin.pdf")),   # MinerU 回傳的副本
-        ]
+        cands = []
+        if self.source_dir is not None:
+            cands.append(self.source_dir / self.doc_name)
+        cands.extend([
+            self.raw_dir.parent / self.doc_name,        # LightRAG 歸檔的來源 PDF
+            *sorted(self.raw_dir.glob("*_origin.pdf")),  # MinerU 回傳的副本
+        ])
         for c in cands:
             if c.is_file():
                 h = "sha256:" + hashlib.sha256(c.read_bytes()).hexdigest()

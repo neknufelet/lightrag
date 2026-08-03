@@ -43,11 +43,14 @@ services:
 
     volumes:
       # 執行期資料放 /data 的獨立 NVMe，不進 repo
-      - ${DATA_ROOT:-/data/rag/lightrag}/${WORKSPACE}/rag_storage:/app/data/rag_storage
+      - ${DATA_ROOT:-/data/lightrag}/rag_storage:/app/data/rag_storage
       # inputs 必須可寫 —— LightRAG 啟動時會在其下建立 ${WORKSPACE} 子目錄。
-      # 因此不直接掛既有語料目錄（/data/rag/knowledge_bases/*/raw），避免它寫進語料來源；
-      # 改用專屬目錄，檔案經 WebUI／API 上傳，或見 README 的批次匯入。
-      - ${INPUTS_DIR:-${DATA_ROOT:-/data/rag/lightrag}/${WORKSPACE}/inputs}:/app/data/inputs
+      # 宿主因此保留 inputs/<workspace> 這一層；檔案經 WebUI／API 上傳，或見 README
+      # 的批次匯入。只掛 inputs 根層，才能讓 LightRAG 建出它實際會掃的子目錄。
+      - ${INPUTS_DIR:-${DATA_ROOT:-/data/lightrag}/inputs}:/app/data/inputs
+      # LightRAG 的 archive_source 仍只認容器內的 __parsed__；把這個子 mount
+      # 導到獨立工作區，宿主就不會把解析快取混在索引入口裡。
+      - ${DATA_ROOT:-/data/lightrag}/work/parsed:/app/data/inputs/${WORKSPACE}/__parsed__
 
     networks:
       - rag
@@ -91,11 +94,11 @@ services:
     command: ["python", "/app/scripts/kbapi.py", "--port", "9700"]
     working_dir: /app
     environment:
-      PP_DATA_ROOT: /data/rag/lightrag
+      PP_DATA_ROOT: /data/lightrag
     volumes:
       - ./scripts:/app/scripts:ro
       - ./.env:/app/.env:ro
-      - ${DATA_ROOT:-/data/rag/lightrag}:/data/rag/lightrag:ro
+      - ${DATA_ROOT:-/data/lightrag}:/data/lightrag:ro
     ports:
       - "${BIND_ADDR:-100.87.88.7}:${KBAPI_PORT:-9700}:9700"
     healthcheck:

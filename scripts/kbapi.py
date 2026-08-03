@@ -2,7 +2,7 @@
 """補 LightRAG 缺的唯讀端點：圖片與單篇結構化內容。
 
 LightRAG 1.5.5 的 API 只有 /query、/query/stream、/query/data 與文件管理，
-**沒有任何圖片端點** —— 1,786 張圖躺在 __parsed__/<doc>.mineru_raw/images/
+**沒有任何圖片端點** —— 1,786 張圖躺在 work/parsed/<doc>.mineru_raw/images/
 但拿不到。這支就是把磁碟上已經有的東西開出來。
 
 為什麼不做 MCP：現有的 DeepTutor skill 全部直接打 HTTP 且明寫 never MCP，
@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 import unicodedata
@@ -52,9 +51,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import load_env  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
 ENV = load_env(REPO)
 # 本服務服務的 workspace。沒有預設值：一個猜錯的預設會讓端點靜靜回別的庫的
 # 資料（見下方 kb 路由的 400 擋板）。設不出來就不要起。
@@ -73,7 +73,7 @@ MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
 
 
 def parsed_dir(ws: str) -> Path:
-    return DATA_ROOT / ws / "inputs" / ws / "__parsed__"
+    return DataPaths(DATA_ROOT).parsed_dir
 
 
 def slug(name: str) -> str:
@@ -91,7 +91,7 @@ def _index(ws: str, doc: str) -> dict:
     caption 取自 content_list 的 image_caption；MinerU 對 chart 型別常常
     留空，那時候只剩頁碼可用 —— 別名仍然比雜湊好認。
     """
-    raw = parsed_dir(ws) / f"{doc}.mineru_raw"
+    raw = DataPaths(DATA_ROOT).parsed_bundle_dir(doc)
     out: dict = {"by_hash": {}, "by_alias": {}, "doc": doc}
     try:
         items = json.loads((raw / "content_list.json").read_text())
@@ -150,7 +150,7 @@ def lightrag(path: str, body: dict | None = None) -> dict:
 def doc_summary(ws: str, doc: str) -> dict:
     """單篇的結構。不回全文 —— N Flow 有 66,000 字元，塞進 agent 的 context
     只會擠掉別的東西。要全文請用 search 定位到章節再取。"""
-    raw = parsed_dir(ws) / f"{doc}.mineru_raw"
+    raw = DataPaths(DATA_ROOT).parsed_bundle_dir(doc)
     try:
         items = json.loads((raw / "content_list.json").read_text())
     except Exception as e:                                   # noqa: BLE001
@@ -226,7 +226,7 @@ class H(BaseHTTPRequestHandler):
             # 為什麼需要這道擋板：`search` **不看 `ws`**——它走 lightrag()，
             # 目的地固定是 .env 的 BIND_ADDR:HOST_PORT。但檔案類端點
             # （docs / doc / figures / images）**看** `ws`，直接讀
-            # DATA_ROOT/{ws}/…。兩者對同一個 URL 的解讀不一致。
+            # DATA_ROOT/inputs/{ws}…。兩者對同一個 URL 的解讀不一致。
             #
             # 實測過這個混合狀態（2026-08-03 CUTOVER 當下，舊庫磁碟還在時）：
             #     GET /kb/acoustics_v155/search → 回的是 acoustics_v2 的內容

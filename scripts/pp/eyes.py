@@ -159,10 +159,16 @@ class TableResult:
         return self.error is None and self.check is not None and self.check.ok
 
 
-def check_doc(raw_dir: Path, env: dict, out_root: Path,
-              workers: int = 3) -> tuple[DocContext, list[TableResult]]:
+def check_doc(
+    raw_dir: Path,
+    env: dict,
+    out_root: Path,
+    *,
+    source_dir: Path,
+    workers: int = 3,
+) -> tuple[DocContext, list[TableResult]]:
     """對一份文件的所有可修補表格跑「裁圖 → 兩雙眼睛 → 逐格比對」。"""
-    ctx = DocContext(raw_dir)
+    ctx = DocContext(raw_dir, source_dir=source_dir)
     ctx.preflight()
     w, h = ctx.page_size
     eye_a, eye_b = eyes_from_env(env)

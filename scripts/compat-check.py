@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import shutil
 import sys
@@ -30,9 +29,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
+from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
+DATA_ROOT = configured_data_root()
 
 # 已知的 content_list 項目型別。出現沒見過的型別 = 版面型態超出規則涵蓋範圍，
 # 過濾與修補的判斷都可能不適用，所以擋下而不是猜。
@@ -345,7 +345,8 @@ class Checker:
         def _():
             m = json.loads((raw_dir / "_manifest.json").read_text())
             want = m["source_content_hash"]
-            cands = [raw_dir.parent / f"{name}", raw_dir.parent.parent / f"{name}",
+            source_dir = DataPaths(DATA_ROOT).inputs_dir(self.ws)
+            cands = [source_dir / name, raw_dir.parent / name,
                      *raw_dir.glob("*_origin.pdf")]
             for c in cands:
                 if c.exists() and c.is_file():
@@ -436,7 +437,7 @@ def main():
     n_docs = 0
     doc_from = len(c.results)          # 之後的結果都是資料層的，印的時候要收合
     if not a.no_docs:
-        pdir = DATA_ROOT / a.workspace / "inputs" / a.workspace / "__parsed__"
+        pdir = DataPaths(DATA_ROOT).parsed_dir
         hits = [d for d in pdir.glob("*.mineru_raw")
                 if not a.doc or a.doc.lower() in d.name.lower()]
         if not hits:
