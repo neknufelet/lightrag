@@ -56,6 +56,10 @@ from mineru_common import load_env  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = Path(os.environ.get("PP_DATA_ROOT", "/data/rag/lightrag"))
 ENV = load_env(REPO)
+# 本服務服務的 workspace。沒有預設值：一個猜錯的預設會讓端點靜靜回別的庫的
+# 資料（見下方 kb 路由的 400 擋板）。設不出來就不要起。
+WORKSPACE = ENV.get("WORKSPACE") or sys.exit(
+    "kbapi: .env 缺 WORKSPACE —— 本服務靠它判斷 URL 要的庫是不是自己")
 # chunk 內容裡的圖片長這樣（ir_builder 產生）：
 #   <drawing id="im-…" format="jpg" caption="(a) Concentric resonator"
 #            path="K Muffler Acoustics.blocks.assets/c69b8f97….jpg" />
@@ -216,6 +220,28 @@ class H(BaseHTTPRequestHandler):
         if len(parts) >= 3 and parts[0] == "kb":
             ws, kind = parts[1], parts[2]
             rest = parts[3] if len(parts) > 3 else ""
+
+            # URL 裡的 workspace 必須等於本服務所服務的那個，否則 400。
+            #
+            # 為什麼需要這道擋板：`search` **不看 `ws`**——它走 lightrag()，
+            # 目的地固定是 .env 的 BIND_ADDR:HOST_PORT。但檔案類端點
+            # （docs / doc / figures / images）**看** `ws`，直接讀
+            # DATA_ROOT/{ws}/…。兩者對同一個 URL 的解讀不一致。
+            #
+            # 實測過這個混合狀態（2026-08-03 CUTOVER 當下，舊庫磁碟還在時）：
+            #     GET /kb/acoustics_v155/search → 回的是 acoustics_v2 的內容
+            #     GET /kb/acoustics_v155/docs   → 回的是 acoustics_v155 的檔案
+            # 兩個都是 200，都不報錯。呼叫端會把兩邊的東西當成同一個庫的。
+            #
+            # 最惡劣的後果是切換時「忘了改 skill」不會有任何訊號——查詢照樣
+            # 回得出東西，只是答案來自別的庫。所以這裡寧可 400 也不要靜靜答對
+            # 一半：**能查到** 與 **查的是你以為的那個庫** 是兩件事。
+            if ws != WORKSPACE:
+                return self._json(
+                    {"error": f"本服務服務的是 workspace {WORKSPACE!r}，"
+                              f"URL 要的是 {ws!r}",
+                     "hint": "search 端點不看 URL 的 workspace，只看 .env；"
+                             "不擋的話會回錯庫的答案且不報錯"}, 400)
 
             if kind == "docs":
                 pdir = parsed_dir(ws)

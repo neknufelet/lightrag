@@ -29,12 +29,16 @@ There is **no MCP layer**.
 ## Endpoint
 `GET /kb/{ws}/search?query=<q>&chunks=<n>&chars=<n>&mode=<m>&format=md`
 
-workspace 目前是 `acoustics_v155`。
+workspace 是 `acoustics_v2`。
+
+**打錯 workspace 會回 400，不會靜靜回錯庫的答案。** 這道擋板是必要的：
+`search` 端點不看 URL 裡的 workspace（它走 `.env` 指定的 LightRAG），
+但檔案類端點看——兩者對同一個 URL 的解讀不一致，不擋就會回一半對的東西。
 
 ## Workflow
 
 ```bash
-curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v155/search" \
+curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v2/search" \
   --data-urlencode "query=<問題>" \
   --data-urlencode "chunks=6" \
   --data-urlencode "chars=12000" \

@@ -32,7 +32,11 @@ There is **no MCP layer**.
 - `GET /kb/{ws}/images/{別名或雜湊名}` — 圖片本體
 - `GET /kb/{ws}/doc/{檔名}` — 某一篇的完整圖片清單（`.figures[]`）
 
-workspace 目前是 `acoustics_v155`。
+workspace 是 `acoustics_v2`。
+
+**打錯 workspace 會回 400，不會靜靜回錯庫的答案。** 這道擋板是必要的：
+`search` 端點不看 URL 裡的 workspace（它走 `.env` 指定的 LightRAG），
+但檔案類端點看——兩者對同一個 URL 的解讀不一致，不擋就會回一半對的東西。
 
 ## 檔名說明
 別名格式是 `<文件代號>-p<頁碼>-<序號>.jpg`，例如：
@@ -48,7 +52,7 @@ k-muffler-acoustics-p16-75.jpg
 
 ### 1. 找圖
 ```bash
-curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v155/figures" \
+curl -s -m 240 -G "http://100.87.88.7:9700/kb/acoustics_v2/figures" \
   --data-urlencode "query=<主題>" --data-urlencode "top_k=10" \
   --data-urlencode "format=md"
 ```
@@ -78,7 +82,7 @@ alias="c-equivalent-networks-p17-57.jpg"
 
 curl -s -m 30 -f \
   -o "10_Research/LightRAG/assets/$alias" \
-  "http://100.87.88.7:9700/kb/acoustics_v155/images/$alias"
+  "http://100.87.88.7:9700/kb/acoustics_v2/images/$alias"
 ```
 
 `-f` 是必要的 —— 沒有它，404 會被存成一個看起來像圖片的錯誤頁。

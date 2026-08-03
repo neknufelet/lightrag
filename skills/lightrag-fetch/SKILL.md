@@ -33,16 +33,20 @@ There is **no MCP layer**.
 - `GET /kb/{ws}/docs` — 有哪些文件、各有幾張圖
 - `GET /kb/{ws}/doc/{檔名}` — 單篇結構
 
-workspace 目前是 `acoustics_v155`。
+workspace 是 `acoustics_v2`。
+
+**打錯 workspace 會回 400，不會靜靜回錯庫的答案。** 這道擋板是必要的：
+`search` 端點不看 URL 裡的 workspace（它走 `.env` 指定的 LightRAG），
+但檔案類端點看——兩者對同一個 URL 的解讀不一致，不擋就會回一半對的東西。
 
 ## Workflow
 
 ```bash
 # 1. 先看有哪些文件
-curl -s -m 30 "http://100.87.88.7:9700/kb/acoustics_v155/docs?format=md"
+curl -s -m 30 "http://100.87.88.7:9700/kb/acoustics_v2/docs?format=md"
 
 # 2. 取某一篇（檔名有空格，用 -G --data-urlencode 讓 curl 自己編碼）
-curl -s -m 60 -G "http://100.87.88.7:9700/kb/acoustics_v155/doc/C Equivalent Networks.pdf" \
+curl -s -m 60 -G "http://100.87.88.7:9700/kb/acoustics_v2/doc/C Equivalent Networks.pdf" \
   --data-urlencode "format=md"
 ```
 
