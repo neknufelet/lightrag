@@ -197,6 +197,14 @@ def side_tokens(side: str) -> list[str]:
             c = canon(u)
             if c is None:
                 break                   # 蓋在運算式上（系綜平均）→ 不是這一族
+            # **被微分量必須是普通的量，不能又是一個 accent。**
+            # 導數的 ∂ 後面接變數（∂p、∂z）；而 `ρ̄ f̄ / ρ̄ ũ` 這種是**平均量的
+            # 乘積比值**，兩個因子都戴帽子。實測 2026-08-03：這一條把今天資料上
+            # 唯一剩下的誤報（N Flow #149 的 Favre 平均）清成 0，且不影響 425
+            # 筆歷史正例（∂ 後面從來不是 accent）。
+            nxt, _ = read_unit(side, i)
+            if nxt and CAND.match(nxt.lstrip()):
+                break
             out.append(c)
         else:
             break                       # 其餘（一般變數、\rho、\left…）不是這一族
