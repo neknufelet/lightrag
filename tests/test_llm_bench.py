@@ -91,8 +91,8 @@ def test_help_does_not_require_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             assert "這會佔滿伺服器的 slot" in output
 
 
-def test_fixture_sampling_prefix_and_workspace_sql() -> None:
-    """固定種子抽樣可延伸，且資料庫查詢不會漏 workspace 條件。"""
+def test_fixture_sampling_prefix() -> None:
+    """固定種子抽樣必須可延伸。"""
     bench = _bench_module()
     rows = tuple(bench._CacheRow(id=f"id-{index}", prompt=f"prompt-{index}",
                                  reference_output=f"output-{index}", chunk_id=f"chunk-{index}")
@@ -105,8 +105,39 @@ def test_fixture_sampling_prefix_and_workspace_sql() -> None:
     assert [item["id"] for item in fixture["items"]] == expected[:4]
     assert [item["id"] for item in larger["items"]] == expected[:7]
     assert fixture["sha256"] == bench._json_sha256(fixture["items"])
-    assert "where workspace = :'workspace'" in bench._CACHE_QUERY.lower()
-    assert "cache_type = 'extract'" in bench._CACHE_QUERY.lower()
+
+
+def test_extract_rows_streams_psql_query_with_workspace_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """psql 必須從 stdin 讀取含 workspace 變數的 extract 查詢。"""
+    bench = _bench_module()
+    captured: dict[str, object] = {}
+
+    def capture_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        captured["command"] = command
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, "[]\n", "")
+
+    monkeypatch.setattr(bench.subprocess, "run", capture_run)
+    assert bench._extract_rows(
+        {"POSTGRES_HOST": "lightrag-postgres", "POSTGRES_USER": "reader",
+         "POSTGRES_DATABASE": "lightrag"},
+        "acoustics_v2",
+    ) == []
+
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[:4] == ["docker", "exec", "-i", "lightrag-postgres"]
+    workspace_index = command.index("-v")
+    assert command[workspace_index + 1] == "workspace=acoustics_v2"
+    assert command[-2:] == ["-f", "-"]
+    assert "-c" not in command
+    sql = captured["input"]
+    assert isinstance(sql, str)
+    assert sql not in command
+    assert "where workspace = :'workspace'" in sql.lower()
+    assert "cache_type = 'extract'" in sql.lower()
 
 
 def test_run_missing_fixture_is_a_clear_error(tmp_path: Path) -> None:

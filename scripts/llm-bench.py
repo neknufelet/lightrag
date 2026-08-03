@@ -39,6 +39,7 @@ SYNTHETIC_WARMUP_PROMPT = (
     "LightRAG extraction fixture and must never be used as an extraction question. "
 ) * 16
 
+# psql 的 -c 不展開 :'var'；必須由 stdin 餵入 SQL 才會插值。
 _CACHE_QUERY = """
 select id, original_prompt, return_value, chunk_id
 from lightrag_llm_cache
@@ -158,11 +159,13 @@ def _extract_rows(env: Mapping[str, str], workspace: str) -> list[_CacheRow]:
     if not container:
         raise BenchError("fixture 需要 .env 的 POSTGRES_HOST（請在 florian-dker 執行）")
     wrapped = "select coalesce(json_agg(t), '[]'::json)::text from (" + _CACHE_QUERY + ") t"
-    command = ["docker", "exec", container, "psql", "-U",
+    command = ["docker", "exec", "-i", container, "psql", "-U",
                env.get("POSTGRES_USER", "deeptutor"), "-d",
                env.get("POSTGRES_DATABASE", "lightrag"), "-v", f"workspace={workspace}",
-               "-tAqX", "-c", wrapped]
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=300)
+               "-tAqX", "-f", "-"]
+    completed = subprocess.run(
+        command, input=wrapped, capture_output=True, text=True, timeout=300,
+    )
     if completed.returncode != 0:
         stderr = completed.stderr.strip()[:300]
         if "No such container" in stderr:
