@@ -113,29 +113,23 @@ services:
   # 收件匣／審核台：只用標準函式庫，直接以官方 Python slim 執行。
   # DATA_ROOT 必須可寫，因為 intake 會建立 library、work、inputs 與 intake 狀態；
   # 來源庫是別人的語料，只讀掛載，避免審核台誤寫來源。
-  intake:
-    image: python:3.12-slim
-    container_name: intake-${WORKSPACE:?WORKSPACE 未設定}
-    restart: unless-stopped
-    command: ["python", "/app/scripts/intake.py", "--port", "9710"]
-    working_dir: /app
-    environment:
-      PP_DATA_ROOT: /data/lightrag
-    volumes:
-      - ./scripts:/app/scripts:ro
-      - ./.env:/app/.env:ro
-      - ${DATA_ROOT:-/data/lightrag}:/data/lightrag
-      - /data/rag/knowledge_bases:/data/rag/knowledge_bases:ro
-    ports:
-      - "${BIND_ADDR}:${INTAKE_PORT:-9710}:9710"
-    healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request as u; u.urlopen('http://localhost:9710/health', timeout=5)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - rag
+  # ── 審核台（:9710）**不在這裡** ────────────────────────────────────────
+  #
+  # 這裡原本有一份 intake 服務宣告，從落地到 2026-08-04 從來沒被啟用過 ——
+  # 實際跑的一直是宿主上的行程。理由寫在這裡，免得下一個人再試一次：
+  #
+  #   審核台會呼叫 postprocess.py，而 pp/oracle.py 靠 `docker exec` 進 LightRAG
+  #   容器問它的真實行為（鐵則 3）。容器裡要做這件事就得掛 /var/run/docker.sock，
+  #   而審核台是**對外開埠、接受檔案上傳**的網頁服務 —— 給它 docker socket
+  #   等於誰打進來誰就有整台機器。這個交換划不來。
+  #
+  # 那份宣告還有兩個實質錯誤，留著就是陷阱：缺 `--source`（收件匣掃不到、
+  # 畫面永遠空的），以及掛著 DeepTutor 時代的 /data/rag/knowledge_bases。
+  # 有人 `docker compose up` 就會起一個搶 9710 埠的壞掉版本。
+  #
+  # 真正要解決的是「重開機會不會自己回來」，那是 systemd 的事：
+  # `deploy/systemd/lightrag-intake.service`，用
+  # `sudo scripts/systemd-units.py install` 安裝，daily-check 每天比對它還在不在。
 
   # ── 自己的儲存後端（2026-08-03 從 DeepTutor 的實例搬出來）──────────────
   #

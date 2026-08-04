@@ -20,8 +20,8 @@
 `verify` 拿同一份渲染結果去對，差異一定是真的差異。
 
 **佔位符**：`@REPO@`（checkout 路徑）、`@USER@`（跑腳本的使用者）、
-`@NTFY_URL@`（警報位址，讀 `.env` 的 `NTFY_URL`）。三個都是換機器會變的東西，
-寫死就等於這份 repo 只能在一台機器上用。
+`@NTFY_URL@`（警報位址，讀 `.env` 的 `NTFY_URL`）、`@WORKSPACE@` 與 `@DATA_ROOT@`
+（都讀 `.env`）。全部是換機器會變的東西，寫死就等於這份 repo 只能在一台機器上用。
 
 用法：
     systemd-units.py verify           # 比對 /etc 與 repo，不一致回 2
@@ -43,30 +43,33 @@ REPO = Path(__file__).resolve().parent.parent
 UNIT_DIR = REPO / "deploy" / "systemd"
 SYSTEM_DIR = Path("/etc/systemd/system")
 # 開機時要 enable 的（另外兩個 -crashed 是 OnFailure 觸發的，不進 timers.target）
-ENABLE = ("lightrag-daily-check.timer", "lightrag-cold-backup.timer")
+ENABLE = ("lightrag-daily-check.timer", "lightrag-cold-backup.timer",
+          "lightrag-intake.service")
 DEFAULT_NTFY = "http://127.0.0.1:9800/lightrag"
 
 LOGGER = logging.getLogger("systemd-units")
 
 
-def ntfy_url(repo: Path) -> str:
-    """從 `.env` 讀警報位址。
+def env_value(repo: Path, key: str, default: str) -> str:
+    """從 `.env` 讀一個鍵。
 
-    與 `notify.sh` 用同一個鍵、同一個預設值 —— 兩邊分頭寫死的話，改了一邊
-    另一邊會安靜地繼續打去舊位址。
+    與 `notify.sh` 等腳本用同一個鍵、同一個預設值 —— 兩邊分頭寫死的話，
+    改了一邊另一邊會安靜地繼續用舊值。
     """
     env = repo / ".env"
     if env.is_file():
         with env.open(encoding="utf-8") as fh:
             for line in fh:
-                if line.startswith("NTFY_URL="):
+                if line.startswith(f"{key}="):
                     value = line.split("=", 1)[1].strip()
                     if value:
                         return value
-    return DEFAULT_NTFY
+    return default
 
 
-def render_all(repo: Path, user: str, url: str) -> dict[str, str]:
+def render_all(repo: Path, user: str, url: str,
+               workspace: str = "acoustics_v2",
+               data_root: str = "/data/lightrag") -> dict[str, str]:
     """把 deploy/systemd/ 的每個檔套上這台機器的值。"""
     out: dict[str, str] = {}
     for path in sorted(UNIT_DIR.iterdir()):
@@ -75,14 +78,16 @@ def render_all(repo: Path, user: str, url: str) -> dict[str, str]:
         body = path.read_text(encoding="utf-8")
         out[path.name] = (body.replace("@REPO@", str(repo))
                               .replace("@USER@", user)
-                              .replace("@NTFY_URL@", url))
+                              .replace("@NTFY_URL@", url)
+                              .replace("@WORKSPACE@", workspace)
+                              .replace("@DATA_ROOT@", data_root))
     return out
 
 
 def cmd_render(args: argparse.Namespace) -> int:
     target = Path(args.target)
     target.mkdir(parents=True, exist_ok=True)
-    rendered = render_all(args.repo, args.user, args.ntfy)
+    rendered = render_all(args.repo, args.user, args.ntfy, args.workspace, args.data_root)
     for name, body in rendered.items():
         (target / name).write_text(body, encoding="utf-8")
         print(f"  {target / name}")
@@ -96,7 +101,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     **缺檔與內容不符都算失敗**，而且分開報：缺檔是「這台機器根本沒裝」，
     內容不符是「有人手改了 /etc 沒回寫 repo」。兩者的處置不同。
     """
-    rendered = render_all(args.repo, args.user, args.ntfy)
+    rendered = render_all(args.repo, args.user, args.ntfy, args.workspace, args.data_root)
     if not rendered:
         print("✗ deploy/systemd/ 沒有任何單元檔 —— 母體是空的，這不是通過")
         return 2
@@ -149,7 +154,7 @@ def cmd_install(args: argparse.Namespace) -> int:
     if os.geteuid() != 0:
         print("✗ install 要寫 /etc/systemd/system，請用 sudo")
         return 2
-    rendered = render_all(args.repo, args.user, args.ntfy)
+    rendered = render_all(args.repo, args.user, args.ntfy, args.workspace, args.data_root)
     for name, body in sorted(rendered.items()):
         target = SYSTEM_DIR / name
         old = target.read_text(encoding="utf-8") if target.is_file() else None
@@ -176,6 +181,8 @@ def main() -> int:
                         help="跑腳本的使用者，填進 @USER@（預設：目前使用者；"
                              "sudo 下讀 SUDO_USER）")
     parser.add_argument("--ntfy", default=None, help="警報位址，填進 @NTFY_URL@（預設讀 .env）")
+    parser.add_argument("--workspace", default=None, help="填進 @WORKSPACE@（預設讀 .env）")
+    parser.add_argument("--data-root", default=None, help="填進 @DATA_ROOT@（預設讀 .env）")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("verify", help="比對 /etc 與 repo").add_argument(
         "--diff", action="store_true", help="印出逐行差異")
@@ -187,7 +194,11 @@ def main() -> int:
         # sudo 下 getuser() 會回 root，但單元要跑的是真正的使用者。
         args.user = os.environ.get("SUDO_USER") or getpass.getuser()
     if args.ntfy is None:
-        args.ntfy = ntfy_url(args.repo)
+        args.ntfy = env_value(args.repo, "NTFY_URL", DEFAULT_NTFY)
+    if args.workspace is None:
+        args.workspace = env_value(args.repo, "WORKSPACE", "acoustics_v2")
+    if args.data_root is None:
+        args.data_root = env_value(args.repo, "DATA_ROOT", "/data/lightrag")
 
     return {"verify": cmd_verify, "render": cmd_render, "install": cmd_install}[args.cmd](args)
 

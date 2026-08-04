@@ -30,29 +30,33 @@ def _module() -> ModuleType:
 
 def _args(module: ModuleType) -> argparse.Namespace:
     return argparse.Namespace(repo=Path("/srv/lightrag"), user="svc",
-                              ntfy="http://127.0.0.1:9800/lightrag", diff=False)
+                              ntfy="http://127.0.0.1:9800/lightrag",
+                              workspace="ws_x", data_root="/srv/data", diff=False)
 
 
 def _installed(module: ModuleType, target: Path) -> Path:
     """把 repo 的單元渲染進 target，模擬一台裝好的機器。"""
     target.mkdir(parents=True, exist_ok=True)
     for name, body in module.render_all(Path("/srv/lightrag"), "svc",
-                                        "http://127.0.0.1:9800/lightrag").items():
+                                        "http://127.0.0.1:9800/lightrag",
+                                        "ws_x", "/srv/data").items():
         (target / name).write_text(body, encoding="utf-8")
     return target
 
 
 def test_render_substitutes_every_placeholder() -> None:
-    """三個佔位符都要被換掉 —— 漏一個就等於這份 repo 只能在一台機器上用。"""
+    """五個佔位符都要被換掉 —— 漏一個就等於這份 repo 只能在一台機器上用。"""
     module = _module()
-    rendered = module.render_all(Path("/srv/lightrag"), "svc", "http://ntfy.local/x")
+    rendered = module.render_all(Path("/srv/lightrag"), "svc", "http://ntfy.local/x",
+                                 "ws_x", "/srv/data")
     assert rendered, "deploy/systemd/ 是空的，下面的斷言會假通過"
     blob = "\n".join(rendered.values())
-    for token in ("@REPO@", "@USER@", "@NTFY_URL@"):
+    for token in ("@REPO@", "@USER@", "@NTFY_URL@", "@WORKSPACE@", "@DATA_ROOT@"):
         assert token not in blob, f"{token} 沒有被取代"
     assert "/srv/lightrag/scripts/daily-check.sh" in blob
     assert "User=svc" in blob
     assert "http://ntfy.local/x" in blob
+    assert "--workspace ws_x" in blob and "/srv/data/inbox" in blob
 
 
 def test_matching_units_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -105,16 +109,18 @@ def test_empty_source_is_not_a_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 
 
 def test_units_cover_both_timers_and_their_failover() -> None:
-    """六個單元一個都不能少，而且兩個 -crashed 刻意不進 timers.target。"""
+    """七個單元一個都不能少，而且兩個 -crashed 刻意不進 timers.target。"""
     module = _module()
-    names = set(module.render_all(Path("/x"), "u", "http://h/").keys())
+    names = set(module.render_all(Path("/x"), "u", "http://h/", "w", "/d").keys())
     assert names == {
         "lightrag-daily-check.service", "lightrag-daily-check.timer",
         "lightrag-cold-backup.service", "lightrag-cold-backup.timer",
         "lightrag-check-crashed.service", "lightrag-cold-backup-crashed.service",
+        "lightrag-intake.service",
     }, names
     assert set(module.ENABLE) == {"lightrag-daily-check.timer",
-                                  "lightrag-cold-backup.timer"}
+                                  "lightrag-cold-backup.timer",
+                                  "lightrag-intake.service"}
     # 備援單元由 OnFailure= 觸發，enable 它們沒有意義而且會排進 timers.target
     for unit in ("lightrag-check-crashed.service", "lightrag-cold-backup-crashed.service"):
         assert unit not in module.ENABLE

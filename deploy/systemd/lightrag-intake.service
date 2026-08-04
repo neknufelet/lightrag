@@ -1,0 +1,29 @@
+[Unit]
+Description=lightrag 進料審核台（:9710）
+# **刻意跑在宿主上，不進 compose。** compose.yaml 曾經有一份 intake 宣告，
+# 從來沒被啟用過，原因寫在這裡免得下一個人再試一次：
+#
+#   審核台會呼叫 postprocess.py，而 pp/oracle.py 靠 `docker exec` 進 LightRAG
+#   容器問它的真實行為（鐵則 3：LightRAG 的行為用 oracle 問，不要推測）。
+#   容器裡要做這件事就得掛 /var/run/docker.sock —— 而審核台是**對外開埠、
+#   接受檔案上傳**的網頁服務。給它 docker socket 等於誰打進來誰就有整台機器。
+#   目標從來不是「進 compose」，是「重開機會自己回來」，那是 systemd 的事。
+#
+# 依賴 docker：容器沒起來時 oracle 會失敗，晚一點起省得一堆無謂的錯誤。
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@
+ExecStart=/usr/bin/python3 @REPO@/scripts/intake.py --port 9710 --workspace @WORKSPACE@ --source @DATA_ROOT@/inbox
+Restart=on-failure
+RestartSec=10
+# 標準輸出進 journal，`journalctl -u lightrag-intake -f` 看得到即時狀況。
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
