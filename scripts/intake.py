@@ -665,7 +665,8 @@ class LightRAGClient:
         self.base_url = f"http://{bind}:{port}"
         self.api_key = environment.get("LIGHTRAG_API_KEY", "")
 
-    def request(self, path: str, method: str = "GET", body: dict[str, object] | None = None) -> dict[str, object]:
+    def request(self, path: str, method: str = "GET", body: dict[str, object] | None = None,
+                timeout: float = 120.0) -> dict[str, object]:
         data = json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None
         request = urllib.request.Request(
             self.base_url + path,
@@ -673,7 +674,7 @@ class LightRAGClient:
             data=data,
             headers={"X-API-Key": self.api_key, "Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request, timeout=120) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             raw = response.read()
         value = json.loads(raw or b"{}")
         if not isinstance(value, dict):
@@ -854,6 +855,9 @@ class IntakeApp:
         self._jobs: dict[str, Job] = {job.job_id: job for job in self.store.load()}
         self.scanner = CandidateScanner(paths, source_dirs)
         self.runner = runner or SubprocessRunner(repo, self._runner_environment())
+        self.client = LightRAGClient(self.environment)
+        # 與 LightRAG 對帳的結果快取；state() 會被輪詢，每次都打 API 太吵。
+        self._foreign: tuple[float, list[dict[str, object]], str | None] | None = None
         self._ensure_directories()
         self._recover_active_jobs()
 
@@ -1544,6 +1548,7 @@ class IntakeApp:
             "distance_since_last_event": distance,
             "warning": "；".join(self.store.load_errors + self.events.read_errors) or None,
         }
+        foreign_rows, foreign_error = self._foreign_documents()
         return {
             "sections": sections,
             "jobs": public_jobs,
@@ -1552,7 +1557,44 @@ class IntakeApp:
             "source_warnings": warnings,
             "health": self.health(),
             "links": self.links(),
+            "foreign": foreign_rows,
+            "foreign_error": foreign_error,
         }
+
+    def _foreign_documents(self) -> tuple[list[dict[str, object]], str | None]:
+        """索引裡有、但本站沒有紀錄的文件。
+
+        審核台只記得自己經手過的。用 CLI 或別的方式進去的文件它不知道，
+        於是畫面顯示 1 份而資料庫其實有 2 份 —— 而使用者會照畫面做決定。
+
+        連不上時回報**錯誤訊息**而不是空清單：一個安靜的 0 會讓人以為
+        「沒有別的東西」，那比看到警告危險。
+        """
+        now = time.monotonic()
+        if self._foreign is not None and now - self._foreign[0] < 30.0:
+            return self._foreign[1], self._foreign[2]
+
+        mine = {job.filename for job in self._jobs.values()}
+        rows: list[dict[str, object]] = []
+        error: str | None = None
+        try:
+            payload = self.client.request(
+                "/documents/paginated", "POST", {"page": 1, "page_size": 500}, timeout=4.0)
+            documents = payload.get("documents")
+            if isinstance(documents, list):
+                for item in documents:
+                    if not isinstance(item, dict):
+                        continue
+                    name = str(item.get("file_path") or item.get("id") or "")
+                    if name and name not in mine:
+                        rows.append({"filename": name,
+                                     "status": str(item.get("status", "")),
+                                     "source": "不是這裡送進去的"})
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            error = f"問不到 LightRAG 的文件清單（{type(exc).__name__}），下面的份數可能不完整"
+
+        self._foreign = (now, rows, error)
+        return rows, error
 
     def links(self) -> dict[str, str]:
         """外部服務的位址，從 .env 組出來給畫面用。
@@ -1737,6 +1779,23 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
         f"<span style='display:flex;gap:6px;align-items:center'>{chip}{action}</span>"
         f"<span class='sub'><span>{_esc(job.get('source', ''))}</span>{''.join(size_bits)}</span>"
         f"{err_html}</div>"
+    )
+
+
+def _render_foreign_row(row: Mapping[str, object]) -> str:
+    """索引裡有、但本站沒紀錄的文件。沒有 job 就沒有動作可做，只標明它存在。
+
+    不列出來的話，畫面會顯示「已進知識庫 1 份」而資料庫其實有 2 份 ——
+    而使用者會照畫面做決定。
+    """
+    return (
+        "<div class='row'>"
+        f"<span class='nm' title='{_esc(row.get("filename", ""))}'>"
+        f"{_esc(row.get('filename', ''))}</span>"
+        "<span class='chip idle'>不是這裡送的</span>"
+        f"<span class='sub'><span>{_esc(row.get('status', ''))}</span>"
+        "<span>用 CLI 或其他方式進去的</span></span>"
+        "</div>"
     )
 
 
@@ -2187,6 +2246,8 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     review, parsing, failed = sec("review"), sec("parsing"), sec("failed")
     in_progress, completed, selection = sec("in_progress"), sec("completed"), sec("selection")
 
+    foreign = state.get("foreign") if isinstance(state.get("foreign"), list) else []
+    foreign_error = state.get("foreign_error")
     health = state.get("health") if isinstance(state.get("health"), dict) else {}
     running = bool(health.get("running")) or bool(parsing) or bool(in_progress)
     signature = ".".join(str(x) for x in [
@@ -2200,22 +2261,27 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     if isinstance(warnings, list) and warnings:
         warn_html = ("<div class='banner'>⚠ "
                      + _esc("；".join(str(item) for item in warnings)) + "</div>")
+    if isinstance(foreign_error, str) and foreign_error:
+        warn_html += f"<div class='banner'>⚠ {_esc(foreign_error)}</div>"
 
     # 預設只展開「待審核」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。
+    # 由上而下就是一份文件實際會走的路：
+    #   收件匣 → 解析 → 等你看 → （卡住的）→ 處理 → 進知識庫 →（失敗）
+    # 預設只展開「等你看」——那是唯一需要你動腦的一節。
+    job_row = lambda row: _render_job_row(row, selected_job_id)  # noqa: E731
+    indexed_rows = list(completed) + list(foreign)
     queue = (
-        _render_section("review", "等你看", review,
-                        lambda row: _render_job_row(row, selected_job_id), open_default=True)
-        + _render_section("parsing", "解析中", parsing,
-                          lambda row: _render_job_row(row, selected_job_id))
-        + _render_section("failed", "失敗", failed,
-                          lambda row: _render_job_row(row, selected_job_id))
+        _render_section("selection", "收件匣", selection, _render_candidate_row)
+        + _render_section("parsing", "解析中", parsing, job_row)
+        + _render_section("review", "等你看", review, job_row, open_default=True)
         + _render_pending_groups(state.get("pending_by_reason"))
-        + _render_section("in_progress", "處理中", in_progress,
-                          lambda row: _render_job_row(row, selected_job_id))
-        + _render_section("completed", "已進知識庫", completed,
-                          lambda row: _render_job_row(row, selected_job_id))
-        + _render_section("selection", "收件匣", selection, _render_candidate_row)
+        + _render_section("in_progress", "處理中", in_progress, job_row)
+        + _render_section(
+            "completed", "已進知識庫", indexed_rows,
+            lambda row: (_render_job_row(row, selected_job_id)
+                         if row.get("job_id") else _render_foreign_row(row)))
+        + _render_section("failed", "失敗", failed, job_row)
     )
 
     return (
