@@ -1349,6 +1349,112 @@ class IntakeApp:
             self.store.save(job)
         self.store.append_log(job_id, message)
 
+    def save_upload(self, raw_name: str, data: bytes) -> Path:
+        """把拖進來的 PDF 存進 inbox。
+
+        三道檢查，缺一不可：
+
+        1. **檔名只取 basename 並過濾**——上傳的檔名是使用者輸入，
+           `../../etc/foo` 或絕對路徑都必須在這裡被剝掉，不能相信前端。
+        2. **副檔名只收 .pdf**——收件匣的下游是 MinerU，別的格式進來只會
+           在解析階段才炸，而且錯誤訊息會指向錯的地方。
+        3. **驗 magic bytes**——副檔名是使用者說了算，內容不是。改名成 .pdf
+           的 zip 進來會讓解析失敗得莫名其妙。
+
+        同名檔不覆蓋而是加序號：覆蓋會讓「我剛剛傳的那份呢」變成無解的問題，
+        而磁碟比困惑便宜。
+        """
+        name = Path(raw_name.replace("\\", "/")).name.strip()
+        if not name or name.startswith("."):
+            raise IntakeError("檔名不合法", 400)
+        if Path(name).suffix.lower() != ".pdf":
+            raise IntakeError(f"只收 PDF，收到的是 {Path(name).suffix or '沒有副檔名'}", 415)
+        if not data.startswith(b"%PDF-"):
+            raise IntakeError("內容不是 PDF（檔頭對不上），請確認檔案沒有被改過副檔名", 415)
+
+        # 去重比的是**內容**不是檔名。同一份 PDF 改個名再傳，檔名比對抓不到，
+        # 而重複的內容進索引會產生兩組指向同一份文件的實體與關係。
+        # 這個專案本來就是內容定址的（manifest 的 source_content_hash、
+        # candidate_id 也是內容雜湊），去重跟著同一把尺才不會兩套標準。
+        digest = hashlib.sha256(data).hexdigest()
+        inbox = self.paths.inbox_dir
+        inbox.mkdir(parents=True, exist_ok=True)
+
+        for existing in sorted(inbox.glob("*.pdf")):
+            try:
+                if hashlib.sha256(existing.read_bytes()).hexdigest() == digest:
+                    raise IntakeError(f"這份已經在收件匣裡了：{existing.name}", 409)
+            except OSError:
+                continue
+
+        for known, where in self._indexed_digests().items():
+            if known == digest:
+                raise IntakeError(f"這份已經進知識庫了：{where}", 409)
+
+        target = inbox / name
+        if target.exists():
+            # 走到這裡代表**同名但內容不同** —— 那是兩份不同的文件，兩份都要留。
+            stem, suffix = Path(name).stem, Path(name).suffix
+            for serial in range(2, 1000):
+                candidate = inbox / f"{stem} ({serial}){suffix}"
+                if not candidate.exists():
+                    target = candidate
+                    break
+            else:
+                raise IntakeError("同名檔太多，請先整理 inbox", 409)
+
+        # 先寫暫存再改名：寫到一半失敗時，收件匣裡不會出現半個檔案 ——
+        # 而半個 PDF 會通過副檔名檢查、在解析階段才炸。
+        staging = target.with_name(f".{target.name}.part")
+        try:
+            staging.write_bytes(data)
+            staging.replace(target)
+        except OSError as exc:
+            staging.unlink(missing_ok=True)
+            raise IntakeError(f"寫入失敗：{exc}", 500) from exc
+        LOGGER.info("收到上傳 %s（%d bytes）", target.name, len(data))
+        return target
+
+    def _indexed_digests(self) -> dict[str, str]:
+        """已經走過流程的內容雜湊 → 給人看的出處。
+
+        兩個來源，因為「已處理」不是單一狀態：job 紀錄涵蓋經過本站的，
+        磁碟上的 manifest 涵蓋用 CLI 跑的。只看其中一邊，另一條路徑進來的
+        文件就會被當成新的再收一次。
+        """
+        digests: dict[str, str] = {}
+        with self._lock:
+            jobs = list(self._jobs.values())
+        for job in jobs:
+            raw = getattr(job, "source_sha256", None)
+            if isinstance(raw, str) and raw:
+                digests.setdefault(raw.removeprefix("sha256:"),
+                                   f"{job.filename}（{_status_label(job.status, job.decision)}）")
+        for manifest_path in sorted(self.paths.parsed_dir.glob("*.mineru_raw/_manifest.json")):
+            try:
+                manifest = json.loads(manifest_path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            raw = manifest.get("source_content_hash")
+            if isinstance(raw, str) and raw:
+                name = manifest_path.parent.name.removesuffix(".mineru_raw")
+                digests.setdefault(raw.removeprefix("sha256:"), f"{name}（已解析）")
+        return digests
+
+    def delete_inbox_file(self, filename: str) -> None:
+        """刪掉收件匣裡的一份檔案。**只准刪 inbox** —— 其他來源不是我們的東西。"""
+        name = Path(filename.replace("\\", "/")).name.strip()
+        if not name or name.startswith("."):
+            raise IntakeError("檔名不合法", 400)
+        target = self.paths.inbox_dir / name
+        if not target.is_file():
+            raise IntakeError(f"收件匣裡沒有這個檔案：{name}", 404)
+        # resolve 之後再確認父目錄，擋掉 symlink 指到外面的情況。
+        if target.resolve().parent != self.paths.inbox_dir.resolve():
+            raise IntakeError("只能刪收件匣裡的檔案", 400)
+        target.unlink()
+        LOGGER.info("刪除收件匣檔案 %s", name)
+
     def health(self) -> dict[str, object]:
         with self._lock:
             worker_alive = self._worker is not None and self._worker.is_alive()
@@ -1445,6 +1551,19 @@ class IntakeApp:
             "convergence": convergence,
             "source_warnings": warnings,
             "health": self.health(),
+            "links": self.links(),
+        }
+
+    def links(self) -> dict[str, str]:
+        """外部服務的位址，從 .env 組出來給畫面用。
+
+        寫死 host 會讓這頁在換機器時指向不存在的地方，而且不會報錯 ——
+        使用者只會看到一個點了沒反應的連結。
+        """
+        host = self.environment.get("BIND_ADDR", "127.0.0.1")
+        return {
+            "lightrag": f"http://{host}:{self.environment.get('HOST_PORT', '9621')}",
+            "kbapi": f"http://{host}:{self.environment.get('KBAPI_PORT', '9700')}",
         }
 
 
@@ -1461,6 +1580,34 @@ def _source_paths(environment: Mapping[str, str], overrides: Sequence[str] | Non
     if not values:
         values = [item.strip() for item in environment.get("INTAKE_SOURCES", "").split(",") if item.strip()]
     return [Path(value) for value in values]
+
+
+MAX_UPLOAD_BYTES = 512 * 1024 * 1024
+
+
+def _upload_body(handler: BaseHTTPRequestHandler) -> bytes:
+    """讀上傳的原始位元組。
+
+    刻意不解析 multipart：`cgi` 在 3.13 被移除，自己寫 multipart 解析器則是
+    典型的踩雷面（邊界字串、編碼、巢狀）。前端直接把 File 當 body 送，
+    檔名走 `X-Filename` 標頭，這樣伺服器端只要讀 N 個位元組就好。
+    """
+    raw_length = handler.headers.get("Content-Length")
+    try:
+        length = int(raw_length or "0")
+    except ValueError as exc:
+        raise IntakeError("Content-Length 不合法", 400) from exc
+    if length <= 0:
+        raise IntakeError("沒有收到檔案內容", 400)
+    if length > MAX_UPLOAD_BYTES:
+        raise IntakeError(f"檔案超過上限 {MAX_UPLOAD_BYTES // (1024 * 1024)} MB", 413)
+    try:
+        data = handler.rfile.read(length)
+    except OSError as exc:
+        raise IntakeError(f"讀取上傳內容失敗：{exc}", 400) from exc
+    if len(data) != length:
+        raise IntakeError("上傳內容不完整（可能中斷）", 400)
+    return data
 
 
 def _json_body(handler: BaseHTTPRequestHandler) -> dict[str, object]:
@@ -1522,86 +1669,149 @@ def _status_label(status: object, decision: object = None) -> str:
     return labels.get(str(status), str(status))
 
 
+def _chip_class(status: object, decision: object = None) -> str:
+    """狀態 → 顏色。顏色本身要帶資訊，不是裝飾。"""
+    if status == "planned":
+        return "clean" if decision == "clean" else "novel"
+    if status in {"failed", "failed_parse"}:
+        return "blocked"
+    if status == "indexed":
+        return "clean"
+    if status in {"parsing", "repairing", "scanning", "extracting", "admitted"}:
+        return "review"
+    return "idle"
+
+
 def _render_candidate_row(candidate: Mapping[str, object]) -> str:
     candidate_id = _esc(candidate.get("candidate_id", ""))
+    source = str(candidate.get("source", ""))
+    filename = str(candidate.get("filename", ""))
+    # 只有收件匣裡的檔案給刪 —— 別的來源不是我們的東西。
+    remove = ""
+    if source == "inbox":
+        remove = (f"<button class='danger' data-act='rm' data-id='{_esc(filename)}'"
+                  f" title='從收件匣刪除'>刪除</button>")
     return (
-        "<div class='row candidate-row'>"
-        f"<div><strong>{_esc(candidate.get('filename', ''))}</strong>"
-        f"<small>{_esc(candidate.get('source', ''))} · {_format_size(candidate.get('size'))}</small></div>"
-        f"<span class='chip'>{_status_label('candidate')}</span>"
-        f"<button class='secondary' data-action='parse' data-candidate-id='{candidate_id}'>只解析</button>"
+        "<div class='row'>"
+        f"<span class='nm' title='{_esc(filename)}'>{_esc(filename)}</span>"
+        f"<span style='display:flex;gap:6px'>{remove}"
+        f"<button data-act='parse' data-id='{candidate_id}'>只解析</button></span>"
+        f"<span class='sub'><span>{_esc(source)}</span>"
+        f"<span>{_format_size(candidate.get('size'))}</span></span>"
         "</div>"
     )
 
 
-def _render_job_row(job: Mapping[str, object]) -> str:
+def _render_job_row(job: Mapping[str, object], current: str | None = None) -> str:
     metrics = job.get("metrics") if isinstance(job.get("metrics"), dict) else {}
-    pages = metrics.get("pages", "—") if isinstance(metrics, dict) else "—"
-    items = metrics.get("items", "—") if isinstance(metrics, dict) else "—"
+    if not isinstance(metrics, dict):
+        metrics = {}
     job_id = _esc(job.get("job_id", ""))
-    link = f"?job={job_id}"
-    action = ""
     status = job.get("status")
-    if status == "planned" and job.get("decision") == "clean":
-        action = f"<a class='secondary' href='{link}'>查看計畫</a>"
+    decision = job.get("decision")
+    is_current = current is not None and job.get("job_id") == current
+    action = ""
+    if status in {"failed", "failed_parse"}:
+        action = f"<button data-act='reset' data-id='{job_id}'>重置</button>"
     elif status == "planned":
-        action = f"<a class='secondary' href='{link}'>查看原因</a>"
-    elif status in {"failed", "failed_parse"}:
-        action = f"<button class='secondary' data-action='reset' data-job-id='{job_id}'>重置為候選</button>"
-    failure = job.get("error")
-    failure_html = ""
-    if status in {"failed", "failed_parse"} and isinstance(failure, str) and failure:
-        failure_html = f"<small class='failure-message'>⚠ {_esc(failure)}</small>"
+        action = f"<a class='btn' href='?job={job_id}'>看計畫</a>"
+    pages = metrics.get("pages")
+    items = metrics.get("items")
+    size_bits = []
+    if pages not in (None, "—"):
+        size_bits.append(f"<span>{_esc(pages)} 頁</span>")
+    if items not in (None, "—"):
+        size_bits.append(f"<span>{_esc(items)} 項</span>")
+    error = job.get("error")
+    err_html = ""
+    if status in {"failed", "failed_parse"} and isinstance(error, str) and error:
+        err_html = f"<span class='err'>⚠ {_esc(error)}</span>"
+    chip = (f"<span class='chip {_chip_class(status, decision)}'>"
+            f"{_esc(_status_label(status, decision))}</span>")
     return (
-        "<div class='row job-row'>"
-        f"<div><a href='{link}'><strong>{_esc(job.get('filename', ''))}</strong></a>"
-        f"<small>{_esc(job.get('source', ''))} · {pages} 頁／{items} 項</small>"
-        f"{failure_html}</div>"
-        f"<span class='chip'>{_esc(_status_label(job.get('status'), job.get('decision')))}</span>"
-        f"{action}</div>"
+        f"<div class='row{" current" if is_current else ""}'>"
+        f"<a class='nm' href='?job={job_id}' title='{_esc(job.get("filename", ""))}'>"
+        f"{_esc(job.get('filename', ''))}</a>"
+        f"<span style='display:flex;gap:6px;align-items:center'>{chip}{action}</span>"
+        f"<span class='sub'><span>{_esc(job.get('source', ''))}</span>{''.join(size_bits)}</span>"
+        f"{err_html}</div>"
     )
 
 
-def _render_section(title: str, rows: Sequence[Mapping[str, object]], renderer: Callable[[Mapping[str, object]], str]) -> str:
+def _render_section(key: str, title: str, rows: Sequence[Mapping[str, object]],
+                    renderer: Callable[[Mapping[str, object]], str],
+                    open_default: bool = False) -> str:
+    """一節佇列。預設收起來 —— 攤開全部等於沒有分節。
+
+    內容區限高捲動（CSS 的 .sec-body），所以 387 份的選片區不會把畫面撐爆。
+    """
     body = "".join(renderer(row) for row in rows)
     if not body:
         body = "<div class='empty'>目前沒有</div>"
-    return f"<section><h2>{_esc(title)}</h2>{body}</section>"
-
-
-def _render_convergence(convergence: Mapping[str, object]) -> str:
-    events = convergence.get("events")
-    event_rows: list[str] = []
-    if isinstance(events, list):
-        for event in reversed(events[-8:]):
-            if not isinstance(event, dict):
-                continue
-            event_rows.append(
-                "<li>"
-                f"<strong>{_esc(event.get('reason', '教學事件'))}</strong> · "
-                f"{_esc(event.get('document', ''))} · {_esc(event.get('created_at', ''))}"
-                "</li>"
-            )
-    event_body = "<ul>" + "".join(event_rows) + "</ul>" if event_rows else "<p>尚無教學事件。</p>"
-    distance = convergence.get("distance_since_last_event")
-    distance_text = "尚無事件" if distance is None else f"{distance} 份"
-    warning = convergence.get("warning")
-    warning_html = f"<p class='warning'>⚠ {_esc(warning)}</p>" if warning else ""
+    attr = " open" if open_default else ""
     return (
-        "<section class='convergence'>"
-        "<div><p class='eyebrow'>收斂列</p><h1>這批還在教我們東西嗎</h1></div>"
-        "<div class='convergence-stats'>"
-        f"<span>已處理份數<strong>{_esc(convergence.get('processed', 0))}</strong></span>"
-        f"<span>距上次事件<strong>{_esc(distance_text)}</strong></span>"
+        f"<details data-sec='{_esc(key)}'{attr}>"
+        f"<summary><span class='caret'>▶</span>"
+        f"<span class='sec-name'>{_esc(title)}</span>"
+        f"<span class='count'>{len(rows)}</span></summary>"
+        f"<div class='sec-body'>{body}</div></details>"
+    )
+
+
+def _render_convergence(convergence: Mapping[str, object], links: Mapping[str, object]) -> str:
+    """收斂列：這批還在教我們東西嗎。
+
+    ⚠ 樣本太小時**明說樣本太小**，不畫趨勢圖。用 3 份文件畫出來的「出現率」
+    是噪音，而畫成圖表會讓它看起來像結論 —— 那正是這個專案一路在防的東西。
+    """
+    processed = convergence.get("processed", 0)
+    try:
+        n = int(processed)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        n = 0
+    events = convergence.get("events")
+    event_count = len([e for e in events if isinstance(e, dict)]) if isinstance(events, list) else 0
+    distance = convergence.get("distance_since_last_event")
+    distance_text = "—" if distance is None else str(distance)
+
+    if n < 10:
+        verdict = (f"樣本還太小（{n} 份），現在談收斂沒有意義。"
+                   f"先累積到 10 份以上，出現率才讀得出趨勢。")
+    elif event_count == 0:
+        verdict = f"連續 {n} 份沒有出現新型態 —— 規則可能已經涵蓋這批文件。"
+    else:
+        verdict = (f"最近一次新型態出現在 {distance_text} 份之前。"
+                   f"距離拉長代表規則在收斂。")
+
+    warning = convergence.get("warning")
+    banner = f"<div class='banner'>⚠ {_esc(warning)}</div>" if warning else ""
+    lightrag = _esc(links.get("lightrag", "")) if isinstance(links, Mapping) else ""
+    kbapi = _esc(links.get("kbapi", "")) if isinstance(links, Mapping) else ""
+    return (
+        "<div class='topbar'>"
+        "<div class='topbar-main'><p class='eyebrow'>收斂狀態</p>"
+        "<h1>這批還在教我們東西嗎</h1>"
+        f"<p>{_esc(verdict)}</p></div>"
+        "<div class='stats'>"
+        f"<div><div class='k'>已處理</div><div class='v'>{n}</div></div>"
+        f"<div><div class='k'>教學事件</div><div class='v'>{event_count}</div></div>"
+        f"<div><div class='k'>距上次</div><div class='v'>{_esc(distance_text)}</div></div>"
         "</div>"
-        f"<div class='events'><h3>教學事件</h3>{event_body}</div>{warning_html}"
-        "</section>"
+        "<div class='links'>"
+        f"<a href='{lightrag}' target='_blank' rel='noopener'>知識庫 ↗</a>"
+        f"<a href='{kbapi}/health' target='_blank' rel='noopener'>kbapi ↗</a>"
+        "</div></div>" + banner
     )
 
 
 def _render_pending_groups(groups: object) -> str:
+    """待確認**按原因分組**，不是按文件。
+
+    判準是「這個現象有幾份文件的證據」——按文件分組看不到跨文件的模式，
+    而那正是決定要不要寫成規則的唯一依據。
+    """
     if not isinstance(groups, list) or not groups:
-        return "<section class='pending-groups'><h2>待確認（按原因）</h2><div class='empty'>目前沒有待確認原因</div></section>"
+        return ""
     rows: list[str] = []
     for group in groups:
         if not isinstance(group, dict):
@@ -1611,87 +1821,355 @@ def _render_pending_groups(groups: object) -> str:
         if isinstance(jobs, list):
             names = [str(item.get("filename", "")) for item in jobs if isinstance(item, dict)]
         rows.append(
-            "<div class='reason-row'>"
-            f"<strong>✗ {_esc(group.get('reason', '未分類'))}</strong>"
-            f"<span>{_esc(group.get('count', 0))} 份</span>"
-            f"<small>{_esc('、'.join(names))}</small>"
+            "<div class='row'>"
+            f"<span class='nm'>{_esc(group.get('reason', '未分類'))}</span>"
+            f"<span class='chip novel'>{_esc(group.get('count', 0))} 份</span>"
+            f"<span class='sub'><span>{_esc('、'.join(names))}</span></span>"
             "</div>"
         )
-    return "<section class='pending-groups'><h2>待確認（按原因）</h2>" + "".join(rows) + "</section>"
+    return (
+        "<details data-sec='reasons'>"
+        "<summary><span class='caret'>▶</span>"
+        "<span class='sec-name'>待確認 · 按原因</span>"
+        f"<span class='count'>{len(rows)}</span></summary>"
+        f"<div class='sec-body'>{''.join(rows)}</div></details>"
+    )
 
 
 def _render_plan(job: Mapping[str, object] | None) -> str:
     if job is None:
         return (
-            "<section class='plan-card'><p class='eyebrow'>處理計畫</p>"
-            "<h2>先從左側選一份已解析文件</h2>"
-            "<p>只解析完成並產生機械計畫後，這裡才會出現放行動作。</p></section>"
+            "<div class='stage-body'><p class='eyebrow'>處理計畫</p>"
+            "<h2>左邊挑一份，先只解析</h2>"
+            "<p class='meta'>解析完會在這裡列出它打算怎麼處理，"
+            "確認過才會有放行動作。</p>"
+            "<p class='hint'>先花小錢解析看清楚，再花十幾分鐘抽取的大錢 ——"
+            "這一步不能跳過。</p></div>"
         )
     metrics = job.get("metrics") if isinstance(job.get("metrics"), dict) else {}
     if not isinstance(metrics, dict):
         metrics = {}
     status = job.get("status")
+    decision = job.get("decision")
     reasons = job.get("reasons") if isinstance(job.get("reasons"), list) else []
     details = job.get("details") if isinstance(job.get("details"), list) else []
     error = job.get("error")
+    job_id = _esc(job.get("job_id", ""))
+
     if status in {"failed", "failed_parse"} and isinstance(error, str) and error:
-        thing_body = f"<p class='failure-message'>⚠ {_esc(error)}</p>"
+        teach = ("<div class='teach bad'><b>這一份失敗了</b>"
+                 f"<ul><li>{_esc(error)}</li></ul></div>")
     elif reasons:
-        things = []
+        items = []
         for index, reason in enumerate(reasons):
-            detail = details[index] if index < len(details) else reason
-            things.append(
-                "<li><strong>"
-                f"{_esc(reason)}</strong><small>{_esc(detail)}</small>"
-                "<em>決定會變成規則，套用到之後所有文件</em></li>"
-            )
-        thing_body = "<ul class='new-things'>" + "".join(things) + "</ul>"
+            detail = details[index] if index < len(details) else ""
+            extra = f"<small>{_esc(detail)}</small>" if detail else ""
+            items.append(f"<li>{_esc(reason)}{extra}"
+                         "<em>決定會變成規則，套用到之後所有文件</em></li>")
+        teach = (f"<div class='teach'><b>有 {len(reasons)} 件沒見過的</b>"
+                 f"<ul>{''.join(items)}</ul></div>")
     else:
-        thing_body = "<p class='clean-message'>沒有。全部命中既有規則</p>"
-    plan_action = ""
-    if job.get("status") == "planned" and job.get("decision") == "clean":
-        job_id = _esc(job.get("job_id", ""))
-        plan_action = (
-            f"<button class='primary' data-action='admit' data-job-id='{job_id}'>"
-            "放行 · 修補並索引</button>"
-            f"<button class='secondary' data-action='return' data-job-id='{job_id}'>退回</button>"
-        )
-    elif job.get("status") == "planned":
-        job_id = _esc(job.get("job_id", ""))
-        plan_action = f"<button class='secondary' data-action='return' data-job-id='{job_id}'>退回並保留理由</button>"
+        teach = ("<div class='teach ok'><b>沒有。全部命中既有規則</b>"
+                 "<ul><li>處理方式與前面幾份相同，沒有需要你決定的事。</li></ul></div>")
+
+    if status == "planned" and decision == "clean":
+        acts = (f"<button class='go' data-act='admit' data-id='{job_id}'>放行 · 修補並索引</button>"
+                f"<button data-act='return' data-id='{job_id}'>跳過</button>")
+    elif status == "planned":
+        acts = f"<button data-act='return' data-id='{job_id}'>跳過並保留理由</button>"
     elif status in {"failed", "failed_parse"}:
-        job_id = _esc(job.get("job_id", ""))
-        plan_action = f"<button class='secondary' data-action='reset' data-job-id='{job_id}'>重置為候選</button>"
+        acts = f"<button data-act='reset' data-id='{job_id}'>重置為候選</button>"
     else:
-        plan_action = f"<p class='status-note'>目前狀態：{_esc(_status_label(job.get('status'), job.get('decision')))}</p>"
+        acts = (f"<span class='chip {_chip_class(status, decision)}'>"
+                f"{_esc(_status_label(status, decision))}</span>")
+
     leakage = metrics.get("leakage_rate")
     leakage_text = "未量測" if leakage is None else f"{float(leakage):.2%}"
+    pages = metrics.get("pages")
+    items_n = metrics.get("items")
+    head = []
+    if pages not in (None, "—"):
+        head.append(f"{_esc(pages)} 頁")
+    if items_n not in (None, "—"):
+        head.append(f"{_esc(items_n)} 個項目")
+    head.append(_esc(_status_label(status, decision)))
+
     return (
-        "<section class='plan-card'><p class='eyebrow'>處理計畫</p>"
+        "<div class='stage-body'><p class='eyebrow'>處理計畫</p>"
         f"<h2>{_esc(job.get('filename', ''))}</h2>"
-        "<div class='teaching-card'><h3>這份有沒有教我們新東西</h3>"
-        f"{thing_body}</div>"
-        "<h3>打算怎麼處理</h3><div class='metrics'>"
-        f"<span>消音<strong>{_esc(metrics.get('mute', 0))}</strong>處</span>"
-        f"<span>空表格<strong>{_esc(metrics.get('empty_tables', 0))}</strong>個</span>"
-        f"<span>chart<strong>{_esc(metrics.get('charts', 0))}</strong>（只登記）</span>"
-        f"<span>項目數變化<strong>{_esc(metrics.get('item_delta', 0))}</strong>（不得改變）</span>"
+        f"<p class='meta'>{' · '.join(head)}</p>"
+        "<h3>這份有沒有教我們新東西</h3>"
+        f"{teach}"
+        "<h3>打算怎麼處理</h3><div class='grid'>"
+        f"<div class='cell'><div class='k'>消音</div>"
+        f"<div class='v'>{_esc(metrics.get('mute', 0))}<small>處</small></div></div>"
+        f"<div class='cell'><div class='k'>空表格</div>"
+        f"<div class='v'>{_esc(metrics.get('empty_tables', 0))}<small>個</small></div></div>"
+        f"<div class='cell'><div class='k'>chart</div>"
+        f"<div class='v'>{_esc(metrics.get('charts', 0))}<small>只登記</small></div></div>"
+        f"<div class='cell'><div class='k'>項目數變化</div>"
+        f"<div class='v'>{_esc(metrics.get('item_delta', 0))}<small>不得改變</small></div></div>"
         "</div>"
-        "<table class='details'><tbody>"
-        f"<tr><th>來源</th><td>{_esc(job.get('source', ''))}</td></tr>"
-        f"<tr><th>解析選項</th><td>{_esc(metrics.get('parse_options', '未取得'))}</td></tr>"
-        f"<tr><th>狀態</th><td>{_esc(_status_label(job.get('status'), job.get('decision')))}</td></tr>"
-        f"<tr><th>漏詞率</th><td>{_esc(leakage_text)}</td></tr>"
-        "</tbody></table><div class='actions'>"
-        f"{plan_action}</div>"
-        "<p class='hint'>放行會寫入磁碟並開始抽取（約 12 分鐘）。寫入前原始檔會自動備份，可 revert；"
-        "但抽取進索引之後，撤銷是「刪掉重跑」不是「還原」。</p>"
-        "</section>"
+        "<h3>細節</h3><table><tbody>"
+        f"<tr><td>來源</td><td class='val'>{_esc(job.get('source', ''))}</td></tr>"
+        f"<tr><td>解析選項</td><td class='val'>{_esc(metrics.get('parse_options', '未取得'))}</td></tr>"
+        f"<tr><td>漏詞率</td><td class='val'>{_esc(leakage_text)}</td></tr>"
+        "</tbody></table>"
+        f"<div class='acts'>{acts}</div>"
+        "<p class='hint'>放行會寫入磁碟並開始抽取。寫入前原始檔會自動備份，可以還原；"
+        "<b>但抽取進索引之後，撤銷是「刪掉重跑」不是「還原」。</b></p>"
+        "</div>"
     )
+
+
+CSS = """:root{
+  --ground:#E9EDEF; --panel:#F8FAFB; --sunk:#DDE4E7; --rail:#E1E7E9;
+  --ink:#0E161A; --ink-2:#46585F; --ink-3:#6D8189;
+  --line:#C2CDD2; --line-soft:#D6DEE1;
+  --accent:#14566E; --accent-ink:#F8FAFB;
+  --clean:#2C6A51; --review:#9A6B15; --blocked:#8F352C; --novel:#5B3E8C;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,-apple-system,"Segoe UI","PingFang TC","Noto Sans TC",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#090F12; --panel:#111A1E; --sunk:#0C1316; --rail:#0E1619;
+    --ink:#E2EAED; --ink-2:#93A6AE; --ink-3:#6B7F86;
+    --line:#223035; --line-soft:#1A252A;
+    --accent:#68AEC8; --accent-ink:#08131A;
+    --clean:#6EBE94; --review:#D6A448; --blocked:#D2786D; --novel:#A98BD6;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+main{max-width:1340px;margin:0 auto;padding:18px 16px 64px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── 頂列：收斂狀態 ───────────────────────────────── */
+.topbar{background:var(--panel);border:1px solid var(--line);border-radius:2px;
+  padding:14px 18px;display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.topbar-main{flex:1 1 320px;min-width:0}
+.eyebrow{margin:0 0 2px;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3)}
+.topbar h1{margin:0;font-size:17px;font-weight:640;letter-spacing:-.01em}
+.topbar p{margin:4px 0 0;color:var(--ink-2);font-size:13.5px}
+.stats{display:flex;gap:20px;flex:0 0 auto}
+.stats div{min-width:72px}
+.stats .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3)}
+.stats .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;font-family:var(--mono)}
+.links{display:flex;gap:8px;flex:0 0 auto;align-items:center}
+.links a{font-family:var(--mono);font-size:12px;border:1px solid var(--line);
+  border-radius:2px;padding:5px 10px;color:var(--ink-2)}
+.links a:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+.banner{margin-top:2px;padding:9px 14px;border-radius:2px;font-size:13px;
+  background:var(--sunk);border-left:3px solid var(--review);color:var(--ink-2)}
+
+/* ── 版面：佇列 ｜ 判斷 ────────────────────────────── */
+.layout{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);
+  gap:2px;margin-top:2px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.queue,.stage{background:var(--panel);border:1px solid var(--line);border-radius:2px}
+.queue{overflow:hidden}
+
+/* ── 佇列的摺疊節 ─────────────────────────────────── */
+details{border-bottom:1px solid var(--line-soft)}
+details:last-of-type{border-bottom:0}
+summary{list-style:none;cursor:pointer;padding:10px 16px;display:flex;
+  align-items:center;gap:9px;background:var(--sunk);user-select:none}
+summary::-webkit-details-marker{display:none}
+summary:hover{background:var(--rail)}
+summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.caret{font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  transition:transform .12s ease;flex:0 0 auto}
+details[open] .caret{transform:rotate(90deg)}
+.sec-name{font-size:12px;font-family:var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500;flex:1}
+.count{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;
+  color:var(--ink-2);background:var(--panel);border:1px solid var(--line-soft);
+  border-radius:2px;padding:1px 7px}
+.sec-body{max-height:16.5rem;overflow-y:auto;overscroll-behavior:contain}
+
+/* ── 佇列的列 ─────────────────────────────────────── */
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;
+  align-items:center;padding:10px 16px;border-bottom:1px solid var(--line-soft);
+  border-left:3px solid transparent}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--sunk)}
+.row.current{background:var(--rail);border-left-color:var(--accent)}
+.row .nm{font-size:13.5px;font-weight:560;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;min-width:0}
+.row .sub{grid-column:1/-1;font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+  display:flex;gap:8px;flex-wrap:wrap}
+.row .err{grid-column:1/-1;font-size:12px;color:var(--blocked);overflow-wrap:anywhere}
+.empty{padding:14px 16px;color:var(--ink-3);font-size:13px}
+
+/* ── 狀態標籤 ─────────────────────────────────────── */
+.chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;padding:1px 7px;
+  border-radius:2px;border:1px solid;white-space:nowrap}
+.chip.clean{color:var(--clean);border-color:var(--clean)}
+.chip.review{color:var(--review);border-color:var(--review)}
+.chip.blocked{color:var(--blocked);border-color:var(--blocked)}
+.chip.novel{color:var(--novel);border-color:var(--novel)}
+.chip.idle{color:var(--ink-3);border-color:var(--line)}
+
+/* ── 按鈕 ─────────────────────────────────────────── */
+button,.btn{font:inherit;font-size:12.5px;font-family:var(--mono);padding:5px 11px;
+  border-radius:2px;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink-2);cursor:pointer;white-space:nowrap}
+button:hover,.btn:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
+button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);
+  font-size:14px;font-family:var(--sans);font-weight:600;padding:9px 18px}
+button.go:hover{filter:brightness(1.12);color:var(--accent-ink)}
+button.danger:hover{border-color:var(--blocked);color:var(--blocked)}
+button[disabled]{opacity:.4;cursor:not-allowed}
+
+/* ── 判斷卡片 ─────────────────────────────────────── */
+.stage-body{padding:22px 26px 26px}
+.stage h2{margin:0 0 3px;font-size:20px;font-weight:640;letter-spacing:-.015em;
+  text-wrap:balance;overflow-wrap:anywhere}
+.stage .meta{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin:0 0 20px}
+.stage h3{margin:22px 0 8px;font-family:var(--mono);font-size:11px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.stage h3:first-child{margin-top:0}
+.teach{border:1px solid var(--novel);border-left-width:3px;background:var(--sunk);
+  padding:14px 16px}
+.teach b{color:var(--novel)}
+.teach ul{margin:8px 0 0;padding-left:1.15em}
+.teach li{margin-bottom:7px;font-size:14px}
+.teach li small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}
+.teach li em{display:block;color:var(--novel);font-size:11.5px;font-style:normal;margin-top:3px}
+.teach.ok{border-color:var(--clean)}
+.teach.ok b{color:var(--clean)}
+.teach.bad{border-color:var(--blocked)}
+.teach.bad b{color:var(--blocked)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:2px}
+.cell{background:var(--sunk);padding:11px 13px}
+.cell .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;color:var(--ink-3)}
+.cell .v{font-family:var(--mono);font-size:19px;font-weight:600;margin-top:2px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.cell .v small{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--ink-3);
+  letter-spacing:0;margin-left:3px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:4px}
+td{padding:7px 0;border-bottom:1px solid var(--line-soft);vertical-align:top}
+td:first-child{color:var(--ink-2);width:34%;font-size:13px}
+td.val{font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere}
+tr:last-child td{border-bottom:0}
+.acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:24px;padding-top:18px;
+  border-top:1px solid var(--line)}
+.hint{font-size:12.5px;color:var(--ink-3);margin:12px 0 0;line-height:1.55}
+.hint b{color:var(--ink-2)}
+
+/* ── 拖拉上傳 ─────────────────────────────────────── */
+.dropzone{margin:2px 0 0;background:var(--panel);border:1px dashed var(--line);
+  border-radius:2px;padding:16px;text-align:center;color:var(--ink-3);font-size:13px}
+.dropzone b{color:var(--ink-2);font-weight:560}
+.dropzone input{display:none}
+.dropzone label{color:var(--accent);cursor:pointer;text-decoration:underline}
+#veil{position:fixed;inset:0;background:color-mix(in srgb,var(--ground) 88%,transparent);
+  border:3px dashed var(--accent);display:none;place-items:center;z-index:50;
+  font-size:19px;font-weight:600;color:var(--accent)}
+#veil.on{display:grid}
+#uplog{margin-top:8px;font-family:var(--mono);font-size:12px;text-align:left}
+#uplog div{padding:2px 0}
+#uplog .bad{color:var(--blocked)}
+#uplog .ok{color:var(--clean)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}"""
+
+
+JS = r"""const post = async (path, body) => {
+  const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'},
+                              body:JSON.stringify(body)});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(d.error || '操作失敗'); return false; }
+  location.reload(); return true;
+};
+document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+  const a = b.dataset.act;
+  if (a === 'parse')  return post('/api/parse',  {candidate_id: b.dataset.id});
+  if (a === 'admit')  return post('/api/admit',  {job_id: b.dataset.id});
+  if (a === 'return') return post('/api/return', {job_id: b.dataset.id});
+  if (a === 'reset')  return post('/api/reset',  {job_id: b.dataset.id});
+  if (a === 'rm') {
+    if (!confirm('從收件匣刪除 ' + b.dataset.id + '？')) return;
+    return post('/api/inbox/delete', {filename: b.dataset.id});
+  }
+});
+
+/* 記住哪幾節是開的 —— reload 之後不該把使用者剛展開的東西關回去 */
+const OPEN = 'intake.open';
+const opened = new Set(JSON.parse(sessionStorage.getItem(OPEN) || '[]'));
+document.querySelectorAll('details[data-sec]').forEach(d => {
+  if (opened.size) d.open = opened.has(d.dataset.sec);
+  d.addEventListener('toggle', () => {
+    const now = [...document.querySelectorAll('details[data-sec]')]
+      .filter(x => x.open).map(x => x.dataset.sec);
+    sessionStorage.setItem(OPEN, JSON.stringify(now));
+  });
+});
+
+/* 上傳：拖到頁面任何地方都收 */
+const veil = document.getElementById('veil');
+const uplog = document.getElementById('uplog');
+let depth = 0;
+const say = (msg, cls) => {
+  const el = document.createElement('div');
+  el.textContent = msg; if (cls) el.className = cls;
+  uplog.prepend(el);
+};
+const send = async (files) => {
+  let ok = 0;
+  for (const f of files) {
+    try {
+      const r = await fetch('/api/upload', {method:'POST', body:f,
+        headers:{'X-Filename': encodeURIComponent(f.name),
+                 'Content-Type':'application/octet-stream'}});
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { say('收下 ' + (d.filename || f.name), 'ok'); ok++; }
+      else say(f.name + '：' + (d.error || '失敗'), 'bad');
+    } catch (e) { say(f.name + '：' + e.message, 'bad'); }
+  }
+  if (ok) setTimeout(() => location.reload(), 700);
+};
+['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => {
+  if (!e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return;
+  e.preventDefault(); depth++; veil.classList.add('on');
+}));
+['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault(); depth = Math.max(0, depth - (ev === 'drop' ? depth : 1));
+  if (!depth) veil.classList.remove('on');
+}));
+document.addEventListener('drop', e => {
+  if (e.dataTransfer && e.dataTransfer.files.length) send(e.dataTransfer.files);
+});
+const picker = document.getElementById('picker');
+if (picker) picker.onchange = () => { if (picker.files.length) send(picker.files); };
+
+/* 只在真的有工作在跑時才輪詢。閒著的時候整頁不動 ——
+   原本那個 <meta refresh 5> 會在你看東西看到一半把畫面抽掉。 */
+if (document.body.dataset.running === '1') {
+  const seen = document.body.dataset.sig;
+  setInterval(async () => {
+    try {
+      const s = await (await fetch('/api/state')).json();
+      const sec = s.sections || {};
+      const sig = [s.health && s.health.running ? 1 : 0,
+                   ...['selection','parsing','review','in_progress','completed','failed']
+                     .map(k => (sec[k] || []).length)].join('.');
+      if (sig !== seen) location.reload();
+    } catch (_) { /* 網路瞬斷不該把畫面弄壞，下一輪再試 */ }
+  }, 3000);
+}"""
 
 
 def render_html(state: Mapping[str, object], selected_job_id: str | None = None) -> str:
     sections = state.get("sections") if isinstance(state.get("sections"), dict) else {}
+    if not isinstance(sections, dict):
+        sections = {}
     jobs = state.get("jobs") if isinstance(state.get("jobs"), list) else []
     selected: Mapping[str, object] | None = None
     if selected_job_id and isinstance(jobs, list):
@@ -1699,80 +2177,66 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
             if isinstance(item, dict) and item.get("job_id") == selected_job_id:
                 selected = item
                 break
-    selection = sections.get("selection", []) if isinstance(sections, dict) else []
-    parsing = sections.get("parsing", []) if isinstance(sections, dict) else []
-    review = sections.get("review", []) if isinstance(sections, dict) else []
-    in_progress = sections.get("in_progress", []) if isinstance(sections, dict) else []
-    completed = sections.get("completed", []) if isinstance(sections, dict) else []
-    failed = sections.get("failed", []) if isinstance(sections, dict) else []
-    convergence = state.get("convergence") if isinstance(state.get("convergence"), dict) else {}
-    source_warnings = state.get("source_warnings")
-    warning_html = ""
-    if isinstance(source_warnings, list) and source_warnings:
-        warning_html = "<div class='source-warning'>⚠ " + _esc("；".join(str(item) for item in source_warnings)) + "</div>"
-    return """<!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="5">
-<title>收件匣／進料審核台</title>
-<style>
-:root { color-scheme: light; --ink:#29233d; --muted:#716b82; --line:#e7e1ed;
-  --purple:#7454c6; --pale:#f5f0ff; --green:#26765a; --red:#b74953; --bg:#fbfafc; }
-* { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink);
-  font:15px/1.5 system-ui,-apple-system,"Noto Sans TC",sans-serif; }
-main { max-width:1440px; margin:0 auto; padding:24px; }
-.convergence { background:#29233d; color:#fff; border-radius:18px; padding:22px 26px;
-  display:grid; grid-template-columns:1.1fr .9fr 1.4fr; gap:24px; align-items:start; }
-.convergence h1 { margin:0; font-size:28px; } .eyebrow { margin:0 0 5px; color:#a991ed;
-  font-size:12px; letter-spacing:.08em; text-transform:uppercase; }
-.convergence-stats { display:flex; gap:20px; padding-top:18px; } .convergence-stats span { color:#c8c0d7; }
-.convergence-stats strong { display:block; color:#fff; font-size:26px; } .events h3 { margin:0; }
-.events ul { margin:7px 0 0; padding-left:18px; color:#ddd7e7; max-height:110px; overflow:auto; }
-.warning { color:#ffcf8a; } .source-warning { margin-top:14px; padding:10px 13px; border-radius:9px; background:#fff5dd; color:#795b15; }
-.layout { display:grid; grid-template-columns:minmax(430px, .95fr) minmax(500px,1.05fr);
-  gap:22px; margin-top:22px; align-items:start; } .left,.right { min-width:0; }
-section { background:#fff; border:1px solid var(--line); border-radius:14px; padding:17px; margin-bottom:14px; }
-h2 { margin:0 0 10px; font-size:17px; } h3 { margin:14px 0 8px; font-size:15px; }
-.row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; align-items:center;
-  border-top:1px solid var(--line); padding:11px 0; } .row:first-of-type { border-top:0; }
-.row strong { display:block; overflow-wrap:anywhere; } small { display:block; color:var(--muted); font-size:12px; }
-a { color:var(--purple); text-decoration:none; } .chip { white-space:nowrap; border-radius:999px; padding:3px 9px;
-  background:#eeeaf5; color:#5e526e; font-size:12px; } button,.secondary { border:0; border-radius:8px;
-  padding:8px 11px; cursor:pointer; font:inherit; white-space:nowrap; text-decoration:none; }
-button.primary { background:var(--purple); color:#fff; } button.secondary,.secondary { background:#eeeaf5; color:var(--ink); }
-.empty { color:var(--muted); padding:7px 0; } .pending-groups { border-color:#ead6d8; }
-.reason-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px; border-top:1px solid var(--line); padding:9px 0; }
-.reason-row:first-of-type { border-top:0; } .reason-row strong { color:var(--red); } .reason-row small { grid-column:1 / -1; }
-.plan-card { border-color:#cfc1f4; box-shadow:0 8px 24px rgba(80,54,137,.08); }
-.teaching-card { background:var(--pale); border-left:4px solid var(--purple); padding:13px 15px; border-radius:8px; }
-.teaching-card h3 { margin-top:0; } .new-things { margin:0; padding-left:20px; } .new-things li { margin:7px 0; }
-.new-things em { display:block; color:var(--purple); font-size:12px; font-style:normal; }
-.clean-message { margin:0; color:var(--green); font-weight:600; } .metrics { display:grid; grid-template-columns:repeat(4,1fr);
-  gap:9px; } .metrics span { background:#f7f5fa; border-radius:8px; padding:10px; color:var(--muted); font-size:12px; }
-.metrics strong { display:block; color:var(--ink); font-size:22px; } table { width:100%; border-collapse:collapse; margin-top:15px; }
-th,td { text-align:left; border-top:1px solid var(--line); padding:8px 4px; vertical-align:top; }
-th { color:var(--muted); width:25%; font-weight:500; } .actions { display:flex; gap:9px; margin-top:17px; }
-.hint { margin:16px 0 0; color:#625b70; font-size:13px; background:#faf7ec; padding:11px 12px; border-radius:8px; }
-.status-note { color:var(--muted); } .failure-message { color:var(--red); overflow-wrap:anywhere; }
-@media (max-width:900px) { .convergence,.layout { grid-template-columns:1fr; }
-  .metrics { grid-template-columns:repeat(2,1fr); } main { padding:12px; } }
-</style></head><body><main>
-""" + _render_convergence(convergence) + warning_html + "<div class='layout'><div class='left'>" + \
-        _render_section("選片", selection if isinstance(selection, list) else [], _render_candidate_row) + \
-        _render_section("解析中", parsing if isinstance(parsing, list) else [], _render_job_row) + \
-        _render_section("待審核", review if isinstance(review, list) else [], _render_job_row) + \
-        _render_section("進行中", in_progress if isinstance(in_progress, list) else [], _render_job_row) + \
-        _render_section("已完成", completed if isinstance(completed, list) else [], _render_job_row) + \
-        _render_section("失敗", failed if isinstance(failed, list) else [], _render_job_row) + \
-        _render_pending_groups(state.get("pending_by_reason")) + \
-        "</div><div class='right'>" + _render_plan(selected) + "</div></div>" + \
-        "<script>\n" + \
-        "async function postJson(path, body) { const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); const d = await r.json(); if (!r.ok) { alert(d.error || '操作失敗'); return; } location.reload(); }\n" + \
-        "document.querySelectorAll('[data-action=\"parse\"]').forEach(b => b.onclick = () => postJson('/api/parse', {candidate_id:b.dataset.candidateId}));\n" + \
-        "document.querySelectorAll('[data-action=\"admit\"]').forEach(b => b.onclick = () => postJson('/api/admit', {job_id:b.dataset.jobId}));\n" + \
-        "document.querySelectorAll('[data-action=\"return\"]').forEach(b => b.onclick = () => postJson('/api/return', {job_id:b.dataset.jobId}));\n" + \
-        "document.querySelectorAll('[data-action=\"reset\"]').forEach(b => b.onclick = () => postJson('/api/reset', {job_id:b.dataset.jobId}));\n" + \
-        "</script></main></body></html>"
+
+    def sec(name: str) -> list[Mapping[str, object]]:
+        value = sections.get(name, [])
+        return value if isinstance(value, list) else []
+
+    review, parsing, failed = sec("review"), sec("parsing"), sec("failed")
+    in_progress, completed, selection = sec("in_progress"), sec("completed"), sec("selection")
+
+    health = state.get("health") if isinstance(state.get("health"), dict) else {}
+    running = bool(health.get("running")) or bool(parsing) or bool(in_progress)
+    signature = ".".join(str(x) for x in [
+        1 if health.get("running") else 0,
+        len(selection), len(parsing), len(review),
+        len(in_progress), len(completed), len(failed)])
+
+    links = state.get("links") if isinstance(state.get("links"), dict) else {}
+    warnings = state.get("source_warnings")
+    warn_html = ""
+    if isinstance(warnings, list) and warnings:
+        warn_html = ("<div class='banner'>⚠ "
+                     + _esc("；".join(str(item) for item in warnings)) + "</div>")
+
+    # 預設只展開「待審核」—— 那是唯一需要你動腦的一節。其餘收起來，
+    # 使用者展開過的會被 sessionStorage 記住（見 JS）。
+    queue = (
+        _render_section("review", "待審核", review,
+                        lambda row: _render_job_row(row, selected_job_id), open_default=True)
+        + _render_section("parsing", "解析中", parsing,
+                          lambda row: _render_job_row(row, selected_job_id))
+        + _render_section("failed", "失敗", failed,
+                          lambda row: _render_job_row(row, selected_job_id))
+        + _render_pending_groups(state.get("pending_by_reason"))
+        + _render_section("in_progress", "進行中", in_progress,
+                          lambda row: _render_job_row(row, selected_job_id))
+        + _render_section("completed", "已完成", completed,
+                          lambda row: _render_job_row(row, selected_job_id))
+        + _render_section("selection", "選片", selection, _render_candidate_row)
+    )
+
+    return (
+        "<!doctype html>\n"
+        "<html lang='zh-Hant'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>進料審核台</title><style>" + CSS + "</style></head>"
+        f"<body data-running='{1 if running else 0}' data-sig='{_esc(signature)}'>"
+        "<div id='veil'>放開就收下</div><main>"
+        + _render_convergence(
+            state.get("convergence") if isinstance(state.get("convergence"), dict) else {},
+            links)
+        + warn_html
+        + "<div class='layout'>"
+        + f"<div class='queue'>{queue}</div>"
+        + f"<div class='stage'>{_render_plan(selected)}</div>"
+        + "</div>"
+        + "<div class='dropzone'>把 PDF <b>拖到這一頁的任何地方</b>，或"
+          "<label for='picker'>選擇檔案</label>"
+          "<input id='picker' type='file' accept='application/pdf' multiple>"
+          "<div id='uplog'></div></div>"
+        + "</main><script>" + JS + "</script></body></html>"
+    )
 
 
 def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
@@ -1835,10 +2299,24 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:  # noqa: N802
             parsed = urllib.parse.urlparse(self.path)
             try:
+                # 上傳走 raw body，不是 JSON —— 必須在 _json_body 之前分流，
+                # 否則會拿 PDF 的位元組去餵 json.loads。
+                if parsed.path == "/api/upload":
+                    name = self.headers.get("X-Filename", "")
+                    saved = app.save_upload(urllib.parse.unquote(name), _upload_body(self))
+                    self._json({"status": "ok", "filename": saved.name}, 201)
+                    return
                 payload = _json_body(self)
                 if parsed.path == "/api/parse":
                     jobs = app.submit_parse(_candidate_ids(payload))
                     self._json({"jobs": [app._public_job(job) for job in jobs]}, 202)
+                    return
+                if parsed.path == "/api/inbox/delete":
+                    filename = payload.get("filename")
+                    if not isinstance(filename, str):
+                        raise IntakeError("需要 filename", 400)
+                    app.delete_inbox_file(filename)
+                    self._json({"status": "ok"})
                     return
                 job_id = payload.get("job_id")
                 if not isinstance(job_id, str):

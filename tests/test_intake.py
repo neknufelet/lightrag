@@ -198,8 +198,16 @@ def test_pending_confirmation_is_grouped_by_reason_and_has_no_admit_button(tmp_p
             ],
         }]
         html = render_html(state, jobs[0].job_id)
-        assert "待確認（按原因）" in html
-        assert "data-action='admit'" not in html
+        # 分組的重點是「這個原因有幾份文件的證據」——斷言原因本身與檔名，
+        # 不是斷言標題文字（標題會隨版面改，原因不會）。
+        assert "未知型別 sidebar_note" in html
+        assert "a.pdf" in html and "b.pdf" in html
+
+        # ⚠ 這是安全斷言：待確認的文件**不得**出現放行按鈕。
+        # not-in 形式必須有控制組——否則按鈕屬性一改名，這行會從「守住安全」
+        # 默默變成「永遠說沒事」，找的是一個已經不存在的字串。鐵則 7 那一族。
+        assert "data-act=" in html, "data-act 不存在，下面的 not-in 斷言會假通過"
+        assert "data-act='admit'" not in html
     finally:
         app.stop()
 
@@ -227,7 +235,7 @@ def test_failed_job_is_visible_and_reset_restores_all_candidate_sources(
         assert app._public_job(job)["error"] == error
         html = render_html(state, job.job_id)
         assert error in html
-        assert "data-action='reset'" in html
+        assert "data-act='reset'" in html
         assert "Traceback (most recent call last)" in caplog.text
 
         library_pdf = paths.library_source_dir(job.source_key) / job.filename
@@ -316,3 +324,146 @@ def test_api_rejects_path_like_candidate_id(tmp_path: Path) -> None:
     with pytest.raises(IntakeError) as error:
         app.submit_parse(["../outside"])
     assert error.value.status_code == 400
+
+
+# ── 拖拉上傳與收件匣管理（PO 2026-08-04：不要碰終端機）─────────────────
+
+PDF = b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+
+
+def _app(tmp_path: Path) -> IntakeApp:
+    """收件匣本身就是來源 —— 這是實際部署的接法（--source /data/lightrag/inbox）。"""
+    data_root = tmp_path / "data"
+    paths = DataPaths(data_root)
+    paths.inbox_dir.mkdir(parents=True, exist_ok=True)
+    return IntakeApp(paths, "test", [paths.inbox_dir], runner=FakeRunner(data_root))
+
+
+def test_upload_lands_in_inbox_and_is_pickable(tmp_path: Path) -> None:
+    """上傳的檔案要落地，而且要能在選片區被挑到。
+
+    只驗「有寫進檔案系統」不夠——落到一個沒人掃描的目錄，等於沒收到。
+    """
+    app = _app(tmp_path)
+    saved = app.save_upload("我的論文.pdf", PDF)
+    assert saved.parent == app.paths.inbox_dir
+    assert saved.read_bytes() == PDF
+    names = [str(item.get("filename")) for item in app.state()["sections"]["selection"]]
+    assert "我的論文.pdf" in names, "上傳後沒有出現在選片區"
+
+
+def test_upload_rejects_non_pdf_by_content_not_only_suffix(tmp_path: Path) -> None:
+    """副檔名是使用者說了算，內容不是。
+
+    改名成 .pdf 的 zip 若放行，會在解析階段才炸、錯誤訊息指向 MinerU ——
+    那時沒有人會想到問題出在三步之前的上傳。
+    """
+    app = _app(tmp_path)
+    with pytest.raises(IntakeError) as suffix_error:
+        app.save_upload("報告.docx", PDF)
+    assert suffix_error.value.status_code == 415
+
+    with pytest.raises(IntakeError) as magic_error:
+        app.save_upload("假裝是.pdf", b"PK\x03\x04 this is a zip")
+    assert magic_error.value.status_code == 415
+    assert list(app.paths.inbox_dir.glob("*.pdf")) == [], "被拒絕的內容不該留下"
+
+
+def test_upload_dedupes_by_content_not_filename(tmp_path: Path) -> None:
+    """去重比內容不比檔名——同一份 PDF 改個名再傳，檔名比對抓不到。"""
+    app = _app(tmp_path)
+    app.save_upload("原名.pdf", PDF)
+
+    with pytest.raises(IntakeError) as same:
+        app.save_upload("原名.pdf", PDF)
+    assert same.value.status_code == 409
+
+    with pytest.raises(IntakeError) as renamed:
+        app.save_upload("改了名字.pdf", PDF)
+    assert renamed.value.status_code == 409
+    assert "原名.pdf" in str(renamed.value), "拒絕時要說出已存在的是哪一份"
+
+    # 同名但內容不同 ⇒ 是兩份不同文件，兩份都要留
+    second = app.save_upload("原名.pdf", PDF + b"% different\n")
+    assert second.name != "原名.pdf"
+    assert len(list(app.paths.inbox_dir.glob("*.pdf"))) == 2
+
+
+def test_upload_filename_cannot_escape_inbox(tmp_path: Path) -> None:
+    """上傳的檔名是使用者輸入，路徑成分必須在伺服器端被剝掉。"""
+    app = _app(tmp_path)
+    saved = app.save_upload("../../../etc/evil.pdf", PDF)
+    assert saved.parent == app.paths.inbox_dir
+    assert saved.name == "evil.pdf"
+    assert not (tmp_path.parent / "evil.pdf").exists()
+
+
+def test_upload_leaves_no_partial_file_when_write_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """寫到一半失敗時，收件匣不得留下半個檔案。
+
+    半個 PDF 會通過副檔名檢查，然後在解析階段才炸——最難查的一種失敗。
+    """
+    app = _app(tmp_path)
+
+    def boom(self: Path, data: bytes) -> int:
+        raise OSError("磁碟滿了")
+
+    monkeypatch.setattr(Path, "write_bytes", boom)
+    with pytest.raises(IntakeError):
+        app.save_upload("中斷.pdf", PDF)
+    monkeypatch.undo()
+    assert list(app.paths.inbox_dir.iterdir()) == [], "失敗後留下了殘骸"
+
+
+def test_inbox_delete_only_touches_inbox(tmp_path: Path) -> None:
+    """只准刪收件匣裡的東西——其他來源是別人的檔案。"""
+    app = _app(tmp_path)
+    app.save_upload("要刪的.pdf", PDF)
+    app.delete_inbox_file("要刪的.pdf")
+    assert not (app.paths.inbox_dir / "要刪的.pdf").exists()
+
+    outsider = tmp_path / "別人的.pdf"
+    outsider.write_bytes(PDF)
+    with pytest.raises(IntakeError):
+        app.delete_inbox_file("../別人的.pdf")
+    assert outsider.is_file(), "路徑穿越把外面的檔案刪掉了"
+
+
+def test_upload_body_reader_rejects_oversize_and_truncated(tmp_path: Path) -> None:
+    """Content-Length 是客戶端說的，要當成不可信輸入。"""
+    import io
+
+    from intake import MAX_UPLOAD_BYTES, _upload_body
+
+    class FakeHandler:
+        def __init__(self, length: str, payload: bytes) -> None:
+            self.headers = {"Content-Length": length}
+            self.rfile = io.BytesIO(payload)
+
+    with pytest.raises(IntakeError) as oversize:
+        _upload_body(FakeHandler(str(MAX_UPLOAD_BYTES + 1), b""))
+    assert oversize.value.status_code == 413
+
+    with pytest.raises(IntakeError) as truncated:
+        _upload_body(FakeHandler("100", b"only ten!"))
+    assert truncated.value.status_code == 400
+
+
+def test_page_links_to_lightrag_from_env_not_hardcoded(tmp_path: Path) -> None:
+    """通往知識庫的入口要從 .env 組出來。
+
+    寫死 host 會在換機器時指向不存在的地方，而且**不報錯** ——
+    使用者只會看到一個點了沒反應的連結。
+    """
+    data_root = tmp_path / "data"
+    paths = DataPaths(data_root)
+    paths.inbox_dir.mkdir(parents=True, exist_ok=True)
+    app = IntakeApp(
+        paths, "test", [paths.inbox_dir], runner=FakeRunner(data_root),
+        environment={"BIND_ADDR": "10.1.2.3", "HOST_PORT": "9999", "KBAPI_PORT": "8888"},
+    )
+    links = app.state()["links"]
+    assert links == {"lightrag": "http://10.1.2.3:9999", "kbapi": "http://10.1.2.3:8888"}
+    assert "http://10.1.2.3:9999" in render_html(app.state())
