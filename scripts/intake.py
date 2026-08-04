@@ -1602,7 +1602,11 @@ class IntakeApp:
         if self._foreign is not None and now - self._foreign[0] < 30.0:
             return self._foreign[1], self._foreign[2]
 
-        mine = {job.filename for job in self._jobs.values()}
+        # 排除的是「本站**成功處理**的」，不是「本站有紀錄的」。
+        # 一個 failed 或 returned 的 job 不代表那份文件不在索引裡 —— 實測遇過
+        # 文件已索引成功但 job 因誤判卡在 failed，於是它既不算 completed
+        # 也不算 foreign，兩邊都漏掉，計數說 0 而庫裡有 1 份。
+        mine = {job.filename for job in self._jobs.values() if job.status == "indexed"}
         rows: list[dict[str, object]] = []
         error: str | None = None
         try:
