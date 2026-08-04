@@ -1009,7 +1009,9 @@ class IntakeApp:
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("worker 工作失敗")
                 if task is not None:
-                    self._mark_failed(task[1], f"worker 例外：{type(exc).__name__}: {exc}")
+                    self._mark_failed(
+                        task[1], f"worker 例外：{type(exc).__name__}: {exc}", exception=exc,
+                    )
             finally:
                 with self._lock:
                     self._running_job_id = None
@@ -1110,7 +1112,9 @@ class IntakeApp:
             evaluation = self.runner.plan(job)
             self._record_plan(job, evaluation)
         except Exception as exc:  # noqa: BLE001
-            self._mark_failed(job_id, f"解析／計畫失敗：{type(exc).__name__}: {exc}")
+            self._mark_failed(
+                job_id, f"解析／計畫失敗：{type(exc).__name__}: {exc}", exception=exc,
+            )
 
     def _record_plan(self, job: Job, evaluation: PlanEvaluation) -> None:
         with self._lock:
@@ -1172,6 +1176,82 @@ class IntakeApp:
             raise RuntimeError(f"索引完成但 inputs 檔案內容不符，拒絕刪除：{admitted}")
         admitted.unlink()
 
+    def _remove_reset_pdf(self, path: Path, root: Path, expected_sha256: str, label: str) -> None:
+        resolved_root = root.resolve()
+        resolved_path = path.resolve()
+        if resolved_path.parent != resolved_root:
+            raise RuntimeError(f"重置目標不在既定 {label} 目錄：{path}")
+        if not path.exists():
+            return
+        if not path.is_file() or _sha256(path) != expected_sha256:
+            raise RuntimeError(f"重置拒絕刪除未驗證的 {label} 檔案：{path}")
+        path.unlink()
+
+    def _remove_reset_artifacts(self, job: Job) -> None:
+        if not _safe_pdf_name(job.filename):
+            raise RuntimeError("重置拒絕使用不安全的文件檔名")
+        source_key_path = Path(job.source_key)
+        if (not job.source_key or source_key_path.name != job.source_key
+                or ".." in source_key_path.parts):
+            raise RuntimeError("重置拒絕使用不安全的來源鍵")
+        workspace = job.workspace or self.workspace
+        workspace_path = Path(workspace)
+        if not workspace or workspace_path.name != workspace or ".." in workspace_path.parts:
+            raise RuntimeError("重置拒絕使用不安全的 workspace")
+
+        library_root = self.paths.library_source_dir(job.source_key)
+        parsed_root = self.paths.parsed_dir
+        inputs_root = self.paths.inputs_dir(workspace)
+        library_pdf = library_root / job.filename
+        parsed_pdf = parsed_root / job.filename
+        inputs_pdf = inputs_root / job.filename
+        expected_paths = (
+            ("library", library_pdf, library_root),
+            ("parsed", parsed_pdf, parsed_root),
+            ("inputs", inputs_pdf, inputs_root),
+        )
+        for field_name, expected in (
+            ("library_path", library_pdf),
+            ("parsed_source_path", parsed_pdf),
+            ("admitted_path", inputs_pdf),
+        ):
+            stored = getattr(job, field_name)
+            if stored is not None and Path(stored).resolve() != expected.resolve():
+                raise RuntimeError(f"job 的 {field_name} 不在預期重置路徑")
+        for label, path, root in expected_paths:
+            self._remove_reset_pdf(path, root, job.source_sha256, label)
+
+        raw = self.paths.parsed_bundle_dir(job.filename)
+        if raw.exists():
+            if raw.parent.resolve() != parsed_root.resolve() or not raw.is_dir():
+                raise RuntimeError(f"重置拒絕刪除未驗證的 parsed bundle：{raw}")
+            shutil.rmtree(raw)
+
+    def submit_reset(self, job_id: str) -> str:
+        with self._lock:
+            if self._busy():
+                raise IntakeError("已有序列工作進行中，請等待狀態更新", 409)
+        job = self._get_job(job_id)
+        with self._lock:
+            if job.status not in {"failed", "failed_parse"}:
+                raise IntakeError("只有失敗的 job 可以重置為候選", 409)
+            try:
+                self._remove_reset_artifacts(job)
+                job_dir = self.paths.intake_job_dir(job.job_id)
+                if (job_dir.resolve().parent != self.paths.intake_jobs_dir.resolve()
+                        or job_dir.name != job.job_id):
+                    raise RuntimeError("重置拒絕刪除不安全的 job 目錄")
+                if job_dir.exists():
+                    if not job_dir.is_dir():
+                        raise RuntimeError(f"job 目錄不是目錄：{job_dir}")
+                    shutil.rmtree(job_dir)
+                self._jobs.pop(job.job_id, None)
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.exception("重置 job %s 為候選失敗", job.job_id)
+                raise IntakeError(f"重置失敗：{type(exc).__name__}: {exc}", 409) from exc
+        LOGGER.info("job %s 已重置為候選：candidate_id=%s", job.job_id, job.candidate_id)
+        return job.candidate_id
+
     def _run_admit(self, job_id: str) -> None:
         job = self._job_for_worker(job_id)
         admitted: Path | None = None
@@ -1215,7 +1295,9 @@ class IntakeApp:
                 transition(job, "indexed")
                 self.store.save(job)
         except Exception as exc:  # noqa: BLE001
-            self._mark_failed(job_id, f"放行失敗：{type(exc).__name__}: {exc}")
+            self._mark_failed(
+                job_id, f"放行失敗：{type(exc).__name__}: {exc}", exception=exc,
+            )
 
     def _run_return(self, job_id: str) -> None:
         job = self._job_for_worker(job_id)
@@ -1233,9 +1315,26 @@ class IntakeApp:
                 self.store.save(job)
             self.store.append_log(job.job_id, job.error)
         except Exception as exc:  # noqa: BLE001
-            self._mark_failed(job_id, f"退回失敗：{type(exc).__name__}: {exc}")
+            self._mark_failed(
+                job_id, f"退回失敗：{type(exc).__name__}: {exc}", exception=exc,
+            )
 
-    def _mark_failed(self, job_id: str, message: str) -> None:
+    def _mark_failed(
+        self,
+        job_id: str,
+        message: str,
+        *,
+        exception: BaseException | None = None,
+    ) -> None:
+        if exception is None:
+            LOGGER.error("job %s 失敗：%s", job_id, message)
+        else:
+            LOGGER.error(
+                "job %s 失敗：%s",
+                job_id,
+                message,
+                exc_info=(type(exception), exception, exception.__traceback__),
+            )
         with self._lock:
             job = self._jobs.get(job_id)
             if job is None:
@@ -1307,6 +1406,9 @@ class IntakeApp:
                 "repairing", "admitted", "scanning", "extracting",
             }],
             "completed": [item for item in public_jobs if item["status"] == "indexed"],
+            "failed": [item for item in public_jobs if item["status"] in {
+                "failed_parse", "failed",
+            }],
         }
         grouped: dict[str, dict[str, object]] = {}
         for item in public_jobs:
@@ -1439,14 +1541,22 @@ def _render_job_row(job: Mapping[str, object]) -> str:
     job_id = _esc(job.get("job_id", ""))
     link = f"?job={job_id}"
     action = ""
-    if job.get("status") == "planned" and job.get("decision") == "clean":
+    status = job.get("status")
+    if status == "planned" and job.get("decision") == "clean":
         action = f"<a class='secondary' href='{link}'>查看計畫</a>"
-    elif job.get("status") == "planned":
+    elif status == "planned":
         action = f"<a class='secondary' href='{link}'>查看原因</a>"
+    elif status in {"failed", "failed_parse"}:
+        action = f"<button class='secondary' data-action='reset' data-job-id='{job_id}'>重置為候選</button>"
+    failure = job.get("error")
+    failure_html = ""
+    if status in {"failed", "failed_parse"} and isinstance(failure, str) and failure:
+        failure_html = f"<small class='failure-message'>⚠ {_esc(failure)}</small>"
     return (
         "<div class='row job-row'>"
         f"<div><a href='{link}'><strong>{_esc(job.get('filename', ''))}</strong></a>"
-        f"<small>{_esc(job.get('source', ''))} · {pages} 頁／{items} 項</small></div>"
+        f"<small>{_esc(job.get('source', ''))} · {pages} 頁／{items} 項</small>"
+        f"{failure_html}</div>"
         f"<span class='chip'>{_esc(_status_label(job.get('status'), job.get('decision')))}</span>"
         f"{action}</div>"
     )
@@ -1520,9 +1630,13 @@ def _render_plan(job: Mapping[str, object] | None) -> str:
     metrics = job.get("metrics") if isinstance(job.get("metrics"), dict) else {}
     if not isinstance(metrics, dict):
         metrics = {}
+    status = job.get("status")
     reasons = job.get("reasons") if isinstance(job.get("reasons"), list) else []
     details = job.get("details") if isinstance(job.get("details"), list) else []
-    if reasons:
+    error = job.get("error")
+    if status in {"failed", "failed_parse"} and isinstance(error, str) and error:
+        thing_body = f"<p class='failure-message'>⚠ {_esc(error)}</p>"
+    elif reasons:
         things = []
         for index, reason in enumerate(reasons):
             detail = details[index] if index < len(details) else reason
@@ -1545,6 +1659,9 @@ def _render_plan(job: Mapping[str, object] | None) -> str:
     elif job.get("status") == "planned":
         job_id = _esc(job.get("job_id", ""))
         plan_action = f"<button class='secondary' data-action='return' data-job-id='{job_id}'>退回並保留理由</button>"
+    elif status in {"failed", "failed_parse"}:
+        job_id = _esc(job.get("job_id", ""))
+        plan_action = f"<button class='secondary' data-action='reset' data-job-id='{job_id}'>重置為候選</button>"
     else:
         plan_action = f"<p class='status-note'>目前狀態：{_esc(_status_label(job.get('status'), job.get('decision')))}</p>"
     leakage = metrics.get("leakage_rate")
@@ -1587,6 +1704,7 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     review = sections.get("review", []) if isinstance(sections, dict) else []
     in_progress = sections.get("in_progress", []) if isinstance(sections, dict) else []
     completed = sections.get("completed", []) if isinstance(sections, dict) else []
+    failed = sections.get("failed", []) if isinstance(sections, dict) else []
     convergence = state.get("convergence") if isinstance(state.get("convergence"), dict) else {}
     source_warnings = state.get("source_warnings")
     warning_html = ""
@@ -1635,7 +1753,8 @@ button.primary { background:var(--purple); color:#fff; } button.secondary,.secon
 th,td { text-align:left; border-top:1px solid var(--line); padding:8px 4px; vertical-align:top; }
 th { color:var(--muted); width:25%; font-weight:500; } .actions { display:flex; gap:9px; margin-top:17px; }
 .hint { margin:16px 0 0; color:#625b70; font-size:13px; background:#faf7ec; padding:11px 12px; border-radius:8px; }
-.status-note { color:var(--muted); } @media (max-width:900px) { .convergence,.layout { grid-template-columns:1fr; }
+.status-note { color:var(--muted); } .failure-message { color:var(--red); overflow-wrap:anywhere; }
+@media (max-width:900px) { .convergence,.layout { grid-template-columns:1fr; }
   .metrics { grid-template-columns:repeat(2,1fr); } main { padding:12px; } }
 </style></head><body><main>
 """ + _render_convergence(convergence) + warning_html + "<div class='layout'><div class='left'>" + \
@@ -1644,6 +1763,7 @@ th { color:var(--muted); width:25%; font-weight:500; } .actions { display:flex; 
         _render_section("待審核", review if isinstance(review, list) else [], _render_job_row) + \
         _render_section("進行中", in_progress if isinstance(in_progress, list) else [], _render_job_row) + \
         _render_section("已完成", completed if isinstance(completed, list) else [], _render_job_row) + \
+        _render_section("失敗", failed if isinstance(failed, list) else [], _render_job_row) + \
         _render_pending_groups(state.get("pending_by_reason")) + \
         "</div><div class='right'>" + _render_plan(selected) + "</div></div>" + \
         "<script>\n" + \
@@ -1651,6 +1771,7 @@ th { color:var(--muted); width:25%; font-weight:500; } .actions { display:flex; 
         "document.querySelectorAll('[data-action=\"parse\"]').forEach(b => b.onclick = () => postJson('/api/parse', {candidate_id:b.dataset.candidateId}));\n" + \
         "document.querySelectorAll('[data-action=\"admit\"]').forEach(b => b.onclick = () => postJson('/api/admit', {job_id:b.dataset.jobId}));\n" + \
         "document.querySelectorAll('[data-action=\"return\"]').forEach(b => b.onclick = () => postJson('/api/return', {job_id:b.dataset.jobId}));\n" + \
+        "document.querySelectorAll('[data-action=\"reset\"]').forEach(b => b.onclick = () => postJson('/api/reset', {job_id:b.dataset.jobId}));\n" + \
         "</script></main></body></html>"
 
 
@@ -1729,6 +1850,10 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                 if parsed.path == "/api/return":
                     job = app.submit_return(job_id)
                     self._json({"job": app._public_job(job)}, 202)
+                    return
+                if parsed.path == "/api/reset":
+                    candidate_id = app.submit_reset(job_id)
+                    self._json({"status": "ok", "candidate_id": candidate_id})
                     return
                 self._json({"error": "unknown path"}, 404)
             except IntakeError as exc:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import socket
 import sys
 import threading
@@ -81,6 +82,12 @@ class FakeRunner:
     def wait_indexed(self, job: Job) -> OperationResult:
         self.calls.append("wait")
         return OperationResult(True, "fake indexed")
+
+
+class ExplodingParseRunner(FakeRunner):
+    def parse(self, job: Job, source_pdf: Path) -> OperationResult:
+        super().parse(job, source_pdf)
+        raise RuntimeError("測試用解析失敗")
 
 
 def _source(tmp_path: Path, names: tuple[str, ...] = ("paper.pdf",)) -> Path:
@@ -193,6 +200,66 @@ def test_pending_confirmation_is_grouped_by_reason_and_has_no_admit_button(tmp_p
         html = render_html(state, jobs[0].job_id)
         assert "待確認（按原因）" in html
         assert "data-action='admit'" not in html
+    finally:
+        app.stop()
+
+
+def test_failed_job_is_visible_and_reset_restores_all_candidate_sources(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.ERROR, logger="intake")
+    source_parent = _source(tmp_path)
+    data_root = tmp_path / "data"
+    paths = DataPaths(data_root)
+    app = IntakeApp(paths, "test", [source_parent], runner=ExplodingParseRunner(data_root))
+    app.start()
+    try:
+        candidate = app.state()["sections"]["selection"][0]
+        assert isinstance(candidate, dict)
+        job = app.submit_parse([str(candidate["candidate_id"])])[0]
+        failed = _wait_for(app, job.job_id, "failed")
+        error = failed["error"]
+        assert isinstance(error, str) and "測試用解析失敗" in error
+
+        state = app.state()
+        assert state["sections"]["failed"] == [failed]
+        assert app._public_job(job)["error"] == error
+        html = render_html(state, job.job_id)
+        assert error in html
+        assert "data-action='reset'" in html
+        assert "Traceback (most recent call last)" in caplog.text
+
+        library_pdf = paths.library_source_dir(job.source_key) / job.filename
+        parsed_pdf = paths.parsed_dir / job.filename
+        input_pdf = paths.inputs_dir("test") / job.filename
+        assert library_pdf.is_file()
+        assert parsed_pdf.is_file()
+        input_pdf.write_bytes(Path(job.source_path).read_bytes())
+        assert app.state()["sections"]["selection"] == []
+
+        assert app.submit_reset(job.job_id) == job.candidate_id
+        reset_state = app.state()
+        selection = reset_state["sections"]["selection"]
+        assert isinstance(selection, list)
+        assert [item["candidate_id"] for item in selection if isinstance(item, dict)] == [
+            job.candidate_id,
+        ]
+        assert reset_state["sections"]["failed"] == []
+        assert not library_pdf.exists()
+        assert not parsed_pdf.exists()
+        assert not input_pdf.exists()
+        assert not paths.parsed_bundle_dir(job.filename).exists()
+        assert not paths.intake_job_dir(job.job_id).exists()
+
+        reloaded = IntakeApp(paths, "test", [source_parent], runner=ExplodingParseRunner(data_root))
+        try:
+            reloaded_selection = reloaded.state()["sections"]["selection"]
+            assert [item["candidate_id"] for item in reloaded_selection if isinstance(item, dict)] == [
+                job.candidate_id,
+            ]
+        finally:
+            reloaded.stop()
     finally:
         app.stop()
 

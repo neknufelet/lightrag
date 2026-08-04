@@ -110,6 +110,33 @@ services:
     networks:
       - rag
 
+  # 收件匣／審核台：只用標準函式庫，直接以官方 Python slim 執行。
+  # DATA_ROOT 必須可寫，因為 intake 會建立 library、work、inputs 與 intake 狀態；
+  # 來源庫是別人的語料，只讀掛載，避免審核台誤寫來源。
+  intake:
+    image: python:3.12-slim
+    container_name: intake-${WORKSPACE:?WORKSPACE 未設定}
+    restart: unless-stopped
+    command: ["python", "/app/scripts/intake.py", "--port", "9710"]
+    working_dir: /app
+    environment:
+      PP_DATA_ROOT: /data/lightrag
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ./.env:/app/.env:ro
+      - ${DATA_ROOT:-/data/lightrag}:/data/lightrag
+      - /data/rag/knowledge_bases:/data/rag/knowledge_bases:ro
+    ports:
+      - "${BIND_ADDR}:${INTAKE_PORT:-9710}:9710"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request as u; u.urlopen('http://localhost:9710/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - rag
+
   # ── 自己的儲存後端（2026-08-03 從 DeepTutor 的實例搬出來）──────────────
   #
   # 為什麼要搬：原本我們的資料寄住在 deeptutor-v4-postgres 與 deeptutor-v4-neo4j，
