@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
@@ -31,10 +30,9 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-PG = os.environ.get("PP_PG_CONTAINER", "deeptutor-v4-postgres")
 
 # 散文 chunk 的未接地比例超過此值才算異常。
 # 只看散文 —— 符號型 chunk 的「未接地」不代表幻覺，見 SYMBOLIC 說明。
@@ -72,7 +70,8 @@ def psql(sql: str, env: dict) -> list[dict]:
     """走 JSON 而不是分隔符 —— chunk 內容含換行，逐行切會把一列拆散
     （第一版就是這樣 IndexError）。json_agg 讓 psql 只吐一行。"""
     wrapped = f"select coalesce(json_agg(t), '[]'::json)::text from ({sql}) t"
-    cmd = ["docker", "exec", PG, "psql", "-U", env.get("POSTGRES_USER", "deeptutor"),
+    cmd = ["docker", "exec", postgres_container(env), "psql",
+           "-U", env.get("POSTGRES_USER", "deeptutor"),
            "-d", env.get("POSTGRES_DATABASE", "lightrag"), "-tAqX", "-c", wrapped]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if r.returncode != 0:

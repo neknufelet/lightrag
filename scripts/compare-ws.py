@@ -40,7 +40,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import load_env  # noqa: E402
+from mineru_common import load_env, postgres_container  # noqa: E402
 from pp.oracle import env_workspace  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -56,7 +56,7 @@ def q(s: str) -> str:
 
 
 def psql(env: dict, sql: str) -> list[list[str]]:
-    container = env.get("POSTGRES_HOST", "deeptutor-v4-postgres")
+    container = postgres_container(env)
     cmd = ["docker", "exec", container, "psql",
            "-U", env.get("POSTGRES_USER", "deeptutor"),
            "-d", env.get("POSTGRES_DATABASE", "lightrag"),

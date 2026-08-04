@@ -12,6 +12,7 @@ import argparse
 import json
 import re
 from pathlib import Path
+from typing import Mapping
 
 # content_list.json 的項目型別。出現沒見過的 = 版面型態超出規則涵蓋範圍。
 KNOWN_TYPES = {
@@ -121,6 +122,15 @@ def load_env(repo: Path) -> dict[str, str]:
             k, v = line.split("=", 1)
             out[k.strip()] = v.strip().strip("'\"")
     return out
+
+
+POSTGRES_CONTAINER_DEFAULT = "lightrag-postgres"
+
+
+def postgres_container(env: Mapping[str, str]) -> str:
+    """回傳工具使用的 Postgres 容器名；設定缺席時使用專用實例。"""
+    return (env.get("PP_PG_CONTAINER") or env.get("POSTGRES_HOST")
+            or POSTGRES_CONTAINER_DEFAULT).strip()
 
 
 def _workspace_value(v: str) -> str:

@@ -62,7 +62,7 @@ def test_canary_update_writes_flat_serialisable_rows(tmp_path, monkeypatch):
     baseline = tmp_path / "canary-baseline.json"
     monkeypatch.setattr(module, "CANARY", baseline)
     monkeypatch.setattr(module, "find_bundles",
-                        lambda ws, doc: [tmp_path / "示例.pdf.mineru_raw"])
+                        lambda ws, doc, **kwargs: [tmp_path / "示例.pdf.mineru_raw"])
     monkeypatch.setattr(module, "DocContext",
                         lambda raw, source_dir=None: SimpleNamespace(doc_name="示例.pdf"))
     monkeypatch.setattr(module, "plan_one", lambda raw, source_dir=None: _fake_plan())
@@ -90,3 +90,56 @@ def test_canary_row_only_contains_tracked_numbers():
     for key, value in row.items():
         assert isinstance(value, (int, float)), f"{key} 不是數字：{type(value).__name__}"
     json.dumps(row)  # 必須可序列化，否則 --update 會在真實環境崩潰
+
+
+def test_canary_empty_mother_is_unverifiable_not_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """真的沒有 bundle 時，canary 不得把「沒有母體」報成規則失敗。"""
+    module = _module()
+    parsed = tmp_path / "parsed"
+    parsed.mkdir()
+    monkeypatch.setattr(
+        module, "_paths",
+        lambda: SimpleNamespace(parsed_dir=parsed, inputs_dir=lambda _ws: tmp_path),
+    )
+
+    args = argparse.Namespace(workspace="ws", update=False)
+    assert module.cmd_canary(args, {}) == 0
+    assert "驗不了" in capsys.readouterr().out
+
+
+def test_canary_new_document_is_info_but_drift_is_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """新增未入基準的文件是資訊；既有文件數字漂移仍是失敗。"""
+    module = _module()
+    raw_dir = tmp_path / "parsed"
+    raw_dir.mkdir()
+    raw_base = raw_dir / "base.pdf.mineru_raw"
+    raw_new = raw_dir / "new.pdf.mineru_raw"
+    raw_base.mkdir()
+    raw_new.mkdir()
+    monkeypatch.setattr(
+        module, "_paths",
+        lambda: SimpleNamespace(parsed_dir=raw_dir, inputs_dir=lambda _ws: tmp_path),
+    )
+    monkeypatch.setattr(module, "plan_one", lambda raw, source_dir=None: _fake_plan())
+    monkeypatch.setattr(
+        module, "DocContext",
+        lambda raw, source_dir=None: SimpleNamespace(doc_name=raw.name.split(".mineru_raw")[0]),
+    )
+
+    baseline = tmp_path / "canary-baseline.json"
+    monkeypatch.setattr(module, "CANARY", baseline)
+    base_row = module.canary_row(_fake_plan())
+    drifted_row = {**base_row, "items": 999}
+    baseline.write_text(json.dumps({"base.pdf": drifted_row}), encoding="utf-8")
+    assert module.cmd_canary(argparse.Namespace(workspace="ws", update=False), {}) == 2
+    assert "金絲雀失敗" in capsys.readouterr().out
+
+    monkeypatch.setattr(module, "find_bundles", lambda ws, doc, **kwargs: [raw_base, raw_new])
+    baseline.write_text(json.dumps({"base.pdf": base_row}), encoding="utf-8")
+    assert module.cmd_canary(argparse.Namespace(workspace="ws", update=False), {}) == 0
+    output = capsys.readouterr().out
+    assert "新文件尚未納入基準" in output

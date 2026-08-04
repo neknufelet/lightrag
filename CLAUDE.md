@@ -206,7 +206,7 @@ timeout <N> opencode run -m deepseek/deepseek-v4-pro "<PROMPT>" > <scratch>/out.
 
 | 字母 | 語意 | 用在哪條線 |
 |---|---|---|
-| `A` | assertion，契約斷言 | `VERIFY-1`（`compat-check.py` 的 25 條） |
+| `A` | assertion，契約斷言 | `VERIFY-1`（`compat-check.py` 的 26 條） |
 | `G` | gate，體檢表閘門 | `VERIFY-3`（`ledger.py` 的 8 個） |
 | `R` | round，同一 gate 的第 n 輪 | 各線通用（例：`SYMBOL-1-R2` ＝ 50 題考卷的第二輪） |
 
@@ -231,7 +231,7 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 
 | label | 工具 | 子程序 |
 |---|---|---|
-| `VERIFY-1` | `compat-check.py` | `VERIFY-1-A01`…`A25`（契約斷言，缺號 04/08/09/12/15 是歷史刪除） |
+| `VERIFY-1` | `compat-check.py` | `VERIFY-1-A01`…`A26`（契約斷言，缺號 04/08/09/12/15 是歷史刪除） |
 | `VERIFY-2` | `postprocess.py canary` | `VERIFY-2-R1`…`R8`（pages/items/mute/held/ratio/tables_total/repairable/review） |
 | `VERIFY-3` | `ledger.py summary` | `VERIFY-3-G1`…`G8`（8 個閘門） |
 | `VERIFY-4` | `coverage-check.py` | 解析漏詞 |
@@ -373,7 +373,8 @@ skills    lightrag-search / fetch / images —— 全走 :9700,不需認證,任�
           **URL 的 workspace 打錯會 400**(kbapi 的擋板)——因為 search 端點不看
           URL 的 ws、檔案類端點看,不擋會回一半對的東西且不報錯
 索引      7,211 實體、10,500 關係、510 chunk;圖 7,211 節點 / 10,500 邊
-          ↑ 來源＝**vdb 列數**(extract-check.py)。與下面「歷史對照」列的
+          ↑ 來源＝**vdb 列數**(extract-check.py；量測來源容器未在舊紀錄固定，存疑，
+          REBUILD-1 修正後需重量)。與下面「歷史對照」列的
           8,010／10,535 **不衝突,是兩把不同的尺**:那邊來源是 LightRAG 自己的
           逐文件計數欄 `lightrag_full_entities.count`(compare-ws.py),同一個實體
           出現在兩份文件會被數兩次。差值 799 實體／35 關係就是跨文件重複。
@@ -410,7 +411,8 @@ embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC;本輪實際嵌入 4.56M 
 
 `lightrag_relation_chunks` 全表退役前是 **20,873**——那正是本檔接地檢查一節
 曾經寫錯的數字。**它從來不是 v2 的關係數,是兩個 workspace 的和。**
-拆掉 v155 之後全表剩 10,500,與 `extract-check.py` 的報告一致,這件事到此
+拆掉 v155 之後全表剩 10,500,與 `extract-check.py` 的報告一致（該舊量測來源容器未
+固定，來源存疑；數字不改）,這件事到此
 獨立印證完畢。
 
 **Neo4j 是跨專案共用的**(DeepTutor 的 `Room_Optimizer`、`acoustics_books` 等
@@ -521,12 +523,16 @@ size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列�
   被分開之後,兩種狀態各自都會在該響的時候響。
   **不要改用 `max_total_tokens` 收**:它先扣圖譜再給原文,設 8000 時
   `available_chunk_tokens` 變負數,chunk 直接回 0 個且不報錯。
+- **A-26 Postgres 與 LightRAG API 回報的文件數一致。** 兩個獨立來源的母體數
+  不一致時，視為可能連到不同的資料庫；兩邊都是 0 時回報「驗不了」，不把空庫
+  當成硬失敗。
 - **同一組 Postgres 裡多個 workspace 共存時,每一句 SQL 都要帶 `workspace`。**
   儲存層靠這個欄位隔離,而兩個 workspace 的 `file_path` 是同一批 PDF 檔名 ——
   漏掉條件時逐份報表會把兩邊的同一份文件**併成一列**,數字看起來完全正常
   (大約兩倍)、不報錯、不會有任何訊號。實測踩過(2026-08-03,extract-check.py
   三句 SQL 全漏):合計實體 14,402 = v155 7,191 + v2 7,211,而且**翻轉了三份
-  文件的閘門判定**。單一 checkout 時代這個 bug 不可觀測 —— 與階段 0 的
+  文件的閘門判定**。上述 extract-check 舊量測的來源容器未固定，來源存疑；數字不改。
+  單一 checkout 時代這個 bug 不可觀測 —— 與階段 0 的
   「容器名寫死」同一族,開第二個 workspace 的那一刻才引爆。
   修完的驗證方式:**拿舊 workspace 重跑,要重現歷史數字**(v155 回 3.2%,
   與本檔記載逐位元相同)。
@@ -562,13 +568,16 @@ compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本�
 
 ```
 acoustics_v2（2026-08-03 重跑，全 20 份；來源＝entity/relation vdb 的列數）
+  ⚠ 上列 extract-check 數字的量測來源容器未在舊紀錄固定，來源存疑；數字本身不改，
+    待 REBUILD-1 修正後重新量測。
  7,211 實體 → 接地 5,469、符號型 1,482（驗不了）、可疑 260 　可疑率 4.5%
 10,500 關係 → 兩端接地 6,780、符號型 3,261、只有一端 349（4.8%）、兩端皆無 110（1.5%）
 ```
 
 **關係那一列曾經是錯的,而且錯法就是它自己修的那個 bug。** 舊版寫
 `20,873 關係 → 12,459 / 7,491 / 689 / 234`,每一項都約是實際的 **2 倍** ——
-那是 `extract-check.py` 補上 `workspace` 條件（commit `9ef8026`）**之前**的
+那是 `extract-check.py` 補上 `workspace` 條件（commit `9ef8026`）**之前**的；這組舊
+量測的來源容器未固定，來源存疑，數字不改。
 雙重計數。那個 commit 更新了實體那一列,漏了關係那一列,於是「兩個 workspace
 被併成一列」的症狀留在文件裡活了下來。**2026-08-03 重跑 `extract-check.py`
 定案為上表數值。**

@@ -101,14 +101,15 @@ def _scan_was_skipped_pipeline_busy(response: object) -> bool:
     return response == "scanning_skipped_pipeline_busy"
 
 
-def find_bundles(workspace: str, doc: str | None) -> list[Path]:
+def find_bundles(workspace: str, doc: str | None, *, allow_empty: bool = False) -> list[Path]:
+    """找出 workspace 的 bundle；只有明確允許時才回傳空集合。"""
     pdir = _paths().parsed_dir
     if not pdir.is_dir():
         sys.exit(f"postprocess: 找不到解析目錄 {pdir}")
     hits = sorted(pdir.glob("*.mineru_raw"))
     if doc:
         hits = [h for h in hits if doc.lower() in h.name.lower()]
-    if not hits:
+    if not hits and not allow_empty:
         sys.exit(f"postprocess: 沒有符合的 bundle（doc={doc!r}）")
     return hits
 
@@ -265,7 +266,11 @@ def cmd_canary(a, env) -> int:
     paths = _paths()
     source_dir = paths.inputs_dir(a.workspace)
     cur = {}
-    for raw in find_bundles(a.workspace, None):
+    bundles = find_bundles(a.workspace, None, allow_empty=True)
+    if not bundles:
+        print("金絲雀驗不了：目前沒有任何 bundle，沒有母體可供規則漂移比對。")
+        return 0
+    for raw in bundles:
         try:
             cur[DocContext(raw, source_dir=source_dir).doc_name] = canary_row(
                 plan_one(raw, source_dir=source_dir))

@@ -22,17 +22,43 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
+POSTGRES_USER_DEFAULT = "deeptutor"
+
+
+def _sql_literal(value: str) -> str:
+    """將 workspace 安全地寫成 SQL 字串字面值。"""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def postgres_document_count(env: dict[str, str], workspace: str) -> int:
+    """從指定的 Postgres 容器讀取目前 workspace 的文件登記數。"""
+    container = postgres_container(env)
+    sql = ("select count(*) from lightrag_doc_status where workspace = "
+           f"{_sql_literal(workspace)};")
+    result = subprocess.run(
+        ["docker", "exec", container, "psql", "-U",
+         env.get("POSTGRES_USER", POSTGRES_USER_DEFAULT), "-d",
+         env.get("POSTGRES_DATABASE", "lightrag"), "-tAqX", "-c", sql],
+        capture_output=True, text=True, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError(f"psql 失敗（{container}）：{result.stderr.strip()[:300]}")
+    value = result.stdout.strip()
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise RuntimeError(f"psql 回傳不是文件數：{value[:120]!r}") from exc
 
 # 已知的 content_list 項目型別。出現沒見過的型別 = 版面型態超出規則涵蓋範圍，
 # 過濾與修補的判斷都可能不適用，所以擋下而不是猜。
@@ -240,9 +266,36 @@ class Checker:
             return (a <= 2 and b <= 8 and b > a), \
                    f"chunk_top_k=2 → {a} 個、=8 → {b} 個（母體 {n_proc} 份已索引）", got
 
+        @self.check("A-26", "hard", "Postgres 與 LightRAG API 的文件母體一致")
+        def _():
+            """用兩個獨立來源抓到探針連錯資料庫的情況。
+
+            API 由目前的 LightRAG 容器回報文件狀態；SQL 則透過設定指定的
+            Postgres 容器查目前 workspace 的文件登記。兩者不一致時，不能把
+            向量索引或文件層結果當成同一套資料的證據。
+            """
+            try:
+                statuses = self.o.indexed_docs(api_key, port)
+            except OracleError as e:
+                return None, f"問不到 LightRAG 文件母體（{str(e)[:60]}），驗不了", {}
+            api_count = sum(int(value or 0) for value in statuses.values())
+            env = load_env(REPO)
+            sql_count = postgres_document_count(env, self.ws)
+            data = {"api_documents": api_count, "postgres_documents": sql_count,
+                    "postgres_container": postgres_container(env),
+                    "workspace": self.ws}
+            if api_count == 0 and sql_count == 0:
+                return None, ("LightRAG API 與 Postgres 都是 0 份文件；沒有可供交叉比對的"
+                              "母體，驗不了"), data
+            return (api_count == sql_count), (
+                f"API {api_count} 份、Postgres {sql_count} 份（workspace={self.ws!r}，"
+                f"容器={postgres_container(env)}）"
+                if api_count == sql_count else
+                f"API {api_count} 份、Postgres {sql_count} 份不一致 —— 可能連到不同資料庫"
+            ), data
+
         @self.check("A-22", "hard", "每張向量表都有向量索引")
         def _():
-            import subprocess
             env = load_env(REPO)
             model = env.get("EMBEDDING_MODEL", "").replace("-", "_")
             dim = env.get("EMBEDDING_DIM", "")
@@ -259,10 +312,12 @@ class Checker:
                 "group by 1 order by 1;"
             )
             p = subprocess.run(
-                ["docker", "exec", "deeptutor-v4-postgres", "psql", "-U",
-                 env.get("POSTGRES_USER", "deeptutor"), "-d",
+                ["docker", "exec", postgres_container(env), "psql", "-U",
+                 env.get("POSTGRES_USER", POSTGRES_USER_DEFAULT), "-d",
                  env.get("POSTGRES_DATABASE", "lightrag"), "-tAF|", "-c", sql],
                 capture_output=True, text=True, timeout=30)
+            if p.returncode != 0:
+                return False, f"psql 失敗：{p.stderr.strip()[:300]}", {}
             rows = [ln.split("|") for ln in p.stdout.strip().splitlines() if "|" in ln]
             if not rows:
                 return False, f"找不到 *{suffix} 的向量表", {}
@@ -442,8 +497,8 @@ def main():
                 if not a.doc or a.doc.lower() in d.name.lower()]
         if not hits:
             print(f"compat-check: {pdir} 底下找不到"
-                  + (f"符合 {a.doc!r} 的 bundle" if a.doc else "任何 bundle"), file=sys.stderr)
-            sys.exit(2)
+                  + (f"符合 {a.doc!r} 的 bundle" if a.doc else "任何 bundle")
+                  + " —— 文件層驗不了（母體為 0，不是失敗）", file=sys.stderr)
         for raw in sorted(hits):
             c.document(raw)
         n_docs = len(hits)
