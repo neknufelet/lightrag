@@ -106,13 +106,30 @@ Neo4j 0 節點、審核台狀態全清。`inbox/` 備了 TD_DG method 的 CH3、
 ### ⬜ 還沒做完的
 
 - [ ] **`REBUILD-10`：CLAUDE.md 還停在重建前**（路徑、現況、數字全過期）。
-      workflow 第五站沒跑到。
-- [ ] **終審沒跑**（codex sol，第六站）。前五輪的改動沒有經過獨立審查。
-- [ ] **intake 沒進 systemd**：`compose.yaml` 已經有它了，但實際跑的是手動
+      workflow 第五站沒跑到。**這是最該先做的**——CLAUDE.md 是 SSOT，
+      現在它說的話有一半是錯的。
+- [ ] **終審沒跑**（codex sol，第六站）。這一輪六個 commit 沒有經過獨立審查。
+- [ ] **`exit 2` 不是錯誤訊息**：intake 把 parse-only 的退出碼存進 job.json 的
+      error 欄，真正的原因（例如「來源檔不存在」）只在 `run.log` 裡。
+      失敗看得見了，但**看得見不等於說得清楚**——要把子行程輸出帶進 error。
+- [ ] **intake 沒進 systemd**：`compose.yaml` 已經有它，但實際跑的是手動
       `setsid nohup`。**dker 重開機不會自己起來。**
-      要嘛 `docker compose up -d intake`，要嘛做 systemd unit。
-- [ ] **拖拉上傳只測過後端 API**，沒有在瀏覽器實際拖過檔案。
-- [ ] `archive-ledger.py` 寫好了但**還沒在 dker 上跑過**（舊 20 張體檢表還在）。
+- [ ] `archive-ledger.py` 寫好了但**還沒在 dker 上跑過**（舊 20 張體檢表還在，
+      `ledger.py summary` 會報一堆已不存在文件的 fail）。
+- [ ] 舊目錄 `/data/rag/lightrag`（217 MB）還沒刪。records 與 crops 已 sha256
+      驗證複製完成，留著是保險。
+
+### ✅ 已由 PO 實測驗證（不必再驗）
+
+- 拖拉上傳：log 有 `收到上傳 A Conventions.pdf（71625 bytes）`、HTTP 201
+- 收件匣刪除：PO 刪掉了 CH7 與 CH3 兩份
+- 失敗看得見：解析失敗時它確實出現在「失敗」節
+
+### 📍 現在的即時狀態
+
+索引空的（0 文件）。`inbox/` 有 `A Conventions.pdf`，它有一個 **failed 的 job**
+卡著（成因是我把 bind mount 的來源目錄 `rm -rf` 掉了，已用 `--force-recreate`
+修好並驗過 probe）。**下一步：在網頁上按那份的「重置」，然後重新「只解析」。**
 
 ### ⚠ 這一輪學到的（不要重犯）
 
