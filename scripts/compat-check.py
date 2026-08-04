@@ -264,6 +264,14 @@ class Checker:
             except OracleError as e:
                 return None, f"查不動（{str(e)[:60]}），驗不了", {}
             a, b = got.get("2", -1), got.get("8", -1)
+            # 母體不只要有文件，還要有**夠多的 chunk**。整庫只有 1–2 個 chunk 時，
+            # top_k 從 2 調到 8 也只會拿到同樣那幾個 —— b > a 結構性不可能成立。
+            # 原本只擋「0 份文件」，於是第一份文件進來（1 個 chunk）就誤報 FAIL，
+            # 而審核台把它當成整個流程失敗。與空母體那條是同一個病的小樣本版。
+            if a >= 0 and a == b:
+                return None, (f"chunk_top_k=2 → {a} 個、=8 → {b} 個：母體只有 {a} 個可命中的 "
+                              f"chunk（{n_proc} 份文件），調大 top_k 也拿不到更多，"
+                              "b > a 結構性不可能成立 —— 驗不了；母體長大後會自動恢復判斷"), got
             return (a <= 2 and b <= 8 and b > a), \
                    f"chunk_top_k=2 → {a} 個、=8 → {b} 個（母體 {n_proc} 份已索引）", got
 

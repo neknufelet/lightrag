@@ -720,7 +720,7 @@ class SubprocessRunner:
             return OperationResult(False, "", f"無法執行命令：{type(exc).__name__}: {exc}")
         output = completed.stdout or ""
         if completed.returncode != 0:
-            return OperationResult(False, output, f"exit {completed.returncode}")
+            return OperationResult(False, output, _explain_exit(completed.returncode, output))
         return OperationResult(True, output)
 
     def parse(self, job: Job, source_pdf: Path) -> OperationResult:
@@ -800,12 +800,33 @@ class SubprocessRunner:
             time.sleep(self.poll_seconds)
         return OperationResult(False, "", f"等待 {job.filename} processed 逾時")
 
+    # compat-check.py:550 的退出碼語義：2 = hard 失敗、5 = soft 失敗、0 = 全過。
+    # soft 的定義就是「值得知道但不該擋」，把它當成流程失敗會讓
+    # 「文件其實已經索引成功」被報成 failed。實際咬過：第一份文件進來時
+    # A-25 因為整庫只有 1 個 chunk 而 soft FAIL，於是整個 job 變成 failed。
+    _COMPAT_SOFT_FAIL = 5
+
     def _compat_check(self, job: Job) -> OperationResult:
         command = [
             self.python, str(self.repo / "scripts" / "compat-check.py"),
             "--doc", job.filename,
         ]
-        return self._run(command, self.command_timeout)
+        result = self._run(command, self.command_timeout)
+        if not result.ok and result.error == f"exit {self._COMPAT_SOFT_FAIL}":
+            LOGGER.warning("compat-check 有 soft 失敗（不擋流程）：%s", job.filename)
+            return OperationResult(True, result.output)
+        return result
+
+
+def _explain_exit(code: int, output: str) -> str:
+    """把子行程的失敗講成人看得懂的話。
+
+    只回「exit 2」等於沒說 —— 真正的原因一直只在 run.log 裡，使用者得去翻
+    磁碟才知道發生什麼事。取輸出的最後幾行有內容的，那通常就是結論。
+    """
+    lines = [line.strip() for line in (output or "").splitlines() if line.strip()]
+    tail = " ／ ".join(lines[-3:])[:400]
+    return f"exit {code}：{tail}" if tail else f"exit {code}（沒有輸出可說明原因）"
 
 
 def job_workspace(job: Job) -> str:
