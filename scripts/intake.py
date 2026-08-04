@@ -1237,7 +1237,7 @@ class IntakeApp:
                 raise IntakeError("已有序列工作進行中，請等待狀態更新", 409)
         job = self._get_job(job_id)
         with self._lock:
-            if job.status not in {"failed", "failed_parse"}:
+            if job.status not in {"failed", "failed_parse", "returned"}:
                 raise IntakeError("只有失敗的 job 可以重置為候選", 409)
             try:
                 self._remove_reset_artifacts(job)
@@ -1516,6 +1516,7 @@ class IntakeApp:
                 "repairing", "admitted", "scanning", "extracting",
             }],
             "completed": [item for item in public_jobs if item["status"] == "indexed"],
+            "skipped": [item for item in public_jobs if item["status"] == "returned"],
             "failed": [item for item in public_jobs if item["status"] in {
                 "failed_parse", "failed",
             }],
@@ -1536,7 +1537,9 @@ class IntakeApp:
                     job_list.append({"job_id": item["job_id"], "filename": item["filename"],
                                      "source": item["source"]})
         events = self.events.read()
-        processed = max((job.processed_index or 0 for job in jobs), default=0)
+        # 只算真的進索引的。跳過與失敗都不是「處理過」——把它們算進去，
+        # 收斂列就會說「已處理 1 份」而知識庫其實空的。
+        processed = sum(1 for job in jobs if job.status == "indexed")
         events = sorted(events, key=lambda event: str(event.get("created_at", "")))
         last_event = events[-1] if events else None
         distance = None
@@ -1718,6 +1721,41 @@ def _status_label(status: object, decision: object = None) -> str:
     return labels.get(str(status), str(status))
 
 
+_BUSY_STATUSES = frozenset({"parsing", "repairing", "admitted", "scanning", "extracting"})
+
+_BUSY_NOTE = {
+    "parsing": "送去 MinerU 解析",
+    "repairing": "套用修補規則",
+    "admitted": "準備送進索引",
+    "scanning": "LightRAG 掃描中",
+    "extracting": "抽取實體與關係",
+}
+
+
+def _busy_note(status: object, updated_at: object) -> str:
+    """正在跑的工作要說「在做什麼、跑多久了」。
+
+    MinerU 與抽取都是黑箱（送出去等回應），拿不到百分比。**能誠實講的只有
+    走到哪一步、以及過了多久** —— 假的進度條比沒有進度條更糟，因為它會讓
+    「卡住了」看起來像「快好了」。
+    """
+    note = _BUSY_NOTE.get(str(status), "處理中")
+    if not isinstance(updated_at, str) or not updated_at:
+        return note
+    try:
+        started = datetime.fromisoformat(updated_at)
+    except ValueError:
+        return note
+    if started.tzinfo is None:
+        started = started.replace(tzinfo=timezone.utc)
+    seconds = int((datetime.now(timezone.utc) - started).total_seconds())
+    if seconds < 0:
+        return note
+    if seconds < 60:
+        return f"{note} · {seconds} 秒"
+    return f"{note} · {seconds // 60} 分 {seconds % 60} 秒"
+
+
 def _chip_class(status: object, decision: object = None) -> str:
     """狀態 → 顏色。顏色本身要帶資訊，不是裝飾。"""
     if status == "planned":
@@ -1760,8 +1798,8 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
     decision = job.get("decision")
     is_current = current is not None and job.get("job_id") == current
     action = ""
-    if status in {"failed", "failed_parse"}:
-        action = f"<button data-act='reset' data-id='{job_id}'>重置</button>"
+    if status in {"failed", "failed_parse", "returned"}:
+        action = f"<button data-act='reset' data-id='{job_id}'>放回收件匣</button>"
     elif status == "planned":
         action = f"<a class='btn' href='?job={job_id}'>看計畫</a>"
     pages = metrics.get("pages")
@@ -1771,6 +1809,10 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
         size_bits.append(f"<span>{_esc(pages)} 頁</span>")
     if items not in (None, "—"):
         size_bits.append(f"<span>{_esc(items)} 項</span>")
+    # 正在跑的要說出「在做什麼、跑多久了」。沒有這個，使用者只看得到
+    # 檔案從收件匣消失，不知道它是在跑還是壞了。
+    if status in _BUSY_STATUSES:
+        size_bits.append(f"<span>{_esc(_busy_note(status, job.get('updated_at')))}</span>")
     error = job.get("error")
     err_html = ""
     if status in {"failed", "failed_parse"} and isinstance(error, str) and error:
@@ -2250,6 +2292,7 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
 
     review, parsing, failed = sec("review"), sec("parsing"), sec("failed")
     in_progress, completed, selection = sec("in_progress"), sec("completed"), sec("selection")
+    skipped = sec("skipped")
 
     foreign = state.get("foreign") if isinstance(state.get("foreign"), list) else []
     foreign_error = state.get("foreign_error")
@@ -2258,7 +2301,7 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     signature = ".".join(str(x) for x in [
         1 if health.get("running") else 0,
         len(selection), len(parsing), len(review),
-        len(in_progress), len(completed), len(failed)])
+        len(in_progress), len(completed), len(failed), len(skipped)])
 
     links = state.get("links") if isinstance(state.get("links"), dict) else {}
     warnings = state.get("source_warnings")
@@ -2278,15 +2321,20 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     indexed_rows = list(completed) + list(foreign)
     queue = (
         _render_section("selection", "收件匣", selection, _render_candidate_row)
-        + _render_section("parsing", "解析中", parsing, job_row)
+        + _render_section("parsing", "解析中", parsing, job_row,
+                          open_default=bool(parsing))
         + _render_section("review", "等你看", review, job_row, open_default=True)
         + _render_pending_groups(state.get("pending_by_reason"))
-        + _render_section("in_progress", "處理中", in_progress, job_row)
+        + _render_section("in_progress", "處理中", in_progress, job_row,
+                          open_default=bool(in_progress))
         + _render_section(
             "completed", "已進知識庫", indexed_rows,
             lambda row: (_render_job_row(row, selected_job_id)
                          if row.get("job_id") else _render_foreign_row(row)))
-        + _render_section("failed", "失敗", failed, job_row)
+        + _render_section("skipped", "已跳過", skipped, job_row,
+                          open_default=bool(skipped))
+        + _render_section("failed", "失敗", failed, job_row,
+                          open_default=bool(failed))
     )
 
     return (
