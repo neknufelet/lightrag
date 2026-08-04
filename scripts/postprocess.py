@@ -33,6 +33,7 @@ import collections
 import json
 import re
 import shutil
+import time
 import sys
 import subprocess
 from pathlib import Path
@@ -697,11 +698,10 @@ def cmd_reindex(a, env) -> int:
                                "delete_llm_cache": False}), ensure_ascii=False)[:200])
     # 刪除是背景執行的，而且會讓 pipeline 進入忙碌狀態 —— 立刻掃描會被
     # scanning_skipped_pipeline_busy 擋掉，然後修補靜靜地沒有生效。等它閒下來。
-    import time as _t
     for _ in range(120):
         if not api("/health").get("pipeline_busy"):
             break
-        _t.sleep(5)
+        time.sleep(5)
     else:
         print("  ⚠ 等了 10 分鐘 pipeline 仍忙碌，請稍後自行觸發 /documents/scan")
         return 2
@@ -713,6 +713,52 @@ def cmd_reindex(a, env) -> int:
               "reindex --commit。")
         return 2
     print("\n解析快取仍有效，不會重新向 MinerU 付費；抽取快取命中的 chunk 會直接跳過。")
+    if a.no_wait:
+        print(f"⚠ --no-wait：{moved} 份 PDF 留在 inputs/{a.workspace}/，"
+              "**必須**在索引完成後自己搬回 work/parsed/，否則審核台的放行會被擋下。")
+        return 0
+    return _reindex_settle(api, want, inputs, parsed)
+
+
+def _reindex_settle(api, want: list, inputs: Path, parsed: Path) -> int:
+    """等文件真的重新索引完，然後把 PDF 從 inputs 搬回 work/parsed。
+
+    **誰把檔案放進 inputs，誰負責拿回來。** 少了這一步，inputs 會殘留 PDF，
+    而審核台的 `_assert_inputs_empty()` 看到不乾淨就拒絕放行 —— 於是下一份
+    新文件會失敗，錯誤訊息指向 inputs，跟 reindex 差了好幾個小時，沒有人會
+    把兩件事連起來。實測踩過（2026-08-04：B/D/E 重建後 G Porous 放行被擋）。
+
+    等的是「文件回到 processed」而不是「pipeline 閒置」—— 後者在抽取開始前
+    就會短暫為真，會提早搬走檔案讓掃描找不到來源。
+    """
+    names = {Path(d.get("file_path") or "").name for d in want}
+    deadline = time.monotonic() + 7200          # 12 份 × 各約 30 分鐘的上限
+    while time.monotonic() < deadline:
+        rows = (api("/documents/paginated", "POST",
+                    {"page": 1, "page_size": 200}).get("documents") or [])
+        done = {Path(r.get("file_path") or "").name for r in rows
+                if str(r.get("status") or "").lower() == "processed"}
+        if names <= done:
+            break
+        time.sleep(15)
+    else:
+        print(f"\n⚠ 等了 2 小時仍有文件沒回到 processed，PDF 留在 inputs/。"
+              f"索引完成後請自行搬回 work/parsed/：{sorted(names - done)}")
+        return 2
+
+    back = 0
+    for name in sorted(names):
+        src, dst = inputs / name, parsed / name
+        if src.is_file() and not dst.is_file():
+            shutil.move(str(src), str(dst))
+            back += 1
+    left = [q.name for q in inputs.iterdir() if q.is_file()]
+    print(f"\n重新索引完成，{back} 份 PDF 搬回 work/parsed/。")
+    if left:
+        # 沉默地留下殘檔會在幾小時後變成一個對不上因果的放行失敗。
+        print(f"⚠ inputs/ 仍有檔案，審核台會拒絕放行：{left}")
+        return 2
+    print("inputs/ 已淨空（只剩 __parsed__ 掛載點）。")
     return 0
 
 
@@ -756,6 +802,9 @@ def main():
     ap2.add_argument("--workers", type=int, default=3)
 
     ri = sub.add_parser("reindex", help="刪索引記錄並重新掃描，讓修補生效")
+    ri.add_argument("--no-wait", action="store_true",
+                    help="觸發掃描後立刻返回，不等索引完成、不把 PDF 搬回 "
+                         "work/parsed。**留下的殘檔會擋住審核台的放行**，要自己收尾")
     add_workspace_arg(ri, env)
     ri.add_argument("--doc", action="append",
                     help="檔名關鍵字，可重複指定；預設全部。"
