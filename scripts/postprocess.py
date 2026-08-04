@@ -246,7 +246,8 @@ CANARY = REPO / "tests" / "canary-baseline.json"
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
                 "tables_total", "repairable", "review",
                 "charts_convert", "charts_dangling",
-                "latex_items", "latex_times", "latex_partials", "latex_glued")
+                "latex_items", "latex_times", "latex_partials", "latex_glued",
+                "latex_vetoed")
 
 
 def canary_row(p: dict) -> dict:
@@ -268,7 +269,10 @@ def canary_row(p: dict) -> dict:
             "latex_items": p["latex"].items,
             "latex_times": p["latex"].times,
             "latex_partials": p["latex"].partials,
-            "latex_glued": p["latex"].glued}
+            "latex_glued": p["latex"].glued,
+            # 統計記號否決的項數。**這一格是探針**：本語料是 0，一旦拉進含
+            # 統計分析的論文就會非 0，而那正是「有一項需要人看」的訊號。
+            "latex_vetoed": len(p["latex"].vetoed)}
 
 
 def cmd_canary(a, env) -> int:

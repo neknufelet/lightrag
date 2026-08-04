@@ -156,7 +156,7 @@ def t_times_anchor():
 def t_partial_anchor():
     # 自證的那一條（B #816）：同一個分數，分子讀對成 \partial、分母讀錯成 σ̂
     src = r"\partial \mathbf{k} \big/ \hat{\sigma} \mathbf{t} + \hat{\sigma} \omega \big/ \hat{\sigma} x"
-    out, n = latex_fix.fix_partial(src)
+    out, n, _ = latex_fix.fix_partial(src)
     assert n == 3 and r"\hat{\sigma}" not in out, out
     assert out.count(r"\partial") == 4, out
     print(f"      {out}")
@@ -168,18 +168,34 @@ def t_partial_anchor():
 
     # **錨點外的一律不碰。** 孤零零一個 σ̂ 更可能是真的「sigma hat」；
     # 沒有分數／斜線構造的成對 σ̂ 也不動（偏微分必然寫成分子分母）。
-    for s in (r"\hat{\sigma} = \sqrt{\frac{1}{n}\sum x^{2}}",     # 只有一個
+    for s in (r"\hat{\sigma} = \frac{1}{2}\sum x^{2}",            # 只有一個
               r"\hat{\sigma}_{1} + \hat{\sigma}_{2}"):            # 兩個但沒有分數
-        assert latex_fix.fix_partial(s) == (s, 0), latex_fix.fix_partial(s)[0]
+        assert latex_fix.fix_partial(s) == (s, 0, False), latex_fix.fix_partial(s)
 
     # **同族但不同字元的 `\hat{c}` 一個都不准碰。** 全母體 9 處裡有 3 處
-    # （F #259）是真的遞迴係數 ĉ_n，換掉會毀資料 —— 一次只放寬一條錨點。
+    # （F #259）是真的遞迴係數 ĉ_n，換掉會毀資料。注意那一項**同時滿足①②**
+    # （3 個 hat、有 \frac）—— 擋住它的不是錨點，是「不認 \hat{c} 這個字元」。
     hatc = r"\hat{c}_{1}=(1-\beta^{2}) \quad ; \quad \hat{c}_{n}=\frac{k_{0}a}{n}\cdot \hat{c}_{n-1}"
-    assert latex_fix.fix_partial(hatc) == (hatc, 0), latex_fix.fix_partial(hatc)[0]
+    assert latex_fix.fix_partial(hatc) == (hatc, 0, False), latex_fix.fix_partial(hatc)
     mixed = r"\frac{\hat{c}}{\hat{\sigma} u_{1}} + \frac{\hat{c}}{\hat{\sigma} u_{2}}"
-    out2, n2 = latex_fix.fix_partial(mixed)
+    out2, n2, _ = latex_fix.fix_partial(mixed)
     assert n2 == 2 and out2.count(r"\hat{c}") == 2, out2
     print("      真 σ̂、無分數的成對 σ̂、以及整族 `\\hat{c}`：一處都沒動")
+
+    # **另外三種寫法**。第一版只認 \hat{\sigma} 就宣稱零例外 —— 補掃才找到這些。
+    # `\widehat` 不等於 `\hat`（正則配不到），而 ∂ 自己也會被加一頂帽子。
+    for s, k in ((r"\frac{\widehat{\sigma}}{\widehat{\sigma} u_{i}}", 2),      # B #646
+                 (r"\frac{\hat{\partial}U}{\hat{\partial}x}", 2),             # B #680
+                 (r"\frac{\widehat{c}\zeta}{\widehat{\sigma} x_{0}}", 2)):    # D #247
+        assert latex_fix.fix_partial(s)[1] == k, (s, latex_fix.fix_partial(s))
+
+    # **統計估計量要否決，而且要出聲。** deepseek 2026-08-04 對抗找碴的反例：
+    # t 檢定的 σ̂ 是樣本標準差，完全符合①②，改成 ∂ 就是毀資料。
+    # 本語料實測 0 命中（理論章節），但論文拉進來就會咬。
+    ttest = r"\frac{\bar{X} - \mu}{\hat{\sigma}/\sqrt{n}} \sim t_{n-1} \quad \hat{\sigma}^{2}"
+    out3, n3, veto = latex_fix.fix_partial(ttest)
+    assert out3 == ttest and n3 == 0 and veto is True, (out3, n3, veto)
+    print("      統計估計量（t 檢定的 σ̂）：不改，而且回報要人工確認")
 
 
 if __name__ == "__main__":
