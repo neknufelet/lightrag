@@ -69,6 +69,68 @@
 過程紀錄在 `$RECORDS/REBUILD-20260804.md`（在 /data，已在備份範圍）。
 ```
 
+## ⚡ 2026-08-04 這一輪（壓縮上下文前寫的交接，先讀這節）
+
+### 審核台已上線可用
+
+**http://100.87.88.7:9710** —— 這是現在唯一該用的進料方式。
+
+    丟檔案到 /data/lightrag/inbox/（或在網頁上拖拉上傳）
+      → 網頁上按「只解析」（約 30 秒）
+      → 看審核卡片：clean 就按放行，不過就跳過
+      → 放行後自動修補 → 索引
+
+畫面由上而下就是流程：收件匣 → 解析中 → 等你看 → 卡住的 → 處理中 →
+已進知識庫 → 失敗。預設只展開「等你看」，其餘收起來、限高捲動。
+
+**不要再用 `postprocess.py prepare`** —— 它會把 PDF 留在 `inputs/`，
+審核台下次放行時會被正確擋下（實測撞過一次）。兩條路不要混用。
+
+### 索引已清空，等 PO 自己選 PDF 重跑
+
+PO 2026-08-04 決定清空重來。`DELETE /documents` 已執行，索引 0/0/0/0、
+Neo4j 0 節點、審核台狀態全清。`inbox/` 備了 TD_DG method 的 CH3、CH7 兩份，
+**PO 說要自己選 PDF**，不要的話畫面上可以刪。
+
+保留未動：`records/`（人工裁決，不可再生）、`work/crops/`（裁圖與轉錄快取）。
+
+### 已完成並提交
+
+    732781b  REBUILD-1/3  檢查工具不再讀 DeepTutor 的舊資料庫；新增 A-26
+                          用 API 與 SQL 兩個獨立來源交叉比對文件母體
+    83b8464  REBUILD-2/5  docker exec 帶宿主 uid/gid（不再產生 root 檔案）
+    1cd47cf  REBUILD-4/7  失敗的進料看得見、能重置；intake 進 compose
+    e777bda  ——           審核台前端重做（拖拉上傳、摺疊、對帳、連知識庫）
+    4c0fbea  REBUILD-6/8/9 run-tests.sh 單一入口、token 到期會變紅、體檢表歸檔
+
+### ⬜ 還沒做完的
+
+- [ ] **`REBUILD-10`：CLAUDE.md 還停在重建前**（路徑、現況、數字全過期）。
+      workflow 第五站沒跑到。
+- [ ] **終審沒跑**（codex sol，第六站）。前五輪的改動沒有經過獨立審查。
+- [ ] **intake 沒進 systemd**：`compose.yaml` 已經有它了，但實際跑的是手動
+      `setsid nohup`。**dker 重開機不會自己起來。**
+      要嘛 `docker compose up -d intake`，要嘛做 systemd unit。
+- [ ] **拖拉上傳只測過後端 API**，沒有在瀏覽器實際拖過檔案。
+- [ ] `archive-ledger.py` 寫好了但**還沒在 dker 上跑過**（舊 20 張體檢表還在）。
+
+### ⚠ 這一輪學到的（不要重犯）
+
+1. **兩條線同時動同一個 repo，靠工單約束沒有用。** 我在工單裡明令
+   「不得碰 scripts/intake.py」，但 codex 用了全域的 git 還原操作，
+   把我未提交的前端改動整個清掉。**要併行就用 git worktree 隔離，
+   否則就不要併行。**
+2. **codex 驗證完要收尾。** 它為了證明 `run-tests.sh` 會抓到失敗，在
+   `test_gates.py` 加了一個 `TEMP deliberate fail`，驗完忘了拿掉，
+   測試就這樣紅著被交出來。驗收時要跑一次測試才會發現。
+3. **不要用 `cmd | tail` 取 `$?`** —— 取到的是 tail 的退出碼。我差點把
+   canary 的失敗誤判成通過。CLAUDE.md 只記了 zsh 的 `PIPESTATUS`，
+   但任何接 pipe 的量測都有這個問題。
+4. **前端的文案要用使用者的話。** PO 問「選片是甚麼意思」——那是我造的詞。
+   同一件事在流程裡曾有「待審核／待放行／待確認」三個名字。
+
+---
+
 ## 狀態總表
 
 label 格式與字母語意見 [CLAUDE.md](CLAUDE.md)「工作項目命名規則」。
