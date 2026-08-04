@@ -126,7 +126,18 @@ Neo4j 0 節點、審核台狀態全清。`inbox/` 備了 TD_DG method 的 CH3、
 3. **不要用 `cmd | tail` 取 `$?`** —— 取到的是 tail 的退出碼。我差點把
    canary 的失敗誤判成通過。CLAUDE.md 只記了 zsh 的 `PIPESTATUS`，
    但任何接 pipe 的量測都有這個問題。
-4. **前端的文案要用使用者的話。** PO 問「選片是甚麼意思」——那是我造的詞。
+4. **絕對不要 `rm -rf` 一個 bind mount 的來源目錄。** 清空索引時我對
+   `/data/lightrag/work/parsed` 下了 `rm -rf` 再 `mkdir`，於是容器裡的掛載
+   還綁在被刪掉的舊 inode 上——**宿主寫進去的檔案容器完全看不到，而且不報錯**。
+   症狀是 PO 傳的第一份文件解析失敗，訊息只有「來源檔不存在」。
+   要清內容就 `rm -rf <dir>/*`，**目錄本身留著**；真的刪了就要
+   `docker compose up -d --force-recreate <service>` 重新綁定。
+   （驗法：宿主寫一個 probe 檔，`docker exec ... cat` 讀得到才算通。）
+5. **`exit 2` 不是錯誤訊息。** intake 把 parse-only 的退出碼當成 error 存進
+   job.json，真正的原因「來源檔不存在」只在 `run.log` 裡。失敗看得見了
+   （REBUILD-4 做到了），但**看得見不等於說得清楚**——要把子行程的輸出
+   帶進 error 欄位。
+6. **前端的文案要用使用者的話。** PO 問「選片是甚麼意思」——那是我造的詞。
    同一件事在流程裡曾有「待審核／待放行／待確認」三個名字。
 
 ---
