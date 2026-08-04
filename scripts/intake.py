@@ -1652,18 +1652,20 @@ def _format_size(value: object) -> str:
 
 def _status_label(status: object, decision: object = None) -> str:
     if status == "planned" and decision == "clean":
-        return "待放行"
+        return "可以放行"
     labels = {
-        "candidate": "選片",
+        "candidate": "還沒處理",
         "parsing": "解析中",
-        "planned": "待確認",
+        "planned": "要你決定",
         "failed_parse": "解析失敗",
-        "repairing": "修補中",
-        "admitted": "已准入",
-        "scanning": "掃描中",
-        "extracting": "抽取中",
-        "indexed": "已完成",
-        "returned": "已退回",
+        # 修補→准入→掃描→抽取這四步是系統內部的分工，使用者在這段
+        # 除了等沒有別的事可做。細分只會讓人以為每一步都需要他判斷。
+        "repairing": "處理中",
+        "admitted": "處理中",
+        "scanning": "處理中",
+        "extracting": "處理中",
+        "indexed": "已進知識庫",
+        "returned": "已跳過",
         "failed": "失敗",
     }
     return labels.get(str(status), str(status))
@@ -1747,7 +1749,7 @@ def _render_section(key: str, title: str, rows: Sequence[Mapping[str, object]],
     """
     body = "".join(renderer(row) for row in rows)
     if not body:
-        body = "<div class='empty'>目前沒有</div>"
+        body = "<div class='empty'>沒有</div>"
     attr = " open" if open_default else ""
     return (
         f"<details data-sec='{_esc(key)}'{attr}>"
@@ -1794,7 +1796,7 @@ def _render_convergence(convergence: Mapping[str, object], links: Mapping[str, o
         f"<p>{_esc(verdict)}</p></div>"
         "<div class='stats'>"
         f"<div><div class='k'>已處理</div><div class='v'>{n}</div></div>"
-        f"<div><div class='k'>教學事件</div><div class='v'>{event_count}</div></div>"
+        f"<div><div class='k'>沒見過的</div><div class='v'>{event_count}</div></div>"
         f"<div><div class='k'>距上次</div><div class='v'>{_esc(distance_text)}</div></div>"
         "</div>"
         "<div class='links'>"
@@ -1830,7 +1832,7 @@ def _render_pending_groups(groups: object) -> str:
     return (
         "<details data-sec='reasons'>"
         "<summary><span class='caret'>▶</span>"
-        "<span class='sec-name'>待確認 · 按原因</span>"
+        "<span class='sec-name'>卡住的 · 按原因</span>"
         f"<span class='count'>{len(rows)}</span></summary>"
         f"<div class='sec-body'>{''.join(rows)}</div></details>"
     )
@@ -2202,18 +2204,18 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     # 預設只展開「待審核」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。
     queue = (
-        _render_section("review", "待審核", review,
+        _render_section("review", "等你看", review,
                         lambda row: _render_job_row(row, selected_job_id), open_default=True)
         + _render_section("parsing", "解析中", parsing,
                           lambda row: _render_job_row(row, selected_job_id))
         + _render_section("failed", "失敗", failed,
                           lambda row: _render_job_row(row, selected_job_id))
         + _render_pending_groups(state.get("pending_by_reason"))
-        + _render_section("in_progress", "進行中", in_progress,
+        + _render_section("in_progress", "處理中", in_progress,
                           lambda row: _render_job_row(row, selected_job_id))
-        + _render_section("completed", "已完成", completed,
+        + _render_section("completed", "已進知識庫", completed,
                           lambda row: _render_job_row(row, selected_job_id))
-        + _render_section("selection", "選片", selection, _render_candidate_row)
+        + _render_section("selection", "收件匣", selection, _render_candidate_row)
     )
 
     return (
