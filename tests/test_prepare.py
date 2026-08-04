@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import io
 import json
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 from types import ModuleType
 
@@ -63,7 +65,7 @@ def test_parse_failure_stops_before_apply_and_scan(
 
     def fake_run(command: list[str], *, check: bool) -> subprocess.CompletedProcess[str]:
         assert check is False
-        return subprocess.CompletedProcess(command, 7, "", "MinerU timeout")
+        return subprocess.CompletedProcess(command, 7)
 
     def fake_apply(*_args: object, **_kwargs: object) -> int:
         calls["apply"] += 1
@@ -79,7 +81,6 @@ def test_parse_failure_stops_before_apply_and_scan(
 
     assert module.cmd_prepare(_args(), {}) == 7
     output = capsys.readouterr().out
-    assert "MinerU timeout" in output
     assert "解析失敗" in output and "待解析 1 份" in output
     assert "未發出 scan" in output
     assert calls == {"apply": 0, "scan": 0}
@@ -110,6 +111,40 @@ def test_apply_failure_stops_before_scan(
     assert "修補失敗" in output
     assert "已解析未修補 1 份" in output and "未發出 scan" in output
     assert calls["scan"] == 0
+
+
+def test_reindex_scan_busy_is_failure_after_delete_and_rescan(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _module()
+    data_root = tmp_path / "data"
+    paths = module.DataPaths(data_root)
+    inputs = paths.inputs_dir("test")
+    inputs.mkdir(parents=True)
+    paths.parsed_dir.mkdir(parents=True)
+    (paths.parsed_dir / "ready.pdf").write_bytes(b"pdf fixture")
+    monkeypatch.setattr(module, "_paths", lambda: paths)
+
+    responses: list[dict[str, object]] = [
+        {"documents": [{"id": "doc-id", "file_path": "ready.pdf", "status": "processed"}]},
+        {"status": "deleted"},
+        {"pipeline_busy": False},
+        {"data": {"status": "scanning_skipped_pipeline_busy"}},
+    ]
+
+    def fake_urlopen(_request: object, *, timeout: int) -> io.BytesIO:
+        assert timeout == 120
+        return io.BytesIO(json.dumps(responses.pop(0)).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    args = argparse.Namespace(workspace="test", doc=["ready"], commit=True)
+
+    assert module.cmd_reindex(args, {}) == 2
+    output = capsys.readouterr().out
+    assert "scanning_skipped_pipeline_busy" in output
+    assert "沒有排程" in output and "重跑 reindex --commit" in output
+    assert not responses
+    assert (inputs / "ready.pdf").is_file()
 
 
 def test_scan_busy_is_failure_and_reports_unindexed_state(

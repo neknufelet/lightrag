@@ -9,6 +9,7 @@ IR 建構規則都是 LightRAG 的內部契約。在容器外重寫一份等於�
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 from dataclasses import dataclass, field
@@ -53,11 +54,18 @@ class OracleError(RuntimeError):
 class Oracle:
     container: str = field(default_factory=_default_container)
     timeout: int = 120
+    # None 使用目前宿主程序的 uid:gid；只有明確指定時才切換成其他身分，
+    # 例如需要讀取歷史 root-owned bundle 時可傳 user="0:0"。
+    user: str | None = None
 
     # ---- 底層 ----
 
     def _run(self, argv: list[str], env: dict[str, str] | None = None) -> str:
-        cmd = ["docker", "exec"]
+        exec_user = (self.user if self.user is not None
+                     else f"{os.getuid()}:{os.getgid()}")
+        # 容器內 lightrag 以 uid 1000 執行，與宿主 florian 相同；但 docker exec
+        # 預設以 root 執行，會讓掛載檔案變成 root，宿主後處理便無法修改。
+        cmd = ["docker", "exec", "-u", exec_user]
         for k, v in (env or {}).items():
             cmd += ["-e", f"{k}={v}"]
         cmd += [self.container, *argv]

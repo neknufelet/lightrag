@@ -351,9 +351,6 @@ def cmd_prepare(a: argparse.Namespace, env: dict[str, str]) -> int:
             return 2
         if parsed.returncode != 0:
             _, ready_after, _ = _prepare_inventory(a.workspace)
-            detail = getattr(parsed, "stderr", None)
-            if detail:
-                print(f"  原因：{str(detail).strip()}")
             print(f"\n✗ 解析失敗（parse-only exit {parsed.returncode}），流程停止。")
             print(f"  資料目前處於：待解析 {len(_prepare_inventory(a.workspace)[0])} 份、"
                   f"已解析未修補 {len(ready_after)} 份；未發出 scan。")
@@ -690,7 +687,12 @@ def cmd_reindex(a, env) -> int:
         print("  ⚠ 等了 10 分鐘 pipeline 仍忙碌，請稍後自行觸發 /documents/scan")
         return 2
     print("觸發重新掃描…")
-    print(" ", json.dumps(api("/documents/scan", "POST"), ensure_ascii=False)[:200])
+    response = api("/documents/scan", "POST")
+    print(" ", json.dumps(response, ensure_ascii=False)[:200])
+    if _scan_was_skipped_pipeline_busy(response):
+        print("\n✗ scan 沒有排程（scanning_skipped_pipeline_busy）；請等 pipeline 閒置後重跑 "
+              "reindex --commit。")
+        return 2
     print("\n解析快取仍有效，不會重新向 MinerU 付費；抽取快取命中的 chunk 會直接跳過。")
     return 0
 
