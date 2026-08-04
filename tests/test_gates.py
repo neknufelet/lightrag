@@ -152,6 +152,36 @@ def t_times_anchor():
     print("      真乘號、以及指數裡同病因的 x：一處都沒動（錨點外＝不在授權範圍）")
 
 
+# ── 案例 6：`\hat{\sigma}` → `\partial` 只在偏微分構造裡換 ────────────────
+def t_partial_anchor():
+    # 自證的那一條（B #816）：同一個分數，分子讀對成 \partial、分母讀錯成 σ̂
+    src = r"\partial \mathbf{k} \big/ \hat{\sigma} \mathbf{t} + \hat{\sigma} \omega \big/ \hat{\sigma} x"
+    out, n = latex_fix.fix_partial(src)
+    assert n == 3 and r"\hat{\sigma}" not in out, out
+    assert out.count(r"\partial") == 4, out
+    print(f"      {out}")
+
+    # ∂²U/∂x²（拉普拉斯）與 Jacobi 行列式：型態不同，一樣要中
+    for s, k in ((r"\frac{\hat{\sigma}^{2}U}{\hat{\sigma}x^{2}}", 2),
+                 (r"\frac{\hat{\sigma}(v^{1})}{\hat{\sigma}(u^{1})}", 2)):
+        assert latex_fix.fix_partial(s)[1] == k, latex_fix.fix_partial(s)
+
+    # **錨點外的一律不碰。** 孤零零一個 σ̂ 更可能是真的「sigma hat」；
+    # 沒有分數／斜線構造的成對 σ̂ 也不動（偏微分必然寫成分子分母）。
+    for s in (r"\hat{\sigma} = \sqrt{\frac{1}{n}\sum x^{2}}",     # 只有一個
+              r"\hat{\sigma}_{1} + \hat{\sigma}_{2}"):            # 兩個但沒有分數
+        assert latex_fix.fix_partial(s) == (s, 0), latex_fix.fix_partial(s)[0]
+
+    # **同族但不同字元的 `\hat{c}` 一個都不准碰。** 全母體 9 處裡有 3 處
+    # （F #259）是真的遞迴係數 ĉ_n，換掉會毀資料 —— 一次只放寬一條錨點。
+    hatc = r"\hat{c}_{1}=(1-\beta^{2}) \quad ; \quad \hat{c}_{n}=\frac{k_{0}a}{n}\cdot \hat{c}_{n-1}"
+    assert latex_fix.fix_partial(hatc) == (hatc, 0), latex_fix.fix_partial(hatc)[0]
+    mixed = r"\frac{\hat{c}}{\hat{\sigma} u_{1}} + \frac{\hat{c}}{\hat{\sigma} u_{2}}"
+    out2, n2 = latex_fix.fix_partial(mixed)
+    assert n2 == 2 and out2.count(r"\hat{c}") == 2, out2
+    print("      真 σ̂、無分數的成對 σ̂、以及整族 `\\hat{c}`：一處都沒動")
+
+
 if __name__ == "__main__":
     print("寫入路徑自測")
     case("1 捏造的圖片參照被擋下", t_fabricated_url)
@@ -159,6 +189,7 @@ if __name__ == "__main__":
     case("3 動到現值非空位元組的裁定檔被擋下", t_additive_only)
     case("4 `~` 當詞分隔，其餘位元組不動", t_tilde_is_a_word_separator)
     case("5 `\\times` 只在羅馬數字下標的位置換", t_times_anchor)
+    case("6 `\\hat{\\sigma}` 只在偏微分構造裡換", t_partial_anchor)
     if FAILED:
         sys.exit(f"\n{len(FAILED)} 個案例失敗：{FAILED}")
-    print("\n5 個案例全部通過。")
+    print("\n6 個案例全部通過。")

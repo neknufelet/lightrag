@@ -1,8 +1,8 @@
-"""兩個**機械**的 LaTeX 修補：位置錨定、零例外可驗、不呼叫模型。
+"""三個**機械**的 LaTeX 修補：位置錨定、零例外可驗、不呼叫模型。
 
-這兩條的共同形狀跟 ∂ 誤讀那一族一樣：MinerU 讀錯的是**排版**，不是內容，而錯法
-有一個可以精確描述的位置。位置寫得出來，就不需要模型投票 —— 掃全母體、逐處看過、
-沒有例外，才准套（judgement-flow 第 4 節「機械可窮舉」那一類）。
+三條的共同形狀：MinerU 讀錯的是**排版**，不是內容，而錯法有一個可以精確描述的
+位置。位置寫得出來，就不需要模型投票 —— 掃全母體、逐處看過、沒有例外，才准套
+（judgement-flow 第 4 節「機械可窮舉」那一類）。
 
 ## 1. `\\times` 誤讀（c-tables-disputes §7.4 定案）
 
@@ -52,7 +52,12 @@ MinerU 把 `\\mathsf{tanh}`、`\\mathrm{with}` 這類寫成逐字母排開：
 `handside`，救不回來 —— **寧可少救不可亂黏**，而多出來的假詞不會抵銷掉真正的
 缺漏（`handside` 配不到 pdf 側的 `hand`／`side`，多重集合差不受影響）。
 
-## 為什麼這兩條放在同一個模組
+## 3. `\\hat{\\sigma}` → `\\partial`（2026-08-04 定案）
+
+檔頭原本就把 ∂ 誤讀當成 §7.4 的同族拿來對照，現在它自己也在這裡了。
+全母體 165 處、零例外、MinerU 同式混用自證。詳見 `fix_partial` 的說明。
+
+## 為什麼這三條放在同一個模組
 
 它們共用同一條寫回路徑（`_pp_original_<欄位>` 只記第一次、`_pp_repaired_at`
 蓋時間戳、revert 走既有的還原分支），而且都必須在**人工裁定寫完之後**才跑
@@ -144,17 +149,66 @@ def unspace(text: str) -> tuple[str, list[str]]:
     return CMD_ARG.sub(one, text), made
 
 
-def fix_one(text: str) -> tuple[str, int, list[str]]:
-    """兩條規則依序套在同一段文字上。回傳 (新文字, \\times 處數, 黏出來的詞)。"""
+HAT_SIGMA = re.compile(r"\\hat\s*\{\s*\\sigma\s*\}")
+# 分數／斜線構造。偏微分**必然**寫成分子分母，這是錨點的另一半。
+_FRACTION = re.compile(r"\\[Bb]igg?/|\\frac|/")
+
+
+def fix_partial(text: str) -> tuple[str, int]:
+    """`\\hat{\\sigma}` → `\\partial`，只在**偏微分構造**裡動手。
+
+    MinerU 把 ∂ 的字形讀成了「σ 加上一頂帽子」。全母體 6 份掃出 165 處，
+    逐處看過，**165/165 都是偏微分**，型態涵蓋 ∂/∂n、∂V/∂P、∂²U/∂x²（拉普拉斯）、
+    ∂(v¹,v²,v³)/∂(u¹,u²,u³)（Jacobi 行列式）、物質導數。
+
+    **自證的證據**：B #816 是 `\\partial k \\big/ \\hat{\\sigma} t + \\hat{\\sigma}
+    \\omega \\big/ \\hat{\\sigma} x` —— 同一條式子的同一個分數，分子讀對成
+    `\\partial`、分母讀錯成 σ̂。B #273 同型。MinerU 自己證明了 σ̂ 是什麼，
+    不必問模型。眼睛（qwen＋luna 各自獨立）也把這些轉錄成 `\\partial`。
+
+    **錨點為什麼不是「看到 σ̂ 就換」**：同族的 `\\hat{c}`（∂ 的另一種誤讀）全母體
+    9 處，其中 **F #259 的 3 處是真的 ĉ** —— `ĉ_1=(1-β²)…；ĉ_n=(1-β²)k₀a/n·ĉ_{n-1}`
+    是一組遞迴定義的係數，盲目換成 ∂ 會直接毀掉它。認字元會出事，所以認**結構**：
+
+      ① 該項目的 σ̂ 出現 **≥2 次** —— ∂ 成對出現在分子分母，孤零零一個 σ̂ 更可能是真的
+      ② 該項目有 `\\frac` 或斜線 —— 偏微分的分數構造
+
+    兩條都中才動手。165 處全部通過，而 `\\hat{c}` 那一族**這條規則一個都不碰**
+    （一次只放寬一條錨點，才知道漂移是誰造成的）。
+
+    **它綁的是 MinerU 這個版本對一個字形的誤讀，不是文件領域的性質。** MinerU 改好
+    之後這條會從「修正」變成「破壞」。守它的是兩層，**不是** `model-observations.json`
+    ——那個檔自己第一行就寫著「這裡的任何一條都不得寫成流程中的自動裁決規則」，
+    而它管的是「哪隻眼睛錯在哪一類」那種判讀觀察。§7.4 的 `\\times` 同樣綁 MinerU，
+    走的也是這裡，不是那裡。
+
+      ① **錨點由構造 fail-safe**：MinerU 修好之後就不再產出成對的 σ̂，規則自然
+         不再命中；真的 σ̂（單獨出現、或沒有分數構造）本來就在錨點外。
+      ② **金絲雀**：`plan.partials` 進了摘要與基準，處數變動會出現在 `git diff`
+         裡。沒說明的數字變動＝未被察覺的漂移。
+    """
+    if len(HAT_SIGMA.findall(text)) < 2 or not _FRACTION.search(text):
+        return text, 0
+    return HAT_SIGMA.subn("\\\\partial", text)
+
+
+def fix_one(text: str) -> tuple[str, int, int, list[str]]:
+    """三條規則依序套在同一段文字上。回傳 (新文字, \\times 處數, σ̂ 處數, 黏出來的詞)。
+
+    `fix_partial` 排在 `unspace` **前面**：σ̂ 的模式含 `\\hat { \\sigma }` 這種
+    帶空白的寫法，而 `unspace` 只黏單字母 token、不會動到它 —— 順序其實可交換，
+    但擺前面讓「先換符號、再正規化排版」的因果讀得出來。
+    """
     t, n = fix_times(text)
+    t, d = fix_partial(t)
     t, made = unspace(t)
-    return t, n, made
+    return t, n, d, made
 
 
 @dataclass
 class LatexPlan:
-    # {(item index, 欄位): (新值, \times 處數, 黏出來的詞)}
-    edits: dict[tuple[int, str], tuple[str, int, list[str]]] = field(default_factory=dict)
+    # {(item index, 欄位): (新值, \times 處數, σ̂→∂ 處數, 黏出來的詞)}
+    edits: dict[tuple[int, str], tuple[str, int, int, list[str]]] = field(default_factory=dict)
 
     @property
     def items(self) -> int:
@@ -165,18 +219,22 @@ class LatexPlan:
         return sum(e[1] for e in self.edits.values())
 
     @property
+    def partials(self) -> int:
+        return sum(e[2] for e in self.edits.values())
+
+    @property
     def glued(self) -> int:
-        return sum(len(e[2]) for e in self.edits.values())
+        return sum(len(e[3]) for e in self.edits.values())
 
     def words(self) -> collections.Counter:
         c: collections.Counter = collections.Counter()
         for e in self.edits.values():
-            c.update(e[2])
+            c.update(e[3])
         return c
 
     def summary(self) -> str:
         return (f"LaTeX 正規化 {self.items} 項：\\times→x {self.times} 處、"
-                f"逐字母排版黏回 {self.glued} 段")
+                f"σ̂→∂ {self.partials} 處、逐字母排版黏回 {self.glued} 段")
 
 
 def plan(items: list[dict]) -> LatexPlan:
@@ -187,14 +245,14 @@ def plan(items: list[dict]) -> LatexPlan:
             v = it.get(f)
             if not isinstance(v, str) or "\\" not in v:
                 continue
-            new, n, made = fix_one(v)
+            new, n, d, made = fix_one(v)
             if new != v:
-                p.edits[(i, f)] = (new, n, made)
+                p.edits[(i, f)] = (new, n, d, made)
     return p
 
 
 def apply_to_items(items: list[dict], p: LatexPlan, stamp: str) -> int:
-    for (i, f), (new, _, _) in p.edits.items():
+    for (i, f), (new, _, _, _) in p.edits.items():
         it = items[i]
         # `setdefault`：`_pp_original_*` 只記**第一次**的原文。這條規則跑在人工
         # 裁定之後，裁定過的項目原文早就記好了，不能被這一輪的結果覆蓋掉。
