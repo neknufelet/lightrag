@@ -30,7 +30,7 @@
 「乾淨重建」不帶走**資料**：已修補的 content_list、合併過的實體、現有索引。
 全部帶走**用錢和時間換來的結論**：設定（`pipeline+is_ocr`、
 `ENTITY_EXTRACTION_USE_JSON`、3-large@3072、`MAX_ASYNC=2`）、全部 scripts/、
-六條鐵則、judgement-flow 的程序、已驗證的偵測器與已知誤判清單。
+鐵則、judgement-flow 的程序、已驗證的偵測器與已知誤判清單。
 
 ## 為什麼結構長這樣
 
