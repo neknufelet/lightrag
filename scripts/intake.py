@@ -57,6 +57,17 @@ ACTIVE_STATUSES: frozenset[str] = frozenset({
     "parsing", "repairing", "admitted", "scanning", "extracting",
 })
 
+# 「索引裡那一列是本站負責的」——從 admitted 起算，因為那一步才把檔案複製進
+# inputs，在那之前索引裡不可能有本站造成的列。
+#
+# 這個集合單獨存在而不是複用 ACTIVE_STATUSES，是因為兩者問的問題不同：
+# ACTIVE 問「重啟時這個 job 有沒有做到一半」，這個問「索引裡那一列該不該
+# 算在本站頭上」。parsing 與 repairing 是 active 但還沒碰索引 —— 那時候索引
+# 裡同名的列**真的是別人送的**，不能一起排除掉，否則探針會漏報。
+OWNED_STATUSES: frozenset[str] = frozenset({
+    "admitted", "scanning", "extracting", "indexed",
+})
+
 TRANSITIONS: dict[str, frozenset[str]] = {
     "candidate": frozenset({"parsing"}),
     "parsing": frozenset({"planned", "failed_parse", "failed"}),
@@ -1564,8 +1575,14 @@ class IntakeApp:
         # job 狀態會跟現實脫節：實測遇到一份文件已經索引成功，但因為
         # compat-check 的 soft 失敗被誤判成 failed，於是計數說 0 而庫裡有 1 份。
         # 本站處理的（indexed）＋ 對帳查到的（索引裡有但本站沒紀錄）才是真相。
+        #
+        # 但對帳那一半只能數**真的跑完的**。索引裡 status=processing 的列是
+        # 「正在跑」不是「已處理」，把它加進來會讓計數提前跳號 —— 實測 2026-08-04
+        # 咬到：B 還在抽取，畫面已經說「已進知識庫 2」。字面值實查為小寫
+        # processing／processed（GET /documents 的 statuses 鍵與 item.status 同值）。
         processed = (sum(1 for job in jobs if job.status == "indexed")
-                     + len(foreign_rows))
+                     + sum(1 for row in foreign_rows
+                           if str(row.get("status")) == "processed"))
         events = sorted(events, key=lambda event: str(event.get("created_at", "")))
         last_event = events[-1] if events else None
         distance = None
@@ -1602,11 +1619,18 @@ class IntakeApp:
         if self._foreign is not None and now - self._foreign[0] < 30.0:
             return self._foreign[1], self._foreign[2]
 
-        # 排除的是「本站**成功處理**的」，不是「本站有紀錄的」。
-        # 一個 failed 或 returned 的 job 不代表那份文件不在索引裡 —— 實測遇過
-        # 文件已索引成功但 job 因誤判卡在 failed，於是它既不算 completed
-        # 也不算 foreign，兩邊都漏掉，計數說 0 而庫裡有 1 份。
-        mine = {job.filename for job in self._jobs.values() if job.status == "indexed"}
+        # 排除的是「本站**負責那一列**的」：在途（已經送進 inputs）或已完成。
+        #
+        # 兩個方向都踩過，而且是對稱的：
+        # ① 排除「本站有紀錄的」太寬 —— 文件已索引成功但 job 因誤判卡在
+        #    failed，於是它既不算 completed 也不算 foreign，兩邊都漏掉。
+        # ② 排除「本站 indexed 的」太窄 —— 正在抽取的那一份不算成功處理，
+        #    於是自己送的文件被貼上「不是這裡送的」，而且被計進「已處理」。
+        #    2026-08-04 實測：B 抽到第 41 段時畫面說「已進知識庫 2」，實際 1 份。
+        #
+        # 正確的界線是 OWNED_STATUSES：**本站碰過索引，且還沒放手**。
+        # failed／returned／planned 不排除 —— 那是 ① 要救的情況。
+        mine = {job.filename for job in self._jobs.values() if job.status in OWNED_STATUSES}
         rows: list[dict[str, object]] = []
         error: str | None = None
         try:

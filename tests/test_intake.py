@@ -467,3 +467,84 @@ def test_page_links_to_lightrag_from_env_not_hardcoded(tmp_path: Path) -> None:
     links = app.state()["links"]
     assert links == {"lightrag": "http://10.1.2.3:9999", "kbapi": "http://10.1.2.3:8888"}
     assert "http://10.1.2.3:9999" in render_html(app.state())
+
+
+# ── 對帳：索引裡那一列該不該算在本站頭上（PO 2026-08-04 咬到）────────────
+
+
+def _with_index(app: IntakeApp, rows: list[dict[str, str]]) -> IntakeApp:
+    """讓 app 看到一份指定的 LightRAG 文件清單。
+
+    直接換掉 client.request 而不是起假伺服器：這裡要驗的是**歸屬判準**，
+    多一層 HTTP 只會讓失敗訊息指向網路。
+    """
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        grouped.setdefault(row["status"], []).append(row)
+    app.client.request = lambda *a, **k: {"statuses": grouped}  # type: ignore[method-assign]
+    app._foreign = None
+    return app
+
+
+def _job_in(app: IntakeApp, filename: str, status: str) -> Job:
+    saved = app.save_upload(filename, PDF)
+    candidate = next(item for item in app._candidates()[0] if item.filename == filename)
+    job = Job.from_candidate(candidate)
+    job.status = status  # type: ignore[assignment]
+    app._jobs[job.job_id] = job
+    return job
+
+
+def test_in_flight_job_is_not_foreign_and_not_yet_processed(tmp_path: Path) -> None:
+    """正在抽取的那一份，是本站送的，而且還沒處理完。
+
+    實測 2026-08-04：B 抽到第 41 段時，畫面同時把它列在「處理中」和
+    「已進知識庫 · 不是這裡送的」，計數說 2 而知識庫實際只有 1 份。
+    成因是排除清單只認 indexed —— 在途的自己人被當成外人。
+    """
+    app = _app(tmp_path)
+    _job_in(app, "B.pdf", "extracting")
+    _with_index(app, [{"file_path": "B.pdf", "status": "processing"}])
+
+    state = app.state()
+    assert state["foreign"] == [], "在途的自己人被誤判成「不是這裡送的」"
+    assert state["convergence"]["processed"] == 0, "還在抽取就被算進已處理"
+
+
+def test_failed_job_that_actually_indexed_still_counts(tmp_path: Path) -> None:
+    """反方向：本站以為失敗、索引其實成功的，不得漏掉。
+
+    這是 2026-08-03 的既有修正，上面那條不能把它改回去 —— 兩個方向是對稱的，
+    修一邊過頭就會撞出另一邊。
+    """
+    app = _app(tmp_path)
+    _job_in(app, "A.pdf", "failed")
+    _with_index(app, [{"file_path": "A.pdf", "status": "processed"}])
+
+    state = app.state()
+    assert [row["filename"] for row in state["foreign"]] == ["A.pdf"]
+    assert state["convergence"]["processed"] == 1, "索引裡跑完的文件被漏掉"
+
+
+def test_genuinely_foreign_but_still_processing_is_listed_not_counted(tmp_path: Path) -> None:
+    """別人塞進來、而且還在跑的：要列出來（探針），但不算進已處理。"""
+    app = _app(tmp_path)
+    _with_index(app, [{"file_path": "別人的.pdf", "status": "processing"}])
+
+    state = app.state()
+    assert [row["filename"] for row in state["foreign"]] == ["別人的.pdf"], "探針該響沒響"
+    assert state["convergence"]["processed"] == 0, "processing 不是 processed"
+
+
+def test_parsing_job_does_not_shadow_a_same_named_foreign_row(tmp_path: Path) -> None:
+    """還沒送進 inputs 的狀態不得排除同名的列。
+
+    parsing 是 active 但還沒碰索引 —— 那時候索引裡同名的列真的是別人送的。
+    用 ACTIVE_STATUSES 一併排除會讓探針在這個縫隙漏報。
+    """
+    app = _app(tmp_path)
+    _job_in(app, "同名.pdf", "parsing")
+    _with_index(app, [{"file_path": "同名.pdf", "status": "processed"}])
+
+    state = app.state()
+    assert [row["filename"] for row in state["foreign"]] == ["同名.pdf"], "探針被在途狀態蓋住"
