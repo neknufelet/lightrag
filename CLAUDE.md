@@ -330,6 +330,19 @@ python3 scripts/eq-check.py --n 30                # 方程式：MinerU/qwen/luna
 python3 scripts/parse-check.py --details          # 解析品質
 ```
 
+### 測試
+
+```bash
+scripts/run-tests.sh                             # pytest + test_gates.py，單一入口
+python3 -m pytest tests/ -q                       # pytest 入口（可單獨除錯）
+python3 tests/test_gates.py                       # 自製閘門框架，pytest 不會收集
+```
+
+有兩個入口是刻意的：`tests/test_gates.py` 的案例函式以 `t_` 開頭，並由自己的
+`case()`／`if __name__ == "__main__"` 執行，所以 pytest 會顯示 `collected 0 items`。
+平常用 `scripts/run-tests.sh`，它會依序跑上面兩條指令，任一邊非零就整體失敗；
+只有要單獨除錯時才直接跑其中一條。
+
 ## 金絲雀:規則漂移偵測
 
 規則是**一份一份文件逼出來的**,每次改動都可能無意間動到別份。手動逐份比對

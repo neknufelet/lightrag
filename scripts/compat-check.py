@@ -35,6 +35,7 @@ from pp.paths import DataPaths, configured_data_root  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
 POSTGRES_USER_DEFAULT = "deeptutor"
+MINERU_TOKEN_SOFT_FAIL_DAYS = 14
 
 
 def _sql_literal(value: str) -> str:
@@ -352,7 +353,10 @@ class Checker:
                    f"綁模型的觀察已失效，重新量測後更新 {f.name}")
             return ok, msg, {}
 
-        @self.check("A-21", "info", "MinerU token 到期日")
+        @self.check(
+            "A-21", "soft",
+            f"MinerU token 到期日（低於 {MINERU_TOKEN_SOFT_FAIL_DAYS} 天升級警報）",
+        )
         def _():
             import base64
             import time
@@ -364,9 +368,13 @@ class Checker:
             pl += "=" * (-len(pl) % 4)
             exp = json.loads(base64.urlsafe_b64decode(pl))["exp"]
             days = (exp - time.time()) / 86400
-            ok = days > 14
+            ok = days >= MINERU_TOKEN_SOFT_FAIL_DAYS
             return ok, (f"{time.strftime('%Y-%m-%d', time.localtime(exp))}，剩 {days:.0f} 天"
-                        + ("" if ok else " —— 整批解析要 6–10 小時，中途過期會讓後半批全滅")), {"days": days}
+                        + ("" if ok else " —— 整批解析要 6–10 小時，中途過期會讓後半批全滅")), {
+                            "days": days,
+                            "soft_fail_below_days": MINERU_TOKEN_SOFT_FAIL_DAYS,
+                            "expires_at": exp,
+                        }
 
     # ---------- 資料層（逐文件）----------
 

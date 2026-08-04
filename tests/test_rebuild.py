@@ -1,8 +1,11 @@
 """REBUILD-1／REBUILD-3 的容器路由與空母體行為測試。"""
 from __future__ import annotations
 
+import base64
 import importlib.util
+import json
 import sys
+import time
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -170,3 +173,64 @@ def test_compat_a22_uses_configured_postgres_container(
 
     assert result.ok is True
     assert commands and commands[0][2] == "pg-configured"
+
+
+def _jwt_with_expiry(expiry: int) -> str:
+    payload = base64.urlsafe_b64encode(
+        json.dumps({"exp": expiry}).encode("utf-8"),
+    ).rstrip(b"=").decode("ascii")
+    return f"header.{payload}.signature"
+
+
+def _a21_result(monkeypatch: pytest.MonkeyPatch, token: str) -> object:
+    compat = _load(f"compat_check_rebuild_a21_{token[-8:]}", SCRIPTS / "compat-check.py")
+    env = {"MINERU_API_TOKEN": token, "EMBEDDING_MODEL": "model", "EMBEDDING_DIM": "3"}
+    monkeypatch.setattr(compat, "load_env", lambda _repo: env)
+    monkeypatch.setattr(compat, "postgres_document_count", lambda *_args: 0)
+    monkeypatch.setattr(
+        compat.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout="vector_table|1\n", stderr="",
+        ),
+    )
+    checker = compat.Checker(_FakeOracle({"processed": 0}), "acoustics_v2")
+    checker.environment("", 9621)
+    return _results(checker)["A-21"]
+
+
+def test_compat_a21_expiring_token_is_a_soft_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _a21_result(monkeypatch, _jwt_with_expiry(int(time.time()) + 13 * 86400))
+
+    assert result.level == "soft"
+    assert result.ok is False
+    assert result.data["soft_fail_below_days"] == 14
+    assert "整批解析" in result.detail
+
+
+def test_compat_a21_token_with_margin_stays_green(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    result = _a21_result(monkeypatch, _jwt_with_expiry(int(time.time()) + 30 * 86400))
+
+    assert result.level == "soft"
+    assert result.ok is True
+
+
+def test_run_tests_entry_names_both_non_collecting_test_paths() -> None:
+    source = (SCRIPTS / "run-tests.sh").read_text(encoding="utf-8")
+
+    assert "python3 -m pytest tests/ -q" in source
+    assert "python3 tests/test_gates.py" in source
+    assert "pytest_rc=0" in source and "gates_rc=0" in source
+
+
+def test_daily_check_wires_test_entry_into_check_red_path() -> None:
+    source = (SCRIPTS / "daily-check.sh").read_text(encoding="utf-8")
+
+    assert "scripts/run-tests.sh > \"$CHECK_DIR/tests-$ts.txt\"" in source
+    assert "tests_rc=$?" in source
+    assert 'fail_msgs+=("測試入口失敗' in source
+    assert '"tests_rc":%d' in source

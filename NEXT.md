@@ -193,25 +193,26 @@ note 欄（`$RECORDS/ledger/`），不是口頭放行。要翻案先讀那三則
       同檔另一項：`cmd_reindex` 的 scan 沒有 `_scan_was_skipped_pipeline_busy`
       守衛（**pre-existing**，來自 `3346e451`，不是這次的回歸）。
 
-- [ ] **`REBUILD-6`：測試環境。** 兩台原本都沒有 pytest，所以既有測試
+- [x] **`REBUILD-6`：測試環境。** 兩台原本都沒有 pytest，所以既有測試
       **從來沒被執行過**（藍桶第 8 條形同虛設）。已在 coder 裝 pytest 9.1.1。
-      ⇒ dker 也要裝；`test_gates.py` 用自製框架 pytest 收集不到，要單獨跑
-      `python3 tests/test_gates.py`——**提供單一入口**否則永遠會漏一邊；
-      並把測試接進 `daily-check.sh`。
+      ⇒ 已新增 `scripts/run-tests.sh`，依序跑 pytest 與 `python3 tests/test_gates.py`；
+      任一邊非零即失敗，並已接進 `daily-check.sh`。測試紅燈沿用既有 `exit 1`
+      通知路徑，腳本本身缺失仍走 systemd `OnFailure`。
 
 - [ ] **`REBUILD-7`：intake 尚未進 compose**，重開機不會自己起來。
       目前是手動 `setsid nohup` 跑的。
 
 ### 🟢 記著就好
 
-- [ ] **`REBUILD-8`：MinerU token 2026-09-04 到期**（查時剩 31.7 天）。
-      `compat-check` 的 `A-21` 有在報，但**是 info 級別、不會變紅**，
-      所以剩 3 天和剩 30 天在畫面上長得一樣。⇒ 低於 14 天時升為 soft 失敗。
+- [x] **`REBUILD-8`：MinerU token 2026-09-04 到期**（查時剩 31.7 天）。
+      `compat-check` 的 `A-21` 已改為 soft 級別；剩餘天數低於 14 天（含過期）會
+      讓 `daily-check` 紅燈，並在 JSON 中留下門檻與到期 timestamp。
 
-- [ ] **`REBUILD-9`：舊體檢表要歸檔。** `records/ledger/` 還有重建前 20 份的表，
-      `ledger.py summary` 因此報 168 格、9 個 fail（全是已不存在的文件）。
-      ⇒ 移到 `records/ledger-archive-20260804/` 並放 README 說明（No silent drops，
-      不要刪）。`records/review/` 的 7 項是耐久的規則證據，**留在原位不要動**。
+- [x] **`REBUILD-9`：舊體檢表要歸檔。** 已新增 `scripts/archive-ledger.py`：以當前
+      workspace 的 `lightrag_doc_status` 為索引母體，預設 dry-run，只有加 `--move`
+      才移動到 `records/ledger-archive-<YYYYMMDD>/` 並寫 README。只移動 `.pdf.json`
+      體檢表，`records/review/` 的 7 項耐久規則證據留在原位。**本台未執行實際
+      `/data` 歸檔**，需由主線在 dker 先 dry-run、確認清單後再加 `--move`。
 
 - [ ] **`REBUILD-10`：CLAUDE.md 還停在重建前。** 路徑（`/data/rag/lightrag`）、
       現況（20 份文件、7,211 實體）、`extract-check` 的數字全部過期。

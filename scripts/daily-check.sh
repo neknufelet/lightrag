@@ -8,6 +8,10 @@
 # 用法:
 #   daily-check.sh              跑檢查
 #   daily-check.sh --selftest   只驗通知管道（裝好 app 後跑一次確認收得到）
+#
+# REBUILD-6：測試入口的非零是檢查紅燈（exit 1），不是 daily-check 腳本故障；
+# 這樣測試失敗會沿用既有通知路徑。入口檔缺失等腳本本身故障仍會在執行前掛掉，
+# 交給 systemd OnFailure。
 set -u
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CHECK_DIR=/data/lightrag/checks
@@ -48,6 +52,20 @@ case $scan_rc in
   *) fail_msgs+=("∂ 誤讀探針掛了 (rc=$scan_rc) → $CHECK_DIR/scan-$ts.txt") ;;
 esac
 
+# ── REBUILD-6：單一測試入口───────────────────────────────────────────────
+# run-tests.sh 內會依序跑 pytest 與自製的 test_gates.py；pytest 不會收集後者，
+# 因此兩者缺一不可。測試失敗屬於檢查紅燈，讓本支以 exit 1 通知；不要把它誤當
+# 成 daily-check 自身掛掉而走 OnFailure。
+if [ ! -x scripts/run-tests.sh ]; then
+  echo "daily-check: 找不到可執行的 scripts/run-tests.sh" >&2
+  exit 2
+fi
+scripts/run-tests.sh > "$CHECK_DIR/tests-$ts.txt" 2>&1
+tests_rc=$?
+if [ "$tests_rc" -ne 0 ]; then
+  fail_msgs+=("測試入口失敗 (rc=$tests_rc) → $CHECK_DIR/tests-$ts.txt")
+fi
+
 # 2026-08-03 CUTOVER：這裡原本有第二段，去 ../lightrag-v2 那個 worktree 再跑一次
 # compat-check 與 canary。worktree 已收掉、acoustics_v155 已退役，現在只有一個
 # checkout、一個 workspace，上面那一段就是全部。
@@ -58,8 +76,8 @@ esac
 
 status=pass
 [ ${#fail_msgs[@]} -gt 0 ] && status=fail
-printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"detail":"%s"}\n' \
-  "$ts" "$status" "$rc" "$scan_rc" "$CHECK_DIR/compat-$ts.json" \
+printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"tests_rc":%d,"detail":"%s"}\n' \
+  "$ts" "$status" "$rc" "$scan_rc" "$tests_rc" "$CHECK_DIR/compat-$ts.json" \
   > "$CHECK_DIR/latest.json"
 
 # 保留最新 120 份。`v2-*` 那組是 CUTOVER 之前雙 checkout 時代留下的**歷史**
