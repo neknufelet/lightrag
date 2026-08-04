@@ -907,13 +907,72 @@ class IntakeApp:
         self.paths.inputs_dir(self.workspace).mkdir(parents=True, exist_ok=True)
 
     def _recover_active_jobs(self) -> None:
-        for job in self._jobs.values():
-            if job.status not in ACTIVE_STATUSES:
+        """重啟時的在途工作：**問索引的現實，不要假設失敗。**
+
+        舊版一律標成 failed。那是錯的處置——LightRAG 在**另一個容器**裡，
+        intake 重啟不會打斷它，文件照樣會被抽完。於是畫面說失敗、庫裡卻有，
+        而且 failed 是死路，那份文件從此卡住。實測會踩到：一次 dker 重開機
+        就會把正在抽取的那份誤殺。
+
+        與 `_foreign_documents()` 同一個形狀：**兩個獨立來源不一致時，
+        以跑著的系統為準，不以本站的記憶為準。**
+
+        三種處置，對應索引裡的三種現實：
+
+            processed   → indexed，本來就成功了
+            processing  → 放回佇列繼續等（LightRAG 還在跑）
+            查不到      → 這才是真的失敗
+
+        問不到 LightRAG 時**不猜**：維持在途、標記待確認。把「連不上」當成
+        「失敗」會在網路瞬斷時殺掉一整批好文件。
+        """
+        active = [job for job in self._jobs.values() if job.status in ACTIVE_STATUSES]
+        if not active:
+            return
+
+        rows: dict[str, str] = {}
+        error: str | None = None
+        try:
+            payload = self.client.request("/documents", timeout=10.0)
+            statuses = payload.get("statuses")
+            if isinstance(statuses, dict):
+                for status_name, documents in statuses.items():
+                    for item in documents if isinstance(documents, list) else []:
+                        if not isinstance(item, dict):
+                            continue
+                        name = Path(str(item.get("file_path") or "")).name
+                        if name:
+                            rows[name] = str(item.get("status") or status_name).lower()
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            LOGGER.warning("重啟恢復：問不到 LightRAG（%s），在途工作維持原狀待確認", error)
+
+        for job in active:
+            if error is not None:
+                job.error = (f"服務重啟時這份仍在執行，而且問不到 LightRAG（{error}）——"
+                             "狀態未變更。等 LightRAG 回來後重新整理，或人工確認索引現況。")
+                self.store.save(job)
+                self.store.append_log(job.job_id, job.error)
                 continue
-            job.error = "服務重啟時工作仍在執行，未自動重試；請人工檢查後重新選取。"
-            job.status = "failed"
+
+            reality = rows.get(job.filename)
+            if reality == "processed":
+                # 已經成功了。狀態機不允許從 scanning 直接跳 indexed，所以直接落值。
+                job.status = "indexed"
+                job.error = None
+                message = "服務重啟時這份已經索引完成，直接標為已進知識庫。"
+            elif reality in {"processing", "pending"}:
+                job.error = None
+                message = (f"服務重啟時 LightRAG 仍在處理這份（{reality}），"
+                           "重新掛回等待，不重跑抽取。")
+                self._queue.put(("resume", job.job_id))
+            else:
+                job.status = "failed"
+                message = ("服務重啟時工作仍在執行，而且索引裡找不到這份文件"
+                           f"（LightRAG 回報 {reality or '不存在'}）——判定為真的失敗。")
+                job.error = message
             self.store.save(job)
-            self.store.append_log(job.job_id, job.error)
+            self.store.append_log(job.job_id, message)
 
     def start(self) -> None:
         with self._lock:
@@ -1040,6 +1099,8 @@ class IntakeApp:
                     self._run_admit(job_id)
                 elif kind == "return":
                     self._run_return(job_id)
+                elif kind == "resume":
+                    self._run_resume(job_id)
                 else:
                     raise RuntimeError(f"未知 worker 工作類型 {kind!r}")
             except Exception as exc:  # noqa: BLE001
@@ -1333,6 +1394,39 @@ class IntakeApp:
         except Exception as exc:  # noqa: BLE001
             self._mark_failed(
                 job_id, f"放行失敗：{type(exc).__name__}: {exc}", exception=exc,
+            )
+
+    def _run_resume(self, job_id: str) -> None:
+        """重啟後掛回一份 LightRAG 還在處理的文件。
+
+        **只等，不重跑。** 抽取在另一個容器裡好好地跑著，這裡重跑一次等於
+        付兩次錢還會產生重複實體。所以直接進 `wait_indexed`，走完既有的
+        「等 processed → compat-check → 收尾」那段。
+
+        `admitted_path` 可能已經被上一輪清掉了（或根本沒記到），
+        `_cleanup_admitted` 對不存在的路徑要能安靜跳過，這裡不另外處理。
+        """
+        job = self._job_for_worker(job_id)
+        try:
+            with self._lock:
+                if job.status != "extracting":
+                    # scanning／admitted 停在半路的，掛回抽取這一段等它結束。
+                    job.status = "extracting"
+                    self.store.save(job)
+            indexed = self.runner.wait_indexed(job)
+            self._append_operation(job, "重啟後接回等待索引", indexed)
+            if not indexed.ok:
+                self._mark_failed(job_id, indexed.error or "重啟後等待索引失敗")
+                return
+            if job.admitted_path:
+                self._cleanup_admitted(job, Path(job.admitted_path))
+            with self._lock:
+                job.status = "indexed"
+                job.error = None
+                self.store.save(job)
+        except Exception as exc:  # noqa: BLE001
+            self._mark_failed(
+                job_id, f"重啟後接回失敗：{type(exc).__name__}: {exc}", exception=exc,
             )
 
     def _run_return(self, job_id: str) -> None:

@@ -491,6 +491,7 @@ def _job_in(app: IntakeApp, filename: str, status: str) -> Job:
     candidate = next(item for item in app._candidates()[0] if item.filename == filename)
     job = Job.from_candidate(candidate)
     job.status = status  # type: ignore[assignment]
+    job.workspace = app.workspace          # 落盤後要讀得回來
     app._jobs[job.job_id] = job
     return job
 
@@ -548,3 +549,80 @@ def test_parsing_job_does_not_shadow_a_same_named_foreign_row(tmp_path: Path) ->
 
     state = app.state()
     assert [row["filename"] for row in state["foreign"]] == ["同名.pdf"], "探針被在途狀態蓋住"
+
+
+# ── 重啟恢復：問索引的現實，不要假設失敗（PO 2026-08-04）──────────────
+
+
+def _restart_with_index(tmp_path: Path, status: str, rows: dict[str, str] | None = None):
+    """建一個在途的 job、落盤，然後用指定的索引現實重啟一個新 app。"""
+    app = _app(tmp_path)
+    job = _job_in(app, "跑到一半.pdf", status)
+    app.store.save(job)
+
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for name, st in (rows or {}).items():
+        grouped.setdefault(st, []).append({"file_path": name, "status": st})
+
+    class _Client:
+        def request(self, *a, **k):
+            if rows is None:
+                raise OSError("connection refused")
+            return {"statuses": grouped}
+
+    original = IntakeApp._recover_active_jobs
+    seen: list[tuple[str, str]] = []
+
+    def patched(self) -> None:
+        self.client = _Client()          # type: ignore[assignment]
+        self._queue.put = lambda item: seen.append(item)  # type: ignore[method-assign]
+        original(self)
+
+    IntakeApp._recover_active_jobs = patched      # type: ignore[method-assign]
+    try:
+        fresh = IntakeApp(app.paths, "test", [app.paths.inbox_dir],
+                          runner=FakeRunner(app.paths.root))
+    finally:
+        IntakeApp._recover_active_jobs = original  # type: ignore[method-assign]
+    return fresh, seen
+
+
+def test_restart_marks_indexed_when_lightrag_already_finished(tmp_path: Path) -> None:
+    """索引裡已經是 processed 的，重啟不得標成失敗。
+
+    LightRAG 在另一個容器裡，intake 重啟不會打斷它。舊版一律標 failed，
+    於是畫面說失敗、庫裡卻有，而 failed 是死路，那份文件從此卡住。
+    """
+    app, _ = _restart_with_index(tmp_path, "extracting", {"跑到一半.pdf": "processed"})
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+    assert job.status == "indexed", job.status
+    assert job.error is None
+
+
+def test_restart_requeues_when_lightrag_still_processing(tmp_path: Path) -> None:
+    """LightRAG 還在跑的，掛回去等，**不重跑抽取**（會付兩次錢又產生重複實體）。"""
+    app, queued = _restart_with_index(tmp_path, "extracting", {"跑到一半.pdf": "processing"})
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+    assert job.status == "extracting", job.status
+    assert queued == [("resume", job.job_id)], queued
+
+
+def test_restart_fails_only_when_index_really_lacks_the_document(tmp_path: Path) -> None:
+    """索引裡真的沒有這一份 —— 這才是失敗。"""
+    app, queued = _restart_with_index(tmp_path, "scanning", {"別人的.pdf": "processed"})
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+    assert job.status == "failed", job.status
+    assert "找不到這份文件" in (job.error or "")
+    assert queued == []
+
+
+def test_restart_does_not_guess_when_lightrag_is_unreachable(tmp_path: Path) -> None:
+    """問不到 LightRAG 時維持原狀。
+
+    把「連不上」當成「失敗」會在網路瞬斷時殺掉一整批好文件 —— 而失敗是死路。
+    """
+    app, queued = _restart_with_index(tmp_path, "extracting", None)
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+    assert job.status == "extracting", "連不上就把在途工作殺掉了"
+    assert "問不到 LightRAG" in (job.error or "")
+    assert queued == []
