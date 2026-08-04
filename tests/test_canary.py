@@ -54,6 +54,7 @@ def _fake_plan() -> dict:
         "noise": SimpleNamespace(mutes=[], held=[1, 2], ratio=0.0),
         "tables": SimpleNamespace(total=0, repairable=[], review=[]),
         "charts": _FakeChartPlan(),
+        "latex": SimpleNamespace(items=0, times=0, partials=0, glued=0),
     }
 
 

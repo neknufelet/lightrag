@@ -41,7 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import LEAK, add_workspace_arg, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
-from pp.rules import chart_type, empty_table, layout_noise  # noqa: E402
+from pp.rules import chart_type, empty_table, latex_fix, layout_noise  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
@@ -121,7 +121,12 @@ def plan_one(raw: Path, *, source_dir: Path | None = None) -> dict:
     noise = layout_noise.plan(ctx.items, ctx.n_pages)
     tables = empty_table.plan(ctx.items, w, h)
     charts = chart_type.plan(ctx.items, ctx.raw_dir)
-    return {"ctx": ctx, "noise": noise, "tables": tables, "charts": charts}
+    # LaTeX 正規化在唯讀階段也要算出來。`apply` 本來就會算一次，但那時已經在
+    # 寫檔 —— 唯讀看不到的修改等於沒有人審過，而 σ̂→∂ 一份文件就改 138 處公式符號。
+    # 這裡傳的是 ctx.items，`latex_fix.plan` 只讀不寫。
+    latex = latex_fix.plan(ctx.items)
+    return {"ctx": ctx, "noise": noise, "tables": tables,
+            "charts": charts, "latex": latex}
 
 
 def render(p: dict, details: bool) -> None:
@@ -131,6 +136,7 @@ def render(p: dict, details: bool) -> None:
     print(f"  過濾：{noise.summary()}")
     print(f"  表格：{tables.summary()}")
     print(f"  圖片：{p['charts'].line()}")
+    print(f"  LaTeX：{p['latex'].summary()}")
 
     if not details:
         return
@@ -239,7 +245,8 @@ CANARY = REPO / "tests" / "canary-baseline.json"
 # 比太少又抓不到漂移。這幾個是「規則改動一定會反映在上面」的量。
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
                 "tables_total", "repairable", "review",
-                "charts_convert", "charts_dangling")
+                "charts_convert", "charts_dangling",
+                "latex_items", "latex_times", "latex_partials", "latex_glued")
 
 
 def canary_row(p: dict) -> dict:
@@ -253,7 +260,15 @@ def canary_row(p: dict) -> dict:
             # 套用後這個數字會歸零（chart 都變成 image 了）。那是預期中的變化，
             # 記在基準裡就是為了讓「什麼時候轉的、轉了幾個」留在 git diff 上。
             "charts_convert": len(p["charts"].convert),
-            "charts_dangling": len(p["charts"].dangling)}
+            "charts_dangling": len(p["charts"].dangling),
+            # LaTeX 正規化的三個量。**在此之前這三條規則完全沒有被金絲雀守著**
+            # —— `\times`（§7.4）與逐字母排版（§7.5）從落地到現在，改了多少
+            # 位元組都不會出現在任何基準裡。σ̂→∂ 一份 138 處，補上這一格之後
+            # 規則行為的變化才真的賴不掉。
+            "latex_items": p["latex"].items,
+            "latex_times": p["latex"].times,
+            "latex_partials": p["latex"].partials,
+            "latex_glued": p["latex"].glued}
 
 
 def cmd_canary(a, env) -> int:
