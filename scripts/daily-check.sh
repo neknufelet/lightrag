@@ -52,6 +52,16 @@ case $scan_rc in
   *) fail_msgs+=("∂ 誤讀探針掛了 (rc=$scan_rc) → $CHECK_DIR/scan-$ts.txt") ;;
 esac
 
+# ── 部署完整性：systemd 單元有沒有跟 repo 一致 ─────────────────────────
+# 這支腳本本身是「誰會報錯」的答案，但**觸發它的 timer 原本不在版控裡**——
+# /etc 掉了或有人手改了，腳本還在、排程沒了，看起來一切正常。
+# 探針本身要有探針（鐵則 6）。rc: 0 一致／2 缺檔、內容不符、或沒 enabled。
+python3 scripts/systemd-units.py verify > "$CHECK_DIR/units-$ts.txt" 2>&1
+units_rc=$?
+if [ "$units_rc" -ne 0 ]; then
+  fail_msgs+=("systemd 單元與 repo 不一致 (rc=$units_rc) → $CHECK_DIR/units-$ts.txt")
+fi
+
 # ── REBUILD-6：單一測試入口───────────────────────────────────────────────
 # run-tests.sh 內會依序跑 pytest 與自製的 test_gates.py；pytest 不會收集後者，
 # 因此兩者缺一不可。測試失敗屬於檢查紅燈，讓本支以 exit 1 通知；不要把它誤當
@@ -76,8 +86,8 @@ fi
 
 status=pass
 [ ${#fail_msgs[@]} -gt 0 ] && status=fail
-printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"tests_rc":%d,"detail":"%s"}\n' \
-  "$ts" "$status" "$rc" "$scan_rc" "$tests_rc" "$CHECK_DIR/compat-$ts.json" \
+printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"tests_rc":%d,"detail":"%s"}\n' \
+  "$ts" "$status" "$rc" "$scan_rc" "$units_rc" "$tests_rc" "$CHECK_DIR/compat-$ts.json" \
   > "$CHECK_DIR/latest.json"
 
 # 保留最新 120 份。`v2-*` 那組是 CUTOVER 之前雙 checkout 時代留下的**歷史**
@@ -85,7 +95,7 @@ printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"tests_rc":%d,"deta
 # 漏掉的話就是一堆只增不減、永遠不會過期的檔案。
 find "$CHECK_DIR" \( -name 'compat-2*' -o -name 'canary-2*' \
                      -o -name 'v2-compat-2*' -o -name 'v2-canary-2*' \
-                     -o -name 'scan-2*' \) |
+                     -o -name 'scan-2*' -o -name 'units-2*' \) |
   sort | head -n -120 | xargs -r rm --
 
 if [ "$status" = fail ]; then

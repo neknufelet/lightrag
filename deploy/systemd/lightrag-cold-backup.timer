@@ -1,0 +1,11 @@
+[Unit]
+Description=lightrag 冷備份排程（每日 03:00）
+# 03:00 是刻意挑的：與 08:30 的 daily-check 錯開，也避開白天查詢知識庫的時段。
+
+[Timer]
+OnCalendar=*-*-* 03:00
+# 機器關過機而錯過時段時，開機後補跑一次。
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=lightrag 每日斷言（compat-check + canary）
+# exit 1 = 檢查紅燈，腳本已自行經 ntfy 通知，不算 unit 失敗；
+# 其他非零 = 腳本本身掛掉，走 OnFailure 的獨立備援通知。
+OnFailure=lightrag-check-crashed.service
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/scripts/daily-check.sh
+SuccessExitStatus=1

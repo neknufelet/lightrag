@@ -1,0 +1,9 @@
+[Unit]
+Description=lightrag 每日斷言排程
+
+[Timer]
+OnCalendar=*-*-* 08:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

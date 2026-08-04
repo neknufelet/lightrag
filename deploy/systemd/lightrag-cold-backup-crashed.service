@@ -1,0 +1,7 @@
+[Unit]
+Description=冷備份本身掛掉時的備援通知
+# 刻意不走 notify.sh —— 備援不能依賴可能正是故障原因的主路徑。
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -fsS --max-time 10 -H "Title: 冷備份掛了" -H "Priority: urgent" -d "lightrag-cold-backup.service 異常結束。**服務可能停著** —— 先 docker ps 確認 lightrag 四個容器有沒有起來，再 journalctl -u lightrag-cold-backup 查原因。" @NTFY_URL@

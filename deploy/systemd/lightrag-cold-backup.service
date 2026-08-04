@@ -1,0 +1,14 @@
+[Unit]
+Description=lightrag 索引本體冷備份（停服務 → 抄目錄 → 開回來 → restic 上傳）
+# 沒有新的抽取成果時腳本會自己跳過、完全不停機，回 0 —— 所以「常常什麼都沒做」是正常的。
+# 任何非零都是真的出事（停不掉容器／複製失敗／上傳失敗），腳本會自行經 ntfy 通知；
+# 這裡再掛一個獨立備援，防的是腳本本身掛掉、根本沒機會通知那種情況。
+OnFailure=lightrag-cold-backup-crashed.service
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@REPO@
+ExecStart=@REPO@/scripts/backup-cold.sh
+# 上傳走 Google Drive，慢的時候要留餘裕；但也不能無上限，否則掛住不會有人知道。
+TimeoutStartSec=3600
