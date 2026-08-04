@@ -1578,18 +1578,23 @@ class IntakeApp:
         rows: list[dict[str, object]] = []
         error: str | None = None
         try:
-            payload = self.client.request(
-                "/documents/paginated", "POST", {"page": 1, "page_size": 500}, timeout=4.0)
-            documents = payload.get("documents")
-            if isinstance(documents, list):
-                for item in documents:
-                    if not isinstance(item, dict):
+            # 用 GET /documents 而不是 /documents/paginated：後者的 page_size
+            # 上限是 200（實測傳 500 回 HTTP 422），而這裡要的是**全部**，
+            # 分頁只會讓「有沒有漏」多一個要驗的東西。
+            payload = self.client.request("/documents", timeout=4.0)
+            statuses = payload.get("statuses")
+            if isinstance(statuses, dict):
+                for status_name, documents in statuses.items():
+                    if not isinstance(documents, list):
                         continue
-                    name = str(item.get("file_path") or item.get("id") or "")
-                    if name and name not in mine:
-                        rows.append({"filename": name,
-                                     "status": str(item.get("status", "")),
-                                     "source": "不是這裡送進去的"})
+                    for item in documents:
+                        if not isinstance(item, dict):
+                            continue
+                        name = str(item.get("file_path") or item.get("id") or "")
+                        if name and name not in mine:
+                            rows.append({"filename": name,
+                                         "status": str(item.get("status") or status_name),
+                                         "source": "不是這裡送進去的"})
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             error = f"問不到 LightRAG 的文件清單（{type(exc).__name__}），下面的份數可能不完整"
 
