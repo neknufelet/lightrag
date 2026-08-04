@@ -648,3 +648,5 @@ luna 不接受 `temperature=0`(只允許預設 1),所以**首次轉錄有抽樣�
 「兩眼一不一致」,不回答「多出了什麼」——兩眼剛好都幻覺時會全綠通過。
 所以**內容閘門掛在寫入點**(`postprocess.py` 的 `gate_table_html`:單一完整
 table、無 `<img>`、無 prompt 洩漏),且自動採用與人工裁定走同一道。
+
+@AGENTS.md

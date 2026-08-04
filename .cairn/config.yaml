@@ -1,0 +1,32 @@
+version: 0.1
+project:
+  name: "lightrag"
+  summary: "聲學知識庫：LightRAG 1.5.5 部署 ＋ MinerU 解析後處理。改在 florian-coder、驗在 florian-dker。"
+cairn:
+  knowledge_dir: "cairn"
+  skill_spec_date: "2026-07-16"
+  # git_policy: track | ignore | private_sync
+  git_policy: "track"
+  # language: en | zh | ...
+  language: "zh"
+graduation:
+  provider: "obsidian"
+  target: "42_Cairn/lightrag"
+  index: "42_Cairn/lightrag/INDEX.md"
+  # 本專案的 vault 在 NAS 上，本機沒掛載、也沒有 obsidian CLI（它隨 Obsidian.app
+  # 出貨、要 GUI 開關才有）。官方 adapter 走「CLI 解析 vault 路徑 → 直寫檔案系統」，
+  # 兩個前提都不成立。實測 WebDAV 的 PUT/GET/DELETE 都通（201/200/204），
+  # 所以本專案走 WebDAV 直寫，不掛載、不裝套件、不需要 sudo。
+  transport: webdav
+  webdav_base: "https://florian-nas.pleco-acoustic.ts.net:5006/Learning_DB/obsidian/Florian"
+  # 憑證只以名稱引用，值放 .env（不進版控）。
+  credential_env: CAIRN_OBSIDIAN_WEBDAV
+  link_format: wikilink
+history:
+  # migration_mode: start_fresh | inventory_only | selective_migrate
+  #
+  # 既有的 4,031 行文件（CLAUDE.md / NEXT.md / docs/）**不搬進 cairn/**。
+  # docs/precedents-inventory-20260804.md 已把裁決盤點成 75 條，但抽驗 5 條錯 3 條，
+  # 它自己的結論就是「不能自動匯入」。selective 的範圍是：只把**跨專案可複用**
+  # 的七條直接畢業到知識庫，provenance 指回 CLAUDE.md 的行號，不經專案層中轉。
+  migration_mode: "selective_migrate"
