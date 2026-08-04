@@ -1558,9 +1558,14 @@ class IntakeApp:
                     job_list.append({"job_id": item["job_id"], "filename": item["filename"],
                                      "source": item["source"]})
         events = self.events.read()
-        # 只算真的進索引的。跳過與失敗都不是「處理過」——把它們算進去，
-        # 收斂列就會說「已處理 1 份」而知識庫其實空的。
-        processed = sum(1 for job in jobs if job.status == "indexed")
+        foreign_rows, foreign_error = self._foreign_documents()
+        # 「已處理」問的是**知識庫的現實**，不是 job 的狀態。
+        #
+        # job 狀態會跟現實脫節：實測遇到一份文件已經索引成功，但因為
+        # compat-check 的 soft 失敗被誤判成 failed，於是計數說 0 而庫裡有 1 份。
+        # 本站處理的（indexed）＋ 對帳查到的（索引裡有但本站沒紀錄）才是真相。
+        processed = (sum(1 for job in jobs if job.status == "indexed")
+                     + len(foreign_rows))
         events = sorted(events, key=lambda event: str(event.get("created_at", "")))
         last_event = events[-1] if events else None
         distance = None
@@ -1572,7 +1577,6 @@ class IntakeApp:
             "distance_since_last_event": distance,
             "warning": "；".join(self.store.load_errors + self.events.read_errors) or None,
         }
-        foreign_rows, foreign_error = self._foreign_documents()
         return {
             "sections": sections,
             "jobs": public_jobs,
