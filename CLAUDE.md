@@ -273,7 +273,7 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 | [NEXT.md](NEXT.md) | **待辦與進行中**(含刻意不做的決策與理由) | 每次開工 |
 | [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
 | [docs/judgement-flow.md](docs/judgement-flow.md) | **遇到新問題時的決策程序**：偵測 → 驗偵測器 → 分類 → 叫眼睛 → 判不準怎麼辦 | 發現一個沒見過的問題時 |
-| [docs/log_20260803.md](docs/log_20260803.md) | **當日工作日誌**：過程與理由（尤其「查完決定不做」的六項與各自的實測依據） | 想知道某個決定當初為什麼那樣下 |
+| [docs/log_20260803.md](docs/log_20260803.md) | **當日工作日誌**：過程與理由（尤其「查完決定不做」的六項與各自的實測依據）＋**已歸檔的完成項**（2026-08-05 從 NEXT.md 搬來的 `SYMBOL-1/2/3`、`BACKUP-2/3`，含實測數字與決策理由） | 想知道某個決定當初為什麼那樣下 |
 | [docs/rebuild-plan.md](docs/rebuild-plan.md) | **歷史**：`REBUILD-0`…`REBUILD-5` 的階段、閘門與各階段驗收紀錄；體檢表格式 | 想知道某個數字當初怎麼來的 |
 | [docs/postprocess-workorder.md](docs/postprocess-workorder.md) | **歷史**：後處理實作工單 `PPWORK-0`…`PPWORK-12`(原 `W0`–`W12`;舊描述誤記為 W0–W14) | 要動 `scripts/pp/` 之前 |
 | [README.md](README.md) | 部署、解析選項實測、**備份現況(哪些有、哪些沒有)** | 環境有問題時 |
