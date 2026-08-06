@@ -79,6 +79,23 @@
 一個線的生命週期是「coder 改 → commit → push → dker pull → **dker 實跑驗證** →
 把輸出貼回 commit 或 NEXT.md」。**驗證輸出沒拿到，那條線就還沒 done。**
 
+**推出去之後不得 `--amend`。** 想把 dker 的實跑輸出補進 commit 訊息時很容易
+這樣做——但 dker 可能已經 pull 走原本那個 commit，amend + force push 之後
+**它手上抱著一個遠端已經不存在的 hash，下次 `pull --ff-only` 直接失敗**。
+實測踩過（2026-08-05，`8cf0c0a` → `23312c5`）。這次 git 有報錯是運氣，
+一般的雙 checkout 分岔是靜靜分家的。
+
+正確做法二選一：
+
+- **先驗再提交**：拿到 dker 輸出之後才 commit（大多數情況做得到，
+  因為 push 只是為了讓 dker pull 得到，可以先 push 到分支或直接用 rsync 過去驗）
+- **另開一個 commit 補紀錄**：訊息寫「補 <hash> 的 dker 實跑輸出」
+
+真的 amend 了（例如還沒 push），推之前先確認 dker 沒 pull 過那個 hash；
+已經 pull 過就只能在 dker 上 `git reset --hard origin/master`，**而且要先驗
+兩個 commit 的檔案內容真的一致**（`git diff --stat <舊> <新>` 無輸出）——
+內容不一致的話那不是 amend，是把 dker 上的東西弄丟。
+
 ---
 
 ## 執行方針與驗收路由
