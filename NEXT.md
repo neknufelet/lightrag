@@ -40,19 +40,32 @@
     違反唯讀原則。正確做法：dker 跑 `--update` 產生內容 → 讀出來 →
     `git checkout --` 還原 dker → 在 coder 寫入並 commit → dker pull。
 
-下一步：**繼續一份一份拉**（`SCALEUP-1`）。前兩份已經進索引。
+現況：**Möser A–R 十八章已全數進庫**（`SCALEUP-1` ✅ 完成 2026-08-05），
+收件匣清空。下一步由 PO 指定。
 
   瀏覽器開 http://100.87.88.7:9710 —— 收件匣／審核台
-  （若沒開：`ssh 100.87.88.7`，`cd ~/ghq/github.com/neknufelet/lightrag`，
-    `setsid nohup python3 scripts/intake.py --port 9710 --workspace acoustics_v2 \
-       --source /data/rag/knowledge_bases/Room_Optimizer/raw \
-       >> /data/lightrag/intake/service.log 2>&1 < /dev/null &`）
+  **它由 systemd 管著**（`lightrag-intake.service`），開機自啟、已實測驗過。
+  沒回應時：`ssh florian-dker 'systemctl status lightrag-intake'`，
+  要重起就 `sudo systemctl restart lightrag-intake`。**不要再用手動 nohup**
+  —— 那會跟 systemd 搶 9710 埠。
 
-  流程：選片 → 只解析 → 看審核卡片 → 過就放行、不過就跳過進待確認。
-  **它還沒進 compose，重開機不會自己起來**（待辦）。
+  進料：把 PDF 丟進 `/data/lightrag/inbox/`（或直接拖到網頁上傳），
+  流程是 只解析 → 看審核卡片 → clean 就放行、不 clean 就停在「等你看」。
 
-  ⚠ **每放行一份之前要先 `sudo chown -R florian:florian /data/lightrag/work/parsed`**
-  —— 容器以 root 寫檔，宿主改不動。根本解法未做，見待辦 #11。
+  ⚠ 舊版這裡寫「每放行一份要先 `chown -R florian:florian work/parsed`」——
+  **2026-08-05 跑完 18 份完全沒做過這動作，不需要**。原因未查（可能是重建後
+  路徑或 uid 對上了）。真的撞到權限再說，別預防性地 chown。
+
+2026-08-05 這一輪的成果（全部有實測輸出，別重做）：
+  語料       Möser A–R 十八章全數進庫：1,589 chunk、14,226 實體、26,447 關係
+  規則       ∂ 誤讀四種寫法已修（全母體 190 處）；canary 基準 18 份全納入
+  體檢       canary ✅／compat-check 124 項 ✅／extract-check 可疑率 2.7%
+             4 份標黃，其中 3 份已查證不是幻覺（結論在 tests/verified-findings.json，
+             extract-check 超標時會自己印出來）
+  部署       七個 systemd 單元進版控（deploy/systemd/），intake 改走 systemd，
+             **已實測重開機自己回來**；daily-check 每天比對 /etc 與 repo
+  知識       Project Cairn 已 init，七條跨專案知識畢業到 Obsidian 42_Cairn/lightrag/
+  文件       NEXT.md 清掉 294 行已完成項，搬進 docs/log_20260803.md 的歸檔節
 
 2026-08-04 凌晨的乾淨重建（全部有實測輸出，別重做）：
   索引重建   postgres/neo4j 資料目錄清空重建 → 11 張表（不是 14，
