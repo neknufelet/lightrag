@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
+from pp import findings  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -201,10 +202,21 @@ def main() -> int:
         # 分母只算「字串比對有鑑別力」的那些 —— 拿符號型稀釋會讓比例失去意義
         denom = d["ok"] + un
         ratio = un / max(denom, 1)
-        flag = "  ⚠" if ratio > T_UNGROUNDED else ""
-        bad_docs += ratio > T_UNGROUNDED
+        over = ratio > T_UNGROUNDED
+        flag = "  ⚠" if over else ""
+        bad_docs += over
         print(f"{doc[:44]:<46}{d['total']:>6}{d['ok']:>6}{d['symbolic']:>8}"
               f"{un:>6}{ratio:>7.1%}{flag}")
+        # 超標時把「這份查過了、結論是什麼」直接印在旁邊。不這樣做的話，
+        # 同一個查證會被重做 —— K Muffler 查過一次、L Capsules 又查一次（見
+        # tests/verified-findings.json 的 _why）。過期的紀錄會自己說要重查。
+        if over:
+            hit = findings.lookup("extract-check", "grounding_suspect_rate", doc,
+                                  current={"suspect": un, "rate": ratio,
+                                           "entities": d["total"], "symbolic": d["symbolic"]})
+            if hit:
+                for line in hit.lines():
+                    print(line)
 
     tot = sum(d["total"] for d in per_doc.values())
     ok = sum(d["ok"] for d in per_doc.values())
