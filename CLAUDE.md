@@ -338,7 +338,7 @@ python3 scripts/postprocess.py plan               # 只讀,算出打算改什麼
 python3 scripts/postprocess.py plan --details --doc <關鍵字>
 python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
 python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
-python3 scripts/compat-check.py                   # LightRAG 契約斷言（預設連 20 份文件一起驗）
+python3 scripts/compat-check.py                   # LightRAG 契約斷言（預設連全部文件一起驗）
 python3 scripts/compat-check.py --no-docs         # 只驗契約與環境（快）
 python3 scripts/compat-check.py --doc <關鍵字>     # 只驗某一份，且逐項列出
 python3 scripts/extract-check.py                  # 抽取品質：實體與關係對照原文（三態）
@@ -386,68 +386,44 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 `K: mute 61→48`。(注意 3→5 不會失敗,因為書眉重複次數遠大於 5 ——
 **測試本身也要選會咬到的值**。)
 
-## 現況
+## 現況（2026-08-05）
 
-**唯一的 workspace 是 `acoustics_v2`**(`WORKSPACE` 在 `.env`,不進版控)。
+**唯一的 workspace 是 `acoustics_v2`**（`WORKSPACE` 在 `.env`，不進版控）。
 `acoustics_v155` 已於 2026-08-03 完全退役——容器、Postgres 列、Neo4j label、
-磁碟目錄全數移除。本檔提到 v155 的地方一律是**歷史**,不是現況。
+磁碟目錄全數移除。本檔提到 v155 的地方一律是**歷史**，不是現況。
+
+**2026-08-04 乾淨重建過一次**：資料搬到 `/data/lightrag`（自己的 postgres／neo4j
+實例），語料整批換成 Möser 聲學教科書 A–R 十八章。**舊語料的所有數字都不可
+再當現況引用**——包括本檔曾記載的 20 份／7,211 實體／510 chunk。
 
 ```
-文件      20 份已完成「解析 → 修補 → 抽取」全流程(processed 20/20、failed 0)
-          分 4 批索引,每批 5 份;總耗時 3 小時 58 分(61.1/70.1/46.1/61.1 分)
-服務      lightrag :9621 查詢(容器 lightrag-acoustics_v2)
-          kbapi    :9700 圖片與單篇結構,唯讀(容器 kbapi-acoustics_v2)
-          兩者由同一份 compose.yaml + 同一個 checkout 起,埠走 ${HOST_PORT}/${KBAPI_PORT}
-skills    lightrag-search / fetch / images —— 全走 :9700,不需認證,任何機器可用
-          **URL 的 workspace 打錯會 400**(kbapi 的擋板)——因為 search 端點不看
-          URL 的 ws、檔案類端點看,不擋會回一半對的東西且不報錯
-索引      7,211 實體、10,500 關係、510 chunk;圖 7,211 節點 / 10,500 邊
-          ↑ 來源＝**vdb 列數**(extract-check.py；量測來源容器未在舊紀錄固定，存疑，
-          REBUILD-1 修正後需重量)。與下面「歷史對照」列的
-          8,010／10,535 **不衝突,是兩把不同的尺**:那邊來源是 LightRAG 自己的
-          逐文件計數欄 `lightrag_full_entities.count`(compare-ws.py),同一個實體
-          出現在兩份文件會被數兩次。差值 799 實體／35 關係就是跨文件重複。
-          **引用數字前先看它是哪一把尺量的。**
-接地      可疑率 4.5%(260/5,729 個可判定實體);符號型 1,482 個「驗不了」
-          6 份 >5% 標黃(K Muffler 15.1%、00712 11.9%、G Porous 6.4%、01200_6 6.1%、
-          2025 5.7%、2023 FEM 5.0%),形狀逐份記在體檢表 —— 全部不是幻覺
-格式      Empty entity name 共 1,669 次(第 1 批 477 = 基線),全部帶得到 chunk key
-圖        image 371(含 chart 轉入的 184);chunk 裡以 <drawing caption=… path=…/> 出現
-          項目數 5,448:text 2,731、equation 1,273、header 514、page_number 353、table 82
+文件      18 份（A Conventions … R Ultrasound Absorption in Solids）
+          全部 processed、failed 0；走 :9710 審核台一份一份放行
+服務      lightrag :9621 查詢（容器 lightrag-acoustics_v2）
+          kbapi    :9700 圖片與單篇結構，唯讀（容器 kbapi-acoustics_v2）
+          intake   :9710 進料審核台（**宿主 systemd**，不在 compose —— 理由見
+                   deploy/systemd/lightrag-intake.service 檔頭）
+索引      1,589 chunk、14,226 實體、26,447 關係
+          ↑ 來源＝vdb 列數（extract-check.py，2026-08-05 實跑）
+接地      可疑率 2.7%（267／9,732 個可判定實體）；符號型 4,494 個「驗不了」
+          4 份 >5% 標黃：L Capsules 14.7%、K Muffler 13.3%、P Variational 7.5%、
+          G Porous 6.9%。**其中三份已查證不是幻覺，結論記在
+          `tests/verified-findings.json`，extract-check 超標時會自己印出來**
+          （P Variational 尚未查證）
+關係      兩端接地 14,602、符號型 11,259、只有一端 455（3.0%）、兩端皆無 131（0.9%）
+規則      ∂ 誤讀四種寫法已修（全母體 190 處，見 latex_fix.py 第 3 條）
+          canary 基準 18 份全數納入，latex_partials／latex_vetoed 全 0
+排程      三個 systemd 單元（daily-check 08:30、cold-backup 03:00、intake）
+          全部進版控於 deploy/systemd/，daily-check 每天比對 /etc 與 repo
 解析      pipeline + is_ocr=true + MinerU official
-embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC;本輪實際嵌入 4.56M 字元 ≈ US$0.15
-兩雙眼睛  qwen3.6-35b-a3b(本機) + gpt-5.6-luna(雲端,$0.20/$1.20 per 1M)
-體檢表    20 份 × 8 閘門 = 160 格:通過 151、fail 9、驗不了 0、未設定 0
-          fail 9 = 3 份 waiver(41598/C 的 coverage、N Flow 的 equations)
-                 + 6 份 extract.grounding >5%
-歷史對照  v155 → v2(重建當時量的,v155 已不存在,這組數字**不可能再重現**):
-          chunk 512→510、實體 7,968→8,010、關係 10,407→10,535、
-          含掉字 chunk 86→27(-69%) ← 來源＝逐文件計數欄,見「索引」列的說明
-          最後一次重跑驗證 2026-08-03(退役前),逐位元相同
+embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
+兩雙眼睛  qwen3.6-35b-a3b（本機 100.71.26.77:8080）+ gpt-5.6-luna（雲端）
+          第三隻眼 xiaomi/mimo-v2.5（OpenRouter），只在三方皆異時呼叫
 ```
 
-**退役時的實測數字**(2026-08-03,拆除前後各量一次):
-
-| 位置 | v155 移除量 | v2 移除後 |
-|---|---|---|
-| Neo4j label `acoustics_v155` | 7,191 節點 / 10,373 關係 | v2 7,211 節點,其他專案(`acoustics_books` 72,289 等)未受影響 |
-| `lightrag_doc_chunks` | 512 列 | 510 |
-| `lightrag_entity_chunks` | 7,191 列 | 7,211 |
-| `lightrag_relation_chunks` | 10,373 列 | **10,500** |
-| `lightrag_llm_cache` | 2,367 列 | 1,126 |
-| `*_3_small_1536d` 三張表 | 148 / 1,135 / 1,812 列(**100% 是 v155**,舊 embedding 模型的遺留) | 全空 |
-| 磁碟 `/data/rag/lightrag/acoustics_v155` | 198 MB | — |
-
-`lightrag_relation_chunks` 全表退役前是 **20,873**——那正是本檔接地檢查一節
-曾經寫錯的數字。**它從來不是 v2 的關係數,是兩個 workspace 的和。**
-拆掉 v155 之後全表剩 10,500,與 `extract-check.py` 的報告一致（該舊量測來源容器未
-固定，來源存疑；數字不改）,這件事到此
-獨立印證完畢。
-
-**Neo4j 是跨專案共用的**(DeepTutor 的 `Room_Optimizer`、`acoustics_books` 等
-都在同一個實例,靠 label 隔離)。動它之前必須先驗兩件事,兩件都驗過才准刪:
-① v155 的節點**只有** `acoustics_v155` 一個 label(7,191/7,191);
-② 對外跨界關係為 **0**。
+**歷史對照（舊語料，已不存在，不可再重現）**：v155 → v2 重建當時量的
+chunk 512→510、實體 7,968→8,010、關係 10,407→10,535。那批文件已於
+2026-08-04 整批換掉，這組數字純屬歷史。
 
 ## 規則分兩類,不能混在一起
 
@@ -596,31 +572,36 @@ compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本�
 分成「接地 / 符號型無法驗證 / 可疑」之後,C 從 55.1% 降到 3.4%,總計 3.7%。
 
 ```
-acoustics_v2（2026-08-03 重跑，全 20 份；來源＝entity/relation vdb 的列數）
-  ⚠ 上列 extract-check 數字的量測來源容器未在舊紀錄固定，來源存疑；數字本身不改，
-    待 REBUILD-1 修正後重新量測。
- 7,211 實體 → 接地 5,469、符號型 1,482（驗不了）、可疑 260 　可疑率 4.5%
-10,500 關係 → 兩端接地 6,780、符號型 3,261、只有一端 349（4.8%）、兩端皆無 110（1.5%）
+acoustics_v2（2026-08-05 實跑，全 18 份；來源＝entity/relation vdb 的列數）
+14,226 實體 → 接地 9,465、符號型 4,494（驗不了）、可疑 267 　可疑率 2.7%
+26,447 關係 → 兩端接地 14,602、符號型 11,259、只有一端 455（3.0%）、兩端皆無 131（0.9%）
+
+4 份 >5% 標黃：L Capsules 14.7%、K Muffler 13.3%、P Variational 7.5%、G Porous 6.9%
 ```
 
-**關係那一列曾經是錯的,而且錯法就是它自己修的那個 bug。** 舊版寫
+**標黃那幾份的判定不再靠讀這份文件。** `tests/verified-findings.json` 記著
+「哪份的哪個指標查過、結論是什麼」，`extract-check` 超標時**自己印出來**——
+因為這類結論只在跑那支檢查、看到那個數字時才需要，放在這裡等人來找會被重查。
+（實際發生過：K Muffler 在舊語料查過一次，2026-08-05 L Capsules 又查一次。）
+現值偏離查證當時超過 50% 時它會改說「要重查」，不再回報舊結論。
+
+**歷史：關係那一列曾經是錯的,而且錯法就是它自己修的那個 bug。** 更早的版本寫
 `20,873 關係 → 12,459 / 7,491 / 689 / 234`,每一項都約是實際的 **2 倍** ——
-那是 `extract-check.py` 補上 `workspace` 條件（commit `9ef8026`）**之前**的；這組舊
-量測的來源容器未固定，來源存疑，數字不改。
-雙重計數。那個 commit 更新了實體那一列,漏了關係那一列,於是「兩個 workspace
-被併成一列」的症狀留在文件裡活了下來。**2026-08-03 重跑 `extract-check.py`
-定案為上表數值。**
+那是 `extract-check.py` 補上 `workspace` 條件（commit `9ef8026`）**之前**的雙重計數。
+那個 commit 更新了實體那一列,漏了關係那一列,於是「兩個 workspace
+被併成一列」的症狀留在文件裡活了下來。（那批語料已於 2026-08-04 整批換掉,
+這些數字純屬歷史。）
 
 教訓與該 commit 自己寫的契約點同一條:多 workspace 共存時,**修完 SQL 還要
 把所有引用舊數字的地方一起重算**——數字沒有錯誤訊息,它只是靜靜地錯著。
 
-**「可疑」不等於「幻覺」——形狀要逐份看過才算量到。** v2 的 260 個可疑
-分成兩族,兩族都不是捏造:
+**「可疑」不等於「幻覺」——形狀要逐份看過才算量到。** 逐份看過的結果一律
+不是捏造,分成兩族:
 
 | 形狀 | 長相 | 例 |
 |---|---|---|
-| 符號→概念命名 | 模型替裸符號取描述性名字 | K Muffler `Coefficient Ta`、G Porous `Modified Bessel Function I0` |
-| 概念→引用文獻 | 參考文獻條目被拆成實體 | 01200_6 `Journal Of The Acoustical Society Of America`、2025 的作者縮寫名 |
+| 符號→概念命名 | 模型替裸符號取描述性名字 | K Muffler `Coefficient Ta`、L Capsules `Velocity Variable v_tr`、G Porous `Modified Bessel Function I0` |
+| 概念→引用文獻 | 章節／文獻條目被拆成實體 | L Capsules `Chapter 20`、`Section L.1` |
 
 前者是**三態判準的邊界效應**:同一族的東西,散文比例低於
 `SYMBOLIC_RATIO=0.35` 的落進「驗不了」,高於的落進「可疑」。所以

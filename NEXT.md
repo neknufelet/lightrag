@@ -29,8 +29,8 @@
                   / rag_storage / checks / postgres / neo4j
             **/data/rag 從此與本專案無關**（那是 DeepTutor 的地盤）
 
-先讀 CLAUDE.md 與 NEXT.md。⚠ CLAUDE.md 的「現況」與路徑那幾節**還停在重建前**，
-2026-08-04 的乾淨重建尚未寫回去（見下方待辦）。以本檔為準。
+先讀 CLAUDE.md 與 NEXT.md。**CLAUDE.md 的「現況」已於 2026-08-05 更新到位**
+（18 份、1,589 chunk、14,226 實體），可以直接信任。
 
 規矩重點：
   - 改在 coder、驗在 dker。**驗證輸出沒拿到就還沒 done。**
@@ -68,6 +68,45 @@
 **這批是「做完並驗過」，與 08-03 那批「查完決定不做」性質不同。**
 過程紀錄在 `$RECORDS/REBUILD-20260804.md`（在 /data，已在備份範圍）。
 ```
+
+## ⚡ 2026-08-05：整本書跑完，文件已對齊（先讀這節）
+
+**A–R 十八章全部進知識庫，收件匣清空。** 這一輪之後 CLAUDE.md 的「現況」是準的。
+
+```
+文件      18 份、1,589 chunk、全部 processed、failed 0
+索引      14,226 實體、26,447 關係
+接地      可疑率 2.7%（舊語料是 4.5%）
+體檢      canary 1 秒 ✅（18 份全數納入基準）
+          compat-check 124 項 ✅（hard 0、soft 0、驗不了 0）
+          extract-check ⚠ 4 份 >5%，但逐份查過**都不是幻覺**
+排程      三個 systemd 單元進版控，daily-check 每天比對 /etc 與 repo
+```
+
+**這一輪長出來的機制（都已上線並實跑驗過）**
+
+- **`∂` 誤讀修正**：MinerU 把偏微分讀成四種錯寫法，全母體 190 處。錨點認**結構**
+  不認字元 —— 同族的 `\hat{c}` 有 3 處是真的 ĉ，認字元會毀資料。B/D/E 已重新索引。
+- **`tests/verified-findings.json`**：「哪份文件的哪個指標查過、結論是什麼」。
+  `extract-check` 超標時**自己印出來**，不要求任何人記得去哪裡找。
+  數字偏離查證當時 >50% 時改說「要重查」，不再回報舊結論。
+- **systemd 七個單元進版控**（`deploy/systemd/`），`scripts/systemd-units.py`
+  render／install／verify 共用同一個渲染器。intake 改走 systemd，**已實測重開機自己回來**。
+- **重啟恢復問索引的現實**：在途 job 不再一律標 failed，改成問 LightRAG 的狀態。
+- **`reindex` 自己收尾**：把 PDF 搬回 work/parsed 並驗 inputs 淨空。
+- **Project Cairn 已 init**，七條跨專案知識畢業到 Obsidian `42_Cairn/lightrag/`。
+  既有的 CLAUDE.md／NEXT.md／docs/ **一個字都沒搬**（理由見 AGENTS.md）。
+
+**下一步 PO 已指定：建立資料庫。** 拆分 LLM／VLM（`PP_EYE_A_*`）與換抽取模型
+（DeepSeek／Modal）**暫緩，PO 2026-08-05 明確表示先不做**。
+
+**唯一沒處置的發現**：L Capsules 的關係層「只有一端對得到」15.0%（全庫 3.0%），
+成因是書本章節交叉引用被抽成關係（`Chapter 20 → Vol. III`）。不是錯，但對檢索
+沒有價值。**要先量它有沒有真的被撈出來過再決定**——前例是實體碎片化那次，
+254 組從未出現在任何檢索結果，最後判定不做（不可逆操作換 0 收益）。
+已記在 `tests/verified-findings.json` 的 note 欄。
+
+---
 
 ## ⚡ 2026-08-04 這一輪（壓縮上下文前寫的交接，先讀這節）
 
@@ -195,11 +234,11 @@ legend：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`
 | `BACKUP` | — | ✅ **全線完成 2026-08-03**：`-1` 檔案備份／`-2` 索引冷備份／`-3` 還原演練通過（數字逐項對上）／`-4` 排程已接（每日 03:00，無新抽取成果則跳過）。還原點 1 → **3** |
 | `SCANNER` | `SCANNER-1`（∂ 誤讀探針接進 daily-check） | ✅ 完成 2026-08-03（commit `f637aea`，基準 `tests/scan-partial-baseline.json` 進版控） |
 | `SYMBOL` | — | ⏸ **全線無在跑項目**：`-1`／`-2`（不掃）／`-3`／`-4`（不修）✅ 已定案；`-5`（改 prompt）第一版實測反效果**暫緩**；`-3.1`（量測工具）**停在未過審**，數字只當線索 |
-| `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線，只在有待辦時列 |
+| `VERIFY` | `VERIFY-1`（`compat-check` 加 `suite` 欄） | ⬜ 常態線。2026-08-05 全套體檢：canary ✅／compat-check 124 項 ✅／extract-check 2.7% 可疑率 |
 | `PPWORK` | `PPWORK-12` 之後無新項 | ✅ 大部分完成，殘項見「其他待辦」 |
 | `SPEEDUP` | `SPEEDUP-2`（`MAX_ASYNC` 2→4） | ✅ **已改並實測驗證**（PO 2026-08-03 拍板降檔為一般票）。`SPEEDUP-2.1`／`SPEEDUP-3` ✅；`SPEEDUP-1`（MTP）⏸ **PO 判不划算，不做**——理由見下 |
-| `SCALEUP` | `SCALEUP-1`（一份一份拉） | 🔵 **已跑 2 份**，走 :9710 審核台 |
-| `REBUILD` | `REBUILD-1`…`REBUILD-11` | 🔵 **2026-08-04 乾淨重建的殘項**，見下方專節。`-1`／`-2` 是 🔴 |
+| `SCALEUP` | `SCALEUP-1`（Möser A–R 全書） | ✅ **完成 2026-08-05：18 份全數進庫**，走 :9710 審核台，一份都沒卡在「等你看」 |
+| `REBUILD` | `REBUILD-1`…`REBUILD-11` | 🔵 殘項見下方專節。**`REBUILD-10`（文件對齊現況）✅ 完成 2026-08-05** |
 
 ---
 
