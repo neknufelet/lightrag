@@ -41,7 +41,11 @@
     `git checkout --` 還原 dker → 在 coder 寫入並 commit → dker pull。
 
 現況：**Möser A–R 十八章已全數進庫**（`SCALEUP-1` ✅ 完成 2026-08-05），
-收件匣清空。下一步由 PO 指定。
+收件匣清空。
+
+**下一步：繼續往 `acoustics_v2` 灌更多聲學文獻。只用一個庫，不開第二個
+workspace**（PO 2026-08-05 定案；理由是 `QueryParam` 沒有文件範圍欄位，
+而 PO 確認不需要「只查某一批」的能力 —— 詳見下方 08-05 交接節）。
 
   瀏覽器開 http://100.87.88.7:9710 —— 收件匣／審核台
   **它由 systemd 管著**（`lightrag-intake.service`），開機自啟、已實測驗過。
@@ -110,8 +114,23 @@
 - **Project Cairn 已 init**，七條跨專案知識畢業到 Obsidian `42_Cairn/lightrag/`。
   既有的 CLAUDE.md／NEXT.md／docs/ **一個字都沒搬**（理由見 AGENTS.md）。
 
-**下一步 PO 已指定：建立資料庫。** 拆分 LLM／VLM（`PP_EYE_A_*`）與換抽取模型
-（DeepSeek／Modal）**暫緩，PO 2026-08-05 明確表示先不做**。
+**下一步 PO 已指定：繼續往 `acoustics_v2` 灌更多聲學文獻。**
+
+**只用一個庫，不開第二個 workspace（PO 2026-08-05 定案）。** 判準是實測出來的：
+`QueryParam` **沒有任何文件範圍的欄位**（只有 mode／top_k／chunk_top_k／
+max_*_tokens／hl_keywords／ll_keywords／conversation_history／user_prompt／
+enable_rerank／include_references）——所以「只根據教科書回答」這種需求，
+**唯一做法是分 workspace**。PO 確認不會有這種需求，所以一個庫。
+
+一個庫的好處是 graph RAG 的本體：同一個實體出現在教科書與多篇論文時會合併成
+一個節點、帶多個出處，**那比幾個孤立節點強**。分庫等於主動放棄這件事。
+
+⚠ **注意這與 `compose.yaml` 檔頭那段「有了自己的實例，查到別的庫在結構上
+不可能」不衝突**。那段講的是**跨專案**（我們的庫與 DeepTutor 的庫混在一起，
+咬過三次且每次都不報錯）。現在全部是自己的聲學內容，那個風險不存在。
+
+拆分 LLM／VLM（`PP_EYE_A_*`）與換抽取模型（DeepSeek／Modal）
+**暫緩，PO 2026-08-05 明確表示先不做**。
 
 **唯一沒處置的發現**：L Capsules 的關係層「只有一端對得到」15.0%（全庫 3.0%），
 成因是書本章節交叉引用被抽成關係（`Chapter 20 → Vol. III`）。不是錯，但對檢索
