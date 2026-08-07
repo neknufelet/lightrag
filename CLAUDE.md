@@ -27,7 +27,7 @@ tag `archive/pre-rebuild-20260807`。
 | | |
 |---|---|
 | repo | 同路徑，**唯讀，只 `git pull`** |
-| LightRAG 的 `.env` | **只在這台**。現行 54 個鍵（實測），其中 4 個 `NEO4J_*` 隨 Neo4j 移除 ⇒ 重建後 50 個。**6 個是秘密**，清單在 `.env.example` 開頭 |
+| LightRAG 的 `.env` | **只在這台**。現行 **58** 個鍵（實測），其中 4 個 `NEO4J_*` 移除、加 1 個 `REPO_DIR` ⇒ **55** 個。**6 個是秘密**，清單在 `.env.example` 開頭。⚠ 數鍵要用 `^[A-Za-z_][A-Za-z0-9_]*=`，用 `^[A-Z_]+=` 會漏掉含數字的鍵名（`NEO4J` 的 `4`），2026-08-07 因此少算 4 個並寫錯進 commit |
 | 資料根 | `/data/lightrag` — **現在只剩 `records` 183 檔、`checks` 32 檔** |
 | 本專案容器 | **全部移除**（2026-08-07） |
 | 別人的容器 | dockge、backrest、roonserver、zotero-pdf2zh、samba、nginx、hbbs/hbbr、vibevoice — **不要碰** |
