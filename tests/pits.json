@@ -2161,8 +2161,11 @@
    "title": "不得用 LIGHTRAG_FORCE_REPARSE_MINERU 讓修補生效——它先 clear_dir_contents(raw_dir) 再重抓，修補在生效前就被刪掉而 pipeline 回報成功",
    "kind": "操作禁忌",
    "anchors": [
-    "docs/postprocess-workorder.md:42-53",
-    "scripts/compat-check.py:197-203"
+    "docs/postprocess-workorder.md:42-53,830,939",
+    "scripts/postprocess.py cmd_apply（拒絕閘門）",
+    "scripts/pp/oracle.py force_reparse_is_on",
+    "scripts/compat-check.py A-07",
+    "tests/test_force_reparse_lock.py"
    ],
    "origin_incident": "工單設計期讀原始碼確認的控制流",
    "evidence_count": "1（原始碼層確認）；有 A-07 斷言強制檢查此旗標必須關閉",
@@ -2171,10 +2174,10 @@
    "survives_teardown": "no",
    "retire_when": "不適用",
    "conflicting_versions": "完全沒有出現在 CLAUDE.md——CLAUDE.md 的「明確不做」只吸收了 preflight 與消音兩條。",
-   "guard": "compat-check 的 A-07（scripts/compat-check.py:197-203，hard），經 daily-check.sh:30-37 每天 08:30 跑，紅了打 ntfy",
-   "guard_quality": "會印警告",
-   "guard_evidence": "讀 scripts/compat-check.py:197-203——`v = self.o.force_reparse_flag()`，只接受 ''/0/false/no，否則 hard 失敗，而且失敗訊息直接把因果寫出來（「開啟時會先 clear_dir_contents(raw_dir) 再重抓，修補會在生效前被刪掉且 pipeline 回報成功」）。讀 scripts/daily-check.sh:30-37 確認 compat-check 非 0/5 都進 fail_msgs。這是一條做對了的：把「不要做某件事」變成「有人做了會有人響」，而且響在排程裡不是等人問",
-   "probe_feasible": "守得夠。唯一的縫是 A-07 讀的是容器的環境變數現值，若有人只在單次 docker run 裡帶這個旗標、跑完就沒了，A-07 隔天看不到；但那個場景下修補會當場失效、canary 與 coverage 會咬到，接得住。值得注意的是這一條完全沒有出現在 CLAUDE.md——CLAUDE.md 的「明確不做」只吸收了 preflight 與消音兩條，這條只活在 docs/postprocess-workorder.md:42-53 與這個斷言裡。搬家時要確保 A-07 的失敗訊息一起帶走，因為那句訊息就是這條知識最完整的載體",
+   "guard": "apply 自己拒絕執行（scripts/postprocess.py 的 cmd_apply，三條進料路徑都收束到它）＋ compat-check 的 A-07（hard，daily-check 每天 08:30 跑，紅了打 ntfy）",
+   "guard_quality": "會擋下",
+   "guard_evidence": "2026-08-07 實作並實跑：cmd_apply 在建好 Oracle 之後立刻問容器的旗標，force_reparse_is_on() 為真就印出正確配方並 return 2。判準收斂到 pp/oracle.py 的 force_reparse_is_on()，A-07 改用同一個函式 —— 原本 A-07 自己寫 `in (\"\", \"0\", \"false\", \"no\")`，apply 再寫第二份就會漂移。不認得的值一律當「開著」（fail-closed）。tests/test_force_reparse_lock.py 19 案例：OFF 8 種寫法不得擋下、ON 9 種（含不認得的值）必須擋下、cmd_apply 旗標開著 rc=2 且 find_bundles 換成會 fail 的版本以證明鎖在讀任何 bundle 之前就停下來、旗標關著必須放行。dker 實跑：真容器旗標 '' → is_on()=False → 放行；compat-check A-07 hard ok。這一條從「會印警告」升級成「會擋下」—— 原本只有另一支工具會喊，而 docs/postprocess-workorder.md:830 早就裁決要在 apply 加鎖，一直沒做。",
+   "probe_feasible": "已守住。剩下的縫與原本相同：讀的是容器環境變數現值，若有人只在單次 docker run 裡帶旗標、跑完就沒了，隔天看不到；但那個場景下修補會當場失效、canary 與 coverage 會咬到，接得住。這一條仍然完全沒有出現在 CLAUDE.md，只活在 docs/postprocess-workorder.md、A-07 的失敗訊息、以及 cmd_apply 的拒絕訊息裡 —— 搬家時三者都要帶走。",
    "priority": "high"
   },
   {
@@ -3246,24 +3249,24 @@
   },
   {
    "id": "PIT-153",
-   "title": "README 的備份表反向錯誤：文件寫「postgres/neo4j 無備份」，實際每天都被 backup-cold.sh 備份",
+   "title": "README 的備份表反向錯誤（2026-08-07 已修正，仍無探針）：曾寫「postgres/neo4j 無備份」而實際每天備兩次，同時打 ✅ 的那個路徑整個不存在",
    "kind": "已查證結論",
    "anchors": [
-    "README.md:87-99",
-    "NEXT.md:266",
-    "scripts/backup-cold.sh"
+    "README.md「備份現況」一節",
+    "scripts/backup-cold.sh",
+    "backrest plan lightrag-snapshot"
    ],
    "origin_incident": "2026-08-03 搬到專用實例後 README 未同步",
    "evidence_count": "README 表格 vs NEXT.md BACKUP-1/2/3/4 完成記錄 + backup-cold.sh 原始碼互相印證",
    "evidence_detail": "",
    "failure_mode": "人通常會懷疑「文件說有其實沒有」，很少去查「文件說沒有其實有」；且這格一旦哪天真的變回無備份，沒有任何訊號能區分「一直都對」和「現在才對」",
    "survives_teardown": "no",
-   "retire_when": "README 重寫時同步",
+   "retire_when": "做出雙向探針之後（比對 README 的備份宣稱與 dker 的實際排程）。單純把表改對不算退休 —— 這條的內容就是「表會錯」。",
    "conflicting_versions": "README.md:87-99 表格記 /data/rag/postgres_data(15GB) 與 /data/rag/neo4j_data(1.6GB)「❌無」備份，但那是舊的 DeepTutor 共用實例路徑；NEXT.md:266 記 BACKUP-1/2/3/4 全線完成，backup-cold.sh 的 DBS=(lightrag-neo4j lightrag-postgres) 每天 03:00 停服務抄 /data/lightrag。依程式碼 > 文件：README 這一格是錯的，方向是「文件比事實更悲觀」。",
    "guard": "沒有人（就文件正確性而言）；備份本身有排程",
    "guard_quality": "沒有人",
-   "guard_evidence": "本次親讀核實：`sed -n '85,100p' README.md` 確認表格仍記 `/data/rag/postgres_data`(15GB) 與 `/data/rag/neo4j_data`(1.6GB)「❌ 無」，且那是舊的 DeepTutor 共用實例路徑。`grep -n 'DBS=' scripts/backup-cold.sh` → line 45 `DBS=(lightrag-neo4j lightrag-postgres)`，line 57/76 對 `lightrag-postgres` 做 pg_isready 與 psql。`ls deploy/systemd/` 確認 `lightrag-cold-backup.timer` 與 `.service` 都在版控，且 `scripts/daily-check.sh:59` 每天用 systemd-units.py verify 比對 /etc 與 repo。也就是**備份是真的在跑、而且它的排程有守衛**，只有 README 那一格是錯的，且無任何守衛。",
-   "probe_feasible": "做得出。把 backup-cold.sh 的 `DBS` 陣列當真值來源，加一條測試斷言「README 備份表裡每個標 ❌ 的路徑，都不在 backup-cold.sh 涵蓋的容器/路徑集合內」。成本約 40 行（要在 README 那張表加機器可讀標記）。誤報風險低。**更值得注意的是這條的方向性**：人會懷疑「文件說有其實沒有」，不會去查「文件說沒有其實有」——所以探針要雙向比對，不能只驗一邊。",
+   "guard_evidence": "2026-08-07 在 dker 實測並修正。修正前三列全錯：打 ❌ 的 /data/rag/postgres_data(15GB)、/data/rag/neo4j_data(1.6GB) 實際是 /data/lightrag/postgres(1.1GB)、/data/lightrag/neo4j(540MB) 且每天備兩次（backrest plan lightrag-snapshot 每 6 小時 ＋ backup-cold.sh 每天 03:00）；打 ✅ 的 /data/rag/lightrag 整個目錄已不存在。連容量都錯一個量級。**這張表連續錯兩次而且方向相反**：08-03 之前寫「已納入 restic 備份」而實際沒有，修正之後停在舊路徑不動，於是變成「打 ❌ 的每天備兩次、打 ✅ 的不存在」。表已改對，但**沒有任何程式在守它**，所以 guard_quality 維持「沒有人」—— 改對一次不等於以後不會再錯。",
+   "probe_feasible": "做得出，且這次修正讓真值來源更清楚：backrest 的 plan paths（docker exec backrest cat /config/config.json）＋ backup-cold.sh 的 DB_ROOT。斷言「README 備份表列出的每個路徑，其備份狀態與這兩個來源一致」，並且**雙向**比對（人會懷疑「說有其實沒有」，不會去查「說沒有其實有」）。成本約 40 行，要在 README 那張表加機器可讀標記。2026-08-07 未做 —— 它會動到 compat-check 的斷言集，屬於另一件事。",
    "priority": "medium"
   },
   {
