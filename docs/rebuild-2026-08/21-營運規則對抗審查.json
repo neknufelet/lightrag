@@ -1,0 +1,238 @@
+[
+ {
+  "objections": [
+   {
+    "target": "§六 探針清單（12 支）× §四 計劃規則 8（觸發清單新增第 8 條）× §九 刻意不做 9",
+    "objection": "這套制度的第一筆帳單由它自己付，而它自己讓這筆帳單變成全專案最貴的形式——這正是它給 opus-cold 下的診斷，原封不動地重演在自己身上。規則 8 把「動 tests/*.json 資產、scripts/*-check.py、daily-check.sh 的呼叫」列進觸發清單，於是 12 支探針**每一支的實作單都是重票**，且往後每次調門檻、加一筆 fact、改一行 daily-check 呼叫也都是重票。§九-9 只承認「第一張單是重票」，沒有承認這是常態。文中對 opus-cold 的判詞是「設計跟額度打架：終審雙軌本身就是重活，卻被要求動用最吃緊的池」——12 支探針 × 五站重票（fable 設計→sol 單審→terra 實作→deepseek 對抗→sol＋機器席終審）是同一個結構，而且發生頻率遠高於終審席。全案沒有任何一處把總成本加起來。",
+    "evidence": "文中自陳單支成本 15 分鐘～3 天，分三批約 2＋3＋（貴）天；§四規則 8 原文「新增探針、新增知識資產本身是重票」；§九-9 原文「第一張單會命中觸發清單 #5 與新增的 #8，因此是重票」。對照 §十-1 對 opus-cold 的判詞「根因不是紀律，是設計跟額度打架」。查核：`git log --oneline | wc -l` = 177、`git log --all --format=%B | grep -ic opus-cold` = 0（兩者皆與文中一致）。",
+    "severity": "blocking",
+    "suggested_fix": "把規則 8 拆成兩級：**新增**一支探針或**新增**一個資產＝重票；**維護**既有探針（調門檻、加一筆 fact、改 daily-check 呼叫順序）＝一般票，並在 `ticket-class.py` 用「該檔是否已存在於 HEAD」機械區分。同時在 §六 表尾加一列總計：12 支的實作工時、以及照重票走要消耗的 worker 呼叫次數（每支 5 站），讓 PO 看到全額再決定分批。"
+   },
+   {
+    "target": "§五 知識路由「與文件結構那一組的介面」＋ §六 探針 #3 的 appears_in 設計",
+    "objection": "整份文件（連同上游四份盤點）沒有任何一個 agent 打開過 `skills/`——三份**已進版控、且已載入本 session skill roster** 的 SKILL.md。它們是知識庫的**消費面**：寫死 workspace 名 `acoustics_v2`、`100.87.88.7:9700`、以及 `chunks` 參數（即 A-25 守著的 `chunk_top_k`）。其中 `skills/lightrag-search/SKILL.md:3` 的 description 寫「20 parsed papers and textbook chapters」——語料在 2026-08-04 已整批換成 18 份。這行字每個 session 都被載入模型 context，是全專案曝光度最高的一個過期事實，而全案的 fact ledger 範例（CLAUDE.md／NEXT.md／paths.py）不會涵蓋它。`.claude/skills/onboard-doc-type/SKILL.md` 同樣被漏掉，而它與 CLAUDE.md 現在就打架兩處。",
+    "evidence": "`git ls-files skills` → 三個 SKILL.md 皆已追蹤。`sed -n 1,5p skills/lightrag-search/SKILL.md` → description 含「(20 parsed papers and textbook chapters)」；CLAUDE.md 現況段與 cairn/LOG.md 皆為 18 份。`grep -n 'acoustics_v2\\|9700' skills/*/SKILL.md` → 12 處硬編碼。`.claude/skills/onboard-doc-type/SKILL.md:40` 寫「實測有三次『以為要調門檻』」，CLAUDE.md:304 寫「五次」，同檔 :181-185 的表實際 5 列；同檔 :199 的證據表寫 `chart 只登記不處理｜**1 份，脆弱**`，CLAUDE.md 寫「3 份（含一份 50 個 chart）｜穩」。",
+    "severity": "blocking",
+    "suggested_fix": "把 `skills/**/SKILL.md` 與 `.claude/skills/**/SKILL.md` 明列進 fact ledger 的 `appears_in` 母體，並為它們加一類專屬 fact：`corpus_count`、`workspace`、`kbapi_base`、`kbapi_port`。另加一條探針 #3(d)：**skill frontmatter 的 description 不得含可漂移的計數**（description 是給 skill router 讀的，寫死數字沒有任何檢索價值，只有過期風險）。這三支 skill 的 `chunks`→`chunk_top_k` 對應要在 A-25 的 note 裡回指，讓契約壞掉時消費端一起被喊。"
+   },
+   {
+    "target": "§一-2 診斷表（四個症狀）與 §六 探針 #3 的「已驗證上線當天會說的話」",
+    "objection": "README.md 從頭到尾沒有任何 agent 讀過，而它是 CLAUDE.md 文件地圖裡指定「環境有問題時」要看的那一份，且它在**事故現場最要命的那個事實上是錯的**：它宣稱索引本體（postgres_data 15 GB、neo4j_data 1.6 GB）❌ 無備份。實際上 `scripts/backup-cold.sh` 每天 03:00 冷備份這兩個 DB，且已進 systemd 版控。README 全文零次提到冷備份。這比 CLAUDE.md 的四個症狀嚴重：狀態欄過期只會讓人重做已完成的工作，README 這一處會讓人在事故當下對「我還有沒有還原點」做出相反的判斷。",
+    "evidence": "`git log --format='%h %ci' -- README.md | head -1` → `ec3e19d 2026-08-04 02:29`（且該次是為別的理由）。`sed -n '84,100p' README.md` → 備份表三列，後兩列標 ❌ 無。`grep -n 'backup-cold|冷備份' README.md` → 零命中。對照 `grep -n 'DBS=' scripts/backup-cold.sh` → `DBS=(lightrag-neo4j lightrag-postgres)`，deploy/systemd/lightrag-cold-backup.timer 已進版控；NEXT.md:301-303 記載兩條備份都已接上。",
+    "severity": "blocking",
+    "suggested_fix": "把 README.md 列為 fact ledger 的一級 `appears_in` 檔，並優先加三筆 fact：`backup_scope_pg`、`backup_scope_neo4j`、`data_root`。§六 #3 的「上線當天會說的話」清單要補這一行——它比現有五行都貴，因為它是**反向錯誤**（宣稱沒有其實有），會讓人在事故中過度保守或誤判可回滾範圍。"
+   },
+   {
+    "target": "§一-2 診斷表「資料根」列、§二「砍：文件裡所有可計算的計數」、§六 #3 的 `FAIL data_root` 範例",
+    "objection": "文中把 `/data/rag` 當成已死路徑，並以 NEXT.md:30「/data/rag 從此與本專案無關」佐證。**這句話本身是假的，而且 fact ledger 若照文中設計實作，會把一條活的依賴標成 drift 並教人刪掉它。** `/data/rag` 至少承載三件互相獨立的事：① lightrag 資料根已搬到 `/data/lightrag`（paths.py:14，文中說對了）；② **冷備份的暫存區硬編碼在 `/data/rag/coldstage`**，不讀 .env，是每天 03:00 那支腳本複製整個 DB 的落點；③ intake 的來源白名單指向 `/data/rag/knowledge_bases/...`。把三件事壓成一個 key 為 `data_root` 的 fact，不是「一份 SSOT」，是把三個事實併成一列——正是本專案已記載的「兩個 workspace 被併成一列」的同族錯誤。",
+    "evidence": "`grep -n STAGE scripts/backup-cold.sh` → `41:STAGE=/data/rag/coldstage`，並於 :104/:106 `sudo mkdir -p \"$STAGE\"; sudo cp -a \"$DB_ROOT/.\" \"$STAGE/\"`、:140 restic 從 `$STAGE` 上傳。`.env.example:148` → `INTAKE_SOURCES=/data/rag/knowledge_bases/Room_Optimizer/raw`（:147 註解說明 compose 對該路徑唯讀掛載）。同時 NEXT.md:190/407 記載「舊目錄 /data/rag/lightrag（217 MB）還沒刪」仍是未打勾的 TODO——即 `/data/rag` 底下同時有：死的、活的、待刪的三種東西。",
+    "severity": "blocking",
+    "suggested_fix": "fact ledger 的 key 必須綁**用途**不綁字串前綴：拆成 `lightrag_data_root`(/data/lightrag)、`coldbackup_stage`(/data/rag/coldstage)、`intake_source_root`(/data/rag/knowledge_bases/...)、`legacy_dir_pending_delete`(/data/rag/lightrag)。四筆各自的 `appears_in` 與 `retire_when` 都不同。並且立刻修正 NEXT.md:30 那句——它現在是一個會誘發破壞性操作的錯誤陳述（有人照它刪 /data/rag，冷備份的 stage 就沒了，而該腳本會 mkdir -p 成功、看起來一切正常）。"
+   },
+   {
+    "target": "§二「砍：opus-cold 常設席」與 §十-1 的裁決理由",
+    "objection": "廢除唯一一個人類無關的第二審查來源，靠的是一句沒被驗證、且與本專案最高階教訓直接相反的斷言：「真正獨立的第二來源是 dker 的實跑輸出：機器不會為了讓流程過而說謊」。機器確實不說謊，但機器**只跑你叫它跑的指令**，而本專案畢業到知識庫的第一條就是「乾淨的 0 要先當成量錯」——三次全綠的量測，量的都不是要量的東西。文中自己在 §一-4 與 §六 #3 反覆援引這條，卻在 §二 用它的反面當作砍掉終審席的理由。另外「同池同模型的冷啟動分身不是獨立的第二來源」這個類比取自 `pp/eyes.py`，但 eyes.py 擋的是同一組權重對**同一張圖**做轉錄會重現同樣的誤讀；冷啟動審查席拿到的是不同的輸入（diff＋工單），這個類比從未被驗證，是推論不是實測。",
+    "evidence": "文中 §二原文「機器不會為了讓流程過而說謊」；對照 cairn/LOG.md 2026-08-04 條目：畢業七條的索引開頭寫「它們是同一件事的七個面：**畫面說的跟實際發生的不一致，而且都不報錯**」。CLAUDE.md:313-325 鐵則 7 的三個實例全都是「指令回綠但量錯對象」。opus-cold 零呼叫本身已核實（`grep -ic opus-cold` = 0 / 177 commit），但「零呼叫」只證明它沒被用過，不證明「不需要」——這正是文中自己在 §七 排除條款寫的「探針不因為一直沒響而退休，沒響有兩種原因：沒事，或它壞了」。",
+    "severity": "major",
+    "suggested_fix": "把裁決從「廢除」改成「先驗一次再決定」：拿一張已經完成的重票（例如 `SYMBOL-3.1`，材料齊全且已被 sol BLOCK 兩輪）**回放**給 opus-cold，量它的實際 token 成本、延遲、與 sol 判定的重疊率。三個數字出來之後再回答廢不廢——這完全符合本專案「門檻用量的不要用調的」。同時把「dker 實跑輸出＝獨立第二來源」這句改寫成有限主張：**它只在收線指令本身被獨立審查過的前提下成立**，因此 §三-3「開線必須附可執行收線指令」的那條指令，其正確性需要一個非執行者來看——那才是 opus-cold 真正該站的位置，而且比終審便宜得多。"
+   },
+   {
+    "target": "§六 探針 #4「資產必須有消費者」及其唯一範例 `tests/symbol2-results.json`",
+    "objection": "這支探針的 schema 沒有「原始證據」這一類，於是它的旗艦範例其實是誤報。`symbol2-results.json` 不是知識資產，是一次量測實驗的原始紀錄（三條 arm 的 agree/wrong_recall/wrong_fp），檔案自己帶 `caveat` 說明答案卷是主線一人的判斷。本專案已明文決定這類東西**保留為原始證據**、不膨脹成流程規則。照文中設計，這支探針每天會要求它「接上消費者，或標 `_retire_when` 走退休流程」——把一份刻意保留的實驗紀錄逼成雜訊或逼刪。這與 §九-5「不做會產生假警報的探針」自相矛盾，而假警報在文中自己的優先序裡排第二貴。",
+    "evidence": "`git grep -ln symbol2-results -- scripts tests` → 無輸出（無消費者，文中此點正確）。但 `python3 -c` 讀檔頭：`line='SYMBOL-2'`、`model='gpt-5.6-luna (codex exec)'`、`answer_key='tests/symbol1-answer-key.json'`、`arms={'A':{...'agree':32,'wrong_fp':6},...}`、`caveat='答案卷是主線一人的判斷，不是客觀真理…'`。對照 docs/precedents-inventory-20260804.md:37「這不把 SYMBOL-1 的 50 題、SYMBOL-2 的 50 題、160 格 ledger 狀態逐一膨脹成流程規則；**它們保留為原始證據**」。",
+    "severity": "major",
+    "suggested_fix": "資產 schema 加一個必填欄 `_kind: asset|evidence`。`evidence` 免除消費者要求，但改成必填 `_supports`（指向它當初支撐的哪個決策／哪條線），並由探針斷言 `_supports` 打得開。這樣「一份沒人讀的實驗紀錄」與「一份支撐了某個裁決的實驗紀錄」被分開，而前者才是該喊的。順帶：#4 的範例要換一個真的孤兒資產，否則這支探針上線第一天的唯一紅燈就是誤報，會直接觸發文中自己警告的「假警報訓練人忽略警報」。"
+   },
+   {
+    "target": "§四 計劃規則全表 ＋ §六 探針 #8 `worklog.py open` 的「比對已 drop 的線」設計",
+    "objection": "文中提出至少五套新 schema（fact ledger、worklog 機器檔、資產底線欄、鐵則機器鏡像、assertions-baseline），但沒有引用、也沒有推翻 PO 在 2026-08-04 對「同一類東西」下過的明確裁決：**先不做，理由是「第一份新文件都還沒跑過，現在定 schema 是猜需求」**。那次的對象（機器可讀先例表）與本案的資產 schema 是同一族問題，連缺的三樣都一樣（逐條人工確認、schema、一個真的會查它的消費者）。更尖銳的是：文中 §六 #8 自己規定 `worklog.py open` 要「拿新線關鍵字比對已 drop 的線，命中就印『這件事某日決定不做，理由在某處』」——本案自己就是一條新線，而它沒有跑這個檢查。",
+    "evidence": "docs/precedents-inventory-20260804.md:9-11 原文：「要升格成真正的先例表，缺三樣：逐條人工確認、schema、**以及一個真的會查它的消費者**。PO 2026-08-04 判定：**先不做**——第一份新文件都還沒跑過，現在定 schema 是猜需求。」對照本案 §六 #4 要求每個資產必帶 `_why/_rule/_consumer/_retire_when`、#8 的 worklog schema、#11 的鐵則鏡像 schema。",
+    "severity": "major",
+    "suggested_fix": "在 §十 待決策加一列，明確問 PO：「2026-08-04『現在定 schema 是猜需求』的裁決，在什麼條件下算失效？」並給出可驗的答案——例如「已跑過 N 份新文件、或已累積 M 筆同型判斷」。若 PO 判裁決仍有效，本案的資產 schema 全部降級成「先用既有的 verified-findings.json 底線欄慣例照抄，不新定 schema」，只保留 fact ledger（那一支有 5 個現存紅可證明需求不是猜的）。這也讓本案示範自己的規則 1「無訊號不開線」。"
+   },
+   {
+    "target": "§一-4 三件套公式（資產＋消費者＋排程）與 §五 硬性限制 2「沒有消費者的格不得使用」",
+    "objection": "三件套把「消費者」當成單一概念，但本專案已經有一份被兩個獨立審查採納的裁決指出這裡有兩種消費者，混為一談會產生假完成感——而本案原封不動地混了。`extract-check.py` 讀 `verified-findings.json` 是**程式消費者**（確定性、每次跑都印）；`cairn/` 與畢業機制的消費者是**agent 在開工時查知識**（機率性、看它有沒有想到要查）。文中 §五 用同一條「沒有消費者的格不得使用」同時裁決 topic note（agent 消費）與 `symbol2-results.json`（程式消費），於是 topic note 被判「保留為畢業前置」——但那正是一個沒有程式消費者、只有 agent 消費者的格，用程式消費者的尺去量它會永遠判它沒用。",
+    "evidence": "cairn/LOG.md 2026-08-04「Project Cairn 初始化」條目原文：「luna 另外指出 cairn 補的是『agent 查知識』的消費者，**不是『程式查先例表』的消費者**，混為一談會產生假完成感 —— 所以機器可讀的先例表仍是未做的事，不因 cairn 落地而消失。」該裁決由 codex luna xhigh 與 deepseek v4-pro 兩個獨立審查共同支持（同條目記載兩者都判 C）。",
+    "severity": "major",
+    "suggested_fix": "三件套的「消費者」欄改成必填兩選一：`consumer_kind: program|agent`。`program` 型必須通過 #4 的 grep 斷言；`agent` 型的驗收標準不同——它要求的是**在 agent 的固定入口被指到**（開工開場白、SKILL.md、AGENTS.md 導航），而探針要斷言的是那條指路存在，不是有程式 import 它。§五 的兩條硬性限制要分別重寫給兩種消費者，否則 agent 型的格會被結構性判死。"
+   },
+   {
+    "target": "§四 計劃規則 1-3（無訊號不開線／必附可執行收線指令／同時只有一條線）對照下一季的實際工作",
+    "objection": "全案是流程，沒有方向。使用者要的是「未來的計劃規則」，而未來三個月已知的**最高價值阻塞點**在文中出現零次：表格結構黏連（`<td rowspan=2>ResistorCapacitorCoil</td>`，三個詞塞一格沒有分隔符），已量到佔 C 這份 table 漏詞的 72%，是最大的一族，且已判定無法在後處理層修、屬 MinerU 上限、該在解析階段解。更糟的是**新規則會擋住它**：規則 2 要求開線當下就交出「可執行的收線指令＋預期 exit code＋能在 dker 跑」，但這是一件調查性工作（要試 MinerU 選項／版面規則，試完才知道成功長什麼樣），寫不出收線指令，照規則 2 只能留在候選區。文中把規則 2 的依據放在 `REBUILD-10`（文件對齊，本來就有明確驗收）——用一件驗收條件天然明確的工作，推導出一條會擋住驗收條件天然不明確的工作的規則。",
+    "evidence": "NEXT.md:709-714 原文：「表格結構黏連…**內容沒有掉，掉的是分隔符**，後果是檢索 `Resistor` 配不到。**這一類佔 C 的 table 漏詞 72%**，是最大的一族。無法在後處理層修…屬 MinerU 上限，該在解析階段解（MinerU 選項／版面規則）。」同段 :707-708 記載新文件會冒新型態、要照 `.claude/skills/onboard-doc-type/SKILL.md` 走——而該 SKILL 在全案（含四份盤點）出現零次。",
+    "severity": "major",
+    "suggested_fix": "規則 2 加一個第二型：**調查線**只需交出「停損條件」（跑了多少次／花了多少小時就回來重新決定），不需要收線指令；`worklog.py open --investigation --stop-after` 強制填。這與本專案既有的停損紀律相符（NEXT.md:748「有問題 ≠ 值得修，先量代價再排序」）。另外 §八 節奏表要補一列**觸發式：接入新文件類型**——照 onboard-doc-type SKILL 走，那是下一季發生頻率最高的流程，比「重解析單一 PDF」高一個數量級。"
+   },
+   {
+    "target": "§三 生命週期表（以「工作線」為單位）＋ §七「abandoned 是刻意不做的統一歸宿」",
+    "objection": "全案的計量單位是「線」，但下一季的工作量單位是「文件」，而**逐份文件的裁決沒有任何一個格接得住**。今天 18 份的體檢表已經是 8 閘門 × 18 = 144 格手填；擴到 390 份是 3,120 格。同時「刻意不做」清單裡的東西——「23 處 `\\mathsf{P}` 不碰」「C 的 69 個空 text 項不回填」「K Muffler #277 不改」——全都是**逐符號／逐項目**的裁決，不是工作線，永遠不會被 `worklog.py open` 開出來，所以 §七「abandoned 是刻意不做的統一歸宿」對它們完全不適用；`verified-findings.json` 也接不住（它的 key 是 check/doc/metric 三元組，接的是指標超標）。這一類今天約 6-10 筆，隨文件數線性成長，到 390 份是三位數，而它們正是「下次撞到同一個符號時最需要被自動印出來」的東西。",
+    "evidence": "`grep -n 'GATES' scripts/ledger.py` → `47:GATES = [`，:238 `f\"…（{len(docs)} 份 × {len(GATES)} 閘門）\"`；CLAUDE.md 記載 8 個閘門。NEXT.md:720-737 六筆「刻意不做」全部是逐符號／逐項目層級。tests/verified-findings.json 的 `_key` 欄：「check/doc/metric 三者組成鍵」。",
+    "severity": "major",
+    "suggested_fix": "在六問序列 Q1 之前插一問：「它是**某一份文件裡某個具體項目**的一次性裁決？→ 逐項裁決紀錄（key＝doc + item_id + 現值指紋）」，消費者是 `postprocess.py plan/check` 在再次碰到同一個 item 時自動印出前例——這正是 `verified-findings.json` 的模式往下推一層，而且鐵則 8（重解析後索引指的東西會變）要求這個 key 必須帶現值指紋而不能只帶索引。同時 §三 表要加一列「批次型工作」的生命週期：390 份不是 390 條線，而是一條線內的 390 個單元，其節奏由 intake 審核台而非 `worklog.py` 驅動。"
+   },
+   {
+    "target": "§六 探針 #3 的成本估計「錨點要一次手工插進文件約 15–25 處」",
+    "objection": "這個數字低估約一個數量級，而它是 PO 判斷「(a)(c) 一天做得完」的依據。粗掃 11 份承載事實的檔案，可漂移的數字／路徑／埠／計數 token 就有 233 個唯一值，而且這還沒算版本字串與狀態詞（status 型 fact 抓不到）。就算只有兩成值得下錨，也有 ~45 處；而文中自己列出的四個症狀＋五行紅燈已經用掉 8 處，還完全沒碰 README.md（25）與三支 skill（12）。這條同時違反本案自己的規則 6（門檻／估計值要標成猜測並寫 `derived_from`）——§九-8 把 14 天標成推導值，卻沒把 15-25 標成猜測。",
+    "evidence": "在 coder 上跑 regex（`\\d{1,3}(,\\d{3})+`｜百分比｜`/data/...`｜`:\\d{4}`｜`N 份/條/個`）掃 CLAUDE.md/NEXT.md/README.md/AGENTS.md/onboard-doc-type SKILL/三支 skills/cairn LOG/.env.example/compose.yaml：唯一值 61/88/25/0/5/8/3/1/10/21/11，合計 233。此為粗上界（含重複語意與非事實 token），但與 15-25 的差距遠大於雜訊。",
+    "severity": "minor",
+    "suggested_fix": "先跑一次盤點再報成本：寫一支 20 行的 `docs-facts scan` 列出候選 token 並人工勾選，把實際筆數當成 `derived_from`。並且改變策略——不要一次插 45 個錨點，改成**只為已經打過架的事實下錨**（本輪查到的：coder_repo、data_root 四拆、assert_ct 三義、corpus_count、backup_scope×2、line_status），約 10 筆，其餘等它們真的打架時才加。這符合本案自己的規則 1「無訊號不開線」。"
+   },
+   {
+    "target": "§四 計劃規則 5「過期門檻起始值 14 天」的推導",
+    "objection": "14 天是從 commit 密度 39/38/52/42 筆／日推導的，但那四天是專案從零開始的建設爆量期（全專案歷史只有五個工作日，文中自己用這一點否決了 30 天）。用綠地爆量期的密度去推導穩態的線壽命門檻，正是鐵則 5「門檻用量的，不要用調的」要防的——量到的是一個不會再出現的分佈。文中在規則 6 要求所有門檻一個月後用實測分佈重定，但沒承認 14 這個起始值連「量的」都算不上，它是量了一個不對的母體。",
+    "evidence": "文中 §四規則 5 原文：「14 天取自設計 B；推導法取自設計 C（commit 密度 39/38/52/42／日，一條線自然週期 1–2 天）。**不取 C 的 7 天**…**不取 A 的 30 天**（整個專案歷史才 5 個工作日）」。`git log --format=%ad --date=short | sort | uniq -c` 顯示的密度分佈全部落在 08-01～08-06 的建設期。",
+    "severity": "minor",
+    "suggested_fix": "把 14 明確標成 `derived_from: \"greenfield burst 2026-08-01..04, 不代表穩態\"`，並把重定觸發改成事件驅動而非時間驅動：**累積到 10 條已收線的線**之後，用那 10 條的實際 open→close 天數分佈重定。時間驅動（一個月後）在一個歷史只有五天的專案上同樣是猜。"
+   },
+   {
+    "target": "§八 節奏表「每天 08:30（dker）新增三支：…畢業回指 sha 比對」",
+    "objection": "把一支跨 Tailscale 打外部 NAS WebDAV 的檢查放進**每日 hard-fail ＋ ntfy 推播**通道，是本案自己列為第二優先要消滅的東西：假警報源。NAS 重開機、Tailscale 抖動、憑證輪換都會讓它紅，而這些紅跟「知識庫內容漂移」完全無關。文中 §九-7 承認這支是「本質上需要現值」的例外，但沒有處理「外部網路失敗」與「內容不一致」必須是不同狀態這件事——而三態化正是本專案已經解過的問題（A-25、scan-partial 都是三態）。",
+    "evidence": "文中 §八「每天 08:30（dker）…新增三支：文件層漂移 --live、驗證債、畢業回指 sha 比對」；對照 §四規則 4「② 假警報源」排第二、§九-5「不做會產生假警報的探針…寧可探針第一天綠，也不要它第一天滿江紅然後被關掉」。`.cairn/config.yaml` 的 `webdav_base: https://florian-nas.pleco-acoustic.ts.net:5006/...`、`credential_env: CAIRN_OBSIDIAN_WEBDAV`——依賴外部主機＋Tailscale＋憑證三個獨立失效點。",
+    "severity": "minor",
+    "suggested_fix": "畢業回指改成**週報項、三態**：連得上且 sha 一致＝綠；連得上但 sha 不同＝紅（真訊號）；連不上＝「驗不了」，不計入失敗、不推播（照抄 A-25 與 scan-partial 的既有 rc 慣例）。從每日 hard-fail 通道移出去。"
+   },
+   {
+    "target": "§一-2 診斷表「工作線範圍與狀態」列 ＋ §六 探針 #3 的 `line_status` fact",
+    "objection": "文中把 CLAUDE.md 與 NEXT.md 的工作線衝突全部歸類成「狀態欄過期」，但至少有一處是**語意漂移**，fact ledger 的 `kind: status` 抓不到：CLAUDE.md:245 定義 `SCALEUP` ＝「擴量到 390 份」且狀態「待做」；NEXT.md:272 定義 `SCALEUP-1` ＝「Möser A–R 全書」且「✅ 完成 2026-08-05」。兩份文件對**同一個 label 指的是哪件事**給出不同答案——不是同一件事的兩個狀態。把它當成 status 衝突去修，會修出一個「SCALEUP-1 已完成」的結論，而 CLAUDE.md 讀者理解的那件事（390 份）根本沒開始。這個症狀在本輪任務的題目裡就已經發作了（題目問「SCALEUP-1（擴量到 390 份）走這套新規則會發生什麼」——那是繼承 CLAUDE.md 的錯誤框架）。",
+    "evidence": "CLAUDE.md 前綴註冊表：`| SCALEUP | 擴量到 390 份 | SCALEUP-1… | 待做 |`。NEXT.md:272：`| SCALEUP | SCALEUP-1（Möser A–R 全書） | ✅ **完成 2026-08-05：18 份全數進庫** |`。NEXT.md:706 另有獨立小節「### 擴量到 390 份（等上面收斂）」，未編號、未打勾。",
+    "severity": "minor",
+    "suggested_fix": "worklog 機器檔的每條線必填 `scope_one_line`（這條線做完是什麼樣），並由探針斷言「同一 label 在所有 appears_in 裡的 scope 描述一致」——這是 §六 #3(c) 跨檔一致性的延伸，但比對的是**語意欄位**不是數值。同時 390 份那件事現在沒有 label，該給它一個（例如 `SCALEUP-2`）再開線，否則它永遠是一段沒有主人的散文。"
+   },
+   {
+    "target": "§九 刻意不做 4「不碰檔案結構」＋ §六 #3 自陳「這是全案最醜的一項」",
+    "objection": "有一種做法三份設計都沒考慮：**不要驗證文件，直接生成文件。** 本專案已經有這個模式在跑且被證明有效——`systemd-units.py` 是 render / install / verify 三件套，repo 是來源，`/etc` 是產物，所以 `/etc` 不可能漂移，`verify` 只是抓「有人手改了 /etc」。文中在探針 #2 明確說「直接抄 systemd-units.py 的 render/install/verify 結構，一行邏輯都不要重新發明」——**但只抄了 verify 那一半**，render 那一半連提都沒提。若把 CLAUDE.md／NEXT.md／README／SKILL.md 裡的易變區塊（狀態總表、現況數字、路徑表、契約條數、語料份數）改成從機器資產 render 出來，那 45+ 個手工錨點不必插、「以後改數字要改兩個地方」這個文中自承最醜的代價直接消失、跨檔一致性變成結構性不可能而不是每天偵測。這不是檔案結構重排（不動誰放什麼），是把「事實的呈現」與「事實本身」分層，跟另一組的工作正交。",
+    "evidence": "`grep -n 'render' scripts/systemd-units.py` → `70:def render_all(...)`、`87:cmd_render`、`98:cmd_verify` 內部亦呼叫 `render_all` 後比對，`153:cmd_install` 寫入 /etc。文中 §六 #2 原文「直接抄 systemd-units.py 的 render/install/verify 結構」；§六 #3 自陳「代價…錨點要一次手工插進文件約 15–25 處，且以後改數字要改兩個地方。這是全案最醜的一項」。",
+    "severity": "major",
+    "suggested_fix": "把 §六 #3 拆成兩支並改變預設：**#3-render**（易變區塊用 `<!-- fact:corpus_count -->…<!-- /fact -->` 標記，`docs-render` 從 fact ledger 重寫區塊內容，pre-commit 跑 render 後 `git diff --exit-code` 非空即擋）＋ **#3-verify**（只對 render 不了的自由散文做文本比對）。render 的錨點數量與 verify 相同，但錨點壞掉的代價從「安靜漏掉」變成「render 直接失敗」，而且維護成本從「兩個地方」降回一個。§九-4 要補一句：本案不指定檔名與版面，但**要求易變事實以可渲染的形式存在**——這是給另一組的介面約束，不是搶他們的題目。"
+   },
+   {
+    "target": "§十 待決策（五問）",
+    "objection": "PO 一定會問而全文沒回答的有三個。① **總帳與機會成本**：12 支探針約 8-11 天，而下一季真正要做的事是「繼續往 acoustics_v2 灌更多聲學文獻」加上 390 份的 MinerU 表格黏連。這 8-11 天不灌文獻換來什麼可量的收益？文中有「只做得起兩件」的退路，卻從未把總額與對照組（同樣時間拿去灌文獻）並排。② **誰做**：全部 worker CLI 只在 coder，而規則 8 讓每支探針都是五站重票；Anthropic 池吃緊、OpenAI 池要扛 fable+sol×2+luna。文中沒有算過這 12 支要消耗多少次 worker 呼叫。③ **這套制度什麼時候算失敗、怎麼關掉**：文中給每支探針 `retire_when`，卻沒給制度整體一個 kill criterion。§九-10 只說「不承諾這套制度不會腐爛」，那不是答案——PO 要的是「三個月後如果 X，我就把它整個關掉」。",
+    "evidence": "§六 分批「第一批約 2 天／第二批約 3 天／第三批（貴）」＋單支成本欄（#10 為 2-3 天、#8 為 1-2 天、#11 為 1 天＋回填一天）；§四規則 8 使探針工作恆為重票；CLAUDE.md 角色表與額度紀律「Anthropic 池是唯一吃緊的」；NEXT.md:44-46「下一步：繼續往 acoustics_v2 灌更多聲學文獻」。",
+    "severity": "major",
+    "suggested_fix": "§十 補三列決策題：① 「未來六週的工時分配：制度 N 天 vs 灌文獻 M 天，選一個比例」，並附對照——不做制度時，本輪已驗證的 5-8 個現存漂移會繼續存在多久（可用 CLAUDE.md 狀態欄已漂移的天數當基準）。② 「探針維護是否降為一般票」（見第一條 objection）。③ 「制度的 kill criterion」，建議寫成可量的：**三個月後若 `worklog.py stale` 的清單長期為空、或 `verify-debt` 從未降到 0、或落點元探針的「靠人記得」計數沒有下降，就整套退回只保留 fact ledger 一支**。這一條會逼本案自己回答文中規則 9 對別人的要求：「這條規則的失效條件是什麼」。"
+   }
+  ],
+  "verdict": "flawed-but-fixable",
+  "what_survives": "**骨架與診斷方法整體成立，該保留。** 我逐條重跑了它的關鍵數字，全部對得上：`git log --oneline | wc -l` = 177、`git log --all --format=%B | grep -ic opus-cold` = 0、`ls .git/hooks | grep -v sample` 無輸出、`.github/` 不存在、`grep -oE '\"A-[0-9]{2}\"' scripts/compat-check.py | sort -u | wc -l` = 21（CLAUDE.md:226 寫 26）、`grep -c ledger scripts/daily-check.sh` = 0、`git grep -ln symbol2-results -- scripts tests` 無輸出、`REBUILD-6/-9` 確實活在 `scripts/daily-check.sh:12,65` 與 `tests/test_archive_ledger.py:1`。這在對抗審查裡很罕見——它沒有一個編造的數字。\n\n具體該保留的：\n\n1. **§一-4 的三件套公式（資產＋消費者＋排程）** 是全案最有價值的產出。它是從專案自己五個能跑的機制歸納出來的，不是外部引進的方法論，而且可以一句話檢驗任何一條規則。唯一要改的是「消費者」需要拆成 program/agent 兩型（見 objection 8）。\n\n2. **§一-2 的四個文件漂移症狀** 全部經我獨立複驗成立，且 `REBUILD-10` 那個例子（被標完成、驗收條件未達成、同一張表自己跟自己矛盾）是全文最好的一個論證——它證明「宣告完成」在沒有可執行收線指令時等於自我聲明。\n\n3. **§二 的入場閘門**「沒有資產＋消費者＋排程的規則不是規則，是願望；可以留在文件裡當歷史，但不得被引用為『這件事有人在守』」——這條該原文保留，它同時是診斷、設計約束與驗收標準。\n\n4. **§六「紅著上線」原則**（新探針上線必須先抓到一個真實的現存漂移）與 §九-5（不把歷史存量債一次倒出來）的區分是對的，而且兩者不衝突的說明寫得清楚。`verify-debt.py` 的 `baseline_from` 是全案最好的一個工程細節。\n\n5. **§七 條文只增不刪／效力可以停止** 的兩層拆法，乾淨地解掉了 CLAUDE.md:283 那句字面不可持續的話，而且逐字保住了「只增不刪」。配套的兩條排除條款（不可逆操作不得走「沒出事」退休；探針不因一直沒響而退休，附 `zero_is_expected` 欄）都有實測反例支撐（A-16 的 184 個 chart、canary 的 `latex_vetoed`）。\n\n6. **§七 證據強度雙重標準的指認**——「只有 1 份的很可能是巧合」這把尺 day-1 就訂了，卻從未套用到鐵則本身——是全案最原創的一個發現，我獨立複驗了它（`.claude/skills/onboard-doc-type/SKILL.md:40` 寫「三次」、CLAUDE.md:304 寫「五次」、同檔的表實際 5 列，三個數字互不相同，正是 CLAUDE.md:285 自己嘲諷過的病）。`provisional` 標記＋不得被引用來否決別人的提案，是一個成本極低、不刪任何東西的處置。\n\n7. **§三 三種強制力的分類（機器擋／機器抓／靠人記得）** 是很好的組織裝置，而且「靠人記得只剩兩格且每格都說明為什麼工具化不了」是誠實的自我約束。§八 對「不寫成 `if [ $(date +%u) = 1 ]`」的理由（會讓「週一沒跑到」與「跑了沒事」長得一樣）直接來自本專案罵過的反模式，正確。\n\n8. **探針 #1（intake OnFailure 備援，15 分鐘）** 我複驗過：`deploy/systemd/lightrag-intake.service` 確實沒有 `OnFailure=`，而同目錄的 daily-check 與 cold-backup 兩支都有 `*-crashed.service`。這一項應該今天就做，不需要等任何決策。\n\n9. **§九-1／-3** 對「不設計需要兩個人互相檢查的環節」與「不設計會常態消耗 Anthropic 額度的制度」的堅持是對的（雖然它自己在規則 8 違反了第二條，見 objection 1）。\n\n10. **全文對「未驗／推測」的標示紀律** 做到了它要示範的鐵則 9：附錄明確列出 dker 上的一切、Obsidian 那七篇、以及 87+6 的測試數字都標了未驗，並說明了為什麼（跑 pytest 會寫 `__pycache__`，違反本輪唯讀約束）。這一點本輪我照做——所有查核都是唯讀指令，`git status --porcelain` 全程為空。"
+ },
+ {
+  "verdict": "flawed-but-fixable",
+  "what_survives": "人話：診斷是對的，處方大約超載十倍。這份文件最有價值的是第一節四項診斷（機器守資料不守制度、治理層此刻就在漂移、寫得最細的關卡是空的、專案自己已經發明了「資產＋消費者＋排程」的公式）——我全部重跑過，全部成立。但第六節 12 支探針、第三節 9 階段生命週期、第五節新增的容器層，加起來是一套「用月為單位設計、要套在一個存在 5 個日曆天、每天 40–50 個 commit 的專案」的制度。它會在第一週被繞過，繞過方式不是違規，是「這次不開線」——正好是作者自己標成【靠人記得】的那一格。\n\n技術話：實跑核實的存活項——(1) 第一節全部診斷：`grep -oE '\"A-[0-9]{2}\"' scripts/compat-check.py | sort -u | wc -l` = 21 vs CLAUDE.md:226 寫 26；`/data/rag/lightrag` 在 CLAUDE.md:25,261,570 三處；NEXT.md 狀態總表確有兩列 `REBUILD`；`.git/hooks/` 除 `.sample` 外為空、`git config core.hooksPath` rc=1；coder 上 `crontab -l` = no crontab、user timers 只有 launchpadlib，即制度層零排程。(2) 探針 #1（intake OnFailure），但工時要從「15 分鐘」改成「15 分鐘 ＋ 一趟 dker sudo install」。(3) 文件層漂移的 (a)(c)，降級成一支 pytest 測試、錨點先插 5 處而非 15–25 處。(4) pre-commit 跑 `scripts/run-tests.sh`——我在 coder 上以 `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/ -q -p no:cacheprovider` 實跑：**87 passed in 4.94s**（跑完 `git status --porcelain` 仍為空），成本可忽略，是全案投報最高的一項。(5) 第七節「條文只增不刪、效力可以停止」這個拆法本身（不需要鏡像檔也成立）。(6)「資產必須有消費者」的想法成立，但載體必須改（見 objection 1）。合計約 1 個工作天，不是提案自陳的約 10.5 人日（#1 0.03＋#2 0.5＋#3 1.5＋#4 0.25＋#5 0.25＋#6 0.5＋#7 0.5＋#8 1.5＋#9 0.5＋#10 2.5＋#11 2＋#12 0.5）——而這個專案至今的全部產出是 5 個日曆天、177 個 commit、14,534 行程式。制度層的建置量會是物件層迄今生命週期的兩倍，且不產生任何聲學知識庫價值。",
+  "objections": [
+   {
+    "target": "第六節探針 #4「資產必須有消費者」：每個知識資產 JSON 必帶 `_why`／`_rule`／`_consumer`／`_retire_when`，估 2 小時",
+    "objection": "這條 schema 要求會直接弄壞 canary——專案自己最信任、也是提案反覆援引為成功範例的那支探針。而且 2 小時只涵蓋寫測試，沒涵蓋 retrofit，而 retrofit 在其中一個檔上結構性做不到。",
+    "evidence": "scripts/postprocess.py `cmd_canary`：`base = json.loads(CANARY.read_text())`，接著 `gone = [n for n in base if n not in cur]`，而 `cur` 是 `{doc_name: canary_row(...)}`。實測 canary-baseline.json 是 flat dict，key 為 18 個文件名（python 列 keys：['A Conventions.pdf', 'B General Linear Fluid Acoustics.pdf', ...]），無任何底線欄。手加 `_why` 會被判為「消失」→ `return 2` → daily-check 每天紅。更致命的是 `--update` 分支 `CANARY.write_text(json.dumps(cur, ...))` 整檔重寫，手加欄位在下一次任何人跑 `canary --update` 時被靜靜刪掉——正是提案第二節罵的無聲消失。另外提案宣稱「沿用 verified-findings.json 已有的底線欄慣例」，實測 5 個資產只有 model-observations.json 與 verified-findings.json 有 `_why`／`_rule`，**沒有任何一個有 `_consumer` 或 `_retire_when`**（scan-partial-baseline／symbol1-answer-key／symbol2-results 三個完全沒有底線欄）。",
+    "severity": "blocking",
+    "suggested_fix": "元資料不要 in-band。改成 `tests/asset-registry.json` 或每個資產一個 `.meta.json` sidecar，由測試讀 registry、比對 `_consumer` 指的檔存在且 grep 得到該檔名。canary-baseline.json 一個位元組都不要動。工時 2 小時→半天，並在單子上寫明「不得修改任何被現有探針消費的 JSON 的頂層 key 空間」。"
+   },
+   {
+    "target": "第四節計劃規則 #8「新增探針、新增知識資產本身是重票」（觸發清單加第 8 條）",
+    "objection": "加上這條之後，重票不是例外而是多數。第一批 12 支探針自己 100% 命中，等於這套制度的建置本身要走 12 張重票——每張要 fable 出設計單，而 fable 是 Anthropic 池。與第九節「刻意不做 #3：不設計會常態消耗 Anthropic 額度的制度」正面衝突。",
+    "evidence": "對全庫 177 個 commit 實算觸發清單命中（tests/**、scripts/pp/rules/**、.env.example、compose.yaml、deploy/**、daily-check.sh、scripts/*-check.py、compat-check.py 的聯集，再併入 diff>200 行者）：**104/177 = 58.8%**。單 diff>200 行一項就 46 個（26%），新增的 #8 路徑集合單獨命中 59 個。commit 密度實測 39/38/52/42/6 每日，diff 行數 median=64、p90=370。等於每個工作日 20–30 張重票。角色表 CLAUDE.md:155：`| 重票設計成單 | fable | Agent tool subagent | anthropic ⚠ |`。",
+    "severity": "blocking",
+    "suggested_fix": "#8 收窄成「動閘門判準或刪既有斷言／基準」，不含「新增」；新增探針走一般票（新增本來就不會讓既有數字漂移）。同時按實測分佈重定 #7 的 200 行門檻——p90=370，200 行在這個專案等於每四個 commit 抓一個。更誠實的做法：先量出「重票率上限多少才跑得動」（建議 ≤10%），再反推門檻。"
+   },
+   {
+    "target": "第三節生命週期：所有【機器擋】閘門（階段 3/4/6/7/9）都掛在 `worklog.py open` 下游",
+    "objection": "整座建築的入口是一個作者自己歸類為【靠人記得】的動作。繞過方式不是違規，是「這次不開線」——而 pre-commit 分不出「沒有工單因為瑣碎」與「沒有工單因為跳過了」，正是鐵則 6 的形狀（沒印出來跟沒檢查長得一樣）。六週後這套制度最可能的死法就是這個，而且死的時候沒有任何訊號。",
+    "evidence": "提案第三節表格自陳：階段 1 的量測與 PO 兩路「【靠人記得】敲一行 CLI」、階段 2 分流「【靠人記得】做這個動作」。階段 7 提交的機器擋條件是「工單的沉澱格不是 pending」——工單不存在時這個條件恆真。全庫實測 `.git/hooks/` 只有 `.sample`、`git config core.hooksPath` rc=1，即所有 hook 都要從零建，沒有既有實作可參照它在「無工單」情境下怎麼判。",
+    "severity": "blocking",
+    "suggested_fix": "把入口從「開線」改成「commit」——commit 一定會發生。commit-msg hook 要求每個 commit 帶 `Line:` trailer，允許 `Line: none（理由）`，並把 `none` 的比例當成每週被印出來的數字（照第六節 #12 對「靠人記得」計數施壓的同一手法）。跳過依然可能，但會留痕、會被統計，而不是在畫面上長得跟「不需要」一樣。"
+   },
+   {
+    "target": "第八節節奏表：把文件層漂移 `--live`、驗證債、畢業回指三支「直接搭便車」進 daily-check",
+    "objection": "daily-check 是單一警報通道，任何一支非零就整包 fail 並打同一則 ntfy。驗證債是設計上會長大的數字，接進去等於讓治理噪音把資料層唯一的紅燈變成常亮——這正是提案自己排在優先序第二鍵的「假警報訓練人忽略警報」，而它自己就是製造者。",
+    "evidence": "scripts/daily-check.sh 收尾：`status=pass; [ ${#fail_msgs[@]} -gt 0 ] && status=fail` → `scripts/notify.sh \"lightrag 每日檢查 FAIL\" ...; exit 1`。五支現有檢查與任何新增項共用同一個 `fail_msgs`、同一則推播、同一個 exit code。清償路徑量級：實測動過 `scripts/` 的 commit 有 102 個／5 個工作日 ≈ 20 個/日，每筆都要一趟 dker 實跑＋人工抄回 coder（實例 commit cfba960 訊息末「18 份基準取自 dker 實跑 `canary --update`」；而 NEXT.md:44-47 明寫「在 dker 跑任何 `--update` 會弄髒它的 checkout」，正確做法是四步手抄還原）。20 筆/日 的債，人工清償速度必然追不上。",
+    "severity": "blocking",
+    "suggested_fix": "治理探針走獨立通道：獨立 timer、獨立 ntfy topic（或只寫檔不推播），永遠不要進 daily-check 的 `fail_msgs`。資料層那則紅燈的語意必須維持「跑著的系統壞了」。驗證債只印趨勢數字、永不進 fail 判定；真要有紅線就設「單筆債齡 > N 天且該 commit 命中重票」才響，並先量 N。"
+   },
+   {
+    "target": "第二節「砍：opus-cold 常設席」＋第十節待決策 #1",
+    "objection": "砍掉之後，實作（terra）與單審／終審（sol）在**專案自己的分類器**下同屬 openai 家族，deepseek 只在碰 pp/rules 或閘門判準時才觸發。一張不碰 rules 的重票，從實作到終審全部在 gpt-5.6 裡面。提案援引 `pp/eyes.py`「兩雙眼睛不能同家族」來論證廢除 opus-cold——同一條原理套回去得到相反結論。",
+    "evidence": "實跑專案自己的 `Eye.family`（scripts/pp/eyes.py:43-55）：`gpt-5.6-terra -> openai`、`gpt-5.6-sol -> openai`、`gpt-5.6-luna -> openai`、`deepseek/deepseek-v4-pro -> deepseek`、`claude-opus -> anthropic`。CLAUDE.md:156-157 確認 terra=`gpt-5.6-terra`、sol=`gpt-5.6-sol`。CLAUDE.md:123-125 重票鏈上 deepseek 是條件觸發（「碰 pp/rules 或閘門判準時」）。提案主張的替代第二來源「dker 實跑輸出」回答的是「跑不跑得起來」，不是「判斷對不對」——不同軸。",
+    "severity": "major",
+    "suggested_fix": "要砍 opus-cold 可以（零次呼叫的證據成立），但同時把 deepseek 從條件觸發改成重票無條件席，否則終審就是同家族自己審自己。或保留一席 Anthropic 但改成極廉價形式：只讀 diff＋終審 checklist、不親跑（親跑本來就與 dker 回程重疊）。"
+   },
+   {
+    "target": "第六節探針 #1「intake OnFailure 備援，15 分鐘」（也是第十節建議的最小承諾之一）",
+    "objection": "估計只涵蓋寫檔。任何新增進 `deploy/systemd/` 的檔案，會讓 dker 的 `systemd-units.py verify` 立刻回 2，daily-check 從那個 commit 起每天紅，直到有人 ssh 進 dker 用 sudo 跑 install。這一步提案裡完全沒出現，而它是跨機的、需要 sudo 的、【靠人記得】的。",
+    "evidence": "scripts/systemd-units.py `cmd_verify`：`rendered = render_all(...)` 遍歷 `deploy/systemd/` 全部 `.service`/`.timer`；`if not installed.is_file(): missing.append(name)`；`if missing or differs: return 2`。daily-check.sh 對 `units_rc != 0` 直接 `fail_msgs+=`。同一問題會在第八節「週報 timer 進版控並加入 ENABLE 清單」再發生一次——`ENABLE` 是寫死在 systemd-units.py:41-43 的常數，加進去後 `systemctl is-enabled` 那段也會失敗直到 dker 上 enable。",
+    "severity": "major",
+    "suggested_fix": "每一項動 `deploy/systemd/` 的工作，工單上必須把「dker sudo systemd-units.py install ＋ verify 回 0 的輸出」列為離開條件，而不是事後補。#1 工時改成「15 分鐘＋一趟 dker」，並標成跨機項目——它就不再是「連 2 天都排不出來時的最小承諾」了。"
+   },
+   {
+    "target": "第二節「砍：文件裡所有可計算的計數」 vs 第六節探針 #3「文件層漂移」",
+    "objection": "兩條規則互斥。前者要求文件只放指標、不准寫字面數字；後者靠在文件裡用 pattern 抓字面數字來比對。前者做得越成功，後者抓到的候選越接近 0——而提案自己規定「抓到 0 個候選 rc=3 錨點失效，不是通過」。兩條都採納的理想終局是探針每天報錯。",
+    "evidence": "提案第二節：「可機讀的事實只准有一份 SSOT，文件只准放指標（『見 assertions-baseline.json』），不准寫字面數字」。第六節 (a)：「對每筆 fact，在 `appears_in` 列出的每個檔案套 `pattern`，比對抓到的值是否等於 `value`」＋「`pattern` 抓到 0 個候選時 rc=3『錨點失效』，不是通過」。scripts/scan-partial.py 的三態慣例在 daily-check.sh:46-53 是 `3) fail_msgs+=(\"...【沒有基準檔】(rc=3) —— 未設定不是通過\")`，即 rc=3 進 fail。",
+    "severity": "major",
+    "suggested_fix": "二選一。建議留探針、放棄「不准寫數字」的全面禁令：把 fact 分成「可以出現在文件裡（有錨點守著）」與「只准放指標（探針斷言它不出現）」兩類，schema 加 `must_appear: true|false`，rc=3 只對 `must_appear: true` 成立。"
+   },
+   {
+    "target": "第六節探針 #3 的錨點（15–25 處插進 CLAUDE.md／NEXT.md）與第九節「刻意不做 #4：不碰檔案結構」",
+    "objection": "宣稱與平行 workflow 的介面只有「一個路徑常數」，實際耦合是逐檔逐行的 `pattern`。另一組正在重排的就是這兩份檔。錨點會在對方改版那一刻整批失效，而失效表現形式是 rc=3，會被當成探針壞了。",
+    "evidence": "提案 fact schema 含 `appears_in: [{file, pattern}]`；自陳代價「錨點要一次手工插進文件約 15–25 處，且以後改數字要改兩個地方」。實測 CLAUDE.md 40,965 bytes、NEXT.md 51,647 bytes，兩份都是平行 workflow 的直接標的。",
+    "severity": "major",
+    "suggested_fix": "排序上把文件結構那組排前面，錨點在對方定稿後再插。要立刻拿到價值就先做不依賴文件錨點的三條：`coder_repo` 用 `Path(__file__).resolve().parents[1]` 自驗、斷言條數用 grep compat-check.py 自己數、`/data/rag` 改成一條「不得出現」的黑名單斷言。這三條今天就會紅，且完全不受重排影響。"
+   },
+   {
+    "target": "第四節規則 #5「過期門檻 14 天」、規則 #6「一個月後重定」、探針 #4「45 天未更新」、第七節「滿一個月無第二次事故就刪」",
+    "objection": "全部時間常數都長於這個專案存在的時間。以觀察史計，`worklog.py stale` 一次都不會響——它會綠著上線並永遠綠著，違反提案自己訂為全案驗收標準的「紅著上線」原則。",
+    "evidence": "實測 `git log --format=%ad --date=short` 唯一日期集合為 2026-08-01…2026-08-06：**總跨度 5 個日曆日、最大 commit 間隔 2 天**，其中 08-05 全天 0 個 commit。每日 commit 數 39/38/52/42/6。",
+    "severity": "major",
+    "suggested_fix": "承認這個專案的時間軸單位是小時不是天。過期門檻先設 3 天（會咬到 08-04→08-06 那個 gap，因此可驗證）；每月重估改成每 200 個 commit 重估；「滿一個月無第二次事故」改成「滿 N 個 commit」。門檻量不出來就不要設，不要用一個永遠不會觸發的值假裝有守。"
+   },
+   {
+    "target": "第三節生命週期表：9 個階段混用兩種粒度",
+    "objection": "階段 1–3、9 是每條線一次，階段 4–7 是每個 commit 一次，階段 8 是每次 push 一次。表上沒有區分，於是 per-commit 的開銷會乘上 commit 密度。光是階段 6（每張重票要有 verdict 檔、mtime 晚於 diff）就要求每天跑 20–30 次 `codex exec`，每次數分鐘。階段比 commit 貴，貴一個數量級。",
+    "evidence": "提案階段 4 觸發寫「開始改動前，或第一次 `git add` 後」＝per-commit；階段 7「提交」＝per-commit；階段 3「開線」＝per-線。實測 commit 密度 39/38/52/42、diff median=64 行、p90=370、重票率 58.8%。",
+    "severity": "major",
+    "suggested_fix": "表上加一欄「粒度：線／commit／push」，然後把 per-commit 那幾格砍到只剩 hook 能在 5 秒內做完的事（測試綠、不含 .env/.pyc、trailer 存在）。審查席位改成 per-線一次，並明寫「一條線內的中途 commit 不觸發審查」。"
+   },
+   {
+    "target": "第八節「每天 08:30 新增三支」與整個驗證回程設計：沒有任何東西確認 dker 已 pull 到含新探針的版本",
+    "objection": "新探針 commit 到 master 之後，若 dker 沒 pull，daily-check 會繼續跑舊碼、全綠、無訊號。這是「乾淨的 0」在部署層的版本，而提案把 dker 的每日排程當成所有治理探針的落點。",
+    "evidence": "全 repo `grep -rn 'origin/master\\|rev-parse\\|git fetch' scripts/ tests/` **零命中**。systemd-units.py verify 比對的是 `/etc` 與本機 checkout 渲染結果，兩邊一起舊時完全自洽。coder 上實測無任何排程（`crontab -l` = no crontab；user timers 只有 launchpadlib-cache-clean），因此「有沒有 pull」在兩台機器上都沒有觀測者。",
+    "severity": "major",
+    "suggested_fix": "daily-check 開頭加三行：`git rev-parse HEAD` 與 `git ls-remote origin master` 比對，不一致進 `fail_msgs`（這條屬資料層防線，可以進主通道）。成本 10 分鐘，且今天跑就可能是紅的，符合「紅著上線」。"
+   },
+   {
+    "target": "整體：第五節與第七節新增的待處理層",
+    "objection": "提案自己的診斷是「一個從未被使用的層級不是緩衝，是空殼」（用來論證 cairn/ 只有 LOG.md），然後新增 5 個「東西可以停在那裡」的位置：收件區、候選區、觀察區、unrouted 桶、drop 登記。每一個都是新的可腐爛表面，而清空動作全部是【靠人記得】。",
+    "evidence": "實測 `find cairn .cairn -type f` 只有 `cairn/LOG.md` 與 `.cairn/config.yaml`，自 init 至今零 topic note、零 Cited.md。提案第二節同時承認這點並保留 cairn 兩格為 lazy create。新增位置分別在階段 1（收件區）、規則 #2（候選區）、路由硬性限制 3 與第七節（觀察區）、週報（unrouted 桶）、第七節出口表（drop 登記）。",
+    "severity": "minor",
+    "suggested_fix": "合併成一個檔、一種狀態機：`OPEN.jsonl` 的 `status` 加 `inbox`／`candidate`／`observing`／`dropped` 即可。週報只印一個數字：非 active 條目的總數與最舊者的年齡。"
+   },
+   {
+    "target": "第六節探針 #2「git hook 進版控 ＋ `githooks.py verify` 掛進 pytest ＝ 探針的探針」",
+    "objection": "這個類比在 systemd 成立、在 git hook 不成立。systemd-units 能守是因為 `/etc` 與 timer 同機；hook 只裝在 coder，而 pytest 唯一的排程在 dker。於是每天真的會跑的那次 verify 永遠回「驗不了」，而 coder 上要跑到它，前提是有人記得跑 pytest——回到原點。",
+    "evidence": "scripts/daily-check.sh 呼叫 `scripts/run-tests.sh`（→ pytest），由 `deploy/systemd/lightrag-daily-check.service` 的 `ExecStart=@REPO@/scripts/daily-check.sh` 在 dker 觸發。coder 實測無任何排程。提案自陳「hook 只在 coder 裝（dker 不 commit），判不出機器時回『驗不了』不回『通過』」。",
+    "severity": "minor",
+    "suggested_fix": "改由 hook 自己守自己：pre-commit 第一件事比對自己的 sha256 與 repo 裡的渲染結果，不符就拒絕 commit 並印安裝指令。這樣「hook 被改掉或被刪掉」在 coder 上當場會被抓到，不需要遠端排程。"
+   },
+   {
+    "target": "第八節「每次開工跑 `next.py`」與第九節「刻意不做 #7：不把制度層探針做成依賴 dker」",
+    "objection": "next.py 的賣點是「一畫面看完 dker 昨夜狀態」，必然要連 dker；而刻意不做 #7 說制度的健康不該取決於能不能連上 dker。兩條同時成立不了。而且連線手段本身未驗。",
+    "evidence": "提案第八節：「跑 `next.py`：一畫面看完 dker 昨夜狀態、驗證債、文件漂移…」；第九節 #7：「不把制度層探針做成依賴 .env 或資料庫…制度的健康不該取決於能不能連上 dker」。實測 coder 上 `~/.ssh/config` **不存在**（No such file or directory），`ssh florian-dker` 別名的解析路徑未驗（NEXT.md:52 有文字依據，tailscale 已安裝，可能走 MagicDNS，未驗,推測）。",
+    "severity": "minor",
+    "suggested_fix": "next.py 分兩段輸出：本機可算的（文件漂移、線狀態、未分流數）永遠印；dker 那段連不上時明確印「dker 狀態：驗不了（最後一次成功是 X）」而不是省略。並先實測 `ssh florian-dker` 走什麼解析路徑，寫進 README。"
+   },
+   {
+    "target": "整份提案作為一張「新工作」本身：沒有引用已存在的同型前案，也沒有回應該前案被 PO 明確判「先不做」的理由",
+    "objection": "用提案自己的規則檢查，這張單開不出來。`worklog.py open` 的賣點正是「拿新線關鍵字比對已 drop 的線，命中就印前例」——而 repo 裡就躺著一份同型的治理盤點，檔頭明寫 PO 判定不做，理由恰好命中本提案的核心（現在定 schema 是猜需求）。提案引用了這份檔，但只引用它的其中一個事故案例，沒有引用它的結論。",
+    "evidence": "docs/precedents-inventory-20260804.md:1-16 檔頭：「⚠ 這份是 codex luna 掃 repo 產出的原始盤點，不是已確認的先例表…75 條裡只有 5 條經人工核對，其中 3 條 luna 標過頭…**它沒有被任何程式使用**，也不是機器可讀的格式。要升格成真正的先例表，缺三樣：逐條人工確認、schema、以及一個真的會查它的消費者。**PO 2026-08-04 判定：先不做**——第一份新文件都還沒跑過，現在定 schema 是猜需求。」抽驗 5 條錯 3 條（X02／X12／X06 誤報）。本提案要新增的 schema 至少 6–7 份（doc-facts、assertions-baseline、worklog OPEN.jsonl、驗證帳本、鐵則鏡像、退休登記、unrouted 桶）。",
+    "severity": "major",
+    "suggested_fix": "提案開頭加一節「前案與為什麼這次不一樣」，逐條回答 PO 2026-08-04 的三個缺口（人工確認、schema、消費者）。答不出「這次的消費者是誰、什麼時候會印出來」的資產就不要建——這正是提案自己的路由硬性限制 2。同時把 3/5 誤報率當成先驗：任何由 AI 掃 repo 產生的治理清單，未經人工核對的條目可信度約 40%。"
+   },
+   {
+    "target": "第二節「砍：手寫維護的工作線狀態總表（改機器生成）」與探針 #8 `worklog.py`（估 1–2 天）",
+    "objection": "證據支持的處置比提案的處置小一個數量級。實際抓到的缺陷是「同一列出現兩次」與「狀態欄過期」——前者是一支 20 行的唯一性測試，後者是一條 SSOT 宣告。用一支帶 open/touch/pause/close/drop/stale 的 CLI 去解，代價是把現行表格裡帶理由、帶 commit hash 的散文搬進 jsonl，或丟掉它（違反藍桶第 2 條）。",
+    "evidence": "NEXT.md 狀態總表實讀：`| REBUILD | REBUILD-5（驗收與切換） | ✅ |` 與末列 `| REBUILD | REBUILD-1…REBUILD-11 | 🔵 殘項見下方專節。REBUILD-10（文件對齊現況）✅ 完成 2026-08-05 |` 確為兩列。每格都是散文，例如 SYMBOL 那列：「⏸ 全線無在跑項目：-1／-2（不掃）／-3／-4（不修）✅ 已定案；-5（改 prompt）第一版實測反效果暫緩；-3.1（量測工具）停在未過審，數字只當線索」。提案自陳「生成器要能保住人手寫的備註欄」，即承認生成器要同時處理結構欄與自由文字欄。",
+    "severity": "major",
+    "suggested_fix": "第一批只做兩件：(1) 一支 pytest 斷言「NEXT.md 狀態總表第一欄無重複」＋「表內每個 label 前綴都在註冊表裡」，約 30 行；(2) CLAUDE.md 前綴註冊表刪掉狀態欄、改寫一行「狀態的唯一 SSOT 是 NEXT.md 狀態總表」。這兩件今天做完就消滅本輪驗到最密集的漂移，成本 1 小時。worklog.py 等到真的有「線多到記不住」的訊號再說——目前同時進行中的線數是 1。"
+   }
+  ]
+ }
+]

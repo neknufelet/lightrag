@@ -1,0 +1,321 @@
+[
+ {
+  "objections": [
+   {
+    "target": "第六節 VERIFY-9-A02「路徑對程式，不對文件」；DOCROUTE-9 把探針掛進 daily-check",
+    "objection": "A02 斷言「文件裡的 repo 路徑必須 == git rev-parse --show-toplevel」在**兩台機器上不可能同時成立**，而探針每天跑在 dker。coder 是 lightrag-v1（已驗），dker 依 NEXT.md:23 是不含 -v1 的路徑。文件只能記一個字面路徑，於是 A02 必定有一台機器天天紅——正是方案自己在 DOCROUTE-9 風險欄寫的「誤報會讓每日檢查天天紅、稀釋警報，比沒有探針更糟」。更關鍵的是：這個問題本專案**早就解過了**，方案卻沒看到。",
+    "evidence": "scripts/systemd-units.py:24-27 檔頭：「**佔位符**：`@REPO@`（checkout 路徑）、`@USER@`、`@NTFY_URL@`、`@WORKSPACE@` 與 `@DATA_ROOT@` … 全部是換機器會變的東西，寫死就等於這份 repo 只能在一台機器上用。」deploy/systemd/lightrag-intake.service:20-22 實際使用 `@REPO@`／`@WORKSPACE@`／`@DATA_ROOT@`。而 ls ~/ghq/github.com/neknufelet/ 回：有 lightrag-v1，無 lightrag（已驗）。失敗情境：DOCROUTE-3 把 CLAUDE.md:23 改成 lightrag-v1 → DOCROUTE-9 上線 → dker 08:30 起每天 A02 紅 → 三天內被當雜訊忽略。",
+    "severity": "blocking",
+    "suggested_fix": "文件不得記任一台的絕對路徑。座標表改成與 systemd-units.py 同一組佔位符（`@REPO@` 等）＋一張「哪台解析成什麼」的對照表；A02 改為斷言「文件用到的佔位符集合 == scripts/systemd-units.py 定義的集合」與「@DATA_ROOT@ 的預設值 == scripts/pp/paths.py:14 的 DEFAULT_DATA_ROOT」，兩者都與機器無關。DOCROUTE-3.5 取 dker 路徑真值的目的隨之改成「填對照表」而非「改字面路徑」。"
+   },
+   {
+    "target": "第六節 VERIFY-9-A01「唯一正本」；DOCROUTE-3 驗收「A01–A06 轉綠」",
+    "objection": "我照 A01 的規格實跑了一次：全 repo `.md` 抽千分位數字與百分比，**35 個 token 出現在 ≥2 個檔**，其中大半不可能修好。`7,211` 出現在 6 個檔，包含 docs/log_20260803.md——而方案「刻意不做 #1」明訂 docs/ 本文不動。通用門檻值 `5%`(5檔)、`55%`(4檔)、`10%`(4檔)、`50%`／`40%`／`70%`／`72%`／`28%` 各 2-3 檔，全是誤報。於是 DOCROUTE-3 的驗收條件「A01 轉綠」結構上達不到，例外清單開工第一天就要塞二三十條、理由欄一律寫「這是歷史檔的歷史數字」——變成橡皮圖章，正是方案自己要防的警報稀釋。",
+    "evidence": "實跑 python3 掃 rglob('*.md')：total distinct numeric tokens 168、appearing in >=2 md files **35**。前六名：7,211(6檔含 docs/log_20260803.md)、5%(5檔)、55%(4檔)、10%(4檔，含 skills/lightrag-fetch/SKILL.md 與 lightrag-search/SKILL.md 的 API 說明)、1,589(3檔)、14,226(3檔)。方案 DOCROUTE-2 驗收要求「列出的漂移**恰好**命中已知項」——實際會列 35 項，已知項只佔 1/3。",
+    "severity": "blocking",
+    "suggested_fix": "A01 縮成兩條可達成的：(a) 受管範圍只含 always-load 檔（CLAUDE.md／rules/*.md／AGENTS.md）＋ cairn/，docs/ 全域豁免且寫死在程式裡不進例外清單（因為它是 archive-reference，永久豁免不是例外）；(b) 只管「能在機器來源找到對應值」的數字——即該 token 必須同時出現在 tests/*.json 或某支腳本的輸出，否則它不是「正本」是敘事。純百分比與 ≤2 位數一律不掃。DOCROUTE-2 的驗收改成「列出的漂移集合 ⊇ 已知六項，且總數 ≤ 12」。"
+   },
+   {
+    "target": "第六節 VERIFY-9-A07「藍桶沒漂移」；DOCROUTE-4 驗收②「sha256 前 16 碼必須仍等於 d31afca400873b28」；待決策①",
+    "objection": "這個 sha 對「藍桶區塊被改動」有效，但對**這個專案實際會發生的漂移完全無感**——因為上游明寫它只涵蓋 9 條核心規則，而 1.2.0→1.9.0 這七次改版**沒有一次動到它**。方案卻要把 溝通雙軌（1.6.0 加）與 提交紀律（1.8.0 加）也放進 rules/baseline-snapshot.md，然後宣稱「獨立成檔之後『勿手改此區塊』才變成可 hash 的整檔」。那兩節在 sha 之外，零保護。而且失敗案例就在隔壁一個目錄，是活的。",
+    "evidence": "標準 SSOT 自陳：/home/florian/ghq/github.com/neknufelet/standards/BASELINE.md:11「rules_sha256: d31afca400873b28  # sha256(grep '^N. **' rules)[:16]；**僅當 9 條核心規則本身變動才會變**」；同檔 :21 版本史逐條註明 1.2.0/1.3.0/1.4.0/1.5.0/1.6.0/1.7.0/1.8.0/1.9.0 全部「rules_sha256 不變」。活的反例：/home/florian/ghq/github.com/neknufelet/florian-dker/CLAUDE.md:19 帶著 `baseline_version: 1.8.0 rules_sha256: d31afca400873b28 synced: 2026-07-24`——**落後一版、hash 照樣相符、照樣「通過」**。失敗情境：BASELINE bump 到 2.0.0 只改提交紀律，lightrag 的 rules/baseline-snapshot.md 原地不動，A07 天天綠。",
+    "severity": "blocking",
+    "suggested_fix": "A07 拆三條：(a) hash **整個 rules/baseline-snapshot.md 檔案 body**（不只 9 條），基準值寫進 tests/docs-contract.json；(b) 斷言檔內 `baseline_version` 字串 == BASELINE.md frontmatter 的 baseline_version（coder 有 standards repo 時；dker 回「驗不了」）；(c) 保留現有 9 條 sha 當第三重。三條缺一，1.6.0/1.8.0 型的改版就是靜默的。"
+   },
+   {
+    "target": "第三節目標結構 cairn/mineru-pitfalls.md「內容從哪來：CLAUDE.md:284-298、:327-341」；DOCROUTE-5",
+    "objection": "鐵則的**權威敘述其實住在規則模組的 docstring 裡，而且比 CLAUDE.md 完整**。方案只認出 chart_type.py 一個（因為它是已爆的矛盾），其餘三個模組完全沒進視野，於是 cairn topic 會從較弱的那份抄一遍——製造第四份正本，而 A01 只掃 `.md`，結構上看不見這種重複。",
+    "evidence": "scripts/pp/rules/layout_noise.py:1-8 完整寫了鐵則 2「為什麼是消音而不是刪除：tables.json 用 content_list.json#/6 這種陣列索引當 self_ref，刪掉一個項目其後所有 sidecar 引用就指向別的東西，而且不會報錯」＋「為什麼按型別而不是按字串」（CLAUDE.md 沒有後半段）；同檔 :29-36 是耐久規則表「書眉/頁尾數樣板」那一列的全部證據（'Page 24.417.1'…15 個全不重複，字面計數永遠是 1）；scripts/pp/rules/empty_table.py:1-9 是「不修什麼」的判準＋idx 7 的 799 字元實測；scripts/pp/rules/latex_fix.py:1-52 是三條 LaTeX 規則的完整推導，含「刻意不動的一族」6 處 `e^{-γ_{n,v}×}` 與理由「規則要一次只放寬一條，才知道漂移是誰造成的」。A01 規格自陳「掃全 repo `.md`」。",
+    "severity": "major",
+    "suggested_fix": "每條有程式主人的鐵則，rules/ironclad.md 與 cairn/mineru-pitfalls.md 一律只寫判準句＋`scripts/pp/rules/<x>.py` 的 file:line 指標，證據段一個字都不搬。A09（斷鏈與孤兒）擴一條：`scripts/pp/rules/*.py` 每個模組的 docstring 必須被 rules/ironclad.md 引用恰好一次，反向也要（沒有程式主人的鐵則要明確標「純敘事」）。"
+   },
+   {
+    "target": "第六節 VERIFY-9-A03「欄位／份數不得手寫」；DOCROUTE-3 自陳「純 `.md`」",
+    "objection": "A03 只掃 `scripts/*.py`，這個 glob **不含 scripts/pp/**、不含 tests/、不含 *.sh**。我實際 grep「20 份」在程式樹裡活著 11 處，方案只點名其中 2 處；而 DOCROUTE-3 又明寫自己是「純 `.md`」，所以這 11 處在整條 DOCROUTE-1…10 裡沒有任何一張票會修。方案自己在診斷 B8 說「過期已滲進原始碼」，然後十張票沒有一張處理它。",
+    "evidence": "grep -rn 「20 份」 scripts/ tests/ 實際命中：scripts/coverage-check.py:29,199；scripts/postprocess.py:343,533；scripts/parse-only.py:122；scripts/compat-check.py:522,534（方案唯一點名的兩處）；scripts/pp/oracle.py:247；scripts/pp/rules/latex_fix.py:19「全母體 20 份掃出 20 處」；tests/test_canary.py:10。另 grep -rln v155 命中 12 個檔含 compose.yaml。`ls scripts/*.py` = 21 檔，規則模組全部在 scripts/pp/rules/ 之下，glob 不覆蓋。",
+    "severity": "major",
+    "suggested_fix": "A03 的 glob 改成 `scripts/**/*.py`＋`tests/*.py`＋`scripts/*.sh`，並把「份數」的真值源綁到 len(tests/canary-baseline.json)。另開 DOCROUTE-3.6 專修程式註解（與 3.x 的 .md 分票，否則 revert 一次會連程式一起回捲，違反方案自訂的「搬動與修正必須分票」精神）。latex_fix.py:19 那句要改成「全母體掃出 20 處」——處數是實測、份數是母體，只有後者過期。"
+   },
+   {
+    "target": "DOCROUTE-8「收編 SYMBOL-5」；CLAUDE.md 前綴註冊表 SYMBOL 列",
+    "objection": "沒有任何 agent 讀過 tests/symbol1-answer-key.json（629 行）與 tests/symbol2-results.json（515 行）——**1,144 行已完成的實驗知識**，含 Wilson 95% CI 與 McNemar p 值，以及一段標準的方法論警語。更要命的是它綁死在一個已經不存在的母體上：答案卷 population=1482，而 CLAUDE.md 現況說符號型現在是 4,494（2026-08-04 整批換語料）。所以 DOCROUTE-8 若只是把 SYMBOL-5 收編成一行 `⏸`，**下一個接手的人會以為它可以直接續做**，實際上答案卷已作廢、要重抽重判 50 題。方案完全沒提這件事。",
+    "evidence": "tests/symbol1-answer-key.json: line=SYMBOL-1, date=2026-08-03, workspace=acoustics_v2, population=**1482**, n=50, seed=20260803, source=\"extract-check.py --dump-symbolic（與閘門同一段分類程式碼）\"。tests/symbol2-results.json: stats.wilson95 A[50,76] B[58,83] C[69,90], mcnemar_p A_vs_C=0.012, union_AB_catches_all_4_wrong={flagged:12, recall:4/4, false_alarms:8}, caveat=\"答案卷是主線一人的判斷，不是客觀真理；correct/restated 的界線本身模糊，部分分歧是題目的問題不是模型的問題。\" 對照 CLAUDE.md:429「符號型 4,494 個『驗不了』」。CLAUDE.md:243 SYMBOL 仍標「待做」。",
+    "severity": "major",
+    "suggested_fix": "DOCROUTE-8 收編 SYMBOL-5 時必須寫成「⏸ 阻塞：答案卷 tests/symbol1-answer-key.json 綁 population=1482 的舊母體，現況 4,494，續做前須以同一 seed 協定重抽重判」。那句 caveat（答案卷不是客觀真理、界線模糊是題目的問題）是 cairn/rule-lifecycle.md 的核心素材，優先於 CLAUDE.md:445-483 的抄錄。另在 A03 加一條：tests/symbol*.json 的 population 若 != 現行 extract-check 的符號型計數，回「基準已作廢」。"
+   },
+   {
+    "target": "DOCROUTE-6「lightrag-ops/SKILL.md 承接：三個 systemd 單元」",
+    "objection": "deploy/ 是全案唯一從頭到尾沒有任何 agent 讀過、卻承載大量決策理由的目錄，而方案要做的正好是把它**再抄一份**。那些理由已經貼在 artifact 旁邊、已經進版控、已經有 scripts/systemd-units.py verify 每天比對 /etc 與 repo——這是本專案「單一事實來源」做得最好的一層，方案把它降級成 skill 裡的一段轉述。",
+    "evidence": "deploy/systemd/lightrag-intake.service:2-11 是 10 行的安全論證：「刻意跑在宿主上，不進 compose … 審核台會呼叫 postprocess.py，而 pp/oracle.py 靠 docker exec … 容器裡要做這件事就得掛 /var/run/docker.sock —— 而審核台是對外開埠、接受檔案上傳的網頁服務。給它 docker socket 等於誰打進來誰就有整台機器。」deploy/systemd/lightrag-cold-backup.service:3-5「沒有新的抽取成果時腳本會自己跳過、完全不停機，回 0 —— 所以『常常什麼都沒做』是正常的」；lightrag-cold-backup.timer:3「03:00 是刻意挑的：與 08:30 的 daily-check 錯開」；lightrag-check-crashed.service:3「刻意不走 notify.sh —— 備援不能依賴可能正是故障原因的主路徑」。CLAUDE.md 現行就已經是純指標寫法（「理由見 deploy/systemd/lightrag-intake.service 檔頭」）。",
+    "severity": "major",
+    "suggested_fix": "lightrag-ops/SKILL.md 只放**指令**（怎麼 install／verify／看 journal），一句理由都不搬，改寫「為什麼這樣設計：見對應 unit 檔頭」。A09 擴一條：deploy/systemd/ 每個 .service/.timer 必須被通道指標表引用恰好一次（目前 CLAUDE.md 文件地圖與 AGENTS.md 文件職責表**兩張都沒收 deploy/**，是與 precedents-inventory 同型的孤兒）。"
+   },
+   {
+    "target": "第一節座標診斷、DOCROUTE-3.5 的四個 dker 真值",
+    "objection": "compose.yaml 裡有兩件座標級事實，兩張角色表都沒收、DOCROUTE-3.5 的四項也沒有。其中一件直接關係到「dker 上這份 checkout 到底叫什麼」——也就是 B1 那個爭議本身。",
+    "evidence": "compose.yaml:2「本目錄被 bind mount 進 dockge 容器的 **/opt/stacks/lightrag-v1**（見 /opt/stacks/dockge/compose.yaml）」——路徑帶 -v1，與 NEXT.md:23 說 dker checkout 不含 -v1 併存，兩者可能都對（一個是 dockge 掛載點、一個是 git checkout），但沒有任何文件寫下這個區分。compose.yaml:17-27 另記一條停機契約：「`:?` 在讀取 compose model 時就擋下 … config/up/down/ps 全部 exit 1 —— 包含 **down**。也就是說『連停都停不掉』。逃生方式：`WORKSPACE=acoustics_v2 docker compose down`」。這是緊急停機時唯一救命的一行，只活在 compose.yaml 註解裡。",
+    "severity": "major",
+    "suggested_fix": "DOCROUTE-3.5 的唯讀清單補兩條：`ls -l /opt/stacks/` 與 `readlink -f /opt/stacks/lightrag-v1`，把 dockge 掛載點與 git checkout 兩個路徑分別記進座標表（欄位分開，不要再用「同路徑」這種會塌成一個值的寫法）。緊急停機逃生指令（`WORKSPACE=… docker compose down`）進 CLAUDE.md 的 fail-safe 三句，不進 skill——它要在 skill 沒載入的時候也讀得到。"
+   },
+   {
+    "target": "DOCROUTE-4「開新 session 確認 rules/ 內容確實出現在 context」（驗證第 ④ 項，排在搬動之後）",
+    "objection": "整個 ≤105 行 manifest 架構押在「`@rules/baseline-snapshot.md` 這種非 CLAUDE.md 路徑的 import 會生效」上，而這件事**沒有任何人驗過**。方案說「頂層 `@` 生效已由本 session 的系統提示證實」——證實的只有 `@AGENTS.md` 這一個具體檔案。驗證步驟被排在搬完之後，等於發現壞掉時 250 行藍桶＋鐵則已經離開 always-load 層，而那正是方案硬約束 2 要保護的東西。",
+    "evidence": "CLAUDE.md:650 `@AGENTS.md` 是唯一被證實生效的 import（本 session 系統提示同時含兩份全文）。方案自陳「不依賴 `@` 是否遞迴——頂層 `@` 生效已由本 session 的系統提示證實，遞迴那一層我沒驗過」。失敗情境：DOCROUTE-4 的 commit B 刪掉 CLAUDE.md 的藍桶區塊 → 開新 session → rules/ 沒被載入 → dker 上的所有工作在沒有藍桶 9 條與鐵則的情況下進行，而且**不會報錯**，只有下一次有人問「第 9 條說什麼」才會發現。",
+    "severity": "minor",
+    "suggested_fix": "把 ④ 提前成 DOCROUTE-4 的前置閘（甚至獨立成 DOCROUTE-3.7）：先建一個 `rules/_probe.md`，內含一個唯一 sentinel 字串（例如 `DOCROUTE-PROBE-7f3a`），在 CLAUDE.md 加 `@rules/_probe.md`，開一個乾淨 session 要求它複述 sentinel。拿到輸出才准動任何內容；驗完刪 probe。這與方案自己「探針上線第一次跑必須是紅的」是同一條紀律——先證明機制會動，再押上去。"
+   },
+   {
+    "target": "第六節 A05「待辦不得住錯地方」；刻意不做 #1「docs/ 本文不動」",
+    "objection": "A05 的兩個條件用「且」串起來，前一個條件與方案的硬性原則直接衝突，於是 A05 永遠綠不了。",
+    "evidence": "A05 規格：「任何 `- [ ]` 若最近上層標題含『完成／歸檔／歷史』即紅；**且**每個 `- [ ]` 的 label 必須在 NEXT.md 找得到」。實例 docs/log_20260803.md:202 的 SYMBOL-5 就在標題寫「已歸檔的完成項」的節底下；而 DOCROUTE-8 明訂收編時「原檔一字不改」、刻意不做 #1 明訂 docs/ 本文不動。兩者同時成立 ⇒ 第一個條件永久紅。",
+    "severity": "minor",
+    "suggested_fix": "A05 對 docs/ 只保留第二個條件（label 必須在 NEXT.md 追蹤得到），第一個條件（標題語境）只適用於 NEXT.md 與 cairn/。docs/ 的補救寫在 header（DOCROUTE-1 已規劃每份 +3~5 行 header），內容是「本檔含未完成項，追蹤在 NEXT.md」。"
+   },
+   {
+    "target": "診斷段「coder 上連 .env 都沒有（不進版控），碰 DB 的腳本在那裡根本跑不起來」（引自 CLAUDE.md 第 9 條加強版）",
+    "objection": "這句被當成「物理隔離」的載重前提反覆引用，但它作為字面陳述是錯的，而且錯的方向會讓一個真正的部署契約目錄整條漏掉。",
+    "evidence": "`ls .env` → No such file or directory（repo 根確實沒有，前半段成立）；但 `git status --porcelain --ignored` 顯示 `!! deploy/llama-qwen36-moe/.env` 存在於 coder，`cut -d= -f1` 得 `LLAMA_API_KEY`。deploy/llama-qwen36-moe/{compose.yaml(88 行), .env.example} 在 DOCROUTE-1…10 十張票裡一次都沒出現，而它是 LLM binding 的部署契約（重票觸發清單第 4 條「動 compose.yaml 或任何部署契約」的管轄範圍）。",
+    "severity": "minor",
+    "suggested_fix": "論述改成「repo 根 `.env` 只在 dker」，別說 coder 沒有 .env。DOCROUTE-1 的對照表把 deploy/llama-qwen36-moe/ 列進受管路徑（就算結論是「不動」也要有一列），A09 的孤兒斷言涵蓋它——否則下次換 LLM 伺服器時，那份 88 行 compose 與它的 .env.example 沒有任何導航指得到。"
+   },
+   {
+    "target": "DOCROUTE-3 驗收「`scripts/run-tests.sh` 全綠」",
+    "objection": "沒有記錄改動前的基線數字，於是「全綠」無法區分「87 個都過」與「某些測試被靜默跳過後剩下的都過」。這正是本專案鐵則 7 與探針收合輸出規則（必須報出「幾項通過未列出」）要防的同一件事，方案把它用在 docs-check 上卻沒用在自己的驗收上。",
+    "evidence": "實跑 `python3 -m pytest tests/ -q` → `87 passed in 4.94s`（coder，本次）。方案 DOCROUTE-3／9 的驗收只寫「全綠」「tests_rc 為 0」，沒有計數。scripts/run-tests.sh:16-18 的失敗判定也只看 rc，不看收集數。",
+    "severity": "minor",
+    "suggested_fix": "DOCROUTE-1 就把 `87 passed`（pytest）與 test_gates.py 的案例數寫進對照表當基線；DOCROUTE-3/5/9 的驗收改成「passed 數 ≥ 基線，且新增數 == 本票新增的測試數」。加進 tests/docs-contract.json 當一個受管數字，讓它自己被 A03 守著。"
+   }
+  ],
+  "verdict": "flawed-but-fixable",
+  "what_survives": "攻不倒的部分（我逐一實跑核對過）：\n\n**1. 零部署改動的接線——完全屬實，是全案最強的一塊。** 我讀了 scripts/daily-check.sh:69-77 與 scripts/run-tests.sh 全文：daily-check.sh:73 確實直接跑 `scripts/run-tests.sh`，run-tests.sh:10 確實是 `python3 -m pytest tests/ -q`，失敗走 exit 1 且 lightrag-daily-check.service:12 的 `SuccessExitStatus=1` 讓「檢查紅燈」不會被誤判成 unit 掛掉、另有 OnFailure 獨立備援。新增一個 `tests/test_*.py` 確實自動進入每天 08:30，不動 deploy/、不動 compose.yaml、不碰 .env。行號與機制都對。\n\n**2. 「探針上線第一次跑必須是紅的」這條順序紀律。** 這是鐵則 7 的正確應用，而且方案把它綁成 DOCROUTE-2 的驗收條件（而非事後檢查），是全案唯一讓 3,800 行搬動有客觀驗收的東西。我沒有更好的替代。\n\n**3. 否決 cairn/ROADMAP.md。** 我核對過規格：references/init.md 確實把 ROADMAP 列為 optional，assets/templates/AGENTS.md:31 也是。狀態問題確實是兩處各自維護，不是檔名問題。建新檔＝多一份副本，這個判斷正確。\n\n**4. 拒絕把 docs/ 2,290 行搬進 cairn/。** 我讀了 docs/ 的實際內容取樣，那些是推導過程（archive-reference），topic note 的形式是 current truth／就地更新，搬進去確實會把推導壓成結論。而且 docs/precedents-inventory-20260804.md 自陳抽驗 5 條錯 3 條，方案拒絕自動匯入 75 條是對的。\n\n**5. 不改 compat-check.py 的 A-## id。** 它是 /data/lightrag/checks/ 歷史紀錄的鍵，改名會斷掉漂移偵測的母體。方案給的正解（多帶一個 `suite` 欄）也對。\n\n**6. VERIFY-9 的標籤法。** 一支檢查腳本一個號、`-A##` 是已註冊的子程序字母，符合 CLAUDE.md:246-259 自己的規則。方案二的 D1–D10 與方案三的無標籤編號確實違反它。\n\n**7. 診斷的核心判斷：cairn 的 topic note 層是空的，這才是病因。** 我 `ls cairn/` 確認只有 LOG.md；也確認 .cairn/config.yaml:7 的 skill_spec_date 與 references/upgrade.md:5 逐字相同（2026-07-16，drift 0）。骨架裝好了、承接層空著——這個診斷成立，且方案指出「結論只能往 always-load 的 CLAUDE.md 或做完就刪的 NEXT.md 塞，兩個都不是家」的因果鏈是對的。\n\n**8. 兩段式 commit ＋ 行級對帳 ＋ 搬移對照表。** 這是藍桶第 2 條（No silent drops）唯一的機器答案，我想不出更弱的替代。commit A 只新增目的地、commit B 只准有刪除與指標行，且各自可單獨 revert——這個結構本身沒有漏洞。\n\n**9. 對「skill 沒載入是無聲的」的自陳。** 方案在待決策②明講這是唯一機器擋不住的風險並要求 PO 明確承擔，沒有粉飾。這個誠實度應該被保留。"
+ },
+ {
+  "verdict": "flawed-but-fixable",
+  "what_survives": "骨架與診斷大致站得住，以下各項我實跑驗過、攻不倒：\n\n1. **零部署改動的接線是真的。** `scripts/daily-check.sh:73` 確實直接跑 `scripts/run-tests.sh`，`scripts/run-tests.sh:10` 確實是 `python3 -m pytest tests/ -q`。方案引的行號逐字正確。\n\n2. **A02 的資料根那一半是對的且必要。** `scripts/pp/paths.py:14` `DEFAULT_DATA_ROOT = Path(\"/data/lightrag\")`、`scripts/daily-check.sh:17` `CHECK_DIR=/data/lightrag/checks`，而 `CLAUDE.md:25`／`:570` 寫 `/data/rag/lightrag`。文件對程式而非對文件，判準正確。\n\n3. **A03 的 canary 欄位數是對的。** `scripts/postprocess.py:247-251` `_CANARY_KEYS` 實有 15 項；`CLAUDE.md:392` 只列 8 個。方案沒有記錯。\n\n4. **藍桶 sha256 可重現，A07 可實作。** 我用程式列舉重算：`d31afca400873b28` 等於 `CLAUDE.md:43-51`（九條編號行）的 sha256 前 16 碼。且 `grep -rn \"d31afca400873b28\\|rules_sha256\" scripts/ tests/` 零命中——目前**沒有任何程式在守它**，所以把它變成常設斷言是純增益。\n\n5. **文件層零探針的診斷成立。** `grep -rn \"CLAUDE.md\\|NEXT.md\\|AGENTS.md\" scripts/ tests/ deploy/` 的命中全是敘述性註解或 JSON 的 `source` 字串，沒有一行是驗證邏輯。\n\n6. **`14,226` 重複屬實。** 我掃全 repo 15 份 `.md`：`14,226`／`26,447`／`1,589` 各出現在 `CLAUDE.md`／`NEXT.md`／`cairn/LOG.md` 三個檔。\n\n7. **第七節「刻意不做」的多數判斷正確且有依據**：不搬 docs/ 進 cairn/、不自動匯入 75 條先例、不建 catch-all、不改 `compat-check.py` 的 `A-##` id、不建 ROADMAP、本輪不動 `skills/` 三份（我 `diff -rq` 過，repo 根三份與 `AI_TOOLS/skills/common/` 現況一致，且 `~/.claude/skills/` 確為 symlink 指向 AI_TOOLS）。\n\n8. **兩段式 commit（A 只新增、B 只刪除）的形狀本身是對的**，問題出在它保護不到什麼（見 objections 12、15），不是形狀錯。",
+  "objections": [
+   {
+    "target": "第三節目標結構表「tests/verified-findings.json … 不動」＋ DOCROUTE-5（extraction-quality 承接 CLAUDE.md:579-589、:615-648）",
+    "objection": "這張表把 `verified-findings.json` 標成「不動」，但它裡面有兩筆 `source` 欄位是**指向 CLAUDE.md 章節標題的字串**，而且會被印在終端機上。搬走那一節之後，extract-check 每次超標都會印出一個不存在的出處。這不是文件內部連結，是跑著的工具的輸出。",
+    "evidence": "tests/verified-findings.json:16 與 :42 均為 `\"source\": \"CLAUDE.md「抽取品質:接地檢查」\"`；scripts/pp/findings.py 的 `Finding.lines()` 有 `out.append(f\"{indent}  出處：{self.source}\")`，即該字串會直接印給人看。CLAUDE.md:579 的章節標題正是 `## 抽取品質:接地檢查`，而方案 DOCROUTE-5 把 :579-589 與 :615-648 搬進 cairn/extraction-quality.md。VERIFY-9-A09 的定義是「`.md` 內相對連結目標必須存在」——JSON 字串欄位不在掃描範圍。",
+    "severity": "blocking",
+    "suggested_fix": "三選一，但必須在 DOCROUTE-5 的同一個 commit 裡做完：①把 `source` 改成 `cairn/extraction-quality.md`（那就不是「不動」，要在對照表登記）；②A09 擴充成掃 `tests/*.json` 的 `source`／`note` 欄位，凡出現 `CLAUDE.md「…」` 或 `<檔>:<行>` 形式就驗目標存在；③在 DOCROUTE-5 之前先把 `source` 改成不綁位置的形式（例如 `commit 23312c5`）。無論哪個，A09 的 scope 都必須從「`.md` 相對連結」擴到「任何檔案裡的文件指標」。"
+   },
+   {
+    "target": "DOCROUTE-3／DOCROUTE-4（CLAUDE.md 行號位移與整檔重構）與 DOCROUTE-10（補畢業回指標）",
+    "objection": "七條已畢業到 Obsidian 的筆記，其 provenance 是**指回 CLAUDE.md 的行號**。DOCROUTE-3 一改就位移、DOCROUTE-4 一拆就全滅。而 vault 在 NAS、本機沒掛載，repo 裡沒有副本——這批指標壞掉之後，方案的任何一條斷言都看不到，人也查不到。DOCROUTE-10 只補「專案→知識庫」的正向欄位，完全沒處理「知識庫→專案」這條反向指標。",
+    "evidence": "`.cairn/config.yaml:31`：「只把**跨專案可複用**的七條直接畢業到知識庫，provenance 指回 CLAUDE.md 的行號，不經專案層中轉。」commit `a23a71a` 訊息：「前四條來自 CLAUDE.md 的鐵則（乾淨的 0 先當量錯、先查輸入再查偵測器、探針要在沒人問的時候會響、門檻用量的不要用調的）」。`.cairn/config.yaml:16-21` 記載 vault 在 NAS、走 WebDAV、本機無掛載；我實跑 `ls -d ~/Learning_DB/obsidian/Florian/42_Cairn/lightrag` → No such file or directory，證實本機讀不到、無法對帳。",
+    "severity": "blocking",
+    "suggested_fix": "把「修七條畢業筆記的 provenance」提到 DOCROUTE-4 之前當成獨立前置票（暫稱 DOCROUTE-0）：先透過 WebDAV 讀回八個檔、記錄現行 provenance 形式、把它改成**不綁行號**的形式（章節錨點或 commit hash），並在 repo 內留一份 `cairn/graduated-index.md` 之類的本地對照，讓 A11 有東西可查。在那之前不得動 CLAUDE.md 的行號。"
+   },
+   {
+    "target": "第六節 VERIFY-9-A02「路徑對程式，不對文件 … repo 路徑必須 == `git rev-parse --show-toplevel`」＋ DOCROUTE-9（掛進 daily-check）",
+    "objection": "這條斷言在兩台機器上會得出相反結論，而它每天 08:30 在 dker 上跑。coder 與 dker 的 checkout 路徑本來就不同名，CLAUDE.md 用「同路徑」三個字把這件事抹掉了。把 CLAUDE.md:23 改成 `lightrag-v1` 之後，dker 上 `git rev-parse --show-toplevel` 回的是不含 `-v1` 的路徑 → A02 永久紅；反過來改也一樣，只是換一台紅。",
+    "evidence": "NEXT.md:22-23：「repo　~/ghq/github.com/neknufelet/lightrag-v1（coder，工作台）／~/ghq/github.com/neknufelet/lightrag（dker，部署，唯讀只 pull）」。CLAUDE.md:25 卻寫部署機「同路徑」。方案 DOCROUTE-3 只把 :23 改成 `lightrag-v1`，A02 的斷言形式沒有為兩台機器留位置。dker 端真值屬 (未驗,推測)，但**兩份文件已經互相矛盾**這件事是文件內可驗的。",
+    "severity": "blocking",
+    "suggested_fix": "A02 拆成兩條：資料根那半（對 `paths.py:14`）保留為硬斷言；repo 路徑那半改成「座標表必須同時列出 coder 與 dker 兩個路徑，且**本機那一列**要等於 `git rev-parse --show-toplevel`」，另一列標 (未驗,推測) 直到 DOCROUTE-3.5 的 dker `pwd` 回填。DOCROUTE-3.5 必須排在 A02 上線之前，不能只是「可並行送出」。"
+   },
+   {
+    "target": "DOCROUTE-2「三態退出碼（0 一致／2 漂移／3 驗不了）」＋ DOCROUTE-9「掛進 run-tests.sh」＋ A07/A08 的「驗不了」",
+    "objection": "三態退不出去。方案選的遞送管道（pytest → run-tests.sh）在結構上只有二態，任何非零一律被壓成 exit 1。於是「驗不了」只有兩種下場：被測試當成 pass（就是鐵則 7 罵的那件事——乾淨的 0 被當成通過），或每天在 dker 發一則假紅燈。方案自己引 `scan-partial.py` 當形狀範本，但那支**根本不是走 pytest**，它的 rc=3 是在 daily-check.sh 裡被 case 明確接住的。",
+    "evidence": "scripts/run-tests.sh:16-19：`if [ \"$pytest_rc\" -ne 0 ] || [ \"$gates_rc\" -ne 0 ]; then … exit 1`。scripts/daily-check.sh:50-53 對 scan-partial 的處理是 `case $scan_rc in 0) ;; 2) fail_msgs+=…;; 3) fail_msgs+=(\"∂ 誤讀探針【沒有基準檔】(rc=3) —— 未設定不是通過，去建基準\");;`——專案既有先例是 3 要通知、且訊息與 2 不同。方案 A07 明文「dker 上沒有 standards repo → 回「驗不了」不回綠」、A08 同理，而 VERIFY-9 只在 dker 每天跑。",
+    "severity": "blocking",
+    "suggested_fix": "放棄「零部署改動」這個賣點，照 scan-partial 的既有先例把 `docs-check.py` 直接接進 `daily-check.sh` 的 case 區塊（那是 `deploy/` 之外的一支腳本，不是部署契約），pytest 那邊只保留「探針的探針」（故意弄壞→必須紅）。若堅持走 pytest，就必須明寫「A07/A08 在 dker 上不執行」，並在 coder 上另設觸發點——但那等於承認這兩條在部署機上沒有守衛，要在方案裡標明。"
+   },
+   {
+    "target": "第三節目標結構表 ＋ 第五節各票的來源行號（CLAUDE.md 逐段核對）",
+    "objection": "逐段核對之後，CLAUDE.md:101-128 在整份方案裡**沒有任何一格收它**。那是角色表、「執行模式：線性，不多開平行線」、一般票三站流程、重票五站流程圖——整條驗收路由的骨架。方案給 ticket-routing 的來源是 :139-192，CLAUDE.md 留的是 :13-29 與 :129-137，中間這 28 行從表格到工單都沒出現過。同族的還有 :232-245（前綴註冊表）、:562-566、:599-603。",
+    "evidence": "CLAUDE.md:101-128 實際內容我逐行讀過：:103-109 角色表、:111-112 線性執行模式、:114-118 一般票、:120-127 重票五站。方案第三節 CLAUDE.md 那一列寫「留 `:13-29`…、`:129-137`」；ticket-routing 那一列寫「`CLAUDE.md:139-192`、`:196-231`、`:246-264`」。232-245 是前綴註冊表（我實讀 :233-245），不在任何來源欄，但 DOCROUTE-1 與第五節都要求「註冊 `DOCROUTE` 前綴」寫進它。CLAUDE.md:599-603 是 verified-findings 機制與「偏離 50% 要重查」的人讀規格，對應 `scripts/pp/findings.py` 的 `_DRIFT = 0.5`，extraction-quality 的來源只寫 :579-589 與 :615-648。",
+    "severity": "blocking",
+    "suggested_fix": "DOCROUTE-1 的對照表粒度必須從 `^## ` 章節改成**行區間**，並加一條硬性驗收：把 CLAUDE.md 與 NEXT.md 的 1..N 行號全集減去對照表所有來源區間的聯集，差集必須為空。這是唯一能機械證明「沒有段落漏配」的做法。在那份逐行對照表產出之前，DOCROUTE-4 不得開工。"
+   },
+   {
+    "target": "DOCROUTE-6（worker 手冊搬進 ticket-routing skill，來源 CLAUDE.md:139-192）",
+    "objection": "`:139-192` 裡不只有 worker 呼叫語法，還有**綁住指揮的治理條款**：「有疑義＝重票」、「指揮只能升檔、不得降檔」、「終審任一方 BLOCK 即不過，指揮不得推翻」、「沒有人驗自己」。這些是約束指揮本人的東西，不能靠「指揮自己會想起要載入那個 skill」來遞送——方案第八節②自己承認 skill 沒載入是無聲的、探針測不到。留在 CLAUDE.md 的只有重寫過的三句 fail-safe，其中兩條（不得降檔、終審 BLOCK）不在那三句裡。",
+    "evidence": "CLAUDE.md:139-140「**有疑義＝重票。** 第 6 條是本專案特有的——這裡的資料操作**不可逆**」；緊接其後的「綁住指揮的兩條」與「沒有人驗自己」段落均落在 :139-192 區間內，而方案把整段列為 ticket-routing 的來源。方案第三節 CLAUDE.md 那一列只保留「三句 fail-safe（有疑義＝重票／dker 唯讀／驗證再斷言）」。",
+    "severity": "major",
+    "suggested_fix": "把治理條款（有疑義＝重票、只能升檔不得降檔、終審任一方 BLOCK 即不過、沒有人驗自己）與重票 7 條清單一起留在 CLAUDE.md，只把**呼叫語法與 CLI 踩坑**搬進 skill。這四句加起來不到 6 行，佔不了預算；它們與模型代號的時效性完全不同族。"
+   },
+   {
+    "target": "DOCROUTE-4「CLAUDE.md 改成 manifest，rules/ 由 `@` 匯入」＋ AGENTS.md 保留 `:1-27`",
+    "objection": "`@` 是 Claude Code 的機制。實作席與審查席是 codex（terra／sol），它們吃的是 AGENTS.md，而 AGENTS.md:22 的閱讀順序仍寫「先讀 `CLAUDE.md`」——重構後那是一份 105 行、內容主要是 `@` 行的 manifest。方案自己也只說「頂層 `@` 生效已由本 session 的系統提示證實」，那證的是 Claude 這一側。結果是：藍桶 9 條與 8 條鐵則，對真正在寫 code 的那一席可能整組消失，而且不報錯。",
+    "evidence": "AGENTS.md:22「1. 先讀 `CLAUDE.md` —— **本專案特有**，它是 SSOT，含鐵則與跨機座標」；方案第三節 AGENTS.md 那一列寫「留 `:1-27`」（即閱讀順序不改）。CLAUDE.md:650 的 `@AGENTS.md` 目前是唯一被實證過的 import。codex 是否解析 `@` 屬 (未驗,推測)，但「AGENTS.md 的閱讀順序沒有更新去點名 rules/*.md」是文件內可驗的確定缺口。",
+    "severity": "major",
+    "suggested_fix": "DOCROUTE-4 必須同時改 AGENTS.md:20-26 的閱讀順序，把 `rules/baseline-snapshot.md`、`rules/ironclad.md` 明確列成第 2、3 項（不靠 `@`）；並在 DOCROUTE-4 的驗收加一條實測：用 `codex exec -C <repo> -s read-only` 問「本專案藍桶第 9 條是什麼」，答不出來即 BLOCK。這條驗證幾乎不花額度。"
+   },
+   {
+    "target": "DOCROUTE-3「`CLAUDE.md:252`／`:392` 的欄位列舉 → 改成『欄位以 `_CANARY_KEYS` 為準』」",
+    "objection": "`:252` 不是過期數字，是**子程序標籤的定義**。把它換成指標，等於刪掉 `VERIFY-2-R1`…`R8` 各自對應哪個量的唯一書面定義——而 `R` 這個字母正是 CLAUDE.md 自己註冊、且要求「跨文件引用一律全稱」的東西。這一刀砍的是方案宣稱要保護的命名規則本身。",
+    "evidence": "CLAUDE.md:252：`| \\`VERIFY-2\\` | \\`postprocess.py canary\\` | \\`VERIFY-2-R1\\`…\\`R8\\`（pages/items/mute/held/ratio/tables_total/repairable/review） |`——這是 VERIFY 線編號表的一列，不是 :392 那種散文列舉。`scripts/postprocess.py:247-251` 的 `_CANARY_KEYS` 前八項順序與這八個字完全一致，後七項是後來 append 的（`charts_convert`…`latex_vetoed`）。",
+    "severity": "major",
+    "suggested_fix": ":392 的散文列舉可以換成指標；:252 不行。正解是把它改成 `VERIFY-2-R1`…`R15`，並在該列註明「編號依 `_CANARY_KEYS` 的順序，只增不改」——這樣 R1–R8 的歷史語意保住，新增的七個也拿到號。A03 隨之改成「文件列的 R 編號數必須 == len(_CANARY_KEYS)」，而不是「不得列舉」。"
+   },
+   {
+    "target": "第六節 VERIFY-9-A01「唯一正本：掃全 repo `.md`，抽千分位數字與百分比；同一值出現在 ≥2 個檔即紅」",
+    "objection": "這個偵測器量錯東西——它量的是「一個數字出現在幾個檔」，但要抓的是「同一個快照事實被抄了幾份」。實跑的結果是雜訊遠多於訊號，而且大部分雜訊落在方案明文「本文不動」的 docs/ 裡，只能靠例外清單吞——而例外清單的預算是 ≤90 行。這正是鐵則 5（門檻用量的不要用調的）與鐵則 4（先查偵測器）指的情況。",
+    "evidence": "我對全 repo 15 份 `.md` 實跑正則掃描：171 個相異數字 token，其中 **35 個出現在 ≥2 個檔**。其中 `'5%'` 出現在 5 個檔（CLAUDE.md／NEXT.md／docs/postprocess-workorder.md／docs/precedents-inventory-20260804.md／docs/rebuild-plan.md）、`'10%'` 4 個檔（含 skills/lightrag-search／lightrag-fetch 的 SKILL.md）、`'7,211'` 6 個檔、`'50%'`、`'40%'`、`'70%'` 等皆命中——這些多半是門檻或比例，不是快照。方案第三節明寫 docs/ 五份「本文不動」。",
+    "severity": "major",
+    "suggested_fix": "把 A01 的母體從「所有數字」縮到「**被列管的快照量**」：在 `tests/docs-contract.json` 明列受管鍵（entities／relations／chunks／docs_count／suspect_rate），值由程式或既有 json 產生，斷言改成「這些鍵的值只准出現在指定的一個檔」。純百分比與門檻不進母體。同時把 docs/ 整個排除在 A01 之外（它是 archive-reference，重複是它的功能）。"
+   },
+   {
+    "target": "DOCROUTE-8 的驗證「`VERIFY-9-A04`／`A05`／`A06` 全綠」＋ 動作「原檔一字不改」",
+    "objection": "這兩句互斥。A04 說狀態標記與 `- [x]` 只准出現在 NEXT.md，A05 說未打勾項不得住在標題含「完成／歸檔／歷史」的節底下——而 docs/ 裡現存的違規項，方案明文規定不准動。所以這張票的驗收條件在設計上就達不到，只能靠塞例外，而塞例外就把 A04/A05 降級成擺設。",
+    "evidence": "實測計數：docs/rebuild-plan.md 有 6 個 `- [x]`、3 個 `- [ ]`；docs/log_20260803.md 有 1 個 `- [x]`、3 個 `- [ ]`。且 `docs/log_20260803.md:202`（`SYMBOL-5`）、`:378`（BACKUP-4 批次子項）、`:411` 三個未打勾項，全部落在 `## 已歸檔的完成項`（:113）底下。DOCROUTE-8 的動作欄寫「收編 `SYMBOL-5`／`BACKUP-4` 子項／`W13`＋`W14`（…指標指回原檔，**原檔一字不改**）」。",
+    "severity": "major",
+    "suggested_fix": "A05 改成「未打勾項若不在 NEXT.md 有對應 label，即紅」——這才是真正要防的（沒有路由帶人去發現它），而且 DOCROUTE-8 的收編動作剛好使它轉綠，原檔可以一字不改。A04 對 docs/ 整目錄豁免（archive-reference 本來就記錄當時的勾選狀態），只管 CLAUDE.md／AGENTS.md／rules/／cairn/。"
+   },
+   {
+    "target": "第五節全線鐵律「行級對帳：`docs-check.py --reconcile <來源段落> <目標檔>`」＋ DOCROUTE-1 的差集驗證",
+    "objection": "「證明沒掉東西」這個機制證不了它宣稱的事，有三個結構性漏洞：①DOCROUTE-1 的差集是 `^## ` 章節粒度，而所有搬動是行區間粒度——一個章節只要有**任一**去向就算過關，第 5 條指出的 :101-128、:232-245、:599-603 全部藏在「有去向」的章節裡；②`--reconcile` 是**單一目標檔**，但 :282-341 同時拆去 `rules/ironclad.md`（判準句）與兩個 cairn topic（證據），單目標比對必然大量差集，只能靠 `--allow-drop` 吞；③方案明文要把鐵則壓成「判準句（一條 1–2 行）」，那是重寫不是搬移，逐行集合比對對重寫全 miss。三者疊起來，最高風險的那張票（DOCROUTE-4/5）恰好是對帳器最沒用的地方。",
+    "evidence": "CLAUDE.md 全檔 650 行只有 17 個 `^## ` 標題（我實跑 grep），平均一節 38 行。方案第三節 rules/ironclad.md 那列：「本專案 8 條鐵則的**判準句**（一條 1–2 行）＋ 每條一個指向證據的指標 … `CLAUDE.md:282-341` 只取判準句；證據段搬 cairn topic」。CLAUDE.md:282-341 我逐行讀過，八條裡有六條的證據是與判準句同一個 markdown 列表項、同一段落內的續行（例如第 6 條 :306-311、第 7 條 :313-326），無法用行區間乾淨切開。",
+    "severity": "major",
+    "suggested_fix": "①對照表改行區間粒度並加「行號全集差集為空」驗收（同第 5 條）；②`--reconcile` 改成支援多目標（來源區間 → 目標檔清單），差集是對**聯集**取的；③對「壓成判準句」這類重寫，不要用行級比對，改用**逐條清單對帳**：來源 8 條鐵則 → 目標必須有 8 條判準句 ＋ 8 個指標，且每個指標的目標段落存在且非空。數量對帳比行對帳弱，但至少是機器可查的，而現在的設計對這一段等於沒有。"
+   },
+   {
+    "target": "第五節的票序與依賴（DOCROUTE-2 不掛入口、A07–A12 延到 DOCROUTE-9）",
+    "objection": "方案的頭號賣點是「先探針、再搬家；探針上線第一次跑必須是紅的」，但實際排序把守衛放在了搬家**之後**。首批只做 A01–A06，而 A07（藍桶 sha）、A08（skill 分岔）、A09（斷鏈與孤兒）要等 DOCROUTE-9——偏偏 DOCROUTE-4 就是搬藍桶那一刀、DOCROUTE-5/6/7 就是製造最多新指標那三刀。整段 DOCROUTE-3…8 只有人工單次跑，而「只有指定目標才跑的檢查」正是鐵則 6 判死的東西。",
+    "evidence": "DOCROUTE-2 的動作：「首批斷言 `VERIFY-9-A01`…`A06`」「**不改 `run-tests.sh`**」。DOCROUTE-9 的動作：「補齊 `VERIFY-9-A07`…`A12`，啟用篇幅閘門」，依賴 `DOCROUTE-7`、`DOCROUTE-8`。DOCROUTE-4 的驗證 ② 是人工「重算 … sha256 前 16 碼」。CLAUDE.md:306-311（鐵則 6）：「只有指定目標才跑的檢查，防的是『你已經懷疑的事』—— 而你已經懷疑的事不需要探針。」",
+    "severity": "major",
+    "suggested_fix": "把 A07（藍桶 sha）、A09（斷鏈與孤兒）提前到 DOCROUTE-2 的首批，並在 DOCROUTE-2 就掛進 pytest——這兩條在**現況**是綠的（sha 未漂移、連結我驗過大致有效），所以掛上去不會製造每日紅燈，卻能在 DOCROUTE-4/5/6 動手當下立刻咬。A01–A06 那批（現況是紅的）反而該延到 DOCROUTE-9 再接入口。方案把兩批的順序接反了。"
+   },
+   {
+    "target": "DOCROUTE-3 的動作（`:605-613` 改成指標指回 `:551-560`；`SKILL.md:21-39` 與 `:187-201` 改成指標）",
+    "objection": "這張票造出來的指標，兩張票之後就全部作廢，而且沒有任何一張票回頭修。①`:605-613` 指回 `:551-560`——那是**行號指標**，DOCROUTE-4 重寫 CLAUDE.md 後行號全滅，DOCROUTE-5 還把 :551-560 搬進 cairn/measuring-pitfalls.md；②SKILL.md 被改成「見 CLAUDE.md 的『規則分兩類』」，而 DOCROUTE-5 把「規則分兩類」整節搬進 cairn/rule-lifecycle.md；③更根本的是，`.claude/skills/onboard-doc-type/SKILL.md` **在第三節的目標結構表裡一列都沒有**，卻被 DOCROUTE-3 動了——一個沒有被指派角色與篇幅的檔案，改完就沒人管了。",
+    "evidence": "CLAUDE.md 現行 `## 規則分兩類,不能混在一起` 在 :445；方案 DOCROUTE-5 明列 rule-lifecycle 的來源是 `CLAUDE.md:445-483`。`.claude/skills/onboard-doc-type/SKILL.md:191` 現已寫著「見 CLAUDE.md 的「規則分兩類」。摘要：」，:203 寫「驗過就把份數更新到 CLAUDE.md，不要只改這裡 —— CLAUDE.md 是 SSOT」——重構後這兩句都變成假的。第三節 15 列表格中沒有 onboard-doc-type 的位置（我逐列核對過）。另注意 CLAUDE.md:304 鐵則 5 說「實測有五次…（清單見 SKILL.md）」而 SKILL.md:40 自己寫「實測有三次」，指標與目標的數字現在就已經對不上。",
+    "severity": "major",
+    "suggested_fix": "①全線禁用 `<檔>:<行號>` 形式的文件內指標，一律用章節標題錨點；②DOCROUTE-3 不要造任何指向 CLAUDE.md 的新指標，把 :605-613 的處置延後到 DOCROUTE-5（那時目標檔已存在，可以一次寫對）；③第三節目標結構表補一列給 `.claude/skills/onboard-doc-type/SKILL.md`（角色、篇幅、內容來源），並把它納入 A09 的「恰好被引用一次」母體——順便解掉方案自己在 DOCROUTE-6 驗證裡說的「A09 確認新 skill 已被通道指標表連到」與 A09 定義（只含 rules/、cairn/、docs/）的矛盾。"
+   },
+   {
+    "target": "第五節「回退保證（硬約束 3）：每一步都是 `git revert` 可逆」",
+    "objection": "單票可逆不等於整線可逆，而方案只證了前者。DOCROUTE-5、6、7 都繼續編輯 CLAUDE.md 與 rules/*（把原處改成單行指標、合併兩張角色表），所以 DOCROUTE-4 的 commit B 只在 DOCROUTE-5 動手之前可以乾淨 revert。之後要放棄整條線，就是一連串衝突的 revert。而唯一的常設守衛 DOCROUTE-9 排在最後——**不可乾淨回退的窗口（DOCROUTE-5 起）與無常設守衛的窗口（到 DOCROUTE-9 止）幾乎完全重疊**，那段正是 3,800 行搬動發生的地方。",
+    "evidence": "DOCROUTE-5 動作：「原處同步改成單行指標」（原處＝CLAUDE.md，即 DOCROUTE-4 剛重寫過的檔）；DOCROUTE-6 同樣「逐段搬入」並要改 CLAUDE.md 的通道指標表；DOCROUTE-7「合併兩張檔案角色表」再動一次。DOCROUTE-9 的依賴欄寫「`DOCROUTE-7`、`DOCROUTE-8`（所有紅燈修完）」。方案第五節只寫「任一段可單獨 `git revert`」，沒有整線回退程序。",
+    "severity": "major",
+    "suggested_fix": "補一條整線回退程序並實際演練一次：在 DOCROUTE-4 之前打一個 tag（例如 `docroute-base`），並明文「放棄整線＝`git revert` 到 tag，不是逐票 revert」。同時把 A07/A09 提前（見上一條），讓無守衛窗口縮到 DOCROUTE-2→3 之間，那段還是可乾淨回退的。"
+   },
+   {
+    "target": "第三節「always-load 總預算 ≤250 行」與 `CLAUDE.md ≤105 行` ＋ A10 的失敗訊息",
+    "objection": "這個預算算術上很可能達不到，而且它與 CLAUDE.md 自己的「鐵則只會增加，不會刪」直接衝突。105 行要裝：manifest ＋ 座標（現 17 行）＋ 重票 7 條（現 12 行）＋ 路由規則（第四節那張表約 20 行）＋ 通道指標表（要吸收現 9 列 ＋ AGENTS.md 10 列 ＋ 5 篇 cairn ＋ 2 個新 skill ＋ 2 個 rules ≈ 20 列以上）＋ 前綴註冊表（現 13 行，DOCROUTE-1 還要往裡加）＋ 三句 fail-safe。光是這些不含空行就超過 90，markdown 表格前後必須留空行，實際會落在 130–150。而 105+60+30+55=250 是零餘裕：下一次新增一條鐵則就立刻破表。A10 的失敗訊息說「正確反應是把它搬去對的通道，不是刪掉」——但座標、重票清單、鐵則判準句都是**刻意 always-load**，沒有別的通道可搬。",
+    "evidence": "CLAUDE.md:13-29（座標）我實讀為 17 行、:129-137（重票）9 行加標題與後綴共 12 行、:233-245（前綴註冊表）13 行、:268-280（文件地圖）13 行、AGENTS.md:28-39（文件職責）12 行。CLAUDE.md:282-284：「**這一組只會增加，不會刪**，所以標題不寫數量——之前寫「七條」而內文寫「六條」而實際七條，三個數字互不相同，沒有人發現。」",
+    "severity": "minor",
+    "suggested_fix": "先做一次實算：把目標結構的每一塊列出預估行數，加總後再定預算，而不是先定 250 再逼內容就範。並把 A10 從硬失敗改成**警告 + 趨勢**（超出即印，但不讓 run-tests.sh 紅），否則第一次新增鐵則就會逼人做方案自己禁止的事。"
+   },
+   {
+    "target": "DOCROUTE-4 驗證 ②「重算 `rules/baseline-snapshot.md` 藍桶 9 條的 sha256 … 獨立成檔讓「勿手改」變成可 hash 的整檔」",
+    "objection": "「可 hash 的整檔」與「等於 `d31afca400873b28`」不能同時成立。我實測那個雜湊只覆蓋九條編號行，不含第 9 條加強版與第 4 條例外——而那兩段恰好是本專案自己加的、承載跨機紀律的部分。獨立成檔之後如果改成整檔 hash，值就與上游 BASELINE 失去可比性；如果維持只 hash 九行，那新檔裡有一半內容仍然沒有守衛，「勿手改整檔」是空話。",
+    "evidence": "我用程式窮舉 CLAUDE.md 行區間重算 sha256 前 16 碼，唯一命中是 **:43-51**（九條編號行）→ `d31afca400873b28`。CLAUDE.md:53-59 的「第 9 條在本專案有加強版」與「第 4 條的既有例外」不在雜湊內。`grep -rn \"d31afca400873b28\" scripts/ tests/` 零命中，證實目前無程式守它。",
+    "severity": "minor",
+    "suggested_fix": "A07 拆成兩個量：`upstream_sha`（只九行，對上游可比，值 `d31afca400873b28`）與 `local_sha`（整檔，抓本地加強版／例外被改）。兩個都寫進 `tests/docs-contract.json`。並在 A07 的失敗訊息裡分開講：前者不符＝上游同步問題，後者不符＝本地條款被動過。"
+   }
+  ]
+ },
+ {
+  "verdict": "flawed-but-fixable",
+  "what_survives": "攻不倒的部分（我實測核對過，找不到反例）：\n\n1. 零部署改動的接線是真的。scripts/daily-check.sh:73 → scripts/run-tests.sh:10（python3 -m pytest tests/ -q）→ 新增 tests/test_*.py 即自動入排程；deploy/systemd/lightrag-daily-check.service:11 只 ExecStart 那支腳本，不需動 systemd/compose/.env。\n\n2. 「先探針、再搬家；第一次跑必須是紅的」的順序原則正確（但方案自己沒把它貫徹到掛排程那一步，見 objection 3）。\n\n3. 8 vs 15 的 canary 欄位漂移屬實：tests/canary-baseline.json 頂層 18 份文件、每份 15 個 key（實測），CLAUDE.md:252/:392 寫 8 個。A03「欄位以 _CANARY_KEYS 為準、不手寫」是對的解法。\n\n4. 不把 docs/ 2,290 行搬進 cairn/ 是對的，理由（推導 vs current-truth 形式不相容）站得住；「解法是給路不是鏟進同一個桶」這句判斷我攻不倒。\n\n5. 拒建 cairn/ROADMAP.md、Cited.md、Reference/ 空殼；拒改 A-## id（確為 /data/lightrag/checks/ 歷史紀錄的鍵）；拒動 postprocess.py canary 執行路徑 —— 三個否決的理由都與現場一致。\n\n6. 兩段式 commit ＋ 行級對帳 ＋ 搬移對照表，作為「證明沒掉東西」的機制沒有更好的替代；問題只在沒有工具逼人跑（objection 12）。\n\n7. VERIFY-9 沿用專案自己的命名規則（一支腳本一個號、-A##），比 D1–D10 或無標籤編號正確。\n\n8. AGENTS.md 例外條款「不是被推翻，是被執行完畢」（設範圍、設期限、跑完即廢）的處理方式我攻不倒，方向與 references/init.md:134 一致。",
+  "objections": [
+   {
+    "target": "六、防腐 A02（路徑對程式不對文件）＋ DOCROUTE-3（把 CLAUDE.md:23 改成 lightrag-v1）＋ DOCROUTE-9（掛進 daily-check）",
+    "objection": "A02 斷言「文件裡的 repo 路徑必須 == git rev-parse --show-toplevel」，但兩台機器的 checkout 路徑本來就不同，而唯一會自動跑這支探針的機器是 dker。DOCROUTE-3 把字面路徑改成 coder 的 lightrag-v1 之後，A02 在 dker 上將每天 08:30 結構性紅燈，且不可能修綠 —— 改回 dker 路徑就換 coder 紅。方案給 A07（standards repo 不在）、A08（AI_TOOLS 不在）都設計了「驗不了」三態，唯獨 A02 沒有，這是方案自己設計上的不對稱。",
+    "evidence": "scripts/daily-check.sh:17 CHECK_DIR=/data/lightrag/checks（只有 dker 有）；deploy/systemd/lightrag-daily-check.service:11；NEXT.md:22-23 明列 coder=lightrag-v1、dker=lightrag。失敗情境：DOCROUTE-9 上線隔天 08:30，dker daily-check 因 A02 紅燈打 urgent ntfy，而 dker 唯讀只 pull，修法必須繞回 coder→commit→push→pull，修完仍然紅。",
+    "severity": "blocking",
+    "suggested_fix": "A02 不比對字面路徑。改成兩條：①「文件不得出現任何字面 repo 路徑」（訊息給 git rev-parse --show-toplevel 當替代寫法）；② data root 仍對 scripts/pp/paths.py 的 DEFAULT_DATA_ROOT（實測該值為 /data/lightrag，符號名比行號穩）。座標表寫「以本檔所在 repo 根為準；兩台機器路徑不同、不在文件裡固化」。"
+   },
+   {
+    "target": "六、防腐「三支撐機制」第 1 條（零部署改動的接線）",
+    "objection": "接線是真的，但它只在 dker 自動響 —— 而文件編輯 100% 發生在 coder。coder 上沒有 git hook、沒有 CI，所以 VERIFY-9 在編輯發生的那台機器上「只有人主動跑才會響」，正是鐵則 6 的反面教材。方案把這條當成三支撐之首，卻沒有處理「訊號在無法動手的機器上、動手的機器沒有訊號」。",
+    "evidence": "實測 .git/hooks 底下無任何非 .sample 檔（無 pre-commit/pre-push）；ls .github → No such file or directory（無 CI）；daily-check 是 repo 內唯一的排程消費者（deploy/systemd/ 只有 daily-check、cold-backup、intake 三個單元）。失敗情境：有人在 coder 改 CLAUDE.md 引入新的重複數字並 push，coder 全程零訊號；隔天 dker 08:30 紅燈，訊息送到的是無法編輯的那台。",
+    "severity": "blocking",
+    "suggested_fix": "在 DOCROUTE-2 就補 coder 端的強制點：pre-commit hook 只跑 docs-check.py（純文字、不需 .env、coder 跑得動），或至少把「commit 前跑 scripts/run-tests.sh」寫進提交紀律並由 hook 落實。dker 的 daily-check 當第二道，不是唯一一道。"
+   },
+   {
+    "target": "五、遷移工單的依賴鏈（DOCROUTE-9 排在最後）",
+    "objection": "執行順序讓「分散」先於「強制」：DOCROUTE-4/5/6 已經把內容打散到 rules/×2 + cairn/×5 + skills/×2 共 9 個新檔，而把探針掛進排程的 DOCROUTE-9 排在最後、且依賴 7 與 8 全綠。以這個專案的前科（cairn init 於 2026-08-04，至今 cairn/ 只有 LOG.md 一個檔，實測 ls），半途停在 DOCROUTE-6 的機率很高。半途狀態嚴格劣於現況：地方變多、強制力仍為零。",
+    "evidence": "實測 ls cairn/ 僅 LOG.md（3950 bytes）；.cairn/config.yaml 於 2026-08-04 建立，兩天內 0 篇 topic note。方案第五節 DOCROUTE-9「依賴：DOCROUTE-7、DOCROUTE-8（所有紅燈修完）」。失敗情境：DOCROUTE-8（759→260 行、風險中高）卡住或被 dker 取值阻塞，DOCROUTE-9 永不上線，於是新增的 9 個檔案全部沒有任何探針守著，一年後變成第二輪盤點的題材。",
+    "severity": "blocking",
+    "suggested_fix": "拆成兩次掛入。DOCROUTE-3 之後（A01–A03 已轉綠）立刻把 docs-check 加進 run-tests.sh，讓強制力先於分散存在；A04–A12 隨各票逐條追加、每加一條都要先看到它咬人。DOCROUTE-9 改成「補齊剩餘斷言與篇幅閘門」，而不是「首次接線」。"
+   },
+   {
+    "target": "六、防腐 A01（唯一正本，反轉白名單）",
+    "objection": "A01 的誤報規模讓「反轉白名單」在第一天就失效。實測全 repo 15 個 .md、161 個列管數字，其中 34 個出現在 ≥2 檔；大量落在方案明訂「本文不動」的 docs/ 歷史區，還有 10%、40%、70%、55% 這種語意無關的泛百分比。要上線就得手寫約 34 條 reason，而其中大多數的 reason 只會是「歷史檔案，不動」—— 那正是把例外機制降格成噪音的標準路徑，跟 AGENTS.md 那條例外的下場同一族。",
+    "evidence": "實測腳本輸出：7,211 出現在 6 檔（CLAUDE.md、NEXT.md、cairn/LOG.md、docs/log_20260803.md…）、55% 出現在 4 檔（含 docs/judgement-flow.md、docs/precedents-inventory-20260804.md）、10% 出現在 4 檔（含 skills/lightrag-fetch/SKILL.md、skills/lightrag-search/SKILL.md）、40%/70%/72%/28% 各 2–3 檔。失敗情境：DOCROUTE-2 首次跑列出 34 組，人為了讓它轉綠批次寫入例外，此後 A01 的有效母體只剩少數幾個數字。",
+    "severity": "major",
+    "suggested_fix": "A01 限定掃描範圍為 always-load 層（CLAUDE.md、rules/、AGENTS.md）＋ cairn/ ＋ NEXT.md，docs/ 以「歷史區」單一規則排除（並要求 docs/ 每份 header 明寫「本檔數字為歷史，不得被引用為現況」）。列管對象改成具名量（canary 欄位、體檢指標、實體/關係/chunk 數）而非泛 regex，避免 10%/40% 這類無語意命中。"
+   },
+   {
+    "target": "六、防腐 tests/docs-contract.json（例外清單，每條必填 reason）",
+    "objection": "方案在第八節⑤正確地批評 AGENTS.md 的例外「沒有範圍也沒有期限」，然後自己造了一個沒有範圍也沒有期限的例外清單。只要求 reason 不要求 expires/owner，等於複製病因：第一天寫下的 34 條理由不會有人回頭覆核，而探針不會為此報錯。",
+    "evidence": "方案第三節 tests/docs-contract.json 定義只寫「允許重複的例外清單（每條必填 reason）」；對照方案自己第八節⑤：「它的錯不在存在，在沒有範圍也沒有期限」。失敗情境：半年後有人問「這 34 條還算數嗎」，沒有任何機器可查的答案，只能再做一次人工盤點 —— 也就是這次盤點的重演。",
+    "severity": "major",
+    "suggested_fix": "每條例外必填 reason + owner + expires_on，過期即紅（訊息寫「這條例外已到期，重新確認或延期」）。並在 A11 加一項：例外總數超過 N 條即警告（例外變多本身就是路由規則沒寫好的訊號）。"
+   },
+   {
+    "target": "六、防腐 A05／A06（待辦不得住錯地方／NEXT.md 內部一致）",
+    "objection": "A06 只能對「有正式前綴 label」的項目成立，而 NEXT.md 34 個未打勾項中有 22 個沒有 label（實測 65%）。方案自己列為必須裁決的三處矛盾之一「intake 進 systemd」正好落在沒有 label 的那 22 個裡 —— 也就是說，方案設計來防止它再發生的探針，結構上看不見它。這是「測到字面、沒測到行為」的同族。",
+    "evidence": "實測：NEXT.md 未打勾 34 項，其中無 [A-Z]{4,}-\\d 形式 label 者 22 項；NEXT.md:186「- [ ] **intake 沒進 systemd**」無 label，而方案 C5／DOCROUTE-8 明白把它列為要裁決的矛盾。失敗情境：DOCROUTE-8 人工裁決完 intake 這一條，下一個無 label 的矛盾（例如 NEXT.md:182「終審沒跑」）以完全相同的方式產生，A06 全綠。",
+    "severity": "major",
+    "suggested_fix": "A06 拆成兩級：①「NEXT.md 的每個 - [ ] 必須帶已註冊前綴的 label」先強制（22 條要補，是一次性成本）；② 再談同 label 不得同時 [ ] 與 ✅。沒有 ① 的 ② 只覆蓋三分之一母體。"
+   },
+   {
+    "target": "五、DOCROUTE-8「收編 C4 的三個孤兒待辦」＋ 六、A05",
+    "objection": "孤兒清單不完整，而且 A05 抓不到方案自己認定最危險的那一個。W13/W14 在 docs/postprocess-workorder.md 根本不是 checkbox（該檔 - [ ] 計數為 0），A05 的定義只掃 - [ ]，所以「一份 1009 行歷史文件末尾藏著從未實作的設計」這個形狀完全在探針視野外。另外實際的 docs/ 未打勾孤兒有 6 個，不是方案說的 3 個。",
+    "evidence": "實測：docs/rebuild-plan.md 有 3 個未打勾（:103 daily-check 加跑 v2 checkout、:105 A-25 三態化、:109 __pycache__ 出版控）、docs/log_20260803.md 有 3 個（:202 SYMBOL-5、:411 算一次全毀重建時間、另一項），docs/postprocess-workorder.md 有 0 個 - [ ]（W13/W14 是章節敘述不是 checkbox）。方案 C4 只點名 SYMBOL-5、BACKUP-4 子項、W13/W14。失敗情境：DOCROUTE-8 收編三個，剩下 4 個未打勾項留在 docs/，DOCROUTE-9 上線後 A05 對它們天天紅，只能塞進例外清單（回到 objection 5）。",
+    "severity": "major",
+    "suggested_fix": "DOCROUTE-8 之前先跑一次全 repo 未打勾盤點（就是我上面那條指令）當工單輸入，不要用方案第二節的三項清單。並補一條 A05 子項：docs/ 內任何 - [ ] 一律紅（歷史檔不得含未完成項），逼它們一次清空到 NEXT.md，而不是靠人記得巡。"
+   },
+   {
+    "target": "四、路由規則「一條結論只有一個家」＋ 五個事件表",
+    "objection": "使用者問的正是這題：一個新發現同時是鐵則、是某份文件的量測、又跨專案可複用，它去哪？方案答不出來，因為「事件決定家」和「一條結論只有一個家」互斥 —— 一條結論常常同時有三個事件。而且這不是假設題，現場已經有實例：K Muffler／L Capsules 的接地可疑率同時屬於通道 1（tests/verified-findings.json，跑 extract-check 時印）與通道 4（cairn/extraction-quality.md「可疑≠幻覺兩族形狀」），方案兩個地方都收了它，卻沒給優先序、也沒有任何斷言檢查兩者是否一致。",
+    "evidence": "方案第三節同時把「可疑≠幻覺兩族形狀」列進 cairn/extraction-quality.md，又在第七節第 4 條把 verified-findings.json 列為不動的工程資產；AGENTS.md:79-84 自承這一格「是最容易漏的一格」，且已經漏過兩次（K Muffler 舊語料查過、L Capsules 2026-08-05 又查一次）。失敗情境：下一份文件（例如 P Variational，CLAUDE.md 記載尚未查證）超標查完，人面對「進 verified-findings.json 還是更新 cairn topic」的分岔，兩邊各寫一份 → 第三次重複查證，且沒有探針會響。",
+    "severity": "major",
+    "suggested_fix": "明訂通道優先序：通道 1 > 通道 4 > 通道 2（能被工具在正確時機印出來的，一律歸通道 1；cairn topic 只准放指向 verified-findings.json key 的一行）。並加一條斷言：cairn/*.md 提到任何具名文件指標時，必須引用一個存在於 verified-findings.json 的 key，否則紅。"
+   },
+   {
+    "target": "三、目標結構 rules/ironclad.md（只取判準句，證據搬 cairn topic）",
+    "objection": "判準句／證據二分本身就是方案第四節禁止的「摘要」：判準句就是證據段的摘要，兩邊會各自過期。而 A01 的偵測形式（千分位數字＋百分比）看不到「三次／四次」這種中文計數 —— 那正是方案自己抓到、且要在 DOCROUTE-5 裁決的現存不一致型態（CLAUDE.md:314 說三次、docs/log_20260803.md 說四次）。裁決完之後，同一個形狀會在 rules/ironclad.md 與 cairn/measuring-pitfalls.md 之間立刻重新長出來，而新探針對它是瞎的。",
+    "evidence": "CLAUDE.md:314 鐵則 7「實測踩過三次」；方案第五節 DOCROUTE-5 自承要「裁決 CLAUDE.md:314『三次』vs docs/log_20260803.md:44-56『四次』的不一致」；A01 的定義是「抽千分位數字與百分比」，中文計數與個位數不在母體（我用同一個 regex 實測，161 個列管數字裡沒有任何中文計數）。",
+    "severity": "major",
+    "suggested_fix": "rules/ironclad.md 的判準句一律不得含任何可量化計數（次數、份數、百分比）；證據份數／次數只准出現在 cairn topic 一處，判準句用「見 cairn/measuring-pitfalls.md」。並加一條斷言：rules/*.md 命中數字或中文計數即紅。"
+   },
+   {
+    "target": "三、目標結構 rules/baseline-snapshot.md ＋ 六、A07（藍桶沒漂移）＋ 八、待決策①",
+    "objection": "sha256 是自我指涉的守衛：期望值 d31afca400873b28 與被守的 9 條放在同一個檔（現況 CLAUDE.md:39 vs :41-59，方案原樣搬進 rules/baseline-snapshot.md）。任何一併更新兩者的編輯都會通過 —— 而 codex terra 拿到「更新這個檔」的工單時做的正是這件事。真正有效的守衛是對 standards/BASELINE.md 逐字 diff，但那個 repo 只有 coder 有（實測），而唯一自動跑探針的機器是 dker，所以 A07 的有效部分永遠是「驗不了」。方案卻用「獨立成檔之後才變成可 hash 的整檔」當作滿足硬約束 2 的主要論據。",
+    "evidence": "實測 ls -d ~/ghq/github.com/neknufelet/standards 存在（coder）；CLAUDE.md:15 已載明 dker 沒有 standards repo；A07 自己寫「dker 上沒有 standards repo → 回驗不了不回綠」；daily-check 只在 dker 跑（objection 1 的證據）。失敗情境：藍桶被改動＋sha 一併更新，dker 每天綠燈，coder 沒人跑，漂移零訊號。",
+    "severity": "major",
+    "suggested_fix": "期望 sha 移出被守檔，存進 tests/docs-contract.json（改內容與改期望值變成兩個檔的 diff，審查看得見）。並把「對 standards/BASELINE.md 逐字 diff」設成 coder 端 pre-push 的必跑項 —— 這條在 coder 上跑得動，不需要 dker。"
+   },
+   {
+    "target": "三、目標結構的 250 行預算 ＋ 六、A10（篇幅預算）＋ 八、待決策②",
+    "objection": "A10 量錯東西：它量 CLAUDE.md + rules/*.md + AGENTS.md 四個檔的行數，不量真正進 context 的量。skill 一旦載入就是整份 200／150 行進來，而 ticket-routing 幾乎每次出單都會被載入、lightrag-ops 幾乎每次 dker 工作都會被載入。也就是說「省下 350 行」在最常見的兩種 session 裡是假的，真正變的只是「不確定會不會載入」。方案自陳 skill 沒載入是無聲的、探針測不到，這點誠實；但它同時用一個量不到行為的數字當成功指標。",
+    "evidence": "方案第三節 always-load 總預算定義只含四個檔；A10 的檢查是 wc -l。本 session 的系統提示同時含 CLAUDE.md 與 AGENTS.md 全文（方案自己引為 @ import 生效的實證），同一份提示也列出了全部 skill 的 description —— 證明 skill 清單本身也常駐。失敗情境：DOCROUTE-9 後 A10 天天綠，而實際 session context 因為兩個 skill 幾乎必載而沒有下降，PO 以為省了 66%。",
+    "severity": "major",
+    "suggested_fix": "預算改成兩欄：常駐 ≤250 行，另列每個 skill 的行數與「預期載入頻率」，頻率高於某門檻的內容不准搬進 skill。並把一次踩就痛、成本極低的常識留在常駐層 —— 例如 128 KiB MAX_ARG_STRLEN 那條只要 3 行，遠低於再踩一次的代價（錯誤訊息指向 timeout 而非 codex，已實測誤判過）。"
+   },
+   {
+    "target": "五、全線鐵律（兩段式 commit／行級對帳／不在遷移票裡改寫）＋ DOCROUTE-3.5／6／10",
+    "objection": "方案裡需要人「記得」而沒有工具逼的環節，剛好是風險最高的那幾個：①--reconcile 行級對帳是一支要人主動跑的指令，沒有任何 hook 或 test 逼它跑；②DOCROUTE-6 驗證②（開乾淨 session 測 skill 會不會觸發）是人工、不可重複、結果沒有機器痕跡；③DOCROUTE-3.5 的 dker 取值靠人記得走回程；④DOCROUTE-10 的 audit 12 項逐條人工跑。這個專案的前科正是「宣告了但沒執行」（AGENTS.md:43 承諾 cairn/ 承接往後新知識，兩天後 topic note 仍為 0）。",
+    "evidence": "實測 .git/hooks 無非 sample 檔、無 .github；方案第五節把 --reconcile 寫成「全線鐵律」但只在各票的「驗證」欄以指令形式出現，沒有任何票把它變成 tests/ 底下會被 pytest 收集的檢查。失敗情境：DOCROUTE-5（重票、最容易在描述規則時順手改規則）的實作者跳過 --reconcile，終審看 diff 看不出「搬丟了一段」與「本來就沒有那段」的差別。",
+    "severity": "major",
+    "suggested_fix": "把 --reconcile 做成 tests/test_docs_check.py 裡的一個 case：讀 docs/log_20260806.md 的搬移對照表，對每列做來源→目標的行級覆蓋檢查，隨 pytest 自動跑。audit 12 項做成 A11 的子項。DOCROUTE-6 的 skill 觸發實測改成把結果寫進 tests/docs-contract.json 的一個欄位（至少留下痕跡與日期），否則「驗過了」與「沒驗」在畫面上長得一樣。"
+   },
+   {
+    "target": "三、目標結構整體（新增 13 個受管檔）＋ A09（每個 .md 被通道指標表引用恰好一次）",
+    "objection": "方案本身製造了新的疊床架屋，而且新增的那一層剛好是手動同步層。DOCROUTE 跑完會多出 rules/×2、cairn/×5、skills/×2、tests/docs-contract.json、tests/test_docs_check.py、scripts/docs-check.py、docs/log_20260806.md 共 13 個檔，全部受 A09 管轄（必須在通道指標表被引用恰好一次）。於是「通道指標表」成為一個必須隨每次增檔手動更新的單點，而它自己沒有任何上游來源可以對照 —— 這正是 CLAUDE.md 文件地圖與 AGENTS.md 文件職責表兩張表今天的處境，只是併成一張。",
+    "evidence": "方案第三節目標結構表列出的新檔；A09 定義「rules/、cairn/、docs/ 每個 .md 必須被通道指標表引用恰好一次」。失敗情境：DOCROUTE-5 之後有人新增第六篇 cairn topic，忘了更新指標表，A09 紅 —— 這是好的；但反過來，指標表寫了一列指向尚未建立的檔，A09 的「路徑必須存在」會紅，兩種紅燈訊息不同但都要人手動改表，表的正確性沒有任何生成來源。",
+    "severity": "minor",
+    "suggested_fix": "通道指標表改成由 docs-check.py 生成（render/verify 共用單一實作，形狀就是方案自己說要抄的 scripts/systemd-units.py），文件裡放生成結果並由 verify 守住。手寫的導航表遲早會漂移，這一點方案自己在第二節 A5 已經證明過。"
+   },
+   {
+    "target": "六、防腐 A02／A03 的失敗訊息（硬寫 file:line）",
+    "objection": "探針訊息裡硬寫 scripts/pp/paths.py:14、scripts/postprocess.py:247-251、scripts/compat-check.py:522,534 這類行號，本身就是新增的一份會漂移的副本 —— 而且它藏在程式裡，沒有任何東西守它。",
+    "evidence": "實測 scripts/pp/paths.py:14 目前確為 DEFAULT_DATA_ROOT: Final[Path] = Path(\"/data/lightrag\")，但該檔前面只要多一行 import，行號就變；方案 A02／A03 的訊息欄逐字寫死這些行號。失敗情境：有人在 paths.py 加一個 import，探針仍然正確判紅，但訊息指向錯的行，讀者去看發現不是那行，開始懷疑探針壞了。",
+    "severity": "minor",
+    "suggested_fix": "訊息用符號名（DEFAULT_DATA_ROOT、_CANARY_KEYS）而非行號；真要行號就在執行時 grep 出來，不要寫死。"
+   },
+   {
+    "target": "三、目標結構 AGENTS.md ≤55 行 ＋ 八、待決策①（藍桶移進 rules/，由 CLAUDE.md 匯入）",
+    "objection": "整個預算模型是 Claude-only 的。實測全 repo 只有 CLAUDE.md:650 一行 @AGENTS.md，沒有任何檔匯入 CLAUDE.md —— 匯入是單向的。而實作席是 codex terra、找碴席是 deepseek(opencode)，這兩支的慣例入口是 AGENTS.md，不是 CLAUDE.md，更不是 .claude/skills/（那是 Claude Code 專屬機制）。方案把常駐內容往 CLAUDE.md/rules/ 集中，同時把唯一雙邊可見的 AGENTS.md 從 91 行砍到 55 行，方向對實作席是相反的。（codex/opencode 實際讀取哪些檔，我在本機沒有實測，標 (未驗,推測)。）",
+    "evidence": "實測 grep -n '^@' AGENTS.md CLAUDE.md 唯一命中 CLAUDE.md:650；AGENTS.md:4-6 自述折衷方式是「在 CLAUDE.md 檔尾加一行 @AGENTS.md」，方向單一。失敗情境：codex terra 拿到 DOCROUTE 的實作工單，藍桶第 3 條（type hints）、第 4 條（no print）、第 6 條（explicit resource management）不在它的載入範圍，工單若沒逐條抄，實作就不受這些規則約束，而終審（sol）同樣讀不到。",
+    "severity": "major",
+    "suggested_fix": "先實測 codex exec 與 opencode 在本 repo 各自載入哪些檔（一句「列出你已載入的專案指示檔」即可），再定預算。若確認它們只讀 AGENTS.md，藍桶 9 條的判準句應該住 AGENTS.md（CLAUDE.md 用 @AGENTS.md 已經匯得到），而不是住只有 Claude 看得見的 rules/。"
+   }
+  ]
+ }
+]
