@@ -139,3 +139,27 @@ def test_units_are_exactly_the_six_that_remain() -> None:
     # 不帶等號的比對會抓到自己寫的註解（2026-08-07 實際踩到，這條測試當場紅）。
     # 判準是「有沒有這個 systemd 指令」，不是「有沒有出現這個字」。
     assert "OnFailure=" not in blob, "有人加回 OnFailure= 卻沒有通知管道"
+
+
+def test_paused_units_are_a_subset_of_enable() -> None:
+    """PAUSED 只能暫停 ENABLE 裡有的東西。
+
+    暫停一個不在清單裡的單元 = 打錯字，而打錯的那個會安靜地不生效
+    （verify 照樣把真正的單元當成「沒 enable」報紅）。
+    """
+    module = _module()
+    unknown = set(module.PAUSED) - set(module.ENABLE)
+    assert not unknown, f"PAUSED 有不在 ENABLE 裡的單元：{unknown}"
+
+
+def test_every_paused_unit_states_a_reason() -> None:
+    """暫停一定要寫理由，而且要寫得出「什麼時候恢復」。
+
+    沒有理由的暫停過幾週就變成「不知道為什麼關著」，然後沒有人敢開回來
+    —— 那跟壞掉沒兩樣，只是更難發現。
+    """
+    module = _module()
+    for unit, reason in module.PAUSED.items():
+        assert len(reason) >= 20, f"{unit} 的暫停理由太短：{reason!r}"
+        assert any(k in reason for k in ("再開", "恢復", "之後")), \
+            f"{unit} 的理由沒寫恢復條件：{reason!r}"

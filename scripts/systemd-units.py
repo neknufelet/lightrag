@@ -57,6 +57,20 @@ ENABLE = ("lightrag-daily-check.timer", "lightrag-cold-backup.timer",
           # （docker 比 tailscale 早起，綁 Tailscale 位址失敗）。實測過。
           "lightrag-stack.service")
 
+# **刻意暫停**的單元：鍵是單元名，值是理由。
+#
+# 為什麼要跟「沒 enable」分開：警報管道 2026-08-08 才上線（紅燈顯示在審核台
+# :9710）。一個預期中、沒人打算修的紅燈，會訓練人開始無視所有紅燈 ——
+# `docs/judgement-flow.md` 記過「假警報會讓人開始忽略警報」。
+#
+# 但也不能靜靜跳過：那樣「刻意暫停」與「有人手滑關掉」又變成同一件事。
+# 所以照樣報出來，只是說清楚是誰、為什麼，並且不算失敗。
+PAUSED: dict[str, str] = {
+    "lightrag-cold-backup.timer":
+        "PO 2026-08-08 暫停。backup-cold.sh 當天改過 DBS 陣列（拿掉 neo4j）"
+        "但一次都沒跑過，而它會停容器再啟動。手動驗過一次之後再開回來。",
+}
+
 LOGGER = logging.getLogger("systemd-units")
 
 
@@ -156,17 +170,33 @@ def cmd_verify(args: argparse.Namespace) -> int:
         return 2
 
     # 裝了但沒 enable 等於沒有排程 —— 檔案存在會讓人以為它在跑。
-    inactive = []
+    inactive: list[str] = []
+    paused_off: list[str] = []
+    paused_but_on: list[str] = []
     for unit in ENABLE:
         result = subprocess.run(["systemctl", "is-enabled", unit],
                                 capture_output=True, text=True, check=False)
-        if result.stdout.strip() != "enabled":
-            inactive.append(f"{unit}={result.stdout.strip() or result.stderr.strip()}")
+        state = result.stdout.strip() or result.stderr.strip()
+        if unit in PAUSED:
+            # 暫停中卻是 enabled ⇒ 有人開回來了但沒清掉 PAUSED，也要講。
+            (paused_but_on if state == "enabled" else paused_off).append(unit)
+            continue
+        if state != "enabled":
+            inactive.append(f"{unit}={state}")
+
+    for unit in paused_off:
+        print(f"  ⏸ {unit} 刻意暫停：{PAUSED[unit]}")
+    for unit in paused_but_on:
+        print(f"  ✗ {unit} 列在 PAUSED 卻是 enabled —— 恢復之後要從 PAUSED 移除，"
+              "否則下次真的暫停時沒有人會發現")
     if inactive:
         print(f"  ✗ 單元檔對了但沒 enabled：{', '.join(inactive)}")
         print("    → 檔案在不等於排程在。`systemctl enable --now <unit>`")
+    if inactive or paused_but_on:
         return 2
-    print(f"  ✓ {', '.join(ENABLE)} 都是 enabled")
+    expected = [u for u in ENABLE if u not in PAUSED]
+    print(f"  ✓ {', '.join(expected)} 都是 enabled"
+          + (f"（另有 {len(paused_off)} 個刻意暫停）" if paused_off else ""))
     return 0
 
 
