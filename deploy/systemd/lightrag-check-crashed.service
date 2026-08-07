@@ -1,7 +1,0 @@
-[Unit]
-Description=daily-check 本身掛掉時的備援通知
-# 刻意不走 notify.sh —— 備援不能依賴可能正是故障原因的主路徑。
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/curl -fsS --max-time 10 -H "Title: daily-check 本身掛了" -H "Priority: urgent" -d "lightrag-daily-check.service 異常結束（不是檢查紅燈，是腳本掛掉）。journalctl -u lightrag-daily-check 查原因。" @NTFY_URL@

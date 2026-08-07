@@ -19,8 +19,7 @@ cd "$REPO_DIR"
 mkdir -p "$CHECK_DIR"
 
 if [ "${1:-}" = "--selftest" ]; then
-  scripts/notify.sh "daily-check selftest" "手動觸發的測試警報。收到＝管道正常。"
-  echo "已送出，看手機。"
+  echo "2026-08-07 起沒有通知管道（ntfy 已拆）。紅綠狀態一律看 $CHECK_DIR。" >&2
   exit 0
 fi
 
@@ -99,6 +98,8 @@ find "$CHECK_DIR" \( -name 'compat-2*' -o -name 'canary-2*' \
   sort | head -n -120 | xargs -r rm --
 
 if [ "$status" = fail ]; then
-  scripts/notify.sh "lightrag 每日檢查 FAIL" "$(printf '%s\n' "${fail_msgs[@]}")"
+  # 2026-08-07：ntfy 已拆，改寫 stderr —— systemd 會收進 journal。
+  # ⚠ 沒有人會被打斷。要知道紅燈只能看 journal 或 $CHECK_DIR。
+  printf '%s\n' "${fail_msgs[@]}" >&2
   exit 1
 fi

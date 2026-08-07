@@ -42,7 +42,6 @@ tag `archive/pre-rebuild-20260807`。
 | OpenAI | embedding（`text-embedding-3-large` @3072）＋第二雙眼睛（`gpt-5.6-luna`） | 每次重建約 US$6 |
 | MinerU 官方 API | PDF 解析 | **token 2026-09-04 到期** |
 | OpenRouter | 第三隻眼，只在三方皆異時呼叫 | 必須釘住 provider，否則同一模型 ID 會被路由到不同供應商 |
-| 自架 ntfy | dker :9800，警報 | |
 | backrest | dker，備份 → rclone 到 Google Drive | rag 相關的兩個排程 PO 已說要關，**還沒關** |
 
 **為什麼要兩台**：coder 上沒有 LightRAG 的 `.env` 也沒有它的 docker，所以「我在 coder

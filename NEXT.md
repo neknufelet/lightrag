@@ -21,6 +21,16 @@ repo 刪掉 9,179 行歷史文件。凍結點在 tag `archive/pre-rebuild-202608
 
 釘死之前不要排待辦。釘死之後這裡才會有東西。
 
+## ⚠ 拆掉 ntfy 之後「誰會報錯」的答案又變回「沒有人」
+
+2026-08-07 拆掉自架 ntfy（容器、`/opt/stacks/ntfy` 目錄、`notify.sh`、兩個 OnFailure
+備援單元）。紅綠狀態仍然落地在 `/data/lightrag/checks/`，失敗訊息進 systemd journal，
+**但沒有任何東西會打斷人**。
+
+- [ ] **重建後要決定警報走哪裡。** 選項：不要警報（手動跑檢查）、換 email、
+      換公用 ntfy.sh、或別的。**在決定之前不要把排程重新 enable**——
+      一個沒人看的紅燈等於沒有檢查
+
 ## 唯一的技術前置
 
 - [ ] 確認 LightRAG v1.5.6 怎麼設定「用 PostgreSQL 存圖」。發布說明沒寫，

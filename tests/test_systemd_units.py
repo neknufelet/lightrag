@@ -30,7 +30,6 @@ def _module() -> ModuleType:
 
 def _args(module: ModuleType) -> argparse.Namespace:
     return argparse.Namespace(repo=Path("/srv/lightrag"), user="svc",
-                              ntfy="http://127.0.0.1:9800/lightrag",
                               workspace="ws_x", data_root="/srv/data", diff=False)
 
 
@@ -38,24 +37,25 @@ def _installed(module: ModuleType, target: Path) -> Path:
     """把 repo 的單元渲染進 target，模擬一台裝好的機器。"""
     target.mkdir(parents=True, exist_ok=True)
     for name, body in module.render_all(Path("/srv/lightrag"), "svc",
-                                        "http://127.0.0.1:9800/lightrag",
                                         "ws_x", "/srv/data").items():
         (target / name).write_text(body, encoding="utf-8")
     return target
 
 
 def test_render_substitutes_every_placeholder() -> None:
-    """五個佔位符都要被換掉 —— 漏一個就等於這份 repo 只能在一台機器上用。"""
+    """四個佔位符都要被換掉 —— 漏一個就等於這份 repo 只能在一台機器上用。
+
+    2026-08-07：`@NTFY_URL@` 隨 ntfy 一起移除，從五個變四個。
+    """
     module = _module()
-    rendered = module.render_all(Path("/srv/lightrag"), "svc", "http://ntfy.local/x",
+    rendered = module.render_all(Path("/srv/lightrag"), "svc",
                                  "ws_x", "/srv/data")
     assert rendered, "deploy/systemd/ 是空的，下面的斷言會假通過"
     blob = "\n".join(rendered.values())
-    for token in ("@REPO@", "@USER@", "@NTFY_URL@", "@WORKSPACE@", "@DATA_ROOT@"):
+    for token in ("@REPO@", "@USER@", "@WORKSPACE@", "@DATA_ROOT@"):
         assert token not in blob, f"{token} 沒有被取代"
     assert "/srv/lightrag/scripts/daily-check.sh" in blob
     assert "User=svc" in blob
-    assert "http://ntfy.local/x" in blob
     assert "--workspace ws_x" in blob and "/srv/data/inbox" in blob
 
 
@@ -108,19 +108,25 @@ def test_empty_source_is_not_a_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert "母體是空的" in capsys.readouterr().out
 
 
-def test_units_cover_both_timers_and_their_failover() -> None:
-    """七個單元一個都不能少，而且兩個 -crashed 刻意不進 timers.target。"""
+def test_units_are_exactly_the_five_that_remain() -> None:
+    """五個單元一個都不能少、一個都不能多。
+
+    2026-08-07 拆掉 ntfy，兩個 `-crashed` 備援單元一起移除（它們的內容就是
+    `curl` 到 ntfy）。**所以現在沒有任何 OnFailure 觸發的單元**——腳本本身掛掉
+    只留在 journal，沒有人會被打斷。這條斷言同時擋住「有人把備援加回來卻沒有
+    通知管道」。
+    """
     module = _module()
-    names = set(module.render_all(Path("/x"), "u", "http://h/", "w", "/d").keys())
+    names = set(module.render_all(Path("/x"), "u", "w", "/d").keys())
     assert names == {
         "lightrag-daily-check.service", "lightrag-daily-check.timer",
         "lightrag-cold-backup.service", "lightrag-cold-backup.timer",
-        "lightrag-check-crashed.service", "lightrag-cold-backup-crashed.service",
         "lightrag-intake.service",
     }, names
-    assert set(module.ENABLE) == {"lightrag-daily-check.timer",
-                                  "lightrag-cold-backup.timer",
-                                  "lightrag-intake.service"}
-    # 備援單元由 OnFailure= 觸發，enable 它們沒有意義而且會排進 timers.target
-    for unit in ("lightrag-check-crashed.service", "lightrag-cold-backup-crashed.service"):
-        assert unit not in module.ENABLE
+    assert set(module.ENABLE) == names - {"lightrag-daily-check.service",
+                                          "lightrag-cold-backup.service"}
+    blob = "\n".join(module.render_all(Path("/x"), "u", "w", "/d").values())
+    # **帶等號**是必要的：`OnFailure` 三個字也出現在單元檔的說明註解裡，
+    # 不帶等號的比對會抓到自己寫的註解（2026-08-07 實際踩到，這條測試當場紅）。
+    # 判準是「有沒有這個 systemd 指令」，不是「有沒有出現這個字」。
+    assert "OnFailure=" not in blob, "有人加回 OnFailure= 卻沒有通知管道"

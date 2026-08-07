@@ -121,7 +121,7 @@ log "複製完成，$((T1-T0)) 秒"
 trap - EXIT INT TERM
 start_all
 log "服務已恢復"
-[ -n "$FAILED" ] && { "$REPO_DIR/scripts/notify.sh" "冷備份失敗（服務已恢復）" "$FAILED"; exit 4; }
+[ -n "$FAILED" ] && { echo "冷備份失敗（服務已恢復）：$FAILED" >&2; exit 4; }
 
 # ── 4. 驗複本 ────────────────────────────────────────────────────────
 # 只驗「有沒有抄到東西」。深度驗證是「還原一份起得來」——那是 BACKUP-3。
@@ -130,7 +130,7 @@ for sub in postgres neo4j; do
   log "  $sub: $n 個檔"
   [ "$n" -lt 10 ] && fail "$sub 只有 $n 個檔，不像完整的資料目錄"
 done
-[ -n "$FAILED" ] && { "$REPO_DIR/scripts/notify.sh" "冷備份複本可疑" "$FAILED"; exit 5; }
+[ -n "$FAILED" ] && { echo "冷備份複本可疑：$FAILED" >&2; exit 5; }
 
 # ── 5. 上傳（服務已在跑，慢沒關係）──────────────────────────────────
 # 用 backrest 容器裡的 restic：它已有 rclone 設定與 repo 金鑰，不必在宿主再裝
@@ -171,7 +171,7 @@ if [ -z "$FAILED" ]; then
 fi
 
 if [ -n "$FAILED" ]; then
-  "$REPO_DIR/scripts/notify.sh" "冷備份失敗" "$FAILED"
+  echo "冷備份失敗：$FAILED" >&2
   log "FAILED: $FAILED"
   exit 1
 fi
