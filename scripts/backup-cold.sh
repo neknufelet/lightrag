@@ -51,7 +51,8 @@ STAGE=/data/lightrag-coldstage
 STAMP=/data/lightrag/.backup-cold.stamp
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
 DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)
-DBS=(lightrag-neo4j lightrag-postgres)
+# 2026-08-07 起只有 Postgres —— 圖換成 PGTableGraphStorage，Neo4j 整個移除。
+DBS=(lightrag-postgres)
 TS=$(date +%Y%m%dT%H%M%S)
 FAILED=""
 
@@ -125,7 +126,7 @@ log "服務已恢復"
 
 # ── 4. 驗複本 ────────────────────────────────────────────────────────
 # 只驗「有沒有抄到東西」。深度驗證是「還原一份起得來」——那是 BACKUP-3。
-for sub in postgres neo4j; do
+for sub in postgres; do
   n=$(sudo find "$STAGE/$sub" -type f 2>/dev/null | wc -l)
   log "  $sub: $n 個檔"
   [ "$n" -lt 10 ] && fail "$sub 只有 $n 個檔，不像完整的資料目錄"

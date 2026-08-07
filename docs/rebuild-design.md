@@ -6,7 +6,7 @@ status: accepted
 kind: spec
 supersedes: ""
 superseded_by: ""
-summary: "新部署的設計。定位是原料供應站，範圍是用 C Equivalent Networks.pdf 一篇打通全程。八個決定全部經過拷問，附推翻掉的三條。"
+summary: "新部署的設計。定位是原料供應站，範圍是用 C Equivalent Networks.pdf 一篇打通全程。十個決定全部經過拷問，附推翻掉的三條。"
 ---
 
 # 重建設計 — 一篇打通全程
@@ -108,7 +108,7 @@ summary: "新部署的設計。定位是原料供應站，範圍是用 C Equival
 
 ---
 
-## 4. 八個決定
+## 4. 十個決定
 
 ### D1　skill 凍契約，不凍位址
 
@@ -218,10 +218,59 @@ stock PostgreSQL 14+ 就能跑。
 
 1. 上游那組效能數字（p50 39ms vs 1,099ms）比的是 **PGTableGraphStorage vs
    PGGraphStorage（AGE 版）**，**不是**跟 Neo4j 比。不得引用成「比 Neo4j 快」。
-2. 讀的是上游 `main` 的檔案。**選定的映像版本有沒有這個選項，未驗**——
-   實作第一步就是驗證它，不支援就退回 Neo4j。`(未驗,推測)`
+2. ~~選定的映像版本有沒有這個選項未驗~~ **2026-08-07 已驗，問映像本人**：
 
-### D8　設計文件放 `docs/` 直接底下
+```
+$ docker run --rm --entrypoint sh ghcr.io/hkuds/lightrag:v1.5.6 -c \
+    'python -c "from lightrag.kg import STORAGE_IMPLEMENTATIONS as S
+                print(S[\"GRAPH_STORAGE\"][\"implementations\"])"'
+['NetworkXStorage', 'Neo4JStorage', 'PGGraphStorage', 'PGTableGraphStorage',
+ 'MongoGraphStorage', 'MemgraphStorage', 'OpenSearchGraphStorage']
+```
+
+同一條指令對 **v1.5.5** 跑，清單裡**沒有** `PGTableGraphStorage`。而 `compose.yaml`
+原本釘的 digest `206579ab…` 經 dker 逐字元核對**就是 v1.5.5**——所以升級到 v1.5.6
+是這個決定的必要條件，不是順便。新 digest `ab23a9c8…`，v1.5.5 映像已從 dker 移除。
+
+### D8　不 fork、不 build 自己的映像；要加的東西插在旁邊
+
+**官方映像原封不動拉下來，額外功能一律用「旁邊再起一個容器 ＋ 把程式碼掛進去」。**
+
+現成的例子就是唯讀 API 層——它不是自建映像，是官方 `python:3.12-slim`：
+
+```yaml
+kbapi:
+    image: python:3.12-slim
+    command: ["python", "/app/scripts/kbapi.py", "--port", "9700"]
+    volumes:
+      - ./scripts:/app/scripts:ro
+```
+
+`compose.yaml` 裡的原話：「只用 Python 標準函式庫，所以直接掛官方 slim 映像跑腳本，
+**不需要自己建映像**。」
+
+**價值在升級的時候**：官方出新版就改一行 digest，沒有「我們的 patch 要 rebase」
+這件事。今天從 v1.5.5 換到 v1.5.6 就是改一行。反過來說，任何「這個功能得改
+LightRAG 的程式碼才做得到」的需求，都要先當成設計錯誤重新想。
+
+### D9　部署走 Dockge，但 repo 是 SSOT
+
+`/opt/stacks/lightrag/compose.yaml` 是 repo 那份的**副本**，部署動作把它複製過去。
+模式與 `deploy/systemd/*.service` → `/etc/systemd/system/` 相同（`systemd-units.py
+install`），維護的人只要理解一次。要有一條斷言比對兩邊的 sha256，漂了就紅。
+
+**兩個不可以：**
+
+- **`/opt/stacks/lightrag/` 不可以是指向 repo 的 bind mount。** 2026-08-07 之前是，
+  結果 Dockge UI 的「刪除」按鈕會刪掉 repo 本身（宿主上那是空目錄，容器裡看到的是
+  repo）——連 dker 上唯一的 `.env` 一起沒。
+- **stack 目錄的 compose.yaml 不可以是指回 repo 的 symlink。** Dockge UI 可以編輯
+  compose，寫下去就是改到 dker 的 checkout，下次 `git pull --ff-only` 直接失敗。
+
+**另外：`.env` 要搬出 git checkout。** 它現在住在 repo 目錄裡，所以「刪掉 repo」
+與「弄丟所有秘密」是同一個動作。搬到 stack 目錄之後這條連動就斷了。
+
+### D10　設計文件放 `docs/` 直接底下
 
 `scripts/standards-check.py` 的治理範圍是 `REPO.glob("docs/*.md")`，**不是 `docs/**/*.md`**。
 放進次目錄會靜靜逃掉 frontmatter 檢查。

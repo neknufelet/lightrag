@@ -1,16 +1,28 @@
-# LightRAG — 用 docker compose 直接管理（不再由 Dockge 管）
+# LightRAG — 本檔是 SSOT，部署時複製到 Dockge 的 stack 目錄
 #
-# 2026-08-07 解除 Dockge 綁定。原本 dockge 的 compose 有一條
-#   - /home/florian/ghq/github.com/neknufelet/lightrag:/opt/stacks/lightrag
-# 把這個 repo 掛進 Dockge 容器。**那條掛載讓 Dockge UI 的「刪除」按鈕會刪掉 repo 本身**
-# ——包含 dker 上唯一的 .env（54 個鍵、7 個秘密）。移除掛載之後 UI 就看不到這個 stack。
-# ⚠ 那個改動在 dker 的 /opt/stacks/dockge/compose.yaml，**不在版控**
+# ## 這個檔怎麼上線
+#
+# repo 是唯一真相，`/opt/stacks/lightrag/compose.yaml` 是它的副本。
+# 模式與 `deploy/systemd/*.service` → `/etc/systemd/system/` 完全相同
+# （`systemd-units.py install`），維護的人只要理解一次。
+#
+# ⚠ **`/opt/stacks/lightrag/` 必須是真目錄，絕不可以是指向 repo 的 bind mount。**
+#   2026-08-07 之前 dockge 的 compose 有一條
+#     - /home/florian/ghq/github.com/neknufelet/lightrag:/opt/stacks/lightrag
+#   把 repo 掛進 Dockge 容器。宿主上那是個空目錄（不同 inode），但**容器裡看到的
+#   是 repo 本身**，於是 Dockge UI 的「刪除」按鈕會刪掉 repo ——包含 dker 上唯一的
+#   `.env`。那條掛載已移除，不要恢復。
+#
+# ⚠ 也**不要**把 stack 目錄的 compose.yaml 做成指回 repo 的 symlink：Dockge UI
+#   可以編輯 compose，寫下去就是改到 dker 的 checkout，下次 `git pull --ff-only`
+#   直接失敗（dker 的 repo 是唯讀，只 pull）。
+#
+# ⚠ Dockge 自己的設定在 dker 的 /opt/stacks/dockge/compose.yaml，**不在版控**
 #   （備份：同目錄的 compose.yaml.bak-20260807）。重建 dker 時要記得它。
-# 現在的操作方式：ssh 到 dker，在 repo 目錄跑 docker compose。
 #
 # 單一實例：靠 .env 的 WORKSPACE 切換知識庫。要同時跑第二個知識庫時，
 # 複製本目錄為另一個 stack，改 WORKSPACE 與 HOST_PORT 即可 —— 儲存層
-# 已用 workspace 隔離，兩者可共存於同一組 Postgres/Neo4j。
+# 已用 workspace 隔離，兩者可共存於同一組 Postgres。
 #
 # 注意：compose 的 ${VAR} 插值讀的是本目錄的 .env（與 env_file 同一份），
 # 所以 WORKSPACE / HOST_PORT 改一處即同時生效於容器名、port 與資料路徑。
@@ -36,8 +48,14 @@ services:
     # 再推一次，於是 compose 一個字沒改、拉到的卻是不同映像。我們整套後處理都建立在
     # 「LightRAG 如何讀寫 __parsed__ 底下的檔案」這些假設上，環境默默變動會讓假設失效
     # 而無人察覺。釘 digest 後升級變成一個明確的動作（改這一行），而非某次重啟的副作用。
-    # 對應 v1.5.5。升級時用 docker image inspect --format '{{.RepoDigests}}' 取新值。
-    image: ghcr.io/hkuds/lightrag@sha256:206579ab1a2bc1f2b5f19fe97c01cb801ff409e6ae29a15542f82208a285640a
+    # 對應 v1.5.6（2026-08-07 換上，前值 206579ab… 是 v1.5.5，已在 dker 逐字元核對）。
+    # 升級時用 docker image inspect --format '{{.RepoDigests}}' 取新值。
+    #
+    # ⚠ **不 fork、不 build 自己的映像。** 官方映像原封不動拉下來，我們要的額外
+    # 功能一律「插在旁邊」——見下面的 kbapi：官方 python:3.12-slim ＋ 把 ./scripts
+    # 掛進去 ＋ 一行 command。這樣升級只是換這一行 digest，沒有「我們的 patch
+    # 要 rebase」這件事。
+    image: ghcr.io/hkuds/lightrag@sha256:ab23a9c83a735901b18c8960b6b482b602d5b6291abb7e07c5776f7bb2da504e
     container_name: lightrag-${WORKSPACE:?WORKSPACE 未設定}
     restart: unless-stopped
 
@@ -102,7 +120,11 @@ services:
     environment:
       PP_DATA_ROOT: /data/lightrag
     volumes:
-      - ./scripts:/app/scripts:ro
+      # ⚠ 不能用 `./scripts` —— 相對路徑是相對於 compose.yaml 所在目錄，而本檔
+      # 部署時會被複製到 /opt/stacks/lightrag/（見檔頭）。那裡沒有 scripts/。
+      # REPO_DIR 用 `:?` 強制設定，理由與 WORKSPACE 相同：猜錯的預設比失敗更糟。
+      - ${REPO_DIR:?REPO_DIR 未設定 —— 指向 repo checkout，kbapi 要從那裡讀 scripts}/scripts:/app/scripts:ro
+      # 這個 `.env` 是與 compose.yaml 同目錄的那份（stack 目錄），不是 repo 裡的。
       - ./.env:/app/.env:ro
       - ${DATA_ROOT:-/data/lightrag}:/data/lightrag:ro
     ports:
@@ -174,29 +196,19 @@ services:
     networks:
       - rag
 
-  # ⚠ 2026-08-07：這個服務要在重建時整個移除（見 docs/decisions/0004）。
-  # 容器已刪，但定義留著 —— 因為 PGTableGraphStorage 的環境變數名還沒查證，
-  # 現在拿掉會變成「沒有圖儲存」。確認之後把 LIGHTRAG_GRAPH_STORAGE 換掉、
-  # 刪這一段、刪 .env 的四個 NEO4J_* 鍵、改 backup-cold.sh 的 DBS 陣列。
-  neo4j:
-    image: neo4j:5                          # 與原實例同版：5.26.26 community
-    container_name: lightrag-neo4j
-    restart: unless-stopped
-    environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
-      NEO4J_PLUGINS: '["apoc"]'
-      TZ: Asia/Taipei
-    volumes:
-      - ${LIGHTRAG_DB_ROOT:-/data/lightrag}/neo4j:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    networks:
-      - rag
+# Neo4j 服務已於 2026-08-07 移除。四種儲存全部在 Postgres 上：KV／DocStatus／
+# Vector 早就是，Graph 換成 PGTableGraphStorage（v1.5.6 引進，不需要 Apache AGE）。
+#
+# 驗證方式是問映像本人，不是讀發布說明：
+#   docker run --rm --entrypoint sh ghcr.io/hkuds/lightrag:v1.5.6 -c \
+#     'python -c "from lightrag.kg import STORAGE_IMPLEMENTATIONS as S; \
+#                 print(S[\"GRAPH_STORAGE\"][\"implementations\"])"'
+#   → [... 'PGGraphStorage', 'PGTableGraphStorage', ...]
+# 同一條指令對 v1.5.5 跑，清單裡沒有 PGTableGraphStorage。
+#
+# 少了一個容器、一套備份、一族「兩個資料庫要對得上」的坑。
 
-# Postgres 與 Neo4j 都在既有的 rag_default 網路上，此處只接上、不建立
+# Postgres 在既有的 rag_default 網路上，此處只接上、不建立
 networks:
   rag:
     external: true

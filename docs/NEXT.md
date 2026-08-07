@@ -39,8 +39,9 @@ flowchart LR
 
 ## 🔵 一篇打通（設計見 [docs/rebuild-design.md](rebuild-design.md)）
 
-- 🔵 驗證選定映像支援 `PGTableGraphStorage`；不支援就退回 Neo4j 並記進 KNOWN_ISSUES。
-  **這條沒過之前不要動 `compose.yaml` 的 neo4j 段**——拿掉就沒有圖儲存
+- 🔵 建 `/opt/stacks/lightrag/`（**真目錄，不是指向 repo 的掛載**）、把 `.env` 從
+  git checkout 搬進去、寫一支 deploy 動作把 compose 複製過去（比照
+  `systemd-units.py install`），並加「兩邊 sha256 相同」的斷言
 - ⬜ 解析 `C Equivalent Networks.pdf`（`is_ocr=true`、`pipeline`），量基準數字
 - ⬜ 10 張人工裁定的表按頁碼對位；對不上的明確報出來，不猜
 - ⬜ 入庫，驗**關係數不是 0**；接上 `scripts/extract-check.py` 量實體名的接地率
