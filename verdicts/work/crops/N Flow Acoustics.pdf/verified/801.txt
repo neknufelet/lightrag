@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { p } \left( \vec { \bf x } , \mathrm { t } \right) = \frac { \partial } { \partial { \bf x } _ { \mathrm { i } } } \int \frac { 1 } { 4 \pi \mathrm { r } } \left[ \rho \left( \vec { \boldsymbol { \omega } } \times \vec { \mathrm { v } } \right) \right] _ { \mathrm { \scriptsize { r } } } \mathrm { d } \mathrm { V } + \frac { \partial ^ { 2 } } { \partial { \bf x } _ { \mathrm { i } } ^ { 2 } } \int \frac { 1 } { 4 \pi \mathrm { r } } \left[ \frac { 1 } { 2 } \rho \left| \vec { \mathrm { v } } \right| ^ { 2 } \right] _ { \mathrm { \scriptsize { r } } } \mathrm { d } \mathrm { V }\tag{6}
+$$

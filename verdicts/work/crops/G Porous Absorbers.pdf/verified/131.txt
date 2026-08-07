@@ -1,0 +1,4 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+Flow resistivity, with definition $\Xi _ { | | } = ( - \partial \mathrm { p } / \partial \mathrm { z } ) \big / \langle \mathrm { v } _ { \mathrm { z } } \rangle$

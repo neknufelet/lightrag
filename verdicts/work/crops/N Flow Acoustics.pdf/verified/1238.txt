@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 10 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l r } { \mathrm { p } ( \mathrm { x } _ { \mathrm { i } } , \mathrm { t } ) } & { = } & { \{ \begin{array} { l l } { \mathrm { \underline { { ( x _ { \mathrm { i } } - y _ { \mathrm { i } } ) ( x _ { \mathrm { j } } - y _ { \mathrm { j } } ) } } } } \\ { 4 \pi \mathrm { r } ^ { 3 } c _ { 0 } ^ { 2 } ( 1 - \mathrm { M } _ { \mathrm { q r } } ) ^ { 3 } } \end{array} [ \mathrm { \frac { \partial ^ { 2 } \mathrm { T } _ { \mathrm { i j } } } { \partial \mathrm { t } ^ { 2 } } } + \frac { 3 } { ( 1 - \mathrm { M } _ { \mathrm { q r } } ) } \frac { \partial \mathrm { T } _ { \mathrm { i j } } } { \partial \mathrm { t } } \frac { \partial \mathrm { M } _ { \mathrm { q r } } } { \partial \mathrm { t } } } \\ & { } &  + \mathrm { \underline { { ( 1 - M _ { \mathrm { q r } } ) } } } \frac { \partial ^ { 2 } \mathrm { M } _ { \mathrm { q r } } } { \partial \mathrm { t } ^ { 2 } } + \mathrm { \ ~ \frac { 3 \mathrm { T } _ { \mathrm { i j } } } { ( 1 - \mathrm { M } _ { \mathrm { q r } } ) ^ { 2 } } ( \frac { \partial \mathrm { M } _ { \mathrm { q r } } } { \partial \mathrm { t } } ) ^ { 2 } ] \} _ { \mathrm { \bf t } } } \end{array}\tag{17}
+$$

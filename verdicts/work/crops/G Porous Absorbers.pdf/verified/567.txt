@@ -1,0 +1,6 @@
+<!--
+  #567（式 42，p45）R3 4 處 `\hat{\mathcal{O}}` → `\partial`。分子／分母首位＝微分算子位置；裁圖 crops/gporous-0567-p45-hat_mathcal_O-46.png 上兩式是 `T ∂²u₃(P₂)/∂x₃²`、`S ∂²u₁(P₂)/∂x₃²`，逐處對上。同式無真 `\partial`，但與前輪已驗的 #567 同族結構一致。
+-->
+$$
+\begin{array} { l } { { \displaystyle - \omega ^ { 2 } \rho { \bf u } _ { 3 } ( { \bf P } _ { 2 } ) = \mathfrak { r } _ { 3 3 } ^ { s } ( { \bf P } _ { 3 } ) + \mathfrak { r } _ { 3 3 } ^ { \mathrm { f } } ( { \bf P } _ { 3 } ) - \mathfrak { r } _ { 3 3 } ^ { \mathrm { f } } ( { \bf P } _ { 1 } ) + \mathrm { T } \frac { \partial ^ { 2 } { \bf u } _ { 3 } ( { \bf P } _ { 2 } ) } { \partial \mathtt { x } _ { 3 } ^ { 2 } } } , }  \\ { { \displaystyle - \omega ^ { 2 } \rho { \bf u } _ { 1 } ( { \bf P } _ { 2 } ) = \mathfrak { r } _ { 1 3 } ^ { s } ( { \bf P } _ { 3 } ) + \mathrm { S } \frac { \partial ^ { 2 } { \bf u } _ { 1 } ( { \bf P } _ { 2 } ) } { \partial \mathtt { x } _ { 3 } ^ { 2 } } . } } \end{array}\tag{42}
+$$

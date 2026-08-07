@@ -1,0 +1,6 @@
+<!--
+  #494（式 23，p18）R4 2 處 `\hat{\mathcal{O}}` ＋ §5 盲點 1 處**裸** `\mathcal{O}` @469 → `\partial`（共 3 處）。**同一個分數裡分母就是真 `\partial`**（`\frac{\hat{\mathcal{O}}}{\partial\mathbf{r}}`）；同式末項的真物質導數 MinerU 寫成 `\mathrm{D}^2/\mathrm{Dt}^2`，讀對了。裸 `\mathcal{O}` 沒有 accent，舊掃描器的 ACCENT 錨點配不到，本輪把錨點放寬到裸 token 才抓出來。裁圖 crops/nflow-0494-p18-hat_mathcal_O-19.png（`sin ϑ ∂/∂ϑ`）。
+-->
+$$
+\left\{ \left[ \frac { 1 } { \mathrm { r } ^ { 2 } } \frac { \partial } { \partial \mathbf { r } } \left( \mathrm { r } ^ { 2 } \frac { \partial } { \partial \mathbf { r } } \right) \right] + \frac { 1 } { \mathrm { r } ^ { 2 } \sin ^ { 2 } \vartheta } \frac { \partial ^ { 2 } } { \partial \varphi ^ { 2 } } + \frac { 1 } { \mathrm { r } ^ { 2 } \sin \vartheta } \frac { \partial } { \partial \vartheta } \left( \sin \vartheta \frac { \partial } { \partial \vartheta } \right) - \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \mathrm { D } ^ { 2 } } { \mathrm { Dt } ^ { 2 } } \right\} \Phi = 0 .\tag{23}
+$$

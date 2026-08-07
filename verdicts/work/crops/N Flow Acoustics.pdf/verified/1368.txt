@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { R } _ { \mathrm { a } } \left( \vec { \bf x } , \tau \right) = \frac { 1 } { 1 6 \pi ^ { 2 } \rho _ { 0 } c _ { 0 } ^ { 5 } } \frac { \bf x _ { i } \bf x _ { j } \bf x _ { k } \bf X _ { l } } { \bf x ^ { 6 } } \iint \frac { 1 } { \mathrm { C } ^ { 5 } } \frac { \partial ^ { 4 } } { \partial \mathrm { t } ^ { 4 } } \bf R _ { i j k l } \left( \vec { \bf y } ^ { \prime } , \vec { \bf \xi } , t = \frac { \tau } { \mathrm { C } } \right) \mathrm { d } \vec { \bf V } ^ { \prime } \mathrm { d } \vec { \bf V } _ { \xi }\tag{15}
+$$

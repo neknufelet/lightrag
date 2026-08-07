@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \frac { 1 } { c _ { 0 } ^ { 2 } } } { \frac { { \partial } ^ { 2 } \mathrm { p a } } { { \partial } \mathrm { t ^ { 2 } } } } - \nabla ^ { 2 } \mathrm { p _ { a } } = - { \frac { 1 } { c _ { 0 } ^ { 2 } } } { \frac { { \partial } ^ { 2 } \mathrm { p _ { 0 } } } { { \partial } \mathrm { t ^ { 2 } } } } { \hat { \Pi } } { \mathrm { e e c h a m ' s ~ i n h o m o g e n e o u s ~ w a v e ~ e q u a t i o n . } }\tag{18}
+$$

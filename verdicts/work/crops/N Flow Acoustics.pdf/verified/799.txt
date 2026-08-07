@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } \mathrm { p } \mathrm { a } } { \partial \mathrm { t } ^ { 2 } } - \Delta \mathrm { p } \mathrm { a } = \nabla \left\{ \rho \left( \vec { \omega } \times \vec { \bf v } \right) + \nabla \left( \rho \frac { \mathrm { v } ^ { 2 } } { 2 } \right) \right\}\tag{5}
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 7 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \sf q } = 2 { \sf p } _ { 0 } \left[ \left( \frac { \partial ^ { 2 } \Psi } { \partial \bf x \partial \mathrm { y } } \right) ^ { 2 } - \frac { \partial ^ { 2 } \Psi } { \partial \bf x ^ { 2 } } \frac { \partial ^ { 2 } \Psi } { \partial \bf y ^ { 2 } } \right]\tag{30}
+$$

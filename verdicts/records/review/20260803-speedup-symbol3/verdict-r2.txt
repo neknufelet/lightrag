@@ -1,0 +1,35 @@
+VERDICT: BLOCK
+
+大部分工程性缺口已修好，但核心量測設計仍未修對：同一批 prompts 被 warm-up 與各輪重播，cache 持續累積；反序與 `max-min` 無法把 cache、時間漂移及隨機波動分離。因此目前數字仍不能決定 `MAX_ASYNC` 2→4，也不能支撐下載 19.4 GB MTP GGUF。
+
+上一輪逐條回判：
+
+- 疑點 1（Docker 錯誤標籤）— **已修**：現在明說把 `POSTGRES_HOST` 當容器名。
+- 疑點 2（seed）— **已修／無須修改**：上一輪即判 not-real，維持固定 seed 正確。
+- 疑點 3（slot 警告）— **已修**：help 與實跑前 stderr 都有警告。
+- 疑點 4（c=8 queue）— **部分已修**：`/props` 可留下 `total_slots`；peak `requests_deferred/processing` 仍未採樣，但不是本輪主阻斷。
+- 疑點 5（失敗 run 洩漏決策速率）— **已修**：混合「一成功＋一 timeout」唯讀 probe 證實三種速率皆為 `None`、表格標 `INVALID`，最終回傳非零。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:383)
+- 疑點 6（失敗 determinism 靜默退出）— **已修**：run-level invalid gate 已封住決策用途。
+- 順序／cache 控制 — **修得不對，仍是阻斷**：反序沒有清 cache，warm-up 還先把第一題放入 cache。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:616)
+- `finish_reason`／截斷 — **已修**：逐題保存並警告 `truncated_n`。
+- live provenance — **已修但仍 fail-open**：成功時 `/props` 原樣保存；失敗只警告、整體仍可能 exit 0，這種報告必須人工拒用。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:572)
+- 逐題明細 — **已修**：決策所需的 latency、tokens、finish reason、timings、hash、error 均保存。
+- `--out` 覆寫 — **已修**：預設拒絕，需 `--force`。
+- 測試證據 — **部分已修**：接受主線 `12 passed`；但新增測試沒有驗證真正的 cache／warm-up／順序方法。
+- 工單 SSOT 缺 `SPEEDUP-2.1` — **未修但不作本輪阻斷**：本輪依你提供的固定複審範圍判定。
+
+六點回判：
+
+1. **real**：正反序可平衡最簡單的線性漂移，但每個位置只有一筆；`max-min` 丟掉方向，甚至 100→80 與 80→100 都輸出同一個 20，不能判斷「有／沒有順序效應」。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:429)
+
+2. **real，但偏差方向未必是低估**：一題不足以證明四個 slot 都達穩態，而且使用真正 fixture 第一題會讓 c=1 得到 cache 優勢，也可能造成高估；llama.cpp 本身已有預設 empty warm-up，prompt cache 也預設啟用。[llama.cpp server README](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
+
+3. **not-real（公式本身）**：`Σtokens/Σtime` 是合理的 pooled service rate，較逐題平均更符合固定工作量；逐題平均反而會讓短題權重過高，但它不能被解讀成併發下的 wall-clock aggregate server throughput，名稱應更清楚。
+
+4. **not-real**：raw wall/count/成功題 latency 仍印作診斷，但 aggregate/prefill/decode 全是 `-`，同列有 `⚠ INVALID` 且 exit 1；已充分阻止正常決策流程。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:500)
+
+5. **real**：題數不能區分「命中 1 token」和「命中數千 tokens」；完整 `cache_n` 雖留在 JSON，可事後重算，但表格、valid gate 與順序結論都沒使用命中 token 數，無法直接判斷污染程度。官方定義 `cache_n` 正是重用的 prompt token 數。[llama.cpp server README](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
+
+6. **real（覆蓋缺口，不是所有 mock 都無效）**：timeout 測試確實走到真正 `_run_once`／`main`，但反序測試只驗 helper 回傳陣列；provenance、warm-up、cache 與速率測試主要使用自製結果，沒有驗 exact-prompt cache 累積、異長 prompts 或順序方向。[test_llm_bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_llm_bench.py:154) [test_llm_bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_llm_bench.py:257)
+
+要解鎖，至少需在每個受測 run 前清除／隔離 cache，或明確以 `cache_prompt=false` 驗 cold workload；warm-up 不得使用題本 prompt，並以獨立重複或隨機化順序報相對差、方向與變異。工作樹保持不變，仍只有原本兩個 untracked 檔。

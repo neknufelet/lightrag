@@ -1,0 +1,46 @@
+VERDICT: BLOCK
+
+白話結論：cache 污染已經修掉，但第二次 BLOCK 尚未完全解鎖。程式仍只做一次單請求 warm-up，不能證明四個 slot 都進入穩態；順序統計雖保留方向，卻把任何非零波動直接宣告成「有順序效應」。
+
+### A–D
+
+- **A — 已修**：`cache_prompt` 預設關閉並逐請求送出，報告包含 token 總量與命中題數；關閉時發現 cache token 會令 run invalid。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:291) [llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:394)
+- **B — 已修（僅題本污染部分）**：warm-up 已換成固定 synthetic prompt，會拒絕與題本完全相同，並保存 source、SHA 與錯誤。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:712)
+- **C — 修得不對**：逐輪值、spread、方向都有了，但 `observed = max != min` 會把任何浮點波動當成順序效應；兩筆資料也不能分辨漂移與隨機波動。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:465) [llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:628)
+- **D — 已修**：`/props` 錯誤會保存在 `server.error`，使 `_run_benchmark()` 回傳 false，`main()` 因而 exit 1。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:667) [llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:757)
+
+server-side pooled rate 與 wall-clock aggregate rate 的定義也已正確分開。
+
+### 三個 real finding 回判
+
+1. **`max-min` 丟方向：窄義已解**。每輪數字與 first-to-last 正負方向都有保存；但「有順序效應」的推論仍不成立。
+2. **warm-up 一題不夠：未解**。現在仍只有一次 `_request_once()`，只是把題目換成 synthetic；沒有暖四個 slot，也沒有丟棄完整 calibration round。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:716)
+3. **`cache_n` 只算題數：已解**。現在分開報 `Σcache_n` 與命中題數。
+
+### 測試覆蓋
+
+上一輪第 6 點只有**部分解掉**：
+
+- cache 測試確實走 `_run_once` 彙總路徑，但只有一題，無法證明多題真的做 `Σcache_n`。
+- warm-up 測試有走 `_run_benchmark` 及報告寫出路徑。
+- direction 與反序測試仍只直接測 `_order_effects`／`_round_concurrency_orders` helper，沒有驗證多輪實跑結果一路進 JSON 與表格。[test_llm_bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_llm_bench.py:333)
+- `/props` 測到 `_run_benchmark() is False`，但沒有直接測 `main()` 的 props-failure exit code。
+
+你提供的主線 `17 passed` 接受；我另親跑不需暫存目錄的六個焦點測試，結果 `6 passed`。完整重跑在本席被唯讀 sandbox 擋住建立 uv lock/tmp，並非測試紅燈。
+
+### cold workload 判斷
+
+你的判斷**只對一半**：
+
+- `cache_prompt=false` 能消除同題重播造成的巨大污染，作為「完整 cold prefill 壓力測試」與 MTP 公平 A/B 控制是合理的。
+- 但「每個 chunk prompt 不同，所以正式負載 cache hit 接近零」不能直接成立。llama.cpp 重用的是共同前綴，不要求整份 prompt 完全相同；`cache_n` 也是重用的 prompt token 數。[llama.cpp server 文件](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) [共同前綴示例](https://github.com/ggml-org/llama.cpp/discussions/15530)
+- LightRAG 的抽取 prompt 將大量固定指令放在 `input_text` 前，因此不同 chunk 仍可能共享很長前綴；這是從上游 prompt 結構作出的推論，釘死的 v1.5.5 映像仍應以真實 fixture 驗證。[LightRAG prompt source](https://github.com/HKUDS/LightRAG/blob/main/lightrag/prompt.py)
+
+最低解鎖仍需：
+
+1. 用最大併發量做成功的 synthetic warm-up，確保每個 slot 被觸及；或丟棄一個完整 calibration round。
+2. 不要以 `max != min` 宣告「有順序效應」；至少增加獨立重複並報可解讀的變異。
+3. 補多題 cache 加總與多輪 report 的整路徑測試。
+4. 若要把 cold 數字稱為正式抽取的代表，另以「互不相同的 fixture prompts、只打一次」量一次 cache-on 的 `cache_n/prompt_tokens` 分布。
+
+因此目前數字仍不應直接決定 `MAX_ASYNC` 2→4，也還不能作為正式 MTP 換檔基準線。工作樹保持原狀，仍只有原本兩個 untracked 檔。

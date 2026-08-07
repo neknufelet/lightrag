@@ -1,0 +1,33 @@
+VERDICT: BLOCK
+
+- 核心阻斷：明文要求的「跑前警告會佔滿 slot」遺漏；失敗 run 仍產出未標 invalid 的決策數字；量測順序、prompt cache、截斷與 server provenance 也沒有受控。現在的數字不能直接決定 `MAX_ASYNC` 或 MTP 模型下載。
+
+- 追溯結果：repo SSOT 只到 [NEXT.md](/home/florian/ghq/github.com/neknufelet/lightrag-v1/NEXT.md:377) 的 `SPEEDUP-2`，找不到 `SPEEDUP-2.1` 工單正文；細項只能依本 prompt。兩個新檔仍未提交，範圍正確，`git diff --check` 無 whitespace 錯誤。
+
+- 疑點 1 — **real**：[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:133) 確實把 `POSTGRES_HOST` 當 container name。改成 IP／`localhost` 時會在 fixture 擷取前由 `docker exec` 立即失敗，通常以 `psql 失敗：No such container` 清楚退出，不會靜默量錯；但錯誤標籤把 Docker 定位失敗說成 psql 失敗。
+
+- 疑點 2 — **not-real（本票）**：種子只是固定整數；同一 fixture、`temperature=0`、所有併發度共用同值，不會偏置 c=2/4 比較。拆成 sampling/generation seed 會讓 provenance 更乾淨，但目前沒有實質量測傷害。
+
+- 疑點 3 — **real**：[run 路徑](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:382) 直接開始送請求，`run --help` 也完全沒有佔滿 slot 的提示，屬明文驗收遺漏。
+
+- 疑點 4 — **not-real（公式本身）**：c=8 的 queue 正是飽和測試的一部分；end-to-end latency 應包含排隊，aggregate tok/s 也可和 c=1/2/4 同表比較。但報告應記 `n_slots=4` 並輪詢 peak `requests_deferred`／`requests_processing`；`requests_deferred` 是 gauge，只在結束後讀會回到 0。[llama.cpp 官方 metrics 定義](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#get-metrics-prometheus-compatible-metrics-exporter)
+
+- 疑點 5 — **real，阻斷級**：[彙總邏輯](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:305) 用全部 wall time 除以成功 completion tokens，且 latency p50/max 完全排除失敗請求。我用 synthetic probe 得到「一題成功＋一題 timeout」時仍產出 tok/s，p50/max 只顯示成功題的 1 秒。任何 `errors.total > 0` 應將該 row 明確標成 invalid／不可比較，最好非零退出。
+
+- 疑點 6 — **not-real（單就『悄悄退出』）**：[determinism](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:326) 已用總題數作分母並印出 `comparable`；例如 probe 顯示 `1/2…（可比較 1 題）`，旁邊也有 errors，不算靜默。仍應由疑點 5 的 run-level invalid gate 阻止拿它決策。
+
+- 沒問到的阻斷問題：
+
+  - 固定依序跑 1→2→4→8、重播相同 prompts，沒有等價 warm-up、清 cache、交錯順序或重複輪次。llama.cpp 支援 prompt cache，且 chat response 本身提供 `cache_n`、`prompt_ms`、`predicted_ms`；目前全數忽略，所以後跑的 c=2/4 可能受快取／順序效應偏袒。這是依官方現行文件作的風險推論，build 10200 尚須 live 確認。[llama.cpp chat timings](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md#post-v1chatcompletions-openai-compatible-chat-completions-api)
+
+  - [回應解析](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:233) 不讀 `finish_reason`；撞到預設 `max_tokens=2048` 仍算成功。現有 5,042 平均輸出字元不能直接換算 tokens，因此不能斷言已截斷，但工具也完全偵測不了截斷。
+
+  - JSON 報告不記 `max_tokens`、timeout、server build、model path/GGUF、slot 數或啟動參數；同一 model alias 換成 MTP 檔後，報告本身無法證明量的是哪顆模型。[compose 謄本](/home/florian/ghq/github.com/neknufelet/lightrag-v1/deploy/llama-qwen36-moe/compose.yaml:71) 不能取代 live provenance。
+
+  - 只有單輪 aggregate；不保存逐題 latency、tokens、finish reason、server timings，因此無法定位 outlier、重算共同成功母體或分開 prefill 與 decode。這尤其妨礙判斷 MTP 是否值得，因為 MTP 加速的是生成段，不是整段 wall time。
+
+- 測試／驗收：你提供的 `uvx pytest` 四項通過可證明那次 ephemeral tool 環境是綠的；但原文 `python3 -m pytest` **算未達成**。我親跑同樣得到 `/usr/bin/python3: No module named pytest`。此外 [tests](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_llm_bench.py:26) 沒覆蓋成功 HTTP 回應、timeout 彙總、截斷、report provenance、run invalidation 或 metrics。
+
+- 藍桶 9 條：type hints 完整、無裸 `Any`；`print` 都是 CLI 產物，warning/info 使用 logging，符合 scripts 例外；filesystem path 使用 `Path`；file、HTTP response、executor 都有明確資源管理；無明顯 SRP 問題。形式上已有 smoke tests、未驗 live 也誠實標出，因此不是明確的 #8/#9 冒充通過，但核心量測覆蓋不足以合併這張決策票。
+
+- 唯讀稽核：沒有 DB 寫入、DDL/DML、`.env` 修改或容器 lifecycle 操作。fixture 只透過 `docker exec … psql` 執行 `SELECT`；run 只發 inference POST，會暫時佔 slot、更新 KV cache／metrics，但不改容器設定。唯一持久寫入是使用者明確指定的 fixture/report `--out` JSON，而且目前會直接覆寫既有檔。此次終審未改任何檔，worktree 仍只有原本兩個 untracked 新檔。

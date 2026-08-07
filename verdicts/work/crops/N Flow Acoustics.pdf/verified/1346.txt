@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\int _ { \mathrm { V ^ { \prime } ~ v ^ { \prime \prime } } } \int _ { \mathrm { V ^ { \prime \prime } } } \left[ \frac { \partial ^ { 2 } \mathrm { T } _ { \mathrm { i j } } } { \partial \mathrm { t } ^ { 2 } } \left( \mathrm { y } _ { \mathrm { i } } ^ { \prime } , \mathrm { t } ^ { \prime } \right) \right] \left[ \frac { \partial ^ { 2 } \mathrm { T } _ { \mathrm { k l } } } { \partial \mathrm { t } ^ { 2 } } \left( \mathrm { y } _ { \mathrm { i } } ^ { \prime \prime } , \mathrm { t } ^ { \prime \prime } \right) \right] \mathrm { d } \mathrm { V ^ { \prime } d } \mathrm { V ^ { \prime \prime } } = \int _ { \mathrm { V ^ { \prime } } } \left. { { \frac { \partial ^ { 2 } \mathrm { T } _ { \mathrm { i j } } } { \partial \mathrm { t } ^ { 2 } } \left( \mathrm { y } _ { \mathrm { i } } ^ { \prime } , \mathrm { t } ^ { \prime } \right) } } \right] ^ { 2 } \mathrm { V } _ { \mathrm { c o r r } } \mathrm { d } \mathrm { V ^ { \prime } }\tag{8}
+$$

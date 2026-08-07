@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\left\{ \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } } { \partial \mathrm { t } ^ { 2 } } - \Delta \right\} \mathrm { B } = \mathrm { d i v } \left( \vec { \boldsymbol { \omega } } \times \vec { \boldsymbol { \mathrm { v } } } - \mathrm { T } \boldsymbol { \nabla } \boldsymbol { s } \right) + \frac { \partial } { \partial \mathrm { t } } \left( \frac { \beta \mathrm { T } } { c _ { \mathrm { p } } } \frac { \mathrm { D } \boldsymbol { s } } { \mathrm { D t } } \right)\tag{18}
+$$

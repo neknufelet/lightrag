@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { p } \left( \mathrm { x } _ { \mathrm { i } } , \mathrm { t } \right) = \frac { 1 } { 4 \pi \mathrm { c } _ { 0 } ^ { 2 } } \int \frac { 1 } { \mathrm { v } } \left\{ \frac { \partial ^ { 2 } \left( \mathrm { T } _ { \mathrm { i j } } \right) } { \partial \mathrm { t } ^ { 2 } } \right\} _ { \mathrm { \tau } } \left[ \frac { 1 } { \mathrm { r } ^ { 2 } } ( \mathrm { x } _ { \mathrm { i } } - \mathrm { y } _ { \mathrm { i } } ) ( \mathrm { x } _ { \mathrm { j } } - \mathrm { y } _ { \mathrm { j } } ) \right] \mathrm { d V }\tag{27}
+$$

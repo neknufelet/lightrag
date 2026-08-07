@@ -1,0 +1,52 @@
+{
+  "doc": "C Equivalent Networks.pdf",
+  "pdf_sha256": "sha256:1c7dcb0e1de0393c9af127509ff736d889e4fbf370d7436d9c98db16ee08470f",
+  "gates": {
+    "parse.coverage": {
+      "state": "fail",
+      "value": 0.10499,
+      "threshold": 0.05,
+      "note": "10.5%（381/3629）。階段 2.7 收尾（2026-08-02）由 12.0%（436）降下來，救回 55 詞，全部來自五筆定點補格（#520／#405／#529 r1c0+r4c0／#454／#373，經新開的「只加不改」curated 路徑，現值非空位元組一個沒動，逐段插入寫進 apply 的 notes）。**組成（逐區塊歸因，2026-08-02 補格後重跑）**：(1) glued/spaced ~117 詞（27%）—— 詞就在 table_body 裡，只是黏成一塊（`<td rowspan=2>ResistorCapacitorCoil</td>`）；本輪已把**逐字母排版**那一半正規化掉（`\\mathsf{t a n h}`→`\\mathsf{tanh}`，C 289 段），但**結構黏連**（沒有分隔符）救不了，要重排表格結構＝整表換掉，與定點補格互斥，記 NEXT 當解析階段議題。(2) image 73 詞 —— 內容在圖裡。(3) **bbox 未覆蓋 91 詞（24%）—— 逐詞歸因完成，見 records/review/c-uncovered-words.md**：19 個是跨頁續表的 `continued` 標籤、19 個是表格標題行（Medium wide / front / rear），53 個在 p33／p51 兩頁（MinerU 把整塊發成 image、caption 是 OCR 亂碼 `'-rxa e - io e e d sor b'`）。這三類都**不在任何 item 裡**，補格與正規化都碰不到；全修約可再救 91 詞 → 8.0%，**仍高於 5%**。(4) equation 19、text 16。**政策記錄**：`<img>` 閘門本輪窄改為「容許與現值逐位元相同的既有本地 images/ 參照」（外部網址與新增一律拒絕；qwen 本輪又交出 8 個 imgur 網址），這是 #520/#454/#373 得以補格的前提。**結論：C 的漏詞不可能靠後處理降到 5% 以下**（最好情況 8.0%），是否放行進階段 3 是 waiver 決策，材料齊備於 records/review/c-tables-disputes.md 與 c-uncovered-words.md。 **waiver 2026-08-02（主線）：准進階段 3**",
+      "at": "2026-08-02T21:41:14+08:00"
+    },
+    "parse.checks": {
+      "state": "pass",
+      "note": "parse-check 由 ERROR 轉為 WARN：mangled p64 ×1 已修（#540 是旋轉 90° 的圖說，MinerU OCR 讀成亂碼，散文取自 PDF 文字層、數學依裁圖補回 LaTeX），空表格 10 → 0。全庫 ERROR 由 1 降到 0。注意新出現的 WARN 是消音的副作用：空塊 11→111、無文字頁 0→36，因為 parse-check 不像 coverage-check 會把 `_pp_original_text` 讀回來 —— 偵測器問題，不是解析變差。",
+      "at": "2026-08-02T16:32:22+08:00"
+    },
+    "pp.preflight": {
+      "state": "pass",
+      "note": "postprocess.py plan/apply 對 20 份全部通過 preflight（型別、layout 頁序、page_size 一致、source_content_hash 對得上）；0 份被擋。2026-08-02",
+      "at": "2026-08-02T16:32:22+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "57 張表。階段 2：10 張待修（9 missing_key + 1 empty_shell）全部修補（5 張兩眼逐格一致自動採用 #380 #434 #453 #476 #524、5 張人工裁定 #390 #439 #466 #507 #525）。階段 2.7 收尾（2026-08-02）：57 張全部重裁圖、兩眼各自獨立轉錄（114 次、失敗 0），三方比對後依 c-tables-disputes §7.3 定案再補 5 張 —— #520（19 詞，第 0 列只有 `<img>`、整格說明文字不存在 → 新增一格）、#405（只補截斷格的前綴）、#529（r1c0＋r4c0 兩個空的列標籤格；r2c0／r5c0 依定案不補，MinerU 列切分與原表不同、標籤該掛哪一列沒有唯一答案）、#454（說明格前綴＋整列缺失的 Field formulation in (I)，羅馬數字下標依定案採 luna）、#373（說明格句首與句中各漏一段＋兩個列標籤）。**五張全部走「只加不改」的 curated 補格路徑**：比對基準是 MinerU 原值，現值非空位元組一個都不准動，寫入前逐段 diff 驗證並把每一段插入印進 apply 的 notes。`empty_table` 的耐久規則（不得覆蓋非空表格）**原樣保留**，自動採用的轉錄仍然永遠不准碰非空表格。#454 補格後實質文字 173→410 字元，`classify` 由 `img_thin` 轉 `ok`，退出待查佇列（canary 的 review 1→0，已 --update 並在 commit 說明）。0 張 unverifiable。",
+      "at": "2026-08-02T21:16:39+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "封閉掃描（2026-08-02 收尾版）：錨點放寬到「accent 類 ∪ 裸花體 token」、位置判準改為「首位或接**任何**算子單元後」，本份殘留 `\\hat`／`\\widehat` 站在算子位置者 **0 處**。殘留清單只剩真符號：`\\overline{⟨B_0+C_{0,0}⟩_a}`（平均量）與 `\\mathfrak{O}` 孔隙率。另本輪套用 `\\times` 誤讀機械修補 **20 處**（全庫 177 處 `\\times` 裡只有這 20 處命中錨點，全部在本份）：MinerU 把區域羅馬數字下標後的字母 x 讀成乘號（`\\mathsf{v}_{\\mathsf{I}\\times}` → 裁圖是 `Z₀v_{Ix}(x)`），同一行括號裡的同一個 x 被讀對，讀對的那一半直接證明另一半是什麼。三張裁圖親眼核對（t520-60／t529-62／t373-25），零例外。**刻意不動**：本份另有 6 處 `e^{-γ_{n,v}\\times}`（指數裡的座標 x 同病因、位置不同），不在 §7.4 授權的錨點內，一處未碰，列為下一張工單的材料。",
+      "at": "2026-08-02T21:16:39+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.02435,
+      "threshold": 0.05,
+      "note": "**本值為 2026-08-03 修正後重測。** 首次寫入時 extract-check.py 的三句 SQL 都沒帶 workspace 條件，v155 與 v2 的列混在一起、又因兩邊 file_path 是同一批 PDF 檔名而被併成同一列——數字看起來完全正常（大約兩倍）且不報錯。已修（腳本加 --workspace，預設讀 .env），修完拿 v155 重跑得到 3.2%，與 CLAUDE.md 記載的歷史值逐位元相同，偵測器本身因此獲得驗證。 2.4%（14/575 個字串比對有鑑別力的實體；符號型 685 個驗不了、總計 1260 個）。v155 同份 2.1%。2.4%（14/575）過門檻。v155 2.1%（11）→ v2 2.4%（14），實質不變。1,260 個實體裡 685 個是符號型（驗不了，佔 54%）—— 57 張表的必然結果，三態設計就是為它。可疑的仍是 v155 記錄過的同一族：羅馬數字下標（Region Ii／Region Iii）與 `Mechl`，對應 domain_fact「羅馬數字下標難讀」。",
+      "at": "2026-08-03T01:59:22+08:00"
+    },
+    "extract.format": {
+      "state": "pass",
+      "value": 295.0,
+      "note": "**第 1 批＝基線批**（rebuild-plan 階段 3：先鋒份先量基線）。本批 5 份共 477 次，全部帶得到 chunk key（無法歸戶 0 次），逐份：C 295／2014 Impedance Tube 106／2021 benchmark 52／A Conventions 24／01200_6 Room Acoustics 0。每 chunk 次數 C 2.0、2014 15.1、2021 8.7、A Conventions 24.0、01200_6 0.0 —— **次數與 chunk 數不成比例，散文短篇反而每 chunk 更高**，所以基線要記逐份原始數，不能換算成單一比率。ENTITY_EXTRACTION_USE_JSON=true 下這些是 JSON 路徑的 `{chunk_key}: Empty entity name found after sanitization in JSON result`，已被 LightRAG 丟棄、不進索引；它量的是模型輸出格式的雜訊量，不是資料損毀。 本份 295 次 / 148 chunk = 每 chunk 2.0 次。",
+      "at": "2026-08-02T22:53:28+08:00"
+    },
+    "retrieval.smoke": {
+      "state": "pass",
+      "note": "種子取自 `/graph/label/popular`（不自己編主題）。全庫層：前 10 個度數最高的標籤各打一次 mix 查詢，10/10 都回滿 8 個 chunk、平均 21.0 KB、無空結果，命中 8 份文件（度數最高的標籤集中在 C／K／N Flow 三份，所以全庫種子驗不到其餘 12 份——那時把 20 份都記 pass 等於宣稱驗過沒驗的東西）。逐份層：每份改取**它自己在圖上度數最高、且只有它貢獻**的標籤當種子，問「這份檢索得回自己嗎」。A-25 的實測值：chunk_top_k=2 → 2 個、=8 → 8 個（母體 20 份），20 次逐份查詢的 chunk 數上限都是 8，回傳量受控（失效時會靜靜回到 55–60KB／次）。 本份種子 `Orifice Partition Impedance`（全庫度數排名 2）→ 回 8 個 chunk／20.2 KB，其中本份 4 個。",
+      "at": "2026-08-03T01:59:46+08:00"
+    }
+  }
+}

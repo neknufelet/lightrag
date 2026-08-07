@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { I } \left( { \vec { \bf x } } \right) = { \frac { 1 } { 1 6 \pi ^ { 2 } \rho _ { 0 } c _ { 0 } ^ { 5 } } } { \frac { \mathrm { x _ { i } \mathrm { X _ { j } \mathrm { X _ { k } \mathrm { X _ { l } } } } } } { \mathrm { x ^ { 6 } } } } \iint \frac { 1 } { \mathrm { C ^ { 5 } } } { \frac { { \partial } ^ { 4 } } { { \partial } \mathrm { t ^ { 4 } } } } \mathrm { R _ { i j k l } } \left( { \vec { \mathrm { y ^ { \prime } } } } , { \vec { \xi } } , 0 \right) \mathrm { d } \mathrm { V ^ { \prime } } \mathrm { d } \mathrm { V _ { \xi } }\tag{16}
+$$

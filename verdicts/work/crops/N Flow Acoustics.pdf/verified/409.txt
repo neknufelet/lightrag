@@ -1,0 +1,7 @@
+<!--
+  §8.1 機械套用 1 處（首位判準；同側緊接算子之後者排除）
+  §8.2 hat_c × 9 → 對照 records/review/crops/nflow-0409-p15-hat_c-hat_sigma-16.png；裁圖逐處確認 9 處 ĉ 皆為 ∂
+-->
+$$
+\frac { \partial \mathrm { v } _ { \mathrm { a i } } } { \partial \mathrm { t } } + \mathrm { v } _ { \mathrm { 0 j } } \frac { \partial \mathrm { v } _ { \mathrm { a i } } } { \partial \mathrm { x } _ { \mathrm { j } } } + \frac { 1 } { \rho _ { \mathrm { 0 } } } \frac { \partial \mathrm { p } _ { \mathrm { a } } } { \partial \mathrm { x } _ { \mathrm { i } } } + \mathrm { v } _ { \mathrm { a j } } \frac { \partial \mathrm { v } _ { \mathrm { 0 i } } } { \partial \mathrm { x } _ { \mathrm { j } } } - \frac { \rho _ { \mathrm { a } } } { \rho _ { \mathrm { 0 } } ^ { 2 } } \frac { \partial \mathrm { p } _ { \mathrm { 0 } } } { \partial \mathrm { x } _ { \mathrm { i } } } = \mathrm { Q } _ { \mathrm { o t } } ^ { \mathrm { m o m . e q . } } + \mathrm { Q } _ { \mathrm { t t } } ^ { \mathrm { m o m . e q . } } + \mathrm { Q } _ { \mathrm { a t } } ^ { \mathrm { m o m . e q . } } + \mathrm { Q } _ { \mathrm { a a } } ^ { \mathrm { m o m . e q . } } + \mathrm { Q } _ { \mathrm { a a } } ^ { \mathrm { m o m . e q . } }\tag{66}
+$$

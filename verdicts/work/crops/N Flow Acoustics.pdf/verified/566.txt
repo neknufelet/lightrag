@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 5 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { l } { { \displaystyle { \mathbb { P } } \left( { \bf x } _ { \mathrm { i } } , { \bf t } \right) = \int \frac { 1 } { 4 \pi \mathrm { r } } \left( \frac { \partial \hat { \bf M } } { \partial { \bf t } } \right) _ { \tau } \mathrm { d } { \bf V } } \ ~ } \\  { \displaystyle ~ - \frac { \partial } { \partial { \bf x } _ { \mathrm { i } } } \int \frac { 1 } { 4 \pi \mathrm { r } } \left( { \mathrm { F } } _ { \mathrm { i } } + \dot { \mathrm { M } } { \bf v } _ { \mathrm { i } } \right) _ { \tau } \mathrm { d } { \bf V } + \frac { \partial } { \partial { \bf x } _ { \mathrm { i } } } \int \frac { 1 } { s } \left( \mathrm { \frac { \partial } { \partial { \bf t } } \nabla \left( { \bf p } _ { \mathrm { i } } \right)  _ { \tau } { \bf n } _ { \mathrm { j } } \mathrm { d } { \bf S } } \ ~ } \\ { \right){ \displaystyle ~ + \frac { \partial ^ { 2 } } { \partial { \bf x } _ { \mathrm { i } } \partial { \bf x } _ { \mathrm { j } } } \int \frac { 1 } { 4 \pi \mathrm { r } } \left( \mathrm { T } _ { \mathrm { i j } } \right) _ { \tau } \mathrm { d } { \bf V } } \ ~ } \end{array}\tag{24}
+$$

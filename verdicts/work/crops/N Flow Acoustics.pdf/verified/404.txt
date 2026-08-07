@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial \rho _ { \mathrm { a } } } { \partial \mathrm { t } } + \mathrm { v } _ { 0 \mathrm { j } } \frac { \partial \rho _ { \mathrm { a } } } { \partial \mathrm { x } _ { \mathrm { j } } } + \rho _ { 0 } \frac { \partial \mathrm { v } _ { \mathrm { a i } } } { \partial \mathrm { x } _ { \mathrm { i } } } = \mathrm { Q } _ { \mathrm { a t } } ^ { \mathrm { c o n t . e q . } } + \mathrm { Q } _ { \mathrm { a a } } ^ { \mathrm { c o n t . e q . } }\tag{63}
+$$

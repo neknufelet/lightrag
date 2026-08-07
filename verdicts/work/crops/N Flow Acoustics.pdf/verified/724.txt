@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \frac { \bar { \mathrm { D } } } { \mathrm { D t } } \left[ \frac { 1 } { \bar { c } ^ { 2 } } \frac { \bar { \mathrm { D } } ^ { 2 } \mathrm { p } } { \mathrm { D t } ^ { 2 } } - \bar { \mathsf { p } } \nabla \cdot \left( \frac { 1 } { \bar { \mathsf { p } } } \nabla \mathrm { p } \right) \right] + 2 \frac { \partial } { \partial \mathbf { x } } \left( \nabla \mathbf { U } \cdot \nabla \mathrm { p } \right) } \\ & { \quad \quad \quad \quad = \bar { \mathsf { p } } \left\{ \frac { \bar { \mathrm { D } } ^ { 2 } \mathrm { q } } { \mathrm { D t } ^ { 2 } } - \frac { \bar { \mathrm { D } } } { \mathrm { D t } } \left( \nabla \cdot \bar { \mathrm { f } } \right) + 2 \frac { \partial } { \partial \mathbf { x } } \left( \vec { \mathsf { f } } \cdot \nabla \mathbf { U } \right) \right\} } \end{array}\tag{17}
+$$

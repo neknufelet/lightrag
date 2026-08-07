@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 3 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { p } \left( \vec { \bf x } , \mathrm { t } \right) = \frac { \partial ^ { 2 } } { \partial \bf x _ { i } \partial \Delta x _ { j } } \int _ { \mathrm { V } } \left[ \frac { \mathrm { T _ { i j } } } { 4 \pi \mathrm { r } \left| 1 - \mathrm { M _ { r } } \right| } \right] _ { \mathrm { \tau } } \mathrm { d V }\tag{24}
+$$

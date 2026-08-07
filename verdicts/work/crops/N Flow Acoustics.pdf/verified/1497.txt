@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { l } { { \dot { \bf u } } _ { \mathrm { n } } = { \dot { \bf u } } _ { \mathrm { i } } { \bf n } _ { \mathrm { i } } } \\ { { \bf u } _ { \mathrm { i } } = { \bf u } _ { \mathrm { i } } { \dot { \bf n } } _ { \mathrm { i } } = { \bf u } _ { \mathrm { i } } \frac { { \boldsymbol \partial } { \bf n } _ { \mathrm { i } } } { { \boldsymbol \partial } \tau } } \\ { { \vec { \bf n } } } \end{array}
+$$

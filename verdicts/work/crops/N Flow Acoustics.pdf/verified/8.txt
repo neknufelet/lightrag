@@ -1,0 +1,10 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+μ = 0 , λ = 0 µ: dynamic viscosity   
+Ideal fluids:   
+λ: thermal conductivity   
+Newtonian fluid: μ = constant   
+Non-Newtonian fluid: μ $\neq$ constant   
+The relationship between shear stress τ and velocity gradient   
+${ \partial } \mathbf { v } / { \partial } \mathbf { n }$ is non-linear.

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { Q } _ { \mathrm { a a } } ^ { \mathrm { c o n t . e q . } } = - \mathbf { v } _ { \mathrm { a j } } \frac { \partial \rho _ { \mathrm { a } } } { \partial \mathbf { x } _ { \mathrm { j } } } - \mathsf { p } _ { \mathrm { a } } \frac { \partial \mathbf { v } _ { \mathrm { a i } } } { \partial \mathbf { x } _ { \mathrm { i } } }\tag{65}
+$$

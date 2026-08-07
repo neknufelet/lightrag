@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { R e f o r m u l a t i o n w i t h } \quad \frac { \partial \mathsf { p } _ { 0 } } { \partial \mathsf { t } } = c _ { 0 } ^ { 2 } \frac { \partial \mathsf { \rho } _ { 1 } } { \partial \mathsf { t } }\tag{17}
+$$

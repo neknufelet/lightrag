@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \mathrm { D } ^ { 2 } \Pi } { \mathrm { D t } ^ { 2 } } - \frac { \partial } { \partial \bf { x _ { i } } } \left[ c ^ { 2 } \frac { \partial \Pi } { \partial \bf { x _ { i } } } \right] = \kappa \frac { \partial \bf { v _ { i } } } { \partial \bf { x _ { j } } } \frac { \partial \bf { v _ { j } } } { \partial \bf { x _ { i } } }\tag{3}
+$$

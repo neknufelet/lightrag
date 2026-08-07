@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { d } \rho = \left( { \frac { \partial \rho } { \partial \mathrm { p } } } \right) _ { \mathrm { s } } \ \mathrm { d } \mathrm { p } + \left( { \frac { \partial \rho } { \partial \mathrm { s } } } \right) _ { \mathrm { p } } \ \mathrm { d } \mathrm { s } = { \frac { \mathrm { d } \mathrm { p } } { \mathrm { c } ^ { 2 } } } + \left( { \frac { \partial \rho } { \partial \mathrm { T } } } \right) _ { \mathrm { p } } \ \left( { \frac { \partial \mathrm { T } } { \partial \mathrm { s } } } \right) _ { \mathrm { p } } \ \mathrm { d } \mathrm { s } = { \frac { \mathrm { d } \mathrm { p } } { \mathrm { c } ^ { 2 } } } - { \frac { \beta \rho \mathrm { T } } { c _ { \mathrm { p } } } } \mathrm { d } \mathrm { s } = { \frac { \mathrm { d } \mathrm { p } } { \mathrm { c } ^ { 2 } } } - { \frac { \rho } { c _ { \mathrm { p } } } } \mathrm { d } \mathrm { s }\tag{25}
+$$

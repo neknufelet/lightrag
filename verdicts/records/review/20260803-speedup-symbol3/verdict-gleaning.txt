@@ -1,0 +1,45 @@
+DISAGREE
+
+- 你證明了 gleaning 不是「純重工」；但還不足以推出「不要砍」。目前較安全的結論是：不能只用 raw entity count 做永久裁決。
+
+- 先抓一個數學／語意問題：
+  - `2334 / 4206 = 55.5%`，這是相對於 initial 的增量。
+  - `2334 / (4206 + 2334) = 35.7%`，才是最終有用候選中的比例。
+  - 所以「多 36%」若指增量是不對的；若指最終總量占比才對。
+  - 而且 `4206` 是 469 個可解析 initial 呼叫，`2334` 來自 458 個配對 chunk，分母不完全一致。
+
+- 「非符號型＝有用」只能當弱代理，不能當結果指標。repo 自己把符號型定義成「字串無法驗證」，明確說不是失敗；50 題人工樣本中，符號型仍有 38% 是正確概念推論，且 `restated` 實測有被檢索命中。[extract-check.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/extract-check.py:49)、[NEXT.md](/home/florian/ghq/github.com/neknufelet/lightrag-v1/NEXT.md:112)
+
+- 更大的分類風險是：`--dump-symbolic` 是從最終 VDB 實體分類，不是 raw cache record 分類；它已經經過 parser、驗證、去重、跨 chunk 合併。拿它回頭標 raw output，母體可能不一致。[extract-check.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/extract-check.py:144)
+
+- 你目前完全沒量到 relations。gleaning prompt 本來同時補 entities 和 relationships，也可能補上「兩個已存在實體之間的邊」。只看 2,334 個名字，可能漏掉它真正的價值。[LightRAG prompt.py](https://github.com/HKUDS/LightRAG/blob/main/lightrag/prompt.py)
+
+- 字元佔比不是時間佔比的可靠替代：
+  - 需要用 completion tokens，不是字元數。
+  - gleaning 會把 initial 的 prompt／assistant output 放進 history，prefill 明顯不同；LightRAG 的參數說明也把 gleaning 描述為追加 history 的 loop。[LightRAG v1.5.5 source](https://github.com/HKUDS/LightRAG/blob/v1.5.5/lightrag/lightrag.py#L2857)
+  - JSON extraction 本身可能增加 token 與 latency。[LightRAG API 文件](https://github.com/HKUDS/LightRAG/blob/main/docs/LightRAG-API-Server.md#entity-extraction-configuration)
+  - 你 repo 的基準還顯示 initial／gleaning prompt 前綴分岔，prompt cache 幾乎命不中。[NEXT.md](/home/florian/ghq/github.com/neknufelet/lightrag-v1/NEXT.md:545)
+  - 所以 prefill 可能讓 gleaning 超過 40% 時間；也可能因 decode 主導而只增加約 40%。目前不能判定會不會翻轉，必須量 `prompt_tokens / completion_tokens / prompt_eval / eval duration`。
+
+- 同 chunk 比對本身沒有錯，但它回答的是「gleaning 在該 chunk 產生了新的名字」，不是「最終索引增加了多少節點」。
+  - 2,334 很可能高估最終 unique entity 數。
+  - 全體約 30% 合併不能直接拿來打折；initial、gleaning、符號型、不同文件的重複率可能不同。
+  - 同名跨 chunk 合併也不代表完全零價值，因為可能增加 description、source chunk 或 relation。
+  - 只做大小寫不敏感也可能把 alias、標點、下標變體誤算成新實體。repo 已記錄這類碎片化會影響 context slot，而不是單純 node count。[entity-merge.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/entity-merge.py:4)
+
+- 63 筆 invalid JSON 是獨立問題，而且不能直接把實體數設為零：
+  - 63/1019 是呼叫列比例，不是實體比例。
+  - 你的 `json.loads` 失敗，不等於 LightRAG parser 整個呼叫失敗；可能是 cache 存 raw response、parser 做過抽取／清洗，也可能是整批拒收。
+  - repo 已觀察到 parser 會逐筆丟掉空 entity name，顯示「輸出有問題」與「整個 response 全掉」不是同一件事。[README.md](/home/florian/ghq/github.com/neknufelet/lightrag-v1/README.md:207)
+  - initial invalid 41、gleaning invalid 22，方向上會使 valid-only 統計有偏，但偏向哪邊不能由筆數判斷；要用實際 parser 重播 63 筆，對照最終 entities、relations、log。
+
+- 會讓「不要砍」反過來成立的條件：
+  - parser 重播後，大多 glean records 被拒收、錯誤或跨 chunk 合併；
+  - final unique nodes／relations 的增量很小；
+  - 固定 query set 的 retrieval recall、context quality、answer accuracy 幾乎不變；
+  - 實測 gleaning 的 end-to-end 時間超過其帶來的品質增益；
+  - initial-only 仍通過 grounding、relation、retrieval gates。
+
+- 我建議目前不要寫成「不要砍」，而寫成：「raw cache 顯示 gleaning 有大量新候選，但尚未完成 parser-aware、merge-aware、relation-aware、query-aware A/B；暫不准全砍。」現有證據足以阻止盲砍，但不足以永久封殺 selective gleaning。
+
+本回合未修改任何檔案。

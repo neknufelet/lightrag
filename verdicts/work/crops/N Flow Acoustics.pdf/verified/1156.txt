@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\left( { \frac { { \partial } ^ { 2 } } { \partial \mathbf { t } ^ { 2 } } } - c _ { \alpha } ^ { 2 } \nabla ^ { 2 } \right) \rho ^ { \alpha } = { \frac { \partial \mathbf { Q } } { \partial \mathbf { t } } } - { \frac { \partial \mathbf { G _ { i } } } { \partial \mathbf { x _ { i } } } } + { \frac { { \partial } ^ { 2 } \mathrm { T _ { i j } } } { \partial \mathbf { x _ { i } } \partial \mathbf { x _ { j } } } }\tag{21}
+$$

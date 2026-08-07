@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { p } ( \vec { \bf x } , \mathrm { t } ) = \frac { \rho _ { 0 } } { 1 2 \pi \mathrm { c } _ { 0 } ^ { 2 } \mathrm { r } ^ { 3 } } \frac { \partial ^ { 3 } } { \partial \mathrm { t } ^ { 3 } } \int { ( \vec { \bf x } \cdot \vec { \bf y } ) } \vec { \bf y } \cdot { [ \vec { \bf \sigma } \vec { \bf \sigma } \times \vec { \bf x } ] } _ { \mathrm { t } - \mathrm { ~ \frac { ~ x ~ } { ~ c _ { 0 } ~ } ~ } } \mathrm { d V }\tag{35}
+$$

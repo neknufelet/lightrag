@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } \mathbb { P } \mathrm { a } } { \partial \mathrm { t } ^ { 2 } } - \nabla ^ { 2 } \mathbb { P } \mathrm { a } = - \frac { \partial ^ { 2 } \rho _ { 1 } } { \partial \mathrm { t } ^ { 2 } } + \nabla \cdot \left( \mathbb { P } _ { 1 } \frac { \partial \vec { \mathbf { v } } _ { 0 } } { \partial \mathrm { t } } \right)\tag{16}
+$$

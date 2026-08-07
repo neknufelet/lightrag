@@ -1,0 +1,52 @@
+{
+  "doc": "K Muffler Acoustics.pdf",
+  "pdf_sha256": "sha256:81cc88579f70aec2939c378cd7dff0fbf51f488f892d16f4c24125a2d1683781",
+  "gates": {
+    "parse.coverage": {
+      "state": "pass",
+      "value": 0.00611,
+      "threshold": 0.05,
+      "note": "0.73%→0.61%（26/4256）。偵測器 v2：+LaTeX 字母間隔正規化（`\\mathrm{w i t h}` 型逐字母排版黏回單字，與階段 1 的 ﬂ 合字同族假訊號）。v1 與 v2 的數字不可混用。 偵測器 v3（2026-08-02 階段 2.7）：`_pp_original_*` 改為**有條件讀回** —— 現值仍有內容（＝文字/表格修補過的）才跳過原文欄位，消音項（現值已清空）仍讀回。本份沒有「原文欄位與非空現值並存」的項目，數字完全不變，正好當這次改動的對照錨點。　階段 2.7 收尾（2026-08-02）：套用兩個機械 LaTeX 修補（`\\times` 誤讀錨點、格內逐字母排版正規化，全庫 679 項 2,419 處）。**本份漏詞數逐位元不變** —— 這是構造上必然（coverage-check 早在量測時就做同一種正規化），也因此是這次改動的零成本零例外檢查：任何一份動了就代表規則做了量測沒預期的事。",
+      "at": "2026-08-02T21:15:50+08:00"
+    },
+    "parse.checks": {
+      "state": "pass",
+      "note": "WARN（非 ERROR 判準，放行）：空文字 3",
+      "at": "2026-08-02T15:05:05+08:00"
+    },
+    "pp.preflight": {
+      "state": "pass",
+      "note": "postprocess.py plan/apply 對 20 份全部通過 preflight（型別、layout 頁序、page_size 一致、source_content_hash 對得上）；0 份被擋。2026-08-02",
+      "at": "2026-08-02T16:32:22+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "本文件無 table 型別項目，無待修表格。",
+      "at": "2026-08-02T16:32:22+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "§8.3 符號無關的位置封閉掃描：accent 類 token（\\hat/\\bar/\\widehat/\\tilde）站在 frac 首位或行內除法算子位置、且非 \\partial 的疑似 ∂ 誤讀 0 處；九記號家族本來就 0 命中。（判準由「掃不到那九個記號」升級為「位置上封閉」。）",
+      "at": "2026-08-02T18:26:32+08:00"
+    },
+    "extract.grounding": {
+      "state": "fail",
+      "value": 0.15082,
+      "threshold": 0.05,
+      "note": "**本值為 2026-08-03 修正後重測。** 首次寫入時 extract-check.py 的三句 SQL 都沒帶 workspace 條件，v155 與 v2 的列混在一起、又因兩邊 file_path 是同一批 PDF 檔名而被併成同一列——數字看起來完全正常（大約兩倍）且不報錯。已修（腳本加 --workspace，預設讀 .env），修完拿 v155 重跑得到 3.2%，與 CLAUDE.md 記載的歷史值逐位元相同，偵測器本身因此獲得驗證。 15.1%（92/610 個字串比對有鑑別力的實體；符號型 370 個驗不了、總計 980 個）。v155 同份 8.2%。**>5% 標黃：15.1%（92/610），全庫最高。v155 8.2%（52）→ v2 15.1%（92）。** **形狀與 NEXT 記載的 v155 結論不同，本輪推翻**：舊記錄寫「大量『概念→引用文獻』型」，但 92 個裡只有 1 個是期刊（International Journal Of Acoustics And Vib）。實際形狀是**「傳遞矩陣的裸符號→概念命名」**：`Coefficient Ta/Tb/Tc/Td`、`Matrix GA/GI/GB`、`Reactance Xa/Xb`、`Numerator Np/Nv`、`H12/H21/H22 Parameter`、`C14/C32/C34 Parameter`、`Velocity V1–V3`、`Diameter d1–d3`、`Impedance Zeta 1/2`、`Variable De1/De2/De6/De7`。原文這些只以裸符號出現在 2×2 傳遞矩陣式裡，模型替每個符號取描述性名字——**這正是三態設計說「從符號推論概念名稱是它該做的事」的那一類**，只是這些式子所在的 chunk 散文比例高於 SYMBOLIC_RATIO 0.35，沒被判成符號型（本份已判掉 370 個），於是同族的東西一半進「驗不了」、一半進「可疑」。**分子不是幻覺，是三態判準的邊界效應。** v155→v2 幾乎翻倍的原因同源：修補後 table_body 變完整，符號密度反而下降、更多 chunk 掉出符號型判定。要真的降下來得重量 is_symbolic 的判準（門檻用量的不要用調的），材料就是這 92 個名字。",
+      "at": "2026-08-03T01:59:23+08:00"
+    },
+    "extract.format": {
+      "state": "pass",
+      "value": 301.0,
+      "note": "對照第 1 批基線（5 份 477 次；每 chunk 0.0–24.0）。第 4 批 5 份共 495 次，全部帶得到 chunk key（無法歸戶 0 次）：K Muffler 301／01705 Directional 66／00908 Transmission 57／2026 JAX-BEM 50／2025 band gaps 21。**每 chunk 次數 1.1–8.3，全部在基線區間內；K Muffler 301 次是全庫單份最高，但它有 66 個 chunk，每 chunk 4.6 次仍低於基線中位數 8.7。** 本份 301 次 / 66 chunk = 每 chunk 4.6 次。",
+      "at": "2026-08-03T01:49:19+08:00"
+    },
+    "retrieval.smoke": {
+      "state": "pass",
+      "note": "種子取自 `/graph/label/popular`（不自己編主題）。全庫層：前 10 個度數最高的標籤各打一次 mix 查詢，10/10 都回滿 8 個 chunk、平均 21.0 KB、無空結果，命中 8 份文件（度數最高的標籤集中在 C／K／N Flow 三份，所以全庫種子驗不到其餘 12 份——那時把 20 份都記 pass 等於宣稱驗過沒驗的東西）。逐份層：每份改取**它自己在圖上度數最高、且只有它貢獻**的標籤當種子，問「這份檢索得回自己嗎」。A-25 的實測值：chunk_top_k=2 → 2 個、=8 → 8 個（母體 20 份），20 次逐份查詢的 chunk 數上限都是 8，回傳量受控（失效時會靜靜回到 55–60KB／次）。 本份種子 `Matrix A`（全庫度數排名 25）→ 回 8 個 chunk／22.5 KB，其中本份 5 個。",
+      "at": "2026-08-03T01:59:47+08:00"
+    }
+  }
+}

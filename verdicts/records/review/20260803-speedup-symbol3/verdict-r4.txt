@@ -1,0 +1,14 @@
+VERDICT: PASS
+
+1. **warm-up：已修** — 以最大併發度同時送出等量 synthetic requests，結果不混入量測；報告保存 concurrency、requests、success_n、SHA 與錯誤，任一失敗最終使 `main()` 回傳 1。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:734)
+2. **順序效應：已修** — `observed` 嚴格採 `relative_spread > threshold`；預設門檻 0.05，表格列出輪數、spread、門檻、direction 及兩輪限制。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:484)
+3. **快取重用比例：已修** — 每個 run 計算 `Σcache_n / prompt_tokens`，分母為零輸出 `null`，表格顯示百分比或 `n/a`。[llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:402)
+4. **三個測試缺口：已修** — 已涵蓋多題 `Σcache_n`、多輪 JSON＋表格整路徑，以及 `/props` 失敗經 `main()` 回傳非零。[test_llm_bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_llm_bench.py:196)
+
+新的測試確實走到要求的路徑：
+
+- 多題 cache 測試走真實 `_run_once` 彙總，再進 `_report_table`。
+- 多輪測試走 `_run_benchmark → _run_once → _order_effects → _report_table → JSON 寫入／讀回`。
+- `/props` 測試直接呼叫 `main()`，不是只測 helper。
+
+驗證方面，接受主線 `21 passed`；本席另親跑 6 個免暫存焦點案例為 `6 passed`，並以不落地 probe 驗證四槽同時 warm-up、threshold 等號不算 observed、零分母為 null、warm-up 1/2 失敗令 `main()` 回傳 1。完整 `uvx pytest` 在本席唯讀環境因無法建立 uv 暫存檔而未重跑，不是測試失敗。工作樹仍維持原本兩個 untracked 檔。

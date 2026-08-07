@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 22 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \frac { \partial ^ { 2 } } { \partial \mathrm { t } ^ { 2 } } \mathrm { T } _ { \mathrm { i j } } \approx \frac { \partial ^ { 2 } } { \partial \mathrm { t } ^ { 2 } } \left( \mathrm { \rho { v } _ { i } } \mathrm { \mathbf { v } _ { j } } \right) } \\ & { \qquad \approx \frac { \partial } { \partial \mathrm { t } } \left[ \mathrm { p } \left( \frac { \partial \mathrm { v _ { i } } } { \partial \mathrm { x } _ { j } } + \frac { \partial \mathrm { v _ { j } } } { \partial \mathrm { x _ { i } } } \right) \right] = \frac { \partial \mathrm { p } } { \partial \mathrm { t } } \left( \frac { \partial \mathrm { \bar { v } _ { i } } } { \partial \mathrm { x } _ { j } } + \frac { \partial \mathrm { \bar { v } _ { j } } } { \partial \mathrm { x } _ { \mathrm { i } } } \right) + \frac { \partial } { \partial \mathrm { t } } \left[ \mathrm { p } \left( \frac { \partial \mathrm { v _ { i } ^ { \prime } } } { \partial \mathrm { x } _ { j } } + \frac { \partial \mathrm { v _ { j } ^ { \prime } } } { \partial \mathrm { x } _ { \mathrm { i } } } \right) \right] } \end{array}\tag{3}
+$$

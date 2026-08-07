@@ -1,0 +1,80 @@
+VERDICT: BLOCK
+
+人話：數字本身足以推翻「`restated` 永遠不會被命中」，但這支工具目前還不足以把「兩組沒有差異」或「符號型吃掉四分之一脈絡」寫進 NEXT.md。另有票級與健全性擋板問題，不能以一般票收線。
+
+### 阻擋理由
+
+1. 票級錯誤：本提交新增 416 行，而專案規則明定 `diff > 200` 必須升重票，不能由指揮降級。[CLAUDE.md](/home/florian/ghq/github.com/neknufelet/lightrag-v1/CLAUDE.md:112) 因此缺重票要求的設計／雙軌終審流程；這一項單獨即 BLOCK。
+
+2. 三個「健全性檢查」都只是報告，不是擋板：
+
+   - label 對不上會被列出並排除分母，但程式仍成功結束；JSON 還固定寫 `"exact_matching": true`。[symbol-hits.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/symbol-hits.py:133)
+   - 大小寫／空白近似名只在終端印數量，細節只留 JSON。
+   - 查詢失敗雖設 `complete=false`，仍 exit 0 並繼續印「可直接比較」的結論。[symbol-hits.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/symbol-hits.py:201)
+
+   更嚴重的是，程式算了 `answer_key_not_in_symbolic`，卻沒有印出、阻擋或拿它限制答案卷分母；只要答案卷名稱仍存在 graph labels，即使已不在這次 supplied symbolic bucket，也會靜默進統計。輸入的 `workspace`、`population=1482`、`n=50`、來源 metadata 也全被丟掉不驗。[symbol-hits.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/symbol-hits.py:95)
+
+3. JSON 沒保存每個 query 的實體結果、每個命中實體及格數，也沒有輸入 hash／服務快照。現在無法稽核那五個 `restated` 是哪些、由哪個 query 命中、是否為 seed 自命中。對一組要改寫決策的數字，provenance 不足。
+
+### 判準與假綠測試
+
+目前實際程式的成功路徑，確實與 `cmd_plan()` 相同：
+
+- 同一 `/graph/label/popular?limit=N`
+- 同一 `/query/data`
+- `mode=mix`
+- `only_need_context=true`
+- `top_k=40`
+- `chunk_top_k=1`
+- 保留 response 內重複實體；同名兩次算兩格
+- `C0` 的 HTTP 400 在兩支都會被跳過
+
+對照位置：[entity-merge.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/entity-merge.py:154)、[symbol-hits.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/symbol-hits.py:69)。
+
+但測試作為「整把尺相同」的證據，是部分假綠。[test_symbol_hits.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_symbol_hits.py:63) 只從 AST 讀出三個常數，再和 `symbol-hits` 實際 body 比；它沒有從來源驗證：
+
+- popular seed endpoint／順序
+- `queries=30`、`top_k=40` defaults
+- query/path 的動態語義
+- response 是否保留重複項
+- `cmd_plan` 的實際計數與失敗處理
+
+所以今天兩支確實一致，但明天 `cmd_plan` 改 seed、去重或改動態欄位時，五測仍可能全綠。
+
+### NEXT.md 的斷言
+
+「`restated` 永遠不會被檢索命中」已被推翻。
+
+這是全稱命題；一個可信命中就足以推翻，現在有五個。CI 是否重疊、樣本是否夠大，都不影響這個結論。應改成：
+
+> 在本次 29/30 個成功的熱門標籤探針中，27 個已標註 `restated` 有 5 個被命中；因此「永遠不會命中」不成立。
+
+但 18.5% vs 21.1% 不能支持兩組等價：
+
+- Fisher exact test 約 `p=1.00`
+- 差值為 `-2.5 pp`
+- 差值 95% 區間約橫跨 `-27 pp` 到 `+20 pp`
+
+精確說法是：「這個小樣本沒有偵測到差異，但也沒有能力排除很大的差異。」若「支援沒有差異」是指等價證據，答案是後者：樣本太小。
+
+所需樣本沒有單一答案，必須先定義最小重要差異。以命中率約 20%、α=0.05、power=80%、暫時假設 IID：
+
+- 證明兩率在 ±10 percentage points 內：約 275 個／verdict。
+- 偵測 20% vs 30%：約 294 個／verdict。
+- ±5 points 等價：約 1,100 個／verdict，幾乎只能做全母體。
+
+按目前 `correct≈38%`，取得 275 個 correct 約需人工標 725 個總樣本。有限母體修正會降低需求，但文件聚集會提高需求；正式設計應按文件分層。`--queries 60` 只改變探針曝光，不會把答案卷的 `n=27/19` 變大。
+
+### 24.4% 能說什麼
+
+不能說「符號型實體吃掉四分之一的檢索脈絡」。
+
+目前只能說：
+
+> 在 29 個成功的合成熱門標籤查詢中，API 回傳的 1,795 個 entity entries 裡，有438 格精確命中 symbolic bucket，占 24.4%。
+
+它不是 context token share，因為沒有計算 entity description 長度、relations、chunks 或總 token；而且 popular-label seeds 不是使用者查詢流量。既有文件也已確認這類 seed 會被少數大文件壟斷，曾讓 12 份文件一次都沒被命中。[rebuild-plan.md](/home/florian/ghq/github.com/neknufelet/lightrag-v1/docs/rebuild-plan.md:258)
+
+另外，`356/1482` 是針對固定探針、完整 symbolic bucket 的 census；若 estimand 是「這 29 個 query 下的桶覆蓋率」，24.0% 是確值，不需要 Wilson CI。若要外推真實查詢流量，應以代表性 query 為抽樣單位，現有 Wilson CI 用錯了不確定性的來源。
+
+驗證方面：你提供的 dker 證據是 `5 passed`；本席唯讀環境無法取得 uv cache lock，系統 Python 又未裝 pytest，因此沒有第二次獨立 pytest 輸出。`git diff --check` 通過、工作樹乾淨。

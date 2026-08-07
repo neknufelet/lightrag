@@ -1,0 +1,38 @@
+<!-- #439 p41：穩定分歧 2 格，兩眼各對一半（羅馬數字下標，錯的方向相反）。以 qwen 轉錄為底，看圖後定點修 4 處：p_{||}→p_{II}、v_{||x}→v_{IIx}、p_i(0,r)→p_I(0,r)、Z_K→\underline{Z}_K（2 處）。其餘 12 格兩眼一致，一字未動。 -->
+<table border="1" cellpadding="5" cellspacing="0">
+  <tr>
+    <td>Field formulation in (II)<br><br>Eigenvalues $\eta_n b$</td>
+    <td>$p_{\mathrm{II}}(x, y, z) = \sum_{n,\nu \ge 0} D_{n,\nu} \, e^{-\gamma_{n,\nu} x} \cos(\eta_n y) \cos(\eta_\nu z)$<br>
+    $Z_0 v_{\mathrm{II}x}(x, y, z) = \frac{-1}{\Gamma_a Z_i} \frac{\partial p}{\partial x} = \frac{1}{\Gamma_i Z_i} \sum_{n,\nu \ge 0} D_{n,\nu} \frac{\gamma_{n,\nu}}{k_0} e^{-\gamma_{n,\nu} x} \cdot \cos(\eta_n y) \cos(\eta_\nu z)$<br>
+    $\sin(\eta_n b) = 0 \implies \eta_n b = n\pi \ ; \ n = 0, 1, 2, \dots \ ;$<br>
+    $\gamma_{n,\nu}^2 = \eta_n^2 + \eta_\nu^2 + \Gamma_a^2$</td>
+  </tr>
+  <tr>
+    <td>Equation for $C_0$</td>
+    <td>$C_0 = B_0 \left[ -1 + \frac{\Gamma_i Z_i}{\pi a^2} \sum_{n,\nu \ge 0} \frac{S_{n,\nu}^2}{(\gamma_{n,\nu}/k_0) N_{n,\nu}^{(II)}} \right] \times \left[ 1 + \frac{\Gamma_i Z_i}{\pi a^2} \sum_{n,\nu \ge 0} \frac{S_{n,\nu}^2}{(\gamma_{n,\nu}/k_0) N_{n,\nu}^{(II)}} \right]^{-1}$</td>
+  </tr>
+  <tr>
+    <td>Equations for $D_{n,\nu}$</td>
+    <td>$D_{n,\nu} = \Gamma_i Z_i \frac{S_{n,\nu}}{(\gamma_{n,\nu}/k_0) N_{n,\nu}^{(II)}} (B_0 - C_0)$</td>
+  </tr>
+  <tr>
+    <td>Mode norm in (I)</td>
+    <td>$N_0^{(I)} = \int_0^a r \, dr = \frac{a^2}{2}$</td>
+  </tr>
+  <tr>
+    <td>Mode norms in (II)</td>
+    <td>$N_{n,\nu}^{(II)} = \int_{-b}^{+b} \int_{-b}^{+b} \cos(\eta_n y) \cos(\eta_\nu z) \cdot \cos(\eta_{n'} y) \cos(\eta_{\nu'} z) \, dy \, dz$<br>
+    $N_{n,\nu}^{(II)} = b^2 N_n^{(y)} \cdot N_\nu^{(z)} \ ; \ N_n^{(y)} = \begin{cases} 0 \ ; \ n \ne n' \\ 1 \ ; \ n = n' \ne 0 \\ 2 \ ; \ n = n' = 0 \end{cases} \ ;$<br>
+    $N_\nu^{(z)} = \begin{cases} 0 \ ; \ \nu \ne \nu' \\ 1 \ ; \ \nu = \nu' \ne 0 \\ 2 \ ; \ \nu = \nu' = 0 \end{cases}$</td>
+  </tr>
+  <tr>
+    <td>Mode coupling (I)–(II) in $s = \pi a^2$</td>
+    <td>$S_{n,\nu} = \int_s \int \cos(\eta_n y) \cos(\eta_\nu z) \, ds$<br>
+    $= 2\pi a^2 \frac{J_1\left(a\sqrt{\eta_n^2 + \eta_\nu^2}\right)}{a\sqrt{\eta_n^2 + \eta_\nu^2}} \xrightarrow{\eta_n=\eta_\nu=0} \pi a^2$</td>
+  </tr>
+  <tr>
+    <td>Orifice partition impedance</td>
+    <td>$Z_{Mi} = Z_{sh} - \sigma \cdot \underline{Z}_K \ ; \quad \underline{Z}_K = Z_i$<br>
+    $Z_{sh} = \frac{\langle p_{\mathrm{I}}(0, r) \rangle_s}{\langle Z_0 v_{Ix}(0, r) \rangle_s} = \frac{B_0 + C_0}{B_0 - C_0}$</td>
+  </tr>
+</table>

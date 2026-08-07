@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\tau _ { \mathrm { i j } } ^ { \mathrm { s } } = \mathrm { N } \left[ \frac { \partial \mathrm { u _ { \mathrm { s i } } } } { \partial \mathrm { x _ { j } } } + \frac { \partial \mathrm { u _ { \mathrm { s j } } } } { \partial \mathrm { x _ { i } } } \right] ; \tau _ { \mathrm { i j } } ^ { \mathrm { f } } = 0 ,\tag{9}
+$$

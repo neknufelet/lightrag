@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 3 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\boxed { \Omega } ^ { 2 } \mathbf { p } _ { \mathbf { a } } = \frac { \partial ^ { 2 } } { \partial \mathbf { x _ { i } } \partial \mathbf { x _ { j } } } \left[ \mathrm { T } _ { \mathrm { i j } } \mathrm { H ( f ) } \right] ; \quad \bigtriangledown ^ { 2 } \mathbf { p } _ { \mathbf { a } } = \mathbf { Q } \left( \mathbf { x _ { i } } , \mathbf { t } \right) \boldsymbol { \delta } ( \mathbf { f } ) ;\tag{19,20}
+$$

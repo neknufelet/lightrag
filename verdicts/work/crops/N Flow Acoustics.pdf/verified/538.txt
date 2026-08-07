@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \frac { { \partial } ^ { 2 } \boldsymbol { \rho } } { { \partial } \mathrm { t } ^ { 2 } } } - c _ { 0 } ^ { 2 } { \frac { { \partial } ^ { 2 } \boldsymbol { \rho } } { { \partial } \mathrm { x } _ { \mathrm { i } } ^ { 2 } } } = { \frac { { \partial } { \hat { \mathbf { M } } } } { { \partial } \mathrm { t } } } - { \frac { { \partial } } { { \partial } \mathrm { x } _ { \mathrm { i } } } } \left( \mathrm { F _ { i } } + { \dot { \mathbf { M } } } \mathrm { v _ { i } } \right) + { \frac { { \partial } ^ { 2 } } { { \partial } \mathrm { x _ { i } } { \partial } \mathrm { x _ { j } } } } \left( \boldsymbol { \rho } \mathrm { v _ { i } } \mathrm { v _ { j } } + \mathrm { p _ { i j } } - \mathrm { c _ { 0 } ^ { 2 } } \boldsymbol { \rho } \delta _ { \mathrm { i j } } \right) = \mathrm { q }\tag{13}
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\boxed { \ 2 } _ { \hat { \mathrm { P T } } } = \frac { \partial } { \partial \mathrm { t } } \left[ \rho _ { 0 } \mathbf { u } _ { \mathrm { n } } \delta ( \mathrm { f } ) \right]\tag{51}
+$$

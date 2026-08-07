@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 14 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \frac { \mathrm { D } } { \mathrm { D t } } \left\{ \frac { \mathrm { D } ^ { 2 } \Pi } { \mathrm { D t } ^ { 2 } } - c _ { 0 } ^ { 2 } \nabla ^ { 2 } \Pi \right\} + 2 c _ { 0 } ^ { 2 } \frac { \mathrm { d } \mathrm { U } } { \mathrm { d } \mathrm { y } } \frac { \partial ^ { 2 } \Pi } { \partial \mathbf { x } \partial \mathrm { y } } } \\ & { \qquad = \kappa \frac { \partial ^ { 2 } } { \partial \mathbf { x } _ { \mathrm { i } } \partial \mathbf { x } _ { \mathrm { j } } } \left( \frac { \mathrm { D v _ { i } ^ { \prime } v _ { j } ^ { \prime } } } { \mathrm { D t } } \right) - 4 \kappa \frac { \partial \mathrm { U } } { \partial \mathrm { y } } \frac { \partial } { \partial \mathbf { x } } \left( \mathrm { v _ { i } ^ { \prime } } \frac { \partial \mathbf { v } _ { \mathrm { y } } ^ { \prime } } { \partial \mathbf { x } _ { \mathrm { i } } } \right) - \kappa \frac { \partial } { \partial \mathbf { x } } \left( \frac { \mathrm { d } ^ { 2 } \mathrm { U } } { \mathrm { d } \mathrm { y } ^ { 2 } } \mathrm { v _ { y } ^ { \prime 2 } } \right) . } \end{array}\tag{19}
+$$

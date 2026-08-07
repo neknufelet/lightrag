@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 5 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial ^ { 2 } \mathsf { P } } { \partial \mathsf { t } ^ { 2 } } - c _ { 0 } ^ { 2 } \Delta \mathsf { P } = \frac { \partial ^ { 2 } } { \partial \mathbf { x } _ { \mathrm { i } } \partial \mathbf { x } _ { \mathrm { j } } } \left\{ \mathsf { \rho } \mathsf { v _ { i } } \mathbf { v _ { j } } + \left[ \left( \mathsf { p } - \mathsf { p _ { 0 } } \right) - c _ { 0 } ^ { 2 } \left( \mathsf { \rho } \mathrm { - } \mathsf { p _ { 0 } } \right) \right] \delta _ { \mathrm { i j } } - \mathsf { \tau _ { i j } } \right\}\tag{1}
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial \mathrm { e } } { \partial \mathrm { t } } + \frac { \partial } { \partial \mathrm { x _ { i } } } \left[ \mathrm { v _ { i } } \left( \mathrm { e + p } \right) \right] = 0 \quad \mathrm { r e s p e c t i v e l y } \quad \frac { \partial \mathrm { e } } { \partial \mathrm { t } } + \mathrm { d i v } \left[ \vec { \mathrm { v } } \left( \mathrm { e + p } \right) \right] = 0\tag{7}
+$$

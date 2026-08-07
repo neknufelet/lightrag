@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 17 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l r } & {  { \frac { \partial ^ { 2 } \mathrm { B } ^ { \prime } } { \partial \mathrm { X } _ { \mathrm { i } } ^ { 2 } } - \{ \frac { 1 } { c ^ { 2 } } [ \frac { \partial ^ { 2 } } { \partial \mathrm { t } ^ { 2 } } + ( 2 \mathrm { v } _ { \mathrm { i } } \frac { \partial } { \partial \mathrm { t } } - ( \vec { \mathrm { v } } \times \vec { \omega } ) _ { \mathrm { i } } ) \frac { \partial } { \partial \mathrm { X } _ { \mathrm { i } } } + \mathrm { v } _ { \mathrm { i } } \mathrm { v } _ { \mathrm { j } } \frac { \partial ^ { 2 } } { \partial \mathrm { X } _ { \mathrm { i } } \partial \mathrm { X } _ { \mathrm { j } } } ] \mathrm { B } ^ { \prime } \} ^ { \prime } } } \\ & { } & { = \{ [ \frac { \partial } { \partial \mathrm { X } _ { \mathrm { i } } } - \frac { 1 } { c ^ { 2 } } ( - ( \vec { \mathrm { v } } \times \vec { \omega } ) _ { \mathrm { i } } + \mathrm { v } _ { \mathrm { i } } \mathrm { v } _ { \mathrm { j } } \frac { \partial } { \partial \mathrm { X } _ { \mathrm { i } } } ) ] ( ( \vec { \mathrm { v } } \times \vec { \omega } ) _ { \mathrm { j } } ^ { \prime } + [ \frac { \partial \mathrm { v } _ { \mathrm { i } } ^ { \prime } } { \partial \mathrm { t } } ] ) \} ^ { \prime } } \end{array}\tag{48}
+$$

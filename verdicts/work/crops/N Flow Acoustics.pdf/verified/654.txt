@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\tau _ { \mathrm { i j } } = \mu \left( \frac { \partial \mathbf { v _ { i } } } { \partial \mathbf { x _ { j } } } + \frac { \partial \mathbf { v _ { j } } } { \partial \mathbf { x _ { i } } } \right) - \frac { 2 } { 3 } \mu \frac { \partial \mathbf { v _ { k } } } { \partial \mathbf { x _ { k } } } \delta _ { \mathrm { i j } }
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 5 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { H c _ { 0 } ^ { 2 } \left( \ p - \ p _ { 0 } \right) = \frac { \partial ^ { 2 } } { \partial \mathbf { x _ { i } } \partial \mathbf { x _ { j } } } \int \left[ T _ { i j } \right] _ { \tau } \frac { d \mathrm { V } } { 4 \pi \left| \mathbf { x } _ { i } - \mathbf { y } _ { i } \right| } - \frac { \partial } { \partial \mathbf { x _ { i } } } \int \left[ p _ { i j } \right] _ { \tau } \frac { d S _ { j } ( \mathbf { y _ { i } } ) } { 4 \pi \left| \mathbf { x } _ { i } - \mathbf { y } _ { i } \right| } \mathrm { . } }\tag{23}
+$$

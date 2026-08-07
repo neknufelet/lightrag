@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 16 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \bar { \mathrm { D } } ^ { 2 } \Pi ^ { \prime } } { \mathrm { D t } ^ { 2 } } - \frac { \partial } { \partial \mathbf { x _ { i } } } \left[ c _ { 0 } ^ { 2 } \frac { \partial \Pi ^ { \prime } } { \partial \mathbf { x _ { i } } } \right] = 2 \kappa \frac { \partial \bar { \mathbf { v } } _ { \mathrm { x } } } { \partial \mathbf { y } } \frac { \partial \mathbf { v } _ { \mathrm { y } } ^ { \prime } } { \partial \mathbf { x } } + \kappa \left[ \frac { \partial \mathbf { v } _ { \mathrm { j } } ^ { \prime } } { \partial \mathbf { x _ { i } } } \frac { \partial \mathbf { v } _ { \mathrm { i } } ^ { \prime } } { \partial \mathbf { x _ { j } } } - \frac { \overline { { \partial \mathbf { v } _ { \mathrm { j } } ^ { \prime } } } } { \partial \mathbf { x _ { i } } } \frac { \partial \mathbf { v } _ { \mathrm { i } } ^ { \prime } } { \partial \mathbf { x _ { j } } } \right]\tag{6}
+$$

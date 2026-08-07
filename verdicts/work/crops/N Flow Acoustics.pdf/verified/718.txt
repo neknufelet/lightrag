@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r } { \frac { \mathrm { D } } { \mathrm { D t } } \left( \frac { 1 } { c ^ { 2 } } \frac { \mathrm { D } \Theta } { \mathrm { D t } } \right) - \Delta \Theta = - \frac { \mathrm { D } } { \mathrm { D t } } \left( \frac { 1 } { c ^ { 2 } } \frac { \partial \bf v _ { i } } { \partial \bf x _ { j } } \frac { \partial \bf v _ { j } } { \partial \bf x _ { i } } - \frac { \nabla \ln h } { c ^ { 2 } } \frac { \mathrm { D } \bf v _ { i } } { \mathrm { D t } } \right) } \\ { - \frac { \Delta \bf v _ { i } } { c ^ { 2 } } \frac { \mathrm { D } \bf v _ { i } } { \mathrm { D t } } - 2 \frac { \partial \bf v _ { j } } { \partial \bf x _ { i } } \frac { \partial } { \partial \bf x _ { j } } \left( \frac { 1 } { c ^ { 2 } } \frac { \mathrm { D } \bf v _ { i } } { \mathrm { D t } } \right) } \end{array}\tag{16}
+$$

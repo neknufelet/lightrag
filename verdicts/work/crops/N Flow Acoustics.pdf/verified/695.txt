@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \bar { \mathrm { D } } } { \mathrm { D t } } \left( \frac { \bar { \mathrm { D } } ^ { 2 } \Pi } { \mathrm { D t } ^ { 2 } } - \frac { \partial } { \partial \mathbf { x _ { i } } } \left[ c ^ { 2 } \frac { \partial \Pi } { \partial \mathbf { x _ { i } } } \right] \right) + 2 \frac { \partial \bar { \mathbf { v } } _ { \mathbf { x } } } { \partial \mathbf { y } } \frac { \partial } { \partial \mathbf { x } } \left[ c ^ { 2 } \frac { \partial \Pi } { \partial \mathbf { y } } \right] = \mathbf { q }\tag{11}
+$$

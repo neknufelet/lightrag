@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \mathrm { D } } { \mathrm { D t } } = \frac { \partial } { \partial \mathrm { t } } + \mathrm { v _ { i } } \frac { \partial } { \partial \mathrm { x _ { i } } }\tag{2}
+$$

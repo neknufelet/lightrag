@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\Delta \Phi - \frac { 1 } { c _ { 0 } ^ { 2 } } \left( \frac { \partial } { \partial \mathrm { t } } + \mathrm { U } _ { \infty } \frac { \partial } { \partial \mathrm { x } } \right) ^ { 2 } \Phi = 0\tag{28}
+$$

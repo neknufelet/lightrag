@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r } { \mathrm { s h e a r } \qquad \mathrm { s h e a r } \qquad } \\ { \mathrm { d I _ { \omega } } ^ { \mathrm { n o i s e } } \quad ( \vec { \bf x } , \Theta \left| \vec { \bf y } \right. ) = \frac { \mathrm { \rho } _ { \mathrm { 0 } } \overline { { \bf u _ { 1 } ^ { \prime 2 } } } \mathrm { L } _ { 1 } \mathrm { L } _ { 2 } ^ { 4 } } { \pi ^ { 3 / 2 } c _ { 0 } ^ { 5 } \tau ^ { 2 } } \frac { \omega ^ { 4 } } { \omega _ { \mathrm { t } } } \left( \frac { \partial \mathrm { U } _ { 1 } } { \partial \mathrm { y } _ { 2 } } \right) ^ { 2 } \mathrm { D } _ { 2 } \mathrm { e x p } \left( - \frac { \omega ^ { 2 } \mathrm { C } ^ { 2 } } { 4 \omega _ { \mathrm { t } } ^ { 2 } } \right) } \end{array}\tag{39}
+$$

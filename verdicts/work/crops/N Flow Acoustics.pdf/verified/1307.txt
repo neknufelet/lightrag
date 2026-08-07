@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { 4 \pi \Phi \left( \vec { \bf x } , { \bf t } \right) = \int _ { s } \left\{ \frac { \displaystyle \frac { \partial { \bf r } } { \partial { \bf n } } } { \displaystyle \frac { \partial { \bf n } } { r ^ { 2 } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } } \Phi - \frac { 1 } { { \bf r } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \left[ \frac { \partial \Phi } { \partial { \bf n } } + \frac { { \bf M } _ { \mathrm { n } } } { c _ { 0 } } \frac { \partial \Phi } { \partial \tau } \right] \right. } \\ & { \quad \quad \left. + \frac { 1 } { c _ { 0 } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \frac { \partial } { \partial \tau } \left[ \frac { \displaystyle \frac { \partial { \bf r } } { \partial { \bf n } } - { \bf M } _ { \mathrm { n } } } { \displaystyle \frac { \partial \left( 1 - { \bf M } _ { \mathrm { r } } \right) } { \tau } } \Phi \right] \right\} _ { \mathrm { \bf t } } { \mathrm { d } } { \bf S } } \end{array}\tag{32}
+$$

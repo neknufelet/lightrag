@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\Xi _ { | | } = ( - \partial \mathrm { p } / \partial \mathrm { z } ) \Big / \langle { \bf v } _ { \mathrm { z } } \rangle = \frac { 4 \eta } { { \sf a } ^ { 2 } } ~ \frac { \mu } { 2 \mu - \ln { \mu } - \frac { 1 } { 2 } { \mu } ^ { 2 } - 1 , 5 }\tag{4}
+$$

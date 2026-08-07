@@ -1,0 +1,6 @@
+<!--
+  #692（式 10，p26）R2 13 處 `\hat{\mathcal{O}}` → `\partial`。**同式混用真 `\partial`**：`\frac{\partial\Pi}{\hat{\mathcal{O}}x_i}` 一邊讀對一邊讀錯，讀對的那一半直接證明另一半是什麼；同式的真物質導數寫成 `\bar{\mathrm{D}}/\mathrm{Dt}`，與本記號字面分開。裁圖 crops/nflow-0692-p26-hat_mathcal_O-27.png。13 處全在首位。
+-->
+$$
+\frac { \bar { \mathrm { D } } } { \mathrm { Dt } } \left( \frac { \bar { \mathrm { D } } ^ { 2 } \Pi } { \mathrm { Dt } ^ { 2 } } - \frac { \partial } { \partial \mathbf { x } _ { \mathrm { i } } } \left[ \overline { { c ^ { 2 } } } \frac { \partial \Pi } { \partial \mathbf { x } _ { \mathrm { i } } } \right] \right) + 2 \frac { \partial \bar { \mathbf { v } } _ { \mathrm { j } } } { \partial \mathbf { x } _ { \mathrm { i } } } \frac { \partial } { \partial \mathbf { x } _ { \mathrm { j } } } \left[ \overline { { c ^ { 2 } } } \frac { \partial \Pi } { \partial \mathbf { x } _ { \mathrm { i } } } \right] = - 2 \kappa \frac { \partial \mathbf { v } _ { \mathrm { j } } } { \partial \mathbf { x } _ { \mathrm { i } } } \frac { \partial \mathbf { v } _ { \mathrm { k } } } { \partial \mathbf { x } _ { \mathrm { j } } } \frac { \partial \mathbf { v } _ { \mathrm { i } } } { \partial \mathbf { x } _ { \mathrm { k } } }\tag{10}
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 7 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \bar { \mathrm { D } } } { \mathrm { D t } } \left( \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \bar { \mathrm { D } } ^ { 2 } \mathrm { p } _ { \mathrm { a } } } { \mathrm { D t } ^ { 2 } } - \frac { \partial ^ { 2 } \mathrm { p } _ { \mathrm { a } } } { \partial \mathrm { x } _ { \mathrm { i } } ^ { 2 } } \right) + 2 \frac { \partial \bar { \bf v } _ { \mathrm { x } } } { \partial \mathrm { y } } \frac { \partial ^ { 2 } \mathrm { p } _ { \mathrm { a } } } { \partial \mathrm { x } \partial \mathrm { y } } = 0\tag{13}
+$$

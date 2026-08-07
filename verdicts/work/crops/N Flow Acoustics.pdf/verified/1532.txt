@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { l } { { \displaystyle \mathrm { p } _ { \mathrm { Q } } \left( \vec { \bf x } , { \bf t } \right) = \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } } { \partial { \bf t } ^ { 2 } } \int \left[ \frac { \mathrm { T r } } { 4 \pi { \bf r } \left| 1 - { \bf M } _ { \mathrm { r } } \right| } \right] _ { \mathrm { \bf \overline { { { t } } } } } \mathrm { d } { \bf V } + \frac { 1 } { c _ { 0 } } \frac { \partial } { \partial { \bf t } } \int \left[ \frac { 3 \mathrm { T } _ { \mathrm { r r } } - \mathrm { T } _ { \mathrm { i i } } } { 4 \pi { \bf r } ^ { 2 } \left| 1 - { \bf M } _ { \mathrm { r } } \right| } \right] _ { \mathrm { \bf \overline { { { t } } } } } \mathrm { d } { \bf V } } \ ~ } \\ { { \displaystyle ~ + \int \left[ \frac { 3 \mathrm { T } _ { \mathrm { r r } } - \mathrm { T } _ { \mathrm { i i } } } { 4 \pi { \bf r } ^ { 3 } \left| 1 - \mathrm { M } _ { \mathrm { r } } \right| } \right] _ { \mathrm { \bf \overline { { { t } } } } } \mathrm { d } { \bf V } } \ ~ } \end{array}\tag{61}
+$$

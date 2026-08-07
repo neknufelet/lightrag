@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial } { \partial \mathbf { t } } \left( \rho \mathbf { v } _ { \mathrm { i } } \mathbf { v } _ { \mathrm { j } } \right) = \mathbf { p } _ { \mathrm { i k } } \frac { \partial \mathbf { v _ { j } } } { \partial \mathbf { x _ { k } } } + \mathbf { p } _ { \mathrm { j k } } \frac { \partial \mathbf { v _ { i } } } { \partial \mathbf { x _ { k } } } - \frac { \partial } { \partial \mathbf { x _ { k } } } \left( \rho \mathbf { v } _ { \mathrm { i } } \mathbf { v _ { j } } \mathbf { v _ { k } } + \mathbf { p } _ { \mathrm { i k } } \mathbf { v _ { j } } + \mathbf { p } _ { \mathrm { j k } } \mathbf { v _ { i } } \right) ,\tag{1}
+$$

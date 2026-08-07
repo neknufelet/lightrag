@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 13 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \mathrm { D } } { \mathrm { D t } } \left\{ \frac { \mathrm { D } ^ { 2 } \Pi } { \mathrm { D t } ^ { 2 } } - c _ { 0 } ^ { 2 } \nabla ^ { 2 } \Pi \right\} + 2 c _ { 0 } ^ { 2 } \frac { \mathrm { d } \mathrm { U } } { \mathrm { d } \mathrm { y } } \frac { \partial ^ { 2 } \Pi } { \partial \mathrm { x } \partial \mathrm { y } } = \kappa \frac { \mathrm { D } } { \mathrm { D t } } \left( \frac { \partial \mathrm { v } _ { \mathrm { i } } ^ { \prime } } { \partial \mathrm { x } _ { \mathrm { j } } } \frac { \partial \mathrm { v } _ { \mathrm { j } } ^ { \prime } } { \partial \mathrm { x } _ { \mathrm { i } } } \right) - 2 \kappa \frac { \partial \mathrm { U } } { \partial \mathrm { y } } \frac { \partial } { \partial \mathrm { x } } \left( \mathrm { v } _ { \mathrm { i } } ^ { \prime } \frac { \partial \mathrm { v } _ { \mathrm { y } } ^ { \prime } } { \partial \mathrm { x } _ { \mathrm { i } } } \right) .\tag{18}
+$$

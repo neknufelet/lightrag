@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { p _ { T } \left( x _ { i } , t \right) = \frac { \partial } { \partial t } \int _ { \Omega } \left[ \frac { \rho _ { 0 } u _ { n } } { 4 \pi r \left( 1 - M _ { r } \right) } \right] _ { \Omega } d S = \int _ { \Omega } \left[ \frac { 1 } { 1 - M _ { r } } \frac { \partial } { \partial \tau } \frac { \rho _ { 0 } u _ { n } } { 4 \pi r \left( 1 - M _ { r } \right) } \right] _ { \tau } d S }\tag{52}
+$$

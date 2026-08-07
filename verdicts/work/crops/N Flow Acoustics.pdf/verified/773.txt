@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \frac { 1 } { c _ { 0 } ^ { 2 } } } { \frac { { \partial } ^ { 2 } \mathrm { p } } { \partial \mathrm { t } ^ { 2 } } } - { \frac { { \partial } ^ { 2 } \mathrm { p } } { \partial \mathrm { x _ { i } ^ { 2 } } } } = \mathrm { \ p _ { 0 } } { \frac { { \partial } ^ { 2 } \left( \mathrm { v _ { i } \mathbf { v _ { j } } } \right) } { { \partial } \mathrm { x _ { i } } { \partial } \mathrm { x _ { j } } } } = \mathrm { q }\tag{29}
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 3 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \frac { 1 } { \bar { c } ^ { 2 } } } { \frac { \bar { \mathrm { D } } ^ { 2 } \mathrm { p } } { \mathrm { D t } ^ { 2 } } } - \Delta \mathrm { p } = { \frac { { \partial } ^ { 2 } \mathrm { p v _ { i } ^ { \prime } v _ { j } ^ { \prime } } } { \partial \mathbf { x } _ { \mathrm { i } } \partial \mathbf { x } _ { \mathrm { j } } } } + 2 { \frac { \partial \mathrm { U } } { \partial \mathrm { y } } } { \frac { \partial \mathrm { \bf p v _ { y } ^ { \prime } } } { \partial \mathrm { x } } }\tag{26}
+$$

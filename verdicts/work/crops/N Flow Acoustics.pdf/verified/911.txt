@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+L _ { D o a k } \mathrm { B } = \Delta \mathrm { B } - \frac { 1 } { c ^ { 2 } } \left[ \frac { \partial ^ { 2 } \mathrm { B } } { \partial \mathrm { t } ^ { 2 } } + \left( 2 \vec { \mathrm { v } } \frac { \partial } { \partial \mathrm { t } } + \vec { \mathrm { \omega } } \times \vec { \mathrm { v } } + \mathrm { T } \boldsymbol { \nabla } \mathrm { s } - 2 \boldsymbol { \nabla } \mathrm { h } \right) \boldsymbol { \nabla } \mathrm { B } + \vec { \mathrm { v } } \vec { \mathrm { v } } \cdot \boldsymbol { \nabla } \cdot \boldsymbol { \nabla } \mathrm { B } \right]\tag{39}
+$$

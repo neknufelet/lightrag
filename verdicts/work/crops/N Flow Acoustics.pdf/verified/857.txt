@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\left\{ \frac { 1 } { c _ { 0 } ^ { 2 } } \left( \frac { \partial } { \partial \mathbf { t } } + \vec { \mathbf { v } } \cdot \nabla \right) ^ { 2 } - \Delta \right\} \mathrm { B } = \mathrm { d i v } \left( \vec { \boldsymbol { \omega } } \times \vec { \mathbf { v } } \right)\tag{19}
+$$

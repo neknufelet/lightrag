@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathbb { P } \left( \vec { \mathbf { x } } , \mathbf { t } \right) = \frac { \rho _ { 0 } \mathbf { x _ { i } } } { 4 \pi \mathrm { c _ { 0 } } \mathrm { r ^ { 2 } } } \frac { \partial } { \partial \mathrm { t } } \int \left[ \left( \vec { \boldsymbol { \omega } } \times \vec { \mathbf { v } } \right) _ { \mathrm { i } } \right] _ { \mathrm { \tau } } \mathrm { d } \mathbf { V } + \frac { \rho _ { 0 } } { 4 \alpha \mathrm { c } _ { 0 } ^ { 2 } \mathrm { r } } \frac { \partial ^ { 2 } } { \partial \mathrm { t } ^ { 2 } } \int \left[ \frac { 1 } { 2 } \left| \vec { \mathbf { v } } \right| ^ { 2 } \right] _ { \mathrm { \tau } } \mathrm { d } \mathbf { V }\tag{7}
+$$

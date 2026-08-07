@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } \mathrm { p } } { \partial \mathrm { t } ^ { 2 } } - \Delta \mathrm { p } = \frac { \partial } { \partial \mathrm { t } } \left( \frac { \mathrm { \ p } _ { 0 } } { c _ { \mathrm { p } } } \frac { \mathrm { D } \mathrm { s } } { \mathrm { D t } } \right) + \frac { \partial ^ { 2 } } { \partial \mathrm { x } _ { \mathrm { i } } \partial \mathrm { x } _ { \mathrm { j } } } \left( \rho _ { 0 } \mathrm { v } _ { \mathrm { i } } \mathrm { v } _ { \mathrm { j } } \right) } \\ & { \quad \quad \quad \quad + \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial } { \partial \mathrm { t } } \left[ \left( 1 - \frac { \mathrm { \ p } _ { 0 } c _ { 0 } ^ { 2 } } { \mathrm { \rho } \mathrm { c } ^ { 2 } } \right) \frac { \partial \mathrm { p } } { \partial \mathrm { t } } \right] - \mathrm { \rho } _ { 0 } \mathrm { d i v } \left[ \left( \frac { 1 } { \rho } - \frac { 1 } { \rho _ { 0 } } \right) \mathrm { v } _ { \mathrm { p } } \right] } \end{array}\tag{6}
+$$

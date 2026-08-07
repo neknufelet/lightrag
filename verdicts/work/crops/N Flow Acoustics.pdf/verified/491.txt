@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\left( { \frac { \partial ^ { 2 } } { \partial \mathbf { x } ^ { 2 } } } + { \frac { \partial ^ { 2 } } { \partial \mathbf { r } ^ { 2 } } } + { \frac { 1 } { \mathbf { r } } } { \frac { \partial } { \partial \mathbf { r } } } + { \frac { 1 } { \mathbf { r } ^ { 2 } } } { \frac { \partial ^ { 2 } } { \partial \Theta ^ { 2 } } } - { \frac { 1 } { c _ { 0 } ^ { 2 } } } { \frac { \mathrm { D } ^ { 2 } } { \mathrm { D t } ^ { 2 } } } \right) \Phi = 0 .\tag{22}
+$$

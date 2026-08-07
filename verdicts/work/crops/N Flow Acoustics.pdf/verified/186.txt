@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial \mathrm { p ^ { \prime } } } { \partial \mathrm { t } } + \bar { \mathrm { v } } _ { \mathrm { i } } \frac { \partial \mathrm { p ^ { \prime } } } { \partial \mathrm { x _ { i } } } + \bar { \rho } c _ { 0 } ^ { 2 } \frac { \partial \mathrm { v _ { i } ^ { \prime } } } { \partial \mathrm { x _ { i } } } = 0\tag{19}
+$$

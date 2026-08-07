@@ -1,0 +1,52 @@
+{
+  "doc": "G Porous Absorbers.pdf",
+  "pdf_sha256": "sha256:e0b355f9883993f5d959ebd34de4da9c4155652db711192ddcde9e43ebf7015f",
+  "gates": {
+    "parse.coverage": {
+      "state": "pass",
+      "value": 0.02958,
+      "threshold": 0.05,
+      "note": "2.96%（127/4293），低於門檻。偵測器 v3（有條件讀回 `_pp_original_*`）在本份影響 4 個項目，數字不變。　階段 2.7 收尾（2026-08-02）：套用格內逐字母排版正規化 132 項 787 段（全庫第二多）與 ∂ 族第二輪的 #567 裁定檔。**漏詞數逐位元不變（127）**，與其餘 18 份一起構成這次規則改動的零例外對照。",
+      "at": "2026-08-02T21:17:26+08:00"
+    },
+    "parse.checks": {
+      "state": "pass",
+      "note": "WARN（非 ERROR 判準，放行）：空文字 3",
+      "at": "2026-08-02T15:04:35+08:00"
+    },
+    "pp.preflight": {
+      "state": "pass",
+      "note": "postprocess.py plan/apply 對 20 份全部通過 preflight（型別、layout 頁序、page_size 一致、source_content_hash 對得上）；0 份被擋。2026-08-02",
+      "at": "2026-08-02T16:32:22+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "8 張表，table_body 皆非空（缺鍵 0、空殼 0、圖片型待查 0），無待修補目標。",
+      "at": "2026-08-02T16:32:22+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "翻綠（原 fail）。partial-family-r2 §8 定案套用完成：R3 的 4 處 `\\hat{\\mathcal{O}}`（#567，式 42 p45）→ `\\partial`，依據裁圖 crops/gporous-0567-p45-hat_mathcal_O-46.png 上的 `T ∂²u₃(P₂)/∂x₃²`、`S ∂²u₁(P₂)/∂x₃²` 逐處對上，經 verified 裁定檔與 apply 寫入。**封閉掃描重跑（補了 §5 的兩個盲點：錨點放寬到裸 token、「接任何算子單元後」）**：本份 `\\hat`／`\\widehat` 站在算子位置者 **0 處**。殘留只剩已定案真符號 —— `\\tilde{\\rho}` 30 處＋`\\widetilde{\\rho}` 3 處（同一個 ρ̃，兩種 LaTeX 拼法）、`\\mathfrak{n}`／`\\mathfrak{a}`／`\\boldsymbol{\\mathfrak{n}}` 各 1 處（花體普通符號，與 §8 允許清單的 `\\mathfrak{O}` 同類）。無新 token。判準沿 §8.4 第 1 條：「驗了、通過」才翻綠。",
+      "at": "2026-08-02T21:17:08+08:00"
+    },
+    "extract.grounding": {
+      "state": "fail",
+      "value": 0.06407,
+      "threshold": 0.05,
+      "note": "**本值為 2026-08-03 修正後重測。** 首次寫入時 extract-check.py 的三句 SQL 都沒帶 workspace 條件，v155 與 v2 的列混在一起、又因兩邊 file_path 是同一批 PDF 檔名而被併成同一列——數字看起來完全正常（大約兩倍）且不報錯。已修（腳本加 --workspace，預設讀 .env），修完拿 v155 重跑得到 3.2%，與 CLAUDE.md 記載的歷史值逐位元相同，偵測器本身因此獲得驗證。 6.4%（28/437 個字串比對有鑑別力的實體；符號型 151 個驗不了、總計 588 個）。v155 同份 2.7%。**>5% 標黃：6.4%（28/437）。v155 2.7%（12）→ v2 6.4%（28）。形狀＝「Bessel 函數符號→概念命名」**，與 K Muffler 同一族的邊界效應：`I0`／`I3`／`K1`／`K2`／`K3`／`C7`／`C9`／`Coefficient C3/C4/C14/C15` 與模型替它們展開的全名（`Modified Bessel Function Of The First Kind I0` 等 13 個變體）。本份已判掉 151 個符號型；係數表那幾個 chunk 散文比例夠高而沒被判成符號型。另有 domain_fact 的 `Mechl`（Mechel 被讀成 Mechl）。**不是幻覺。**",
+      "at": "2026-08-03T01:59:23+08:00"
+    },
+    "extract.format": {
+      "state": "pass",
+      "value": 179.0,
+      "note": "對照第 1 批基線（5 份 477 次；每 chunk 0.0–24.0）。第 3 批 5 份共 350 次，全部帶得到 chunk key（無法歸戶 0 次）：G Porous 179／2017 Metadiffusers 66／2022 PP Probe 59／01205 FEM 24／41598 22。**每 chunk 次數 2.8–6.0，全部在基線區間內，沒有一份顯著偏高。** 本份 179 次 / 62 chunk = 每 chunk 2.9 次。",
+      "at": "2026-08-03T00:47:56+08:00"
+    },
+    "retrieval.smoke": {
+      "state": "pass",
+      "note": "種子取自 `/graph/label/popular`（不自己編主題）。全庫層：前 10 個度數最高的標籤各打一次 mix 查詢，10/10 都回滿 8 個 chunk、平均 21.0 KB、無空結果，命中 8 份文件（度數最高的標籤集中在 C／K／N Flow 三份，所以全庫種子驗不到其餘 12 份——那時把 20 份都記 pass 等於宣稱驗過沒驗的東西）。逐份層：每份改取**它自己在圖上度數最高、且只有它貢獻**的標籤當種子，問「這份檢索得回自己嗎」。A-25 的實測值：chunk_top_k=2 → 2 個、=8 → 8 個（母體 20 份），20 次逐份查詢的 chunk 數上限都是 8，回傳量受控（失效時會靜靜回到 55–60KB／次）。 本份種子 `Volume Porosity`（全庫度數排名 62）→ 回 8 個 chunk／26.6 KB，其中本份 7 個。",
+      "at": "2026-08-03T01:59:46+08:00"
+    }
+  }
+}

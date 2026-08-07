@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 3 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\boxed { 2 } \mathbf { \hat { p } } _ { \mathrm { a } } \left( \vec { \mathbf { x } } , \mathbf { t } \right) = \frac { \partial ^ { 2 } } { \partial \mathbf { x _ { i } } \partial \mathbf { x _ { j } } } \left[ \mathrm { T } _ { \mathrm { i j } } \mathrm { H ( f ) } \right]\tag{58}
+$$

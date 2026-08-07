@@ -1,0 +1,4 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+with new variable: $\Gamma = \frac { \mathrm { D } \Pi } { \mathrm { D } \mathrm { t } } = \frac { \partial \Pi } { \partial \mathrm { t } } + \mathrm { U } \frac { \partial \Pi } { \partial \mathbf { x } }$

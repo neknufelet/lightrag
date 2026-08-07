@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial ^ { 2 } \mathfrak { p } } { \partial \mathbf { x } _ { \mathrm { i } } ^ { 2 } } - \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } \mathfrak { p } } { \partial \mathbf { t } ^ { 2 } } = \frac { \partial ^ { 2 } \mathfrak { p ^ { \prime } } } { \partial \mathbf { x } _ { \mathrm { i } } ^ { 2 } }\tag{8}
+$$

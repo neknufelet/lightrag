@@ -1,0 +1,6 @@
+<!--
+  §8.2 hat_sigma × 1 → 對照 records/review/crops/nflow-1015-p41-hat_sigma-42.png；裁圖直讀 F_i = p_ij ∂f/∂x_j = p_ij n_j：ĉ位上的 σ̂ 是被微分量 f，不是 ∂
+-->
+$$
+\mathrm { F _ { i } = \mathrm { p _ { i j } \frac { \partial f } { \partial x _ { j } } = \mathrm { p _ { i j } \mathrm { n _ { j } } } } }\tag{13}
+$$

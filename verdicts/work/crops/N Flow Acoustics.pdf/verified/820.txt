@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \mathrm { D } \vec { \mathbf { v } } } { \mathrm { D t } } = \frac { \partial \vec { \mathbf { v } } } { \partial \mathbf { t } } + \left( \vec { \mathbf { v } } \cdot \nabla \right) \vec { \mathbf { v } } = \frac { \partial \vec { \mathbf { v } } } { \partial \mathbf { t } } + \vec { \mathbf { o } } \times \vec { \mathbf { v } } + \nabla \left( \frac { 1 } { 2 } \mathbf { v } ^ { 2 } \right) \mathrm { v e c t o r i d e n t i t y }
+$$

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 7 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { { \displaystyle { \mathbb { P } } \left( { \bf x } _ { \mathrm { i } } , { \bf t } \right) = \frac { { \partial } ^ { 2 } } { \partial { \bf x } _ { \mathrm { i } } \partial { \bf x } _ { \mathrm { j } } } \int \left[ \frac { { \mathrm { T } } _ { \mathrm { i j } } } { 4 \pi \mathrm { r } \left( 1 - { \mathrm { M } } _ { \mathrm { r } } \right) } \right] _ { \mathrm { \mathbb { r } } } \mathrm { d } { \bf V } } - \frac { \partial } { \partial { \bf x } _ { \mathrm { i } } } \int \left[ \frac { { \mathrm { p } } _ { \mathrm { i j } } { \bf n } _ { \mathrm { j } } } { 4 \pi \mathrm { r } \left( 1 - { \mathrm { M } } _ { \mathrm { r } } \right) } \right] _ { \mathrm { \mathbb { r } } } \mathrm { d } { \bf S } } \\ & { ~ + \frac { \partial } { \partial { \bf t } } \int \left[ \frac { { \mathrm { \rho } } { \mathrm { \rho } } _ { 0 } { \bf u } _ { \mathrm { n } } } { 4 \pi \mathrm { r } \left( 1 - { \mathrm { M } } _ { \mathrm { r } } \right) } \right] _ { \mathrm { \mathbb { r } } } \mathrm { d } { \bf S } } \end{array}\tag{23}
+$$

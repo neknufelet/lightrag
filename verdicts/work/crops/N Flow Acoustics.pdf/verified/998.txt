@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\left\{ \frac { \partial ^ { 2 } } { \partial \mathbf { t } ^ { 2 } } - c _ { 0 } ^ { 2 } \frac { \partial ^ { 2 } } { \partial \mathbf { x _ { i } ^ { 2 } } } \right\} \left[ \left( \mathbf { \rho } - \mathbf { \rho } _ { \mathrm { p _ { 0 } } } \right) \mathbf { H } ( \mathbf { f } ) \right] = \frac { \partial } { \partial \mathbf { t } } \left[ \mathbf { Q } \boldsymbol { \delta } ( \mathbf { f } ) \right] - \frac { \partial } { \partial \mathbf { x _ { i } } } \left[ \mathrm { F } _ { \mathrm { i } } \boldsymbol { \delta } ( \mathbf { f } ) \right] + \frac { \partial ^ { 2 } } { \partial \mathbf { x _ { i } } \partial \mathbf { x _ { j } } } \left[ \mathrm { T } _ { \mathrm { i j } } \mathbf { H } ( \mathbf { f } ) \right] .\tag{10}
+$$

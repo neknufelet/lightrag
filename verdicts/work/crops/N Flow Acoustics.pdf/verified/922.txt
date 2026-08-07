@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 6 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array}{c} \frac {  { \partial } \left(  { \rho } \mathbf { u } + \frac { 1 } { 2 }  { \rho }  { \mathbf { v } _ { \mathrm { i } } } ^ { 2 } \right) } {  { \partial } \mathbf { t } } + \frac {  { \partial } \left(  { \rho }  { \mathrm { u v } _ { \mathrm { j } } } + \frac { 1 } { 2 }  { \rho }  { \mathbf { v } _ { \mathrm { i } } } ^ { 2 }  { \mathbf { v } _ { \mathrm { j } } } +  { \mathrm { p } _ { \mathrm { i j } } }  { \mathbf { v } _ { \mathrm { i } } } - \lambda \frac {  { \partial } \mathrm { T } } {  { \partial }  { \mathbf { x } _ { \mathrm { j } } } } \right) } {  { \partial }  { \mathbf { x } } _ { \mathrm { j } } } \ = \ \  { \dot { \mathrm { M } } }  { \mathbf { v } _ { \mathrm { i } } } ^ { 2 } + \dot { \mathrm { I } } _ { \mathrm { i } }  { \mathbf { v } _ { \mathrm { i } } }  \end{array}\tag{42}
+$$

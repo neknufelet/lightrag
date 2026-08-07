@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { l } { { \displaystyle { \sf p } _ { \mathrm { T } } \left( { \bf x } _ { \mathrm { i } } , { \bf t } \right) = \frac { \partial } { \partial { \bf t } } \int \left[ \frac { { \sf p } _ { 0 } { \bf u } _ { \mathrm { n } } } { 4 \pi \mathrm { r } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \right] _ { \sf \tau } \mathrm { d } { \sf S } = \int _ { { \sf S } } \left[ \frac { 1 } { 1 - { \bf M } _ { \mathrm { r } } } \frac { \partial } { \partial \tau } \frac { { \sf p } _ { 0 } { \bf u } _ { \mathrm { n } } } { 4 \pi \mathrm { r } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \right] _ { \sf \tau } \mathrm { d } { \sf S } } } \\ { { \displaystyle { \sf p } _ { \mathbb { Q } } \left( \vec { \bf x } , { \bf t } \right) = \frac { \partial ^ { 2 } } { \partial { \bf x } _ { \mathrm { i } } \partial { \bf x } _ { \mathrm { j } } } \int \left[ \frac { \mathrm { T } _ { \mathrm { i j } } } { 4 \pi \mathrm { r } \left| 1 - { \bf M } _ { \mathrm { r } } \right| } \right] _ { \sf \tau } \mathrm { d } { \sf V } } } \end{array}\tag{59}
+$$

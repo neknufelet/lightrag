@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { l } { { \displaystyle \Theta ^ { 2 } \left[ \phi \mathrm { H } \left( \mathbf { f } \right) \right] = - \left( \frac { \partial \Phi } { \partial \mathbf { n } } + \frac { \mathbf { M } _ { \mathbf { n } } } { c _ { \mathbf { 0 } } } \frac { \partial \Phi } { \partial \mathbf { t } _ { \mathbf { x } } } \right) \delta ( \mathbf { f } ) - \frac { 1 } { c _ { \mathbf { 0 } } } \frac { \partial } { \partial \mathbf { t } } \left[ \mathbf { M } _ { \mathbf { n } } \phi \delta ( \mathbf { f } ) \right] - \frac { \partial } { \partial \mathbf { x } _ { \mathbf { i } } } \left[ \phi \mathbf { n } _ { \mathrm { i } } \delta ( \mathbf { f } ) \right] } } \\ { { \displaystyle \qquad + \frac { \partial ^ { 2 } \mathbf { T } _ { \mathbf { i j } } } { \partial \mathbf { x } _ { \mathbf { i } } \partial \mathbf { x } _ { \mathbf { j } } } \mathrm { H } \left( \mathbf { f } \right) } } \end{array}\tag{15}
+$$

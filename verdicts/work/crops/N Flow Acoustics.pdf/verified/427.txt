@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\rho \frac { \partial \mathbf { v _ { i } } } { \partial \mathbf { t } } + \rho \mathbf { v _ { j } } \frac { \partial \mathbf { v _ { i } } } { \partial \mathbf { x _ { j } } } = \rho \mathrm { F _ { i } } - \frac { \partial } { \partial \mathbf { x _ { j } } } \left( \mathrm { p } \delta _ { \mathrm { i j } } - \tau _ { \mathrm { i j } } \right)\tag{2}
+$$

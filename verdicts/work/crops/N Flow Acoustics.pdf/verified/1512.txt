@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { c }  { \displaystyle { \mathrm { p } _ { \mathrm { L } } \left( { \bf x } _ { \mathrm { i } } , { \bf t } \right) = - \frac { \partial } { \partial { \bf x } _ { \mathrm { i } } } \int _ { { \mathrm { \bf f } } = 0 } \left[ \frac { \mathrm { F } _ { \mathrm { i } } } { 4 \pi \mathrm { r } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \right] _ { \tau } \mathrm { d } S } } \\  { \displaystyle { = \frac { 1 } { c } \frac { \partial } { \partial { \bf f } } \int _ { { \mathrm { \bf f } } = 0 } \left[ \frac { \mathrm { F } _ { \mathrm { r } } } { 4 \pi \mathrm { r } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \right] _ { \tau } \mathrm { d } S + \int _ { { \mathrm { \bf f } } = 0 } \left[ \frac { \mathrm { F } _ { \mathrm { r } } } { 4 \pi \mathrm { r } ^ { 2 } \left( 1 - { \bf M } _ { \mathrm { r } } \right) } \right] _ { \tau } \mathrm { d } S } } \end{array}\tag{55}
+$$

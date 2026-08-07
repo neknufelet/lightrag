@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { l } { { \displaystyle { \mathbb { P } } ( \vec { \bf x } , { \bf t } ) =  \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } } { \partial { \bf t } ^ { 2 } } \int [ \frac { \mathrm { T } _ { \mathrm { r r } } } { 4 \pi \mathrm { r } | 1 - { \bf M } _ { \mathrm { r } } | } ] _ { \tau } \mathrm { d } { \bf V } + \frac { 1 } { c _ { 0 } } \frac { \partial } { \partial { \bf t } } \int [ \frac { 3 \mathrm { T } _ { \mathrm { r r } } - \mathrm { T } _ { \mathrm { i i } } } { 4 \pi \mathrm { r } ^ { 2 } | 1 - { \bf M } _ { \mathrm { r } } | } ] _ { \tau } \mathrm { d } { \bf V } } \ ~ } \\ { { \displaystyle ~ + \int [ \frac { 3 \mathrm { T } _ { \mathrm { r r } } - \mathrm { T } _ { \mathrm { i i } } } { 4 \pi \mathrm { r } ^ { 3 } | 1 - \bf M _ { \mathrm { r } } | } ] _ { \tau } \mathrm { d } { \bf V } } \ ~ } \end{array}\tag{25}
+$$

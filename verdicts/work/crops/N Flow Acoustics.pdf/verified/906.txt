@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+L _ { M \delta h r i n g / O b e r m e i e r } \mathrm { B } = \nabla \cdot \left( \rho \nabla \mathrm { B } \right) - \rho \frac { \mathrm { D } } { \mathrm { D t } } \left( \frac { 1 } { c ^ { 2 } } \frac { \mathrm { D B } } { \mathrm { D t } } \right) = - \mathrm { d i v } \rho \vec { \mathrm { L } } - \frac { \partial \vec { \mathrm { v } } } { \partial \mathrm { t } } \frac { \partial \rho } { \partial \mathrm { s } } \nabla \mathrm { s }\tag{37}
+$$

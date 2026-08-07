@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { \mathbf { v } _ { \mathrm { q i } } } = \frac { \partial \mathrm { y _ { \mathrm { q i } } } } { \partial \mathrm { t } } = \mathrm { c _ { 0 } } \mathrm { M _ { \mathrm { q i } } }
+$$

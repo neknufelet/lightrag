@@ -1,0 +1,35 @@
+VERDICT: BLOCK
+
+- **總評**：方向大致正確，但目前不能交給 terra。至少有兩項規格自相矛盾、抽樣契約未被閘門證明、零成功查詢仍可能假綠，且重票流程誤判 deepseek 不觸發。
+
+- **範圍**：必修 1–5、7 都是在補前輪 BLOCK；host 預設也屬相鄰的 fail-closed 修正，可以留。必修 6 的 `--seeds-file`／`--no-answer-key` 則是明確 scope creep：它們是服務後續 [`SYMBOL-5`](</home/florian/ghq/github.com/neknufelet/lightrag-v1/NEXT.md:186>) 的新 CLI 模式，不是解除 `SYMBOL-3.1` BLOCK 所必需。尤其 `--no-answer-key` 新增了繞過答案卷閘門的合法路徑。應拆票；若 PO 明確要求併做，至少要改寫本票目標、依賴與風險邊界，不能藏在「補正」裡。[必修 6](</tmp/claude-1000/-home-florian-ghq-github-com-neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:174>)
+
+- **T12 技術上不可能同時成立**：它要求終端印出固定 estimand，又要求輸出不含「脈絡」與 `context`；但固定 estimand 本身就含「脈絡佔比」及 `context/token`。[estimand](</tmp/claude-1000/-home-florian-ghq-github-com-neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:125>)、[T12](</tmp/claude-1000/-home-florian-ghq-github-com-neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:234>)。應把禁詞斷言限縮到「結論句」，或改成禁止肯定式誤述。
+
+- **重票流程也寫錯**：本票明確新增／改變量測閘門，依專案規則 deepseek 必須觸發；不能因為沒碰 `pp/rules` 就預期不觸發。[CLAUDE.md](</home/florian/ghq/github.com/neknufelet/lightrag-v1/CLAUDE.md:103>)、[工單驗收 5](</tmp/claude-1000/-home-florian-ghq-github-com-neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:256>)
+
+- **設計者統計異議 1：核心判斷是設計者對。** 固定種子不會消滅抽樣推論；若 50 題確實是 1,482 母體的隨機排列前綴，固定探針下命中與否是每個實體的固定屬性，view_1 可以估計各 verdict 子母體命中率。前輪「Wilson 用錯不確定性來源」確實只應指 view_2。無 FPC 可作偏寬的 binomial/Wilson 近似，但不應宣稱是精確的有限母體 coverage；有限母體無放回抽樣通常要考慮 FPC。[NIST](https://www.itl.nist.gov/div898/handbook/prc/section2/old.prc271.htm)
+
+- **但工單沒有保住上述前提**：pre-flight 沒驗 `seed`、`sampling`、`pop_index` 或樣本是否真是目前 symbolic dump 的隨機前綴；只驗 workspace、相同數量與 subset，無法排除「同 workspace、同樣 1,482 筆但已換過部分實體」或人工挑題。更糟的是 estimand 硬編 `50`、`seed=20260803`，結論硬編 `27 個 restated`，換一份形式合法的答案卷就會輸出假話。[pre-flight](</tmp/claude-1000/-home-florian-ghq-github-com-neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:43>)、[固定模板](</tmp/claude-1000/-home-florian-ghq-github-com/neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:132>)。必須從已驗證 metadata 動態生成，或把工具明確鎖死在這份答案卷。
+
+- **設計者統計異議 2：設計者對。** Fisher exact 不必內建。Newcombe 差值區間直接呈現效果方向與不確定性，更符合這支量測器的用途；Newcombe method 10 本來就是把兩組 Wilson interval 組成獨立比例差區間。[Newcombe 1998](https://onlinelibrary.wiley.com/doi/abs/10.1002/%28SICI%291097-0258%2819980430%2917%3A8%3C873%3A%3AAID-SIM779%3E3.0.CO%3B2-I)
+
+- **統計模板仍要修一句**：「無法偵測小於此區間寬度量級的差異」把 CI 寬度誤說成 detection threshold。建議只說：「95% CI 為 `[L,U]`，包含 0；資料未顯示方向確定的差異，且區間仍容許 L 到 U 的效果，因此不能據此判等價。」
+
+- **健全性仍漏零成功查詢**：`known_short_seed` 不擋，加上 `--seeds-file` 可傳空陣列或全短種子，會形成 `succeeded=0、unexpected_failures=0` 而 exit 0；工單末尾卻宣稱零成功一定 exit 3，正文沒有相應 gate。[失敗分類](</tmp/claude-1000/-home/florian/ghq/github.com/neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:76>)、[未落實的宣稱](</tmp/claude-1000/-home/florian/ghq/github.com/neknufelet-florian-dker/7d2e7c2e-57ae-427d-ab70-6a02b03b6f6b/scratchpad/ticket-symbol3-r2.md:293>)。需新增 `succeeded > 0` gate，並測空 seeds、全短 seeds；popular 回傳少於要求 N 也應明確定義是否擋。
+
+- **`known_short_seed` 還有誤放行風險**：僅以「HTTP 400 且字串長度 <3」會把短種子遇到的任何 400 都當已知失敗。至少應保存 response detail 並匹配已知的最短查詢錯誤特徵，否則服務契約改變時可能靜默放行。
+
+- **T5 本身做得到，而且不用改 `entity-merge.py`**：`cmd_plan(a, env)` 執行時從模組全域解析 `Rag`、`DATA_ROOT`；測試可 monkeypatch 成 fake class 與 `tmp_path`，傳 `argparse.Namespace`，再讀 `tmp_path/<workspace>/postprocess/entity-merge.json`。[cmd_plan](</home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/entity-merge.py:163>)、[輸出位置](</home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/entity-merge.py:209>)
+
+- **但 T1–T5 的宣稱仍過頭**：T1–T3 主要直接測兩個 client method，並未證明 `cmd_plan` 本體仍按順序呼叫 `popular(a.queries)`、逐 seed 傳入 `a.top_k`。T5 只比最後 `entity_slots`，不同 call sequence 仍可能巧合得到同總數。T5 應另斷言 fake client 收到的完整有序 calls、參數與失敗後續查詢；最好讓兩個 top-level 路徑吃同一 fixture，再比較 calls 與 per-query 結果。
+
+- **Provenance 大幅改善但不是真正 service snapshot**：`per_query`、input SHA、hit map 足以稽核報告內數字；但 `labels_sha256` 只證明名稱集合，description、relation、chunk、embedding 或查詢服務設定都可在 labels 不變時漂移。欄位應誠實稱為 label fingerprint/service observation，不能宣稱證明同一服務狀態。
+
+- **設計者額外發現成立**：[`symbol-hits.py:45`](</home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/symbol-hits.py:45>) 與 [`entity-merge.py:119`](</home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/entity-merge.py:119>) 都有字面 host/port fallback，確實違反「缺設定就要求明示」原則。本票只修 `symbol-hits.py` 合理；`entity-merge.py` 另開票，不應順手改。
+
+- **exit code 3 不構成目前回歸**：repo 內目前沒有 `symbol-hits.py` 呼叫端，`daily-check.sh` 也未呼叫它。因此現在不會誤判。未來接排程時必須像 scanner 一樣顯式分流 rc=3 為「量測閘門未過」，不能落進 generic crash；這是接線票的驗收要求，不必因此取消 rc=3。[daily-check 的三態處理](</home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/daily-check.sh:38>)
+
+- **四類修正結論**：票級升重票已補；provenance 大致補到；健全性因抽樣契約與零成功路徑仍未閉合；假綠測試因 T12 矛盾及 `cmd_plan` wiring 覆蓋不足仍未解；統計方向正確，但固定模板與 CI 解讀仍會製造新誤讀。因此不能 PASS。
+
+- 本輪唯讀；`git status --short` 與 `git diff --check` 均無輸出。

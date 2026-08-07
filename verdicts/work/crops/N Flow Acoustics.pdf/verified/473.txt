@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\Delta \Phi - \left( \frac { 1 } { c _ { 0 } } \frac { \partial } { \partial \mathbf { t } } + \frac { \mathbf { U } _ { \infty } } { c _ { 0 } } \frac { \partial } { \partial \mathbf { x } } \right) ^ { 2 } \Phi = 0 ~ \mathrm { c o n v e c t i v e ~ w a v e ~ e q u a t i o n }\tag{15}
+$$

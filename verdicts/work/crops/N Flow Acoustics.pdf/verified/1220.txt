@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { p } \left( \mathrm { x } _ { \mathrm { i } } , \mathrm { t } \right) = \left. \frac { \left( \mathrm { x } _ { \mathrm { i } } - \mathrm { y } _ { \mathrm { i } } \right) } { 4 \pi \mathrm { r } ^ { 2 } c _ { 0 } \left( 1 - \mathrm { M } _ { \mathrm { q r } } \right) ^ { 2 } } \left[ \frac { \partial \mathrm { F } _ { \mathrm { i } } } { \partial \mathrm { t } } + \frac { \mathrm { F } _ { \mathrm { i } } } { \left( 1 - \mathrm { M } _ { \mathrm { q r } } \right) } \frac { \partial \mathrm { M } _ { \mathrm { q r } } } { \partial \mathrm { t } } \right] \right. _ { \mathrm { r } }\tag{11}
+$$

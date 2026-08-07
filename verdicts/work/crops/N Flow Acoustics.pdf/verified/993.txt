@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r } { \frac { { \partial } ^ { 2 } } { \partial \mathbf { t } ^ { 2 } } \left[ \left( \boldsymbol { \rho } - \boldsymbol { \rho } _ { 0 } \right) \mathrm { H ( f ) } \right] - c _ { 0 } ^ { 2 } \frac { { \partial } ^ { 2 } \left[ \left( \boldsymbol { \rho } - \boldsymbol { \rho } _ { 0 } \right) \mathrm { H ( f ) } \right] } { { \partial } \mathbf { x } _ { \mathrm { i } } ^ { 2 } } = \frac { { \partial } } { \partial \mathbf { t } } \left[ \mathrm { Q } \boldsymbol { \delta } ( \mathbf { f } ) \right] - \frac { { \partial } } { { \partial } \mathbf { x } _ { \mathrm { i } } } \left[ \mathrm { F } _ { \mathrm { i } } \boldsymbol { \delta } ( \mathbf { f } ) \right] } \\ { + \frac { { \partial } ^ { 2 } } { { \partial } \mathbf { x } _ { \mathrm { i } } { \partial } \mathbf { x } _ { \mathrm { j } } } \left[ \left( \boldsymbol { \rho } \mathrm { v _ { i } } \mathrm { v _ { j } } + \mathrm { p _ { i j } } \right) \mathrm { H ( f ) } \right] - c _ { 0 } ^ { 2 } \frac { { \partial } ^ { 2 } \left[ \left( \boldsymbol { \rho } - \boldsymbol { \rho } _ { 0 } \right) \mathrm { H ( f ) } \right] } { { \partial } \mathbf { x } _ { \mathrm { i } } ^ { 2 } } } \end{array}\tag{8}
+$$

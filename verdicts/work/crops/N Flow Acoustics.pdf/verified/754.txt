@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 7 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { q = \kappa } \frac { \partial ^ { 2 } } { \partial \mathbf { x } _ { \mathrm { i } } \partial \mathbf { x } _ { \mathrm { j } } } \left( \frac { \mathrm { D } \mathbf { v } _ { \mathrm { i } } ^ { \prime } \mathbf { v } _ { \mathrm { j } } ^ { \prime } } { \mathrm { D t } } \right) + 4 \kappa \frac { \partial } { \partial \mathbf { x } } \left[ \frac { \partial \mathrm { U } } { \partial \mathbf { y } } \frac { \mathrm { D } \mathbf { v } _ { \mathrm { y } } ^ { \prime } } { \mathrm { D t } } \right] .\tag{23}
+$$

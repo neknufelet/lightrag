@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \mathrm { w i t h } } \colon \quad \Delta = { \frac { { \partial } ^ { 2 } } { { \partial } \mathbf { x _ { i } ^ { 2 } } } } = { \frac { { \partial } ^ { 2 } } { { \partial } \mathbf { x } ^ { 2 } } } + { \frac { { \partial } ^ { 2 } } { { \partial } \mathbf { y } ^ { 2 } } } + { \frac { { \partial } ^ { 2 } } { { \partial } \mathbf { z } ^ { 2 } } } \quad { \mathrm { L a p l a c e o p e r a t o r } }\tag{13}
+$$

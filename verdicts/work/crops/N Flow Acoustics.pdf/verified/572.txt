@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 3 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { \nabla \ p \left( x _ { i } , t \right) = \frac { 1 } { 4 \pi r } \int _ { \mathrm { \Omega _ { V } } } \left( \frac { \partial ^ { 2 } T _ { i j } } { \partial \mathrm { y } _ { i } \partial \mathrm { y } _ { j } } \right) _ { \mathrm { \Omega _ { r } } } \mathrm { d V } }\tag{28}
+$$

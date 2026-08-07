@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { K } _ { \mathrm { T } } = \rho \left( { \frac { \partial { \sf p } } { \partial { \sf p } } } \right) _ { \mathrm { T } }\tag{5}
+$$

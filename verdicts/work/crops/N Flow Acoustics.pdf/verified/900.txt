@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+L _ { M \bar { o } h r i n g } \mathbf { B } = \nabla \cdot \left( \rho \nabla \mathbf { B } - \frac { \rho \vec { \mathbf { v } } } { c ^ { 2 } } \frac { \mathrm { D } \mathbf { B } } { \mathrm { D t } } \right) - \frac { \partial } { \partial } \frac { \rho } { c ^ { 2 } } \frac { \mathrm { D } \mathbf { B } } { \mathrm { D t } } = - \mathrm { d i v } \rho \vec { \mathrm { L } } + \frac { \partial } { \partial \mathbf { t } } \frac { \partial \rho } { \partial s } \frac { \partial s } { \partial \mathbf { t } } + \mathrm { d i v } \frac { \partial \rho } { \partial s } \vec { \mathbf { v } } \frac { \partial s } { \partial \mathbf { t } }\tag{36}
+$$

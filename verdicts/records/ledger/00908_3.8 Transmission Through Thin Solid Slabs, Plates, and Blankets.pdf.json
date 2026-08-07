@@ -1,0 +1,52 @@
+{
+  "doc": "00908_3.8 Transmission Through Thin Solid Slabs, Plates, and Blankets.pdf",
+  "pdf_sha256": "sha256:444980aab078733b34c3d69aa2bc4ac45aafcd2cdaf707b1273eea6aa8661cb4",
+  "gates": {
+    "parse.coverage": {
+      "state": "pass",
+      "value": 0.02136,
+      "threshold": 0.05,
+      "note": "3.45%→2.14%（31/1451）。偵測器 v2：+LaTeX 字母間隔正規化（`\\mathrm{w i t h}` 型逐字母排版黏回單字，與階段 1 的 ﬂ 合字同族假訊號）。v1 與 v2 的數字不可混用。 偵測器 v3（2026-08-02 階段 2.7）：`_pp_original_*` 改為**有條件讀回** —— 現值仍有內容（＝文字/表格修補過的）才跳過原文欄位，消音項（現值已清空）仍讀回。本份沒有「原文欄位與非空現值並存」的項目，數字完全不變，正好當這次改動的對照錨點。　階段 2.7 收尾（2026-08-02）：套用兩個機械 LaTeX 修補（`\\times` 誤讀錨點、格內逐字母排版正規化，全庫 679 項 2,419 處）。**本份漏詞數逐位元不變** —— 這是構造上必然（coverage-check 早在量測時就做同一種正規化），也因此是這次改動的零成本零例外檢查：任何一份動了就代表規則做了量測沒預期的事。",
+      "at": "2026-08-02T21:15:49+08:00"
+    },
+    "parse.checks": {
+      "state": "pass",
+      "note": "WARN（非 ERROR 判準，放行）：空文字 2",
+      "at": "2026-08-02T14:59:29+08:00"
+    },
+    "pp.preflight": {
+      "state": "pass",
+      "note": "postprocess.py plan/apply 對 20 份全部通過 preflight（型別、layout 頁序、page_size 一致、source_content_hash 對得上）；0 份被擋。2026-08-02",
+      "at": "2026-08-02T16:32:19+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "2 張表，table_body 皆非空（缺鍵 0、空殼 0、圖片型待查 0），無待修補目標。",
+      "at": "2026-08-02T16:32:19+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "§8.3 符號無關的位置封閉掃描：accent 類 token（\\hat/\\bar/\\widehat/\\tilde）站在 frac 首位或行內除法算子位置、且非 \\partial 的疑似 ∂ 誤讀 0 處；九記號家族本來就 0 命中。（判準由「掃不到那九個記號」升級為「位置上封閉」。）",
+      "at": "2026-08-02T18:26:31+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.04348,
+      "threshold": 0.05,
+      "note": "**本值為 2026-08-03 修正後重測。** 首次寫入時 extract-check.py 的三句 SQL 都沒帶 workspace 條件，v155 與 v2 的列混在一起、又因兩邊 file_path 是同一批 PDF 檔名而被併成同一列——數字看起來完全正常（大約兩倍）且不報錯。已修（腳本加 --workspace，預設讀 .env），修完拿 v155 重跑得到 3.2%，與 CLAUDE.md 記載的歷史值逐位元相同，偵測器本身因此獲得驗證。 4.3%（6/138 個字串比對有鑑別力的實體；符號型 5 個驗不了、總計 143 個）。v155 同份 3.3%。4.3%（6/138）過門檻。可疑是章節標題詞（Thin Solid Slabs、Blankets）、符號命名（B Pl、v Tr）、交叉引用（Figure 3.14）與標準編號（Astme C522-69，原文 ASTM E522）。",
+      "at": "2026-08-03T01:59:23+08:00"
+    },
+    "extract.format": {
+      "state": "pass",
+      "value": 57.0,
+      "note": "對照第 1 批基線（5 份 477 次；每 chunk 0.0–24.0）。第 4 批 5 份共 495 次，全部帶得到 chunk key（無法歸戶 0 次）：K Muffler 301／01705 Directional 66／00908 Transmission 57／2026 JAX-BEM 50／2025 band gaps 21。**每 chunk 次數 1.1–8.3，全部在基線區間內；K Muffler 301 次是全庫單份最高，但它有 66 個 chunk，每 chunk 4.6 次仍低於基線中位數 8.7。** 本份 57 次 / 9 chunk = 每 chunk 6.3 次。",
+      "at": "2026-08-03T01:49:19+08:00"
+    },
+    "retrieval.smoke": {
+      "state": "pass",
+      "note": "種子取自 `/graph/label/popular`（不自己編主題）。全庫層：前 10 個度數最高的標籤各打一次 mix 查詢，10/10 都回滿 8 個 chunk、平均 21.0 KB、無空結果，命中 8 份文件（度數最高的標籤集中在 C／K／N Flow 三份，所以全庫種子驗不到其餘 12 份——那時把 20 份都記 pass 等於宣稱驗過沒驗的東西）。逐份層：每份改取**它自己在圖上度數最高、且只有它貢獻**的標籤當種子，問「這份檢索得回自己嗎」。A-25 的實測值：chunk_top_k=2 → 2 個、=8 → 8 個（母體 20 份），20 次逐份查詢的 chunk 數上限都是 8，回傳量受控（失效時會靜靜回到 55–60KB／次）。 本份種子 `Slab Specific Impedance`（全庫度數排名 260）→ 回 8 個 chunk／32.3 KB，其中本份 3 個。",
+      "at": "2026-08-03T01:59:46+08:00"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \mathrm { D v _ { i } } } { \mathrm { D t } } + \frac { 1 } { \rho } \frac { \partial \mathrm { p } } { \partial { { \bf x } _ { \mathrm { i } } } } = 0\tag{5}
+$$

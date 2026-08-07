@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 9 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } \mathrm { p } } { \partial \mathsf { t } ^ { 2 } } - \Delta \mathrm { p } = \frac { \partial ^ { 2 } \mathsf { \rho } \mathrm { v _ { i } ^ { \prime } } \mathrm { v _ { j } ^ { \prime } } } { \partial \mathrm { x _ { i } } \partial \mathrm { x _ { j } } } + 2 \frac { \partial \mathrm { U } } { \partial \mathrm { y } } \frac { \partial \mathsf { \rho } \mathrm { v _ { y } ^ { \prime } } } { \partial \mathrm { x } } + \frac { 1 } { c _ { 0 } ^ { 2 } } \frac { \partial ^ { 2 } \mathrm { p } } { \partial \mathrm { t } ^ { 2 } } - \frac { \bar { \mathrm { D } } ^ { 2 } \mathsf { \rho } } { \mathrm { D t } ^ { 2 } }\tag{25}
+$$

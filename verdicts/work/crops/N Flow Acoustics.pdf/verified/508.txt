@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \frac { \partial } { \partial { \mathfrak { t } } } } \left( { \mathrm { c o n t i n u i t y ~ e q u a t i o n } } \right) - { \frac { \partial } { \partial \mathbf { x _ { i } } } } \left( { \mathrm { m o m e n t u m ~ e q u a t i o n } } \right)
+$$

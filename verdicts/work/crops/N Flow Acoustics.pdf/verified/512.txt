@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 7 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+{ \frac { { \partial } ^ { 2 } \boldsymbol { \rho } } { { \partial } \mathrm { t } ^ { 2 } } } - c _ { 0 } ^ { 2 } { \frac { { \partial } ^ { 2 } \boldsymbol { \rho } } { \partial \mathrm { x } _ { \mathrm { i } } ^ { 2 } } } = { \frac { { \partial } ^ { 2 } } { { \partial } \mathrm { x _ { i } } { \partial } \mathrm { x _ { j } } } } \left( \mathrm { { \rho { p _ { i } } \mathrm { v _ { j } } + \ p _ { i j } - c _ { 0 } ^ { 2 } \rho \delta _ { i j } } } \right) = \mathrm { q } \qquad { \mathrm { ~ L i g h t h i l l ' s ~ i n h o m o g e n e o u s } }\tag{6}
+$$

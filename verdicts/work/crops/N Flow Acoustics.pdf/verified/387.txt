@@ -1,0 +1,7 @@
+<!--
+  §8.1 機械套用 11 處（首位判準；同側緊接算子之後者排除）
+  §8.2 hat_c × 9 → 對照 records/review/crops/nflow-0387-p14-hat_c-hat_sigma-15.png；裁圖逐處確認 9 處 ĉ 皆為 ∂
+-->
+$$
+\frac { \partial \rho ^ { \prime } } { \partial \mathbf { t } } + \mathbf { v } _ { 0 \mathbf { j } } \frac { \partial \rho ^ { \prime } } { \partial \mathbf { x } _ { \mathbf { j } } } + \mathbf { v } _ { \mathbf { j } } ^ { \prime } \frac { \partial \rho _ { 0 } } { \partial \mathbf { x } _ { \mathbf { j } } } + \rho _ { 0 } \frac { \partial \mathbf { v } _ { \mathbf { i } } ^ { \prime } } { \partial \mathbf { x } _ { \mathbf { i } } } + \rho ^ { \prime } \frac { \partial \mathbf { v } _ { 0 \mathbf { i } } } { \partial \mathbf { x } _ { \mathbf { i } } } = - \frac { \partial \rho _ { 0 } } { \partial \mathbf { t } } - \mathbf { v } _ { 0 \mathbf { j } } \frac { \partial \rho _ { 0 } } { \partial \mathbf { x } _ { \mathbf { j } } } - \mathbf { v } _ { \mathbf { j } } ^ { \prime } \frac { \partial \rho ^ { \prime } } { \partial \mathbf { x } _ { \mathbf { j } } } - \rho _ { 0 } \frac { \partial \mathbf { v } _ { 0 \mathbf { i } } } { \partial \mathbf { x } _ { \mathbf { i } } } - \rho ^ { \prime } \frac { \partial \mathbf { v } _ { \mathbf { i } } ^ { \prime } } { \partial \mathbf { x } _ { \mathbf { i } } }\tag{56}
+$$

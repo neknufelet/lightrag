@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\boxed { \ d } ^ { 2 } { \bf p } _ { \bf a } = \frac { \partial } { \partial \bf t } \left[ \mathrm { Q } \delta ( { \bf f } ) \right] ; \qquad \quad \forall ^ { 2 } { \bf p } _ { \bf a } = \frac { \partial } { \partial { \bf x } _ { \bf i } } \left[ \mathrm { Q } _ { \bf i } \delta ( { \bf f } ) \right] .\tag{21,22}
+$$

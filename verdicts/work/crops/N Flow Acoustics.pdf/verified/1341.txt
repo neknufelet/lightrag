@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { R } _ { \mathrm { a } } \left( \mathrm { x } _ { \mathrm { i } } , \mathrm { \tau } \right) = \frac { 1 } { 1 6 \pi ^ { 2 } c _ { 0 } ^ { 5 } \rho _ { 0 } \mathrm { x } ^ { 2 } } \frac { \mathrm { x } _ { \mathrm { i } } \mathrm { x } _ { \mathrm { j } } \mathrm { x } _ { \mathrm { k } } \mathrm { x } _ { \mathrm { l } } } { \mathrm { x } ^ { 4 } } \int \int \frac { \overline { { \partial ^ { 2 } \mathrm { T } _ { \mathrm { i j } } } } } { \partial \mathrm { t } ^ { 2 } } \left( \mathrm { y } _ { \mathrm { i } } ^ { \prime } , \mathrm { t } ^ { \prime } \right) \frac { \partial ^ { 2 } \mathrm { T } _ { \mathrm { k l } } } { \partial \mathrm { t } ^ { 2 } } \left( \mathrm { y } _ { \mathrm { i } } ^ { \prime \prime } , \mathrm { t } ^ { \prime \prime } \right) \mathrm { d } \mathrm { V } ^ { \prime } \mathrm { d } \mathrm { V } ^ { \prime \prime }\tag{7}
+$$

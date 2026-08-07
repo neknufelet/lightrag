@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 17 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial \mathrm { E } ^ { \prime } } { \partial \mathrm { t } } + \frac { \partial \mathrm { F } ^ { \prime } } { \partial \mathrm { x } } + \frac { \partial \mathrm { G } ^ { \prime } } { \partial \mathrm { y } } + \frac { \partial \mathrm { H } ^ { \prime } } { \partial \mathrm { z } } + \frac { \partial \mathrm { F } _ { \mathrm { n } } ^ { \prime } } { \partial \mathrm { x } } + \frac { \partial \mathrm { G } _ { \mathrm { n } } ^ { \prime } } { \partial \mathrm { y } } + \frac { \partial \mathrm { H } _ { \mathrm { n } } ^ { \prime } } { \partial \mathrm { z } } = \mathrm { Q } = - \left( \frac { \partial \mathrm { F } _ { 0 } } { \partial \mathrm { x } } + \frac { \partial \mathrm { G } _ { 0 } } { \partial \mathrm { y } } + \frac { \partial \mathrm { H } _ { 0 } } { \partial \mathrm { z } } \right)\tag{30}
+$$

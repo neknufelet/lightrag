@@ -1,0 +1,25 @@
+VERDICT: PASS
+
+人話：修法正確，新測試確實會抓到這次的傳遞錯誤；`scripts/` 未發現第二個同型坑。正式量測不必作廢。
+
+技術判定：
+
+1. 同意保留 `-v workspace=...`。`:'workspace'` 會由 psql 正確轉成 SQL literal，避免 Python 自行拼接與逸出問題。`-f -` 會從 stdin 讀取，而 `docker exec -i` 只保持 stdin、未配置 TTY，適合非互動環境。[PostgreSQL 官方文件](https://www.postgresql.org/docs/current/app-psql.html)、[Docker 官方文件](https://docs.docker.com/reference/cli/docker/container/exec)
+
+   [llm-bench.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/llm-bench.py:162) 的 SQL 很小；stdin 還消除了 argv 長度限制，沒有新的尺寸問題。
+
+2. [新測試](/home/florian/ghq/github.com/neknufelet/lightrag-v1/tests/test_llm_bench.py:110) 不只是換位置檢查字面。它會驗證：
+
+   - `-i` 位於 container 前
+   - `-v workspace=...`
+   - `-f -`
+   - 禁止 `-c`
+   - SQL 經 `input=` 傳入而非 argv
+
+   最後兩個 SQL 字串斷言仍是字面檢查，但已和 transport contract 綁在一起，會抓到原回歸。它不是 psql integration test；真正的端到端證據是你提供的 dker `fixture --n 8` 成功結果。
+
+3. 全掃 `scripts/`：其餘 `psql -c` 位於 [extract-check.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/extract-check.py:71)、[compare-ws.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/compare-ws.py:58)、[compat-check.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/compat-check.py:261)、[entity-merge.py](/home/florian/ghq/github.com/neknufelet/lightrag-v1/scripts/entity-merge.py:311)。它們都沒有 `:'var'`／`:"var"` psql placeholder，因此沒有同型插值 bug；測試中也沒有另一個 psql 相關的「只讀 source 字串即判綠」。
+
+4. 非阻擋硬化項：`-f` script mode 沒設定 `ON_ERROR_STOP=1`。官方語意是 SQL script 出錯時預設可能仍回 0；唯讀探針也確認「returncode 0＋stderr ERROR＋空 stdout」目前會被解析成 `[]`。不過 `--n` 強制正整數，空母體隨後必定 fail closed，不會寫出題本，只會把真正 SQL 錯誤誤報成「母體 0 筆」。後續可補 `-v ON_ERROR_STOP=1` 與錯誤測試，但不構成本輪 BLOCK。
+
+已成功產出的 8 題 fixture 證明查詢確實回傳足夠資料，因此 `7bfaf16d…` 題本及正在進行的量測數字無須作廢。工作樹維持乾淨；`git diff --check` 通過。

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 7 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\boldsymbol { \Xi } ^ { 2 } \mathrm { p } _ { \mathrm { a } } \left( \vec { \mathbf { x } } , \mathbf { t } \right) = \frac { \partial } { \partial \mathbf { t } } \left[ \mathrm { Q } \delta ( \mathbf { f } ) \right] - \frac { \partial } { \partial _ { \mathbf { X } _ { \mathrm { i } } } } \left[ \mathrm { L } _ { \mathrm { i } } \delta ( \mathbf { f } ) \right] + \frac { \partial ^ { 2 } } { \partial \mathbf { x } _ { \mathrm { i } } \partial \mathbf { x } _ { \mathrm { j } } } \left[ \mathrm { T } _ { \mathrm { i j } } \mathrm { H } ( \mathbf { f } ) \right]\tag{50}
+$$

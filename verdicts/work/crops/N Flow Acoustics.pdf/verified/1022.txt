@@ -1,0 +1,4 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+• as a surface distribution of dipoles $- \frac { \partial } { \partial _ { \mathbf { X _ { i } } } } \left[ \mathrm { F _ { i } } \delta ( \mathbf { f } ) \right]$ due to the interaction of the flow with moving bodies, especially due to surface pressure and stress fluctuations on the bodies in the flow,

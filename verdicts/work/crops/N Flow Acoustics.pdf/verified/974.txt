@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 16 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \displaystyle \frac { \partial \mathrm { H } ( \mathrm { f } ) } { \partial \mathrm { t } } = \frac { \partial \mathrm { H } ( \mathrm { f } ) } { \partial \mathrm { f } } \frac { \partial \mathrm { f } } { \partial \mathrm { t } } = \delta ( \mathrm { f } ) \frac { \partial \mathrm { f } } { \partial \mathrm { t } } } \\ & { \displaystyle \frac { \partial \mathrm { H } ( \mathrm { f } ) } { \partial \mathbf { x } _ { \mathrm { i } } } = \frac { \partial \mathrm { H } ( \mathrm { f } ) } { \partial \mathrm { f } } \frac { \partial \mathrm { f } } { \partial \mathbf { x } _ { \mathrm { i } } } = \delta ( \mathrm { f } ) \frac { \partial \mathrm { f } } { \partial \mathbf { x } _ { \mathrm { i } } } = \delta ( \mathrm { f } ) \mathrm { n } _ { \mathrm { i } } } \end{array}\tag{1}
+$$

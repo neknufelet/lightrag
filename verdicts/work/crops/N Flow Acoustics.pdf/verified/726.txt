@@ -1,0 +1,6 @@
+<!--
+  #726（p28）R5 4 處 `\hat{\boldsymbol{\sigma}}` → `\partial`。這一式**本身就是物質導數的定義**：等號左邊 D̄/Dt（MinerU 寫成 `\bar{\mathbf{D}}/\mathbf{Dt}`，讀對了），右邊全部是 ∂ —— 同一式把 D 與本記號並排放著，無法混淆。裁圖 crops/nflow-0726-p28-hat_bs_sigma-29.png。
+-->
+$$
+\begin{array} { l } { \displaystyle { \frac { \bar { \mathbf { D } } } { \mathbf { Dt } } } = \frac { \partial } { \partial \mathbf { t } } + \mathbf { U } \frac { \partial } { \partial \mathbf { x } } } \\ { \displaystyle { \vec { \mathbf { f } } } } \end{array}
+$$

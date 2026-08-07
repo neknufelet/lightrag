@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 12 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { w i t h } : \quad \frac { \bar { \mathrm { D } } ^ { 2 } } { \mathrm { D t } ^ { 2 } } = \left( \frac { \partial } { \partial \mathrm { t } } + \bar { \mathrm { v _ { i } } } \frac { \partial } { \partial \mathrm { x _ { i } } } \right) ^ { 2 } = \frac { \partial ^ { 2 } } { \partial \mathrm { t } ^ { 2 } } + 2 \bar { \mathrm { v _ { i } } } \frac { \partial ^ { 2 } } { \partial \mathrm { x _ { i } } \partial \mathrm { t } } + \bar { \mathrm { v _ { i } } } \bar { \mathrm { v _ { j } } } \frac { \partial ^ { 2 } } { \partial \mathrm { x _ { i } } \partial \mathrm { x _ { j } } }\tag{28}
+$$

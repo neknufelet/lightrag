@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 4 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial } { \partial \mathrm { t } } \left( \mathrm { \rho { v } _ { i } } \right) + \frac { \partial } { \partial { \bf { x } } _ { \mathrm { j } } } \left( \mathrm { \rho { v } _ { i } \mathrm { \mathbf { v } _ { j } } + \mathrm { \ p _ { i j } } } \right) = \mathrm { F _ { i } } + \dot { \mathrm { M } } \mathrm { v _ { i } } .\tag{12}
+$$

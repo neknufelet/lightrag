@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { d } \mathrm { I _ { \omega } } ^ { \mathrm { n o i s e } } \left( \vec { \mathrm { x } } , \Theta \left| \vec { \mathrm { y } } \right. \right) = \frac { \mathsf { \rho _ { 0 } } \overline { { \mathbf { u } ^ { \prime 2 } } } \mathrm { L } ^ { 5 } } { 2 4 \pi ^ { 7 / 2 } c _ { 0 } ^ { 5 } \mathbf { r } ^ { 2 } } \left( \frac { \partial \mathrm { U } } { \partial \gamma _ { 2 } } \right) ^ { 2 } \frac { \mathbf { \omega } ^ { 4 } } { \mathbf { \omega } _ { \mathrm { t } } } \exp \left( - \frac { \mathbf { \rho _ { 0 } } ^ { 2 } \mathrm { C } ^ { 2 } } { 4 \omega _ { \mathrm { t } } ^ { 2 } } \right) \mathrm { D } _ { \Theta }\tag{35}
+$$

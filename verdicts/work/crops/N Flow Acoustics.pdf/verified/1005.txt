@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+- \frac { \partial } { \partial \mathbf { x _ { i } } } \left[ \mathsf { P v _ { i } } \left( \mathbf { v _ { n } } - \mathbf { u _ { n } } \right) \delta ( \mathbf { f } ) \right]
+$$

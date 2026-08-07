@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 8 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\mathrm { Q } _ { \mathrm { 0 t } } ^ { \mathrm { m o m . e q . } } = - \frac { \partial \mathbf { v _ { \mathrm { t i } } } } { \partial \mathbf { t } } - \mathbf { v } _ { 0 \mathrm { j } } \frac { \partial \mathbf { v _ { \mathrm { t i } } } } { \partial \mathbf { x _ { j } } } - \mathbf { v _ { \mathrm { t j } } } \frac { \partial \mathbf { v _ { 0 i } } } { \partial \mathbf { x _ { j } } } - \frac { 1 } { \rho _ { 0 } } \frac { \partial \mathbf { p _ { t } } } { \partial \mathbf { x _ { i } } }\tag{67}
+$$

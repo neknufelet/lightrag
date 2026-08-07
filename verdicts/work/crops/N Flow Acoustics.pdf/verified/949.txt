@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 15 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\frac { \partial ^ { 2 } \mathbf { B } ^ { \prime } } { \partial \mathbf { x } _ { \mathrm { i } } ^ { 2 } } - \left\{ \frac { 1 } { c ^ { 2 } } \left[ \frac { \partial ^ { 2 } } { \partial \mathbf { t } ^ { 2 } } + \left( 2 \mathbf { v } _ { \mathrm { i } } \frac { \partial } { \partial \mathbf { t } } - 2 \frac { \partial \mathbf { h } } { \partial \mathbf { x } _ { \mathrm { i } } } \right) \frac { \partial } { \partial \mathbf { x } _ { \mathrm { i } } } + \mathbf { v } _ { \mathrm { i } } \mathbf { v } _ { \mathrm { j } } \frac { \partial ^ { 2 } } { \partial \mathbf { x } _ { \mathrm { i } } \partial \mathbf { x } _ { \mathrm { j } } } \right] \mathbf { B } ^ { \prime } \right\} ^ { \prime } = \left[ \frac { \partial } { \partial \mathbf { t } } \left( \frac { 1 } { c ^ { 2 } } \right) ^ { \prime } \frac { \mathrm { D } \mathbf { h } } { \mathrm { D t } } \right] ^ { \prime }\tag{47}
+$$

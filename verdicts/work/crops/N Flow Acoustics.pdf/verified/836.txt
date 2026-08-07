@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 2 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \left\{ \displaystyle \frac { \mathrm { D } } { \mathrm { D t } } \left( \frac { 1 } { c ^ { 2 } } \displaystyle \frac { \mathrm { D } } { \mathrm { D t } } \right) - \displaystyle \frac { \nabla \mathrm { p } \cdot \nabla } { \mathrm { \rho } c ^ { 2 } } - \Delta \right\} \mathrm { B } = \left( \mathrm { d i v } + \displaystyle \frac { \nabla \mathrm { p } } { \mathrm { \rho } c ^ { 2 } } \right) \cdot ( \vec { \boldsymbol { \omega } } \times \vec { \mathbf { v } } - \mathrm { T V } \mathbf { s } - \vec { \boldsymbol { \sigma } } ) } \\ & { \quad \quad \quad \quad \quad \quad + \displaystyle \frac { \partial } { \partial \mathrm { t } } \left( \displaystyle \frac { \mathrm { \beta T } } { c _ { \mathrm { p } } } \displaystyle \frac { \mathrm { D s } } { \mathrm { D t } } \right) + \displaystyle \frac { \mathrm { D } } { \mathrm { D t } } \left[ \displaystyle \frac { 1 } { c ^ { 2 } } \left( \mathrm { T } \displaystyle \frac { \mathrm { D s } } { \mathrm { D t } } + \vec { \mathbf { v } } \cdot \vec { \boldsymbol { \sigma } } \right) \right] } \end{array}\tag{13}
+$$

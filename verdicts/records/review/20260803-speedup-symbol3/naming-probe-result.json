@@ -1,0 +1,221 @@
+[
+ {
+  "chunk": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-021",
+  "target_bad_names": [
+   "J0 Function"
+  ],
+  "control": [
+   "Pressure Field I",
+   "Particle Velocity Ix",
+   "Radial Eigenvalues",
+   "Neck Wall",
+   "Bessel Function J1",
+   "Pressure Field II",
+   "Radial-Mode Eigenvalues",
+   "Chamber II",
+   "Bessel Function J0",
+   "Mode Norms",
+   "Orthogonal Modes"
+  ],
+  "treat": [
+   "Pressure Field I",
+   "Particle Velocity I",
+   "Pressure Field Ii",
+   "Radial Eigenvalues",
+   "Radial Mode Eigenvalues",
+   "Mode Norms",
+   "Bessel Function J0",
+   "Bessel Function J1",
+   "Neck Wall",
+   "Chamber Ii",
+   "Equation 13",
+   "Equation 14"
+  ],
+  "bad_in_control": [],
+  "bad_in_treat": []
+ },
+ {
+  "chunk": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-027",
+  "target_bad_names": [
+   "Coefficient Dn"
+  ],
+  "control": [
+   "Eigenvalues",
+   "System Of Equations",
+   "Bessel Function J1",
+   "Pressure Field P11",
+   "Impedance Z0",
+   "Coefficients C_m",
+   "Coefficients D_n",
+   "Bessel Function J0",
+   "Wave Number K0",
+   "Propagation Constant Vn"
+  ],
+  "treat": [
+   "Eigenvalues",
+   "Pressure Function",
+   "Impedance Function",
+   "System Of Equations",
+   "Bessel Function",
+   "Mode Norms",
+   "Wave Number",
+   "Propagation Constant"
+  ],
+  "bad_in_control": [],
+  "bad_in_treat": []
+ },
+ {
+  "chunk": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-049",
+  "target_bad_names": [
+   "Z0 V11x"
+  ],
+  "control": [
+   "Gamma N",
+   "N N"
+  ],
+  "treat": [
+   "Gamma N",
+   "N N",
+   "K 0",
+   "Z 0 V 11 X",
+   "P",
+   "D N",
+   "J 0",
+   "Eta N",
+   "R",
+   "X",
+   "T",
+   "Hyperbolic Sine"
+  ],
+  "bad_in_control": [],
+  "bad_in_treat": []
+ },
+ {
+  "chunk": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-111",
+  "target_bad_names": [
+   "Nn,v, (II)",
+   "Integral Operation"
+  ],
+  "control": [
+   "Dn,v",
+   "Lambda_n,v^(II)",
+   "Nn,v^(II)",
+   "Ni",
+   "Zi",
+   "Sn,v",
+   "Gamma_n,v",
+   "k0",
+   "t",
+   "Nn,v^(H)",
+   "B0",
+   "C0",
+   "Nn^(y)",
+   "Nv^(z)",
+   "b",
+   "c",
+   "x_v",
+   "Pi_n",
+   "y",
+   "z"
+  ],
+  "treat": [
+   "Dn,v",
+   "Gamma i",
+   "Zi",
+   "Sn,v",
+   "Vn,v",
+   "k0",
+   "sinh",
+   "t",
+   "B0",
+   "C0",
+   "Lambda n,v (II)",
+   "Pi n",
+   "x v",
+   "Pi n prime",
+   "x v prime",
+   "Mode Norms In (II)",
+   "Nn,v (II)",
+   "bc",
+   "Nn (y)",
+   "Nv (z)",
+   "n",
+   "v",
+   "n prime",
+   "v prime",
+   "x",
+   "y",
+   "z",
+   "cos",
+   "Integral"
+  ],
+  "bad_in_control": [],
+  "bad_in_treat": []
+ },
+ {
+  "chunk": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-142",
+  "target_bad_names": [
+   "Gamma Constants"
+  ],
+  "control": [],
+  "treat": [
+   "Field Formulation",
+   "Eigenvalues",
+   "Impedance Function",
+   "Propagation Constant",
+   "Ratio C0 Over B0",
+   "Mode Norm",
+   "Coefficient D",
+   "Wave Number",
+   "Geometric Parameters",
+   "Boundary Conditions"
+  ],
+  "bad_in_control": [],
+  "bad_in_treat": []
+ },
+ {
+  "chunk": "doc-eb411db8a9a906704d7b2979fd1f0072-chunk-002",
+  "target_bad_names": [
+   "M_mn"
+  ],
+  "control": [
+   "Wave Equation",
+   "Finite Element Method",
+   "Equation 3.38",
+   "Helmholtz Equation",
+   "Boundary Condition 3.4",
+   "Sound Pressure Amplitude",
+   "Shape Functions",
+   "Equation 3.39",
+   "Figure 3.6",
+   "Equation 3.40",
+   "Stiffness Matrix",
+   "Mass Matrix",
+   "Damping Matrix",
+   "Room Acoustics",
+   "Wall Impedance",
+   "Nodes",
+   "Elements",
+   "Test Function"
+  ],
+  "treat": [
+   "Wave Equation",
+   "Finite Element Method",
+   "Equation 3.38",
+   "Helmholtz Equation",
+   "Boundary Condition",
+   "Sound Pressure Amplitude",
+   "Shape Functions",
+   "Equation 3.39",
+   "Linear Interpolation",
+   "Equation 3.40",
+   "Stiffness Matrix",
+   "Mass Matrix",
+   "Damping Matrix",
+   "Wall Impedance",
+   "Figure 3.6"
+  ],
+  "bad_in_control": [],
+  "bad_in_treat": []
+ }
+]

@@ -1,0 +1,6 @@
+<!--
+  §8.1 機械套用 14 處（首位判準；同側緊接算子之後者排除）
+-->
+$$
+\begin{array} { r l } & { \frac { { \mathrm { D } } ^ { 2 } \Pi } { { \mathrm { D } } { \mathrm { t } } ^ { 2 } } - \frac { \partial } { \partial { \mathrm { x } } _ { \mathrm { i } } } \left[ c ^ { 2 } \frac { \partial \Pi } { \partial { \mathrm { x } } _ { \mathrm { i } } } \right] = \kappa \frac { \partial { \mathrm { v } } _ { \mathrm { i } } } { \partial { \mathrm { x } } _ { \mathrm { j } } } \frac { \partial { \mathrm { v } } _ { \mathrm { j } } } { \partial { \mathrm { x } } _ { \mathrm { i } } } + \frac { \mathrm { D } } { { \mathrm { D t } } } \left( \frac { \kappa } { c _ { \mathrm { p } } } \frac { { \mathrm { D } } { \mathrm { s } } } { { \mathrm { D t } } } \right) - \frac { \partial } { \partial { \mathrm { x } } _ { \mathrm { i } } } \left\{ \frac { \kappa } { \rho } \frac { \partial { \mathrm { \ v { u } } _ { \mathrm { i j } } } } { \partial { \mathrm { x } } _ { \mathrm { j } } } \right\} } \\ & { \quad \quad \quad \quad \quad \quad \quad + \frac { \mathrm { D } } { { \mathrm { D t } } } \left( \frac { \kappa } { \rho } \dot { \mathrm { M } } \right) - \frac { \partial } { \partial { \mathrm { x } } _ { \mathrm { i } } } \left\{ \frac { \kappa } { \rho } \mathrm { F } _ { \mathrm { i } } \right\} } \end{array}\tag{1}
+$$
