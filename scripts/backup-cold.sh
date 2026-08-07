@@ -38,7 +38,16 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck disable=SC1091
 DB_ROOT=$(grep -E '^LIGHTRAG_DB_ROOT=' "$REPO_DIR/.env" 2>/dev/null | cut -d= -f2)
 DB_ROOT=${DB_ROOT:-/data/lightrag}
-STAGE=/data/rag/coldstage
+# 暫存區。**刻意不放在 $DB_ROOT 底下**，儘管它是 lightrag 的東西：
+# 下面第 3 段是 `cp -a "$DB_ROOT/." "$STAGE/"`，STAGE 在 DB_ROOT 裡面就會把
+# 暫存區複製進自己（每天翻一倍，而且不報錯）。順帶第二個理由：backrest 的
+# lightrag-snapshot plan 涵蓋整個 /data/lightrag，放裡面等於每 6 小時重複
+# 上傳一份 1.6 GB 的複本。
+#
+# 2026-08-07 從 /data/rag/coldstage 搬來。PO 定案「/data/rag 廢除，不再牽扯」，
+# 而舊值會讓這支腳本每天 mkdir -p 把那個目錄重建出來 —— 刪一次它建一次，
+# 且看起來一切正常（實測：PO 清掉 /data/rag 之後，03:28 又出現一個空目錄）。
+STAGE=/data/lightrag-coldstage
 STAMP=/data/lightrag/.backup-cold.stamp
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
 DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)

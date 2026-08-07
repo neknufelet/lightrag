@@ -73,30 +73,54 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 
 ### 路徑配置
 
+**唯一的資料根是 `/data/lightrag`**（`.env` 的 `DATA_ROOT`，程式端的單一事實來源是
+`scripts/pp/paths.py` 的 `DEFAULT_DATA_ROOT`）。
+
 | 用途 | 位置 |
 |---|---|
 | 設定（版控） | 本 repo |
-| rag_storage | `/data/rag/lightrag/${WORKSPACE}/rag_storage` |
-| 待匯入文件 | `/data/rag/lightrag/${WORKSPACE}/inputs/${WORKSPACE}/` ← 注意多一層 |
-| MinerU 解析快取 | `.../inputs/${WORKSPACE}/__parsed__/` ← 貴（6–10 h），已納入備份 |
-| 過程紀錄 | `/data/rag/lightrag/${WORKSPACE}/records/` |
-| 語料來源 | `/data/rag/knowledge_bases/*/raw`（不掛進容器） |
+| rag_storage | `/data/lightrag/rag_storage` |
+| 待匯入文件 | `/data/lightrag/inputs/${WORKSPACE}/` ← 子目錄由容器啟動時自己建 |
+| MinerU 解析快取 | `/data/lightrag/work/parsed` ← 貴（6–10 h）。容器內映射成 `inputs/${WORKSPACE}/__parsed__` |
+| 裁圖與轉錄快取 | `/data/lightrag/work/crops` |
+| 過程紀錄／裁決 | `/data/lightrag/records` ← 不可再生 |
+| 收件匣／審核台 | `/data/lightrag/inbox`、`/data/lightrag/intake` |
+| 體檢結果 | `/data/lightrag/checks` |
+| 索引本體 | `/data/lightrag/postgres`、`/data/lightrag/neo4j`（`.env` 的 `LIGHTRAG_DB_ROOT`） |
 
-執行期資料全部放在 `/data/rag` 底下。
+> ⚠️ **`/data/rag` 已於 2026-08-07 廢除，不得再新增任何東西到那裡。**
+> 它曾經同時放著三種東西（已搬走的資料根、冷備份暫存區、DeepTutor 的語料庫），
+> 那正是這個專案反覆踩到的「一個名字承載多件事」。現在暫存區在
+> `/data/lightrag-coldstage`，`INTAKE_SOURCES` 留空。
+> **`scripts/backup-cold.sh` 原本每天會把 `/data/rag` 重新 `mkdir` 出來**——刪一次
+> 建一次，而且看起來一切正常，所以那一行必須跟著改，不能只刪目錄。
 
-> ⚠️ **本段原本寫「該路徑已納入 restic 備份」——2026-08-03 查證是假的。**
-> backrest 當時的 plan 只涵蓋 `/data/rag/knowledge_bases`（DeepTutor 的庫）。
-> 現況：
->
-> | 路徑 | 大小 | 備份 |
-> |---|---|---|
-> | `/data/rag/lightrag`（含 `__parsed__`、`records`） | 210 MB | ✅ plan `lightrag-snapshot`，每 6 小時，已驗過可還原 |
-> | `/data/rag/postgres_data`（**索引本體**） | 15 GB | ❌ **無** |
-> | `/data/rag/neo4j_data`（圖） | 1.6 GB | ❌ **無** |
->
-> Postgres／Neo4j **不能用檔案複製備份**（跑著的資料目錄複製出來是不一致的快照），
-> 要用 `pg_dump` / `neo4j-admin dump`，那是另一件事，見 NEXT.md「接上備份」。
-> 解析快取尤其不能掉：390 份重新解析要 6–10 小時的 MinerU 呼叫。
+### 備份現況（2026-08-07 在 dker 實測）
+
+| 路徑 | 大小 | 備份 |
+|---|---|---|
+| `/data/lightrag/work/parsed`（MinerU 解析快取） | 307 MB | ✅ 每 6 小時 |
+| `/data/lightrag/records`（裁決紀錄） | 8.1 MB | ✅ 每 6 小時 |
+| `/data/lightrag/postgres`（**索引本體**） | 1.1 GB | ✅ 每 6 小時 ＋ 每天 03:00 |
+| `/data/lightrag/neo4j`（圖） | 540 MB | ✅ 每 6 小時 ＋ 每天 03:00 |
+
+兩條路徑的分工：
+
+- **每 6 小時**：backrest 的 plan `lightrag-snapshot`，涵蓋整個 `/data/lightrag`，
+  不停服務。對**不會變動的檔案**（解析快取、裁決紀錄）這樣就是有效備份。
+- **每天 03:00**：`scripts/backup-cold.sh` 停掉容器再複製，然後上傳（tag `lightrag-db`）。
+  資料庫必須這樣備——跑著的資料目錄複製出來是不同時間點的碎片，還原可能起不來。
+  還原演練 `BACKUP-3` 已於 2026-08-03 通過。
+
+> ⚠️ **一個仍然存在的缺口**：冷備份的跳過判準是 Postgres 的抽取指紋
+> （`backup-cold.sh` 的 `fingerprint()`），所以「只解析、還沒放行索引」的新解析快取
+> **不會觸發它**。那批檔案目前只靠 backrest 那條每 6 小時的熱抄保護。
+> 解析快取尤其不能掉：整批重新解析要 6–10 小時的 MinerU 呼叫。
+
+> **這張表的歷史**：它曾經連續錯兩次，方向相反。2026-08-03 之前寫「已納入 restic
+> 備份」而實際上沒有（假的安全宣稱）；修正之後又停在舊路徑不動，於是到 2026-08-07
+> 變成**打 ❌ 的兩列其實每天備兩次、打 ✅ 的那個目錄整個不存在**。
+> 教訓是同一條：**備份宣稱必須對照 dker 上的實際排程設定，不能照抄文件。**
 
 ### 映像用 digest 釘死
 
@@ -112,8 +136,13 @@ symlink，因為 symlink 的目標在 dockge 容器內不存在會斷鏈。
 放在根層的檔案掃描會回報 `0 discovered` 而且不報錯，很容易誤判成服務壞了。該子目錄由容器
 啟動時自動建立。
 
+> **現在的正路是審核台**（http://100.87.88.7:9710）：PDF 丟進 `/data/lightrag/inbox/`
+> 或直接在網頁上拖拉上傳 → 按「只解析」→ 看審核卡片 → 放行。
+> **不要再用 `postprocess.py prepare`**：它會把 PDF 留在 `inputs/`，審核台下次放行時
+> 會被正確擋下（實測撞過一次）。兩條路不要混用。下面這段是 CLI 流程的存底。
+
 ```bash
-cp foo.pdf /data/rag/lightrag/acoustics_v2/inputs/acoustics_v2/
+cp foo.pdf /data/lightrag/inputs/acoustics_v2/
 python3 scripts/postprocess.py prepare --workspace acoustics_v2
 python3 scripts/postprocess.py prepare --workspace acoustics_v2 --commit
 ```
@@ -123,7 +152,7 @@ python3 scripts/postprocess.py prepare --workspace acoustics_v2 --commit
 reindex 再抽取一次。修補必須在 scan 前完成，才能讓每份文件只抽取一次。
 
 `inputs` 也**不能唯讀掛載** —— 容器啟動時要建上述子目錄，掛 `:ro` 會直接 crash loop。
-這是為什麼此處用專屬目錄而非直接掛 `/data/rag/knowledge_bases/*/raw`。
+這是為什麼此處用 `DATA_ROOT` 底下的專屬目錄，而不是直接掛某個外部語料庫的來源目錄。
 
 ### 儲存後端
 

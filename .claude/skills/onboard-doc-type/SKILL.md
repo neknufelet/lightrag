@@ -43,7 +43,7 @@ description: 把新的文件類型接進 LightRAG 後處理流程。當使用者
 ### 1. 解析
 
 ```bash
-cp <新PDF> /data/rag/lightrag/<ws>/inputs/<ws>/
+cp <新PDF> /data/lightrag/inputs/<ws>/
 python3 scripts/postprocess.py prepare --workspace <ws>
 python3 scripts/postprocess.py prepare --workspace <ws> --commit
 ```

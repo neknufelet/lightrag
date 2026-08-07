@@ -29,14 +29,16 @@
   資料      **/data/lightrag 是唯一的根**（2026-08-04 乾淨重建後）。
             底下：inbox / library / work/{parsed,crops} / records / inputs/<ws>
                   / rag_storage / checks / postgres / neo4j
-            ⚠️ **/data/rag 尚未完全脫離，不要整個刪掉。** 本專案還有兩處活的依賴：
-              scripts/backup-cold.sh:41 STAGE=/data/rag/coldstage（每天 03:00
-                冷備份複製整個 DB 的落點——刪掉會讓備份失去暫存區，而腳本會
-                mkdir -p 成功、看起來一切正常）
-              .env.example:148 INTAKE_SOURCES=/data/rag/knowledge_bases/...
-            /data/rag/knowledge_bases 是 DeepTutor 的，不歸我們碰。
-            /data/rag/lightrag（217 MB 舊目錄）待刪，見 REBUILD-11。
-            脫離計畫見 docs/rebuild-2026-08/00-合併方案.md
+            ✅ **/data/rag 已於 2026-08-07 廢除，PO 定案不再牽扯。** 兩處依賴都已改：
+              scripts/backup-cold.sh STAGE → /data/lightrag-coldstage
+                （**刻意不放在 /data/lightrag 底下**：該腳本做
+                 `cp -a "$DB_ROOT/." "$STAGE/"`，暫存區在資料根裡面會複製進自己）
+              .env.example INTAKE_SOURCES → 留空（來源庫掃描停用，改走網頁上傳）
+            /data/rag/lightrag（REBUILD-11 的 217 MB 舊目錄）已由 PO 清除。
+            /data/rag/knowledge_bases（DeepTutor 的）也已不存在。
+            ⚠️ 不得再有任何東西寫進 /data/rag —— 舊的 backup-cold.sh 每天會把它
+              mkdir 回來，刪一次建一次且看起來一切正常（2026-08-07 實測到 03:28
+              又出現一個空目錄）。
 
 先讀 CLAUDE.md 與 NEXT.md。**CLAUDE.md 的「現況」已於 2026-08-05 更新到位**
 （18 份、1,589 chunk、14,226 實體），可以直接信任。

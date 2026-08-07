@@ -22,7 +22,7 @@
 | branch | `master`（單一；`rebuild/acoustics-v2` 已於 2026-08-03 合併並完成任務） |
 | **工作台** | **florian-coder**：`~/ghq/github.com/neknufelet/lightrag`。所有編輯在這裡。worker CLI（codex／opencode）只有這台有 |
 | **部署** | **florian-dker**（Tailscale `100.87.88.7`）：同路徑。**唯讀＋只 `git pull`，禁止直接編輯** |
-| 資料／容器 | 只在 florian-dker：`/data/rag/lightrag`（解析快取與裁決紀錄）、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700 |
+| 資料／容器 | 只在 florian-dker：**`/data/lightrag` 是唯一的資料根**（解析快取 `work/parsed`、裁決紀錄 `records`、索引 `postgres`／`neo4j`）、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700。**`/data/rag` 已於 2026-08-07 廢除**，不得再寫入 |
 | 儲存後端 | 只在 florian-dker：`lightrag-postgres`（database `lightrag`）＋ `lightrag-neo4j`，資料在 `/data/lightrag`。**2026-08-03 從 DeepTutor 的共用實例搬出**，兩者都是專用實例（`lightrag-neo4j` 只有 `neo4j`／`system` 兩個 database），不再靠 workspace 欄位與 label 跟別的專案共處 |
 | LLM binding | **就是 florian-coder 這台**（Tailscale `100.71.26.77`）的 :8080，容器 `llama-qwen36-moe`（`ghcr.io/ggml-org/llama.cpp:server-cuda`，build 10200／`5f55650a7`，模型 `Qwen3.6-35B-A3B-UD-IQ4_XS`，2× RTX 3060）。**跑的是 `--parallel 4`，啟動 log `n_slots = 4`**（2026-08-03 實測）。舊文件寫「第三台」「單 slot」，**兩個都錯**——它不是第三台機器，slot 也不是 1 |
 | workspace | **`acoustics_v2`（唯一）**。`acoustics_v155` 已完全退役，文件裡提到它的地方一律是歷史 |
@@ -258,7 +258,7 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 | `VERIFY-8` | `compare-ws.py` | 跨 workspace 對照 |
 
 **`A-##` 在程式裡先不改名。** 它是 `compat-check.py --json` 輸出的 `id` 欄，
-`/data/rag/lightrag/checks/` 底下的歷史紀錄以它為鍵，改名會讓歷史無法與新紀錄
+`/data/lightrag/checks/` 底下的歷史紀錄以它為鍵，改名會讓歷史無法與新紀錄
 對照——而那正是漂移偵測的母體。**正解是輸出多帶一個 `suite: "VERIFY-1"` 欄**，
 完整 label 由兩者組出來；人讀的地方（文件、工單）一律寫全稱 `VERIFY-1-A01`。
 （這一項本身是 `VERIFY-1` 線的待辦，未做。）
@@ -567,7 +567,7 @@ size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列�
 
 排程檢查已存在(2026-08-02 起):`lightrag-daily-check.timer` 每天 08:30 跑
 compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本身
-掛掉走 systemd `OnFailure=` 獨立備援。狀態落地 `/data/rag/lightrag/checks/`。
+掛掉走 systemd `OnFailure=` 獨立備援。狀態落地 `/data/lightrag/checks/`。
 **「誰會報錯」的答案從「沒有人」改成它。**
 
 第二支排程於 2026-08-03 接上：`lightrag-cold-backup.timer` 每天 03:00 跑
