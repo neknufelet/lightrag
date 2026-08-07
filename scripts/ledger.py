@@ -15,7 +15,8 @@
 把「不知道」講成「知道」，而這個專案一路在防的就是那個。所以 `unverifiable`
 沒有 `--note` 直接拒收 —— 沒有理由的「驗不了」跟沒檢查無法區分。
 
-格式定在 docs/rebuild-plan.md 的「體檢表格式」，**不要自創欄位**：欄位一長出來
+格式原定在 docs/rebuild-plan.md（已於 2026-08-07 刪除，在 tag
+archive/pre-rebuild-20260807 裡），**不要自創欄位**：欄位一長出來
 就沒有第二個人知道該不該填，表也就不再是同一張表。
 
 用法：
@@ -42,7 +43,7 @@ from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = DEFAULT_DATA_ROOT
 
-# 閘門清單與順序照 rebuild-plan 的「體檢表格式」。這是白名單而不是提示：
+# 閘門清單與順序照原 rebuild-plan 的「體檢表格式」（見上方 docstring）。白名單不是提示：
 # 打錯字的閘門名會安靜地長出第八個欄位，總表少一格沒人會發現（鐵則 1：拒絕，不猜）。
 GATES = [
     "parse.coverage",

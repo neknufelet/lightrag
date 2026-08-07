@@ -23,7 +23,7 @@
 | **工作台** | **florian-coder**：`~/ghq/github.com/neknufelet/lightrag`。所有編輯在這裡。worker CLI（codex／opencode）只有這台有 |
 | **部署** | **florian-dker**（Tailscale `100.87.88.7`）：同路徑。**唯讀＋只 `git pull`，禁止直接編輯** |
 | 資料／容器 | 只在 florian-dker：**`/data/lightrag` 是唯一的資料根**（解析快取 `work/parsed`、裁決紀錄 `records`、索引 `postgres`／`neo4j`）、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700。**`/data/rag` 已於 2026-08-07 廢除**，不得再寫入 |
-| 儲存後端 | 只在 florian-dker：`lightrag-postgres`（database `lightrag`）＋ `lightrag-neo4j`，資料在 `/data/lightrag`。**2026-08-03 從 DeepTutor 的共用實例搬出**，兩者都是專用實例（`lightrag-neo4j` 只有 `neo4j`／`system` 兩個 database），不再靠 workspace 欄位與 label 跟別的專案共處 |
+| 儲存後端 | **⚠ 容器已於 2026-08-07 移除，這一列描述的是重建目標不是現況。** 重建後：只有 `lightrag-postgres`（database `lightrag`），資料在 `/data/lightrag/postgres`。**Neo4j 要拿掉**——v1.5.6 的 PostgreSQL 可以同時當四種後端（KV／DocStatus／Vector／Graph），我們原本只有 Graph 掛在 Neo4j。見 [ADR-0004](docs/decisions/0004-rebuild-instead-of-patching.md) |
 | LLM binding | **就是 florian-coder 這台**（Tailscale `100.71.26.77`）的 :8080，容器 `llama-qwen36-moe`（`ghcr.io/ggml-org/llama.cpp:server-cuda`，build 10200／`5f55650a7`，模型 `Qwen3.6-35B-A3B-UD-IQ4_XS`，2× RTX 3060）。**跑的是 `--parallel 4`，啟動 log `n_slots = 4`**（2026-08-03 實測）。舊文件寫「第三台」「單 slot」，**兩個都錯**——它不是第三台機器，slot 也不是 1 |
 | workspace | **`acoustics_v2`（唯一）**。`acoustics_v155` 已完全退役，文件裡提到它的地方一律是歷史 |
 
@@ -50,10 +50,17 @@
 8. **Tests before merge**：新功能必須有對應測試（至少一個 smoke test），無測試的 PR 不得合入主線。
 9. **Verify-then-claim（驗證再斷言）**：任何關於「跑著的系統行為／狀態」的陳述（checkpoint、PR、回覆）必須附**驗證指令及其輸出**（curl／`docker exec`／pytest／實測），不得只靠讀 code 推理；未驗證者明確標 `(未驗,推測)`，不混入事實陳述。涉及 baked image／容器／部署的系統，須區分「源碼狀態」與「as-built 跑著的狀態」。
 
-**第 9 條在本專案有加強版**：源碼在 coder、跑著的系統在 dker，兩者**物理隔離**。
+**第 9 條在本專案有加強版**：LightRAG 跑在 dker、源碼改在 coder，兩者**物理隔離**。
 在 coder 跑的任何東西只能證明源碼層；凡是 canary 數字、閘門判定、契約斷言、
-容器狀態，一律附 dker 上的實跑輸出。這不是紀律問題，是事實問題——coder 上
-連 `.env` 都沒有（不進版控），碰 DB 的腳本在那裡根本跑不起來。
+容器狀態，一律附 dker 上的實跑輸出。不是紀律問題，是事實問題——**LightRAG 的
+`.env` 只在 dker**（DB 密碼、OpenAI key、MinerU token），碰 DB 或容器的腳本在
+coder 上跑不起來。
+
+> ⚠️ **但 coder 不是「沒有 `.env`」。** `deploy/llama-qwen36-moe/.env` 就在 coder
+> （llama.cpp 伺服器跑在這台的 :8080），一個鍵 `LLAMA_API_KEY`，chmod 600、
+> 被 gitignore 擋著、沒進版控。
+> 本檔原本寫「coder 上連 `.env` 都沒有」——**那是錯的，而且與上面座標表
+> 「LLM binding 就是 florian-coder 這台」自相矛盾**。2026-08-07 修正。
 
 **第 4 條的既有例外**：`scripts/` 是薄 CLI 層，`print` 是它的**輸出**不是 log，
 維持現狀。`lib` 性質的模組（`scripts/pp/`）不得用 `print` 做診斷輸出。
@@ -277,9 +284,14 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | **知道但決定不修**的 14 條，各附理由 | 看到某個問題想修之前 |
 | [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
 | [docs/judgement-flow.md](docs/judgement-flow.md) | **遇到新問題時的決策程序**：偵測 → 驗偵測器 → 分類 → 叫眼睛 → 判不準怎麼辦 | 發現一個沒見過的問題時 |
-| [docs/log_20260803.md](docs/log_20260803.md) | **當日工作日誌**：過程與理由（尤其「查完決定不做」的六項與各自的實測依據）＋**已歸檔的完成項**（2026-08-05 從 NEXT.md 搬來的 `SYMBOL-1/2/3`、`BACKUP-2/3`，含實測數字與決策理由） | 想知道某個決定當初為什麼那樣下 |
-| [docs/rebuild-plan.md](docs/rebuild-plan.md) | **歷史**：`REBUILD-0`…`REBUILD-5` 的階段、閘門與各階段驗收紀錄；體檢表格式 | 想知道某個數字當初怎麼來的 |
-| [docs/postprocess-workorder.md](docs/postprocess-workorder.md) | **歷史**：後處理實作工單 `PPWORK-0`…`PPWORK-12`(原 `W0`–`W12`;舊描述誤記為 W0–W14) | 要動 `scripts/pp/` 之前 |
+| [docs/rebuild-checklist.md](docs/rebuild-checklist.md) | **新環境必須保持什麼樣子**：13 條，其中 8 條是 `.env` 的值且壞掉不報錯 | 重建、換版、改 `.env` 之前 |
+| [cairn/LOG.md](cairn/LOG.md) | 逆時序流水帳，最新的在最上面 | 想知道某天發生了什麼 |
+
+> **2026-08-07 刪掉了五份歷史文件**（`log_20260803.md`、`rebuild-plan.md`、
+> `postprocess-workorder.md`、`precedents-inventory-20260804.md`、`rebuild-2026-08/`
+> 整個目錄，共 9,179 行）。它們描述的是已被砍掉的系統，留在工作區只會讓下一個
+> session 把作廢的數字當現況。**全部在 tag `archive/pre-rebuild-20260807` 裡**：
+> `git show archive/pre-rebuild-20260807:docs/postprocess-workorder.md`
 | [README.md](README.md) | 部署、解析選項實測、**備份現況(哪些有、哪些沒有)** | 環境有問題時 |
 | [tests/canary-baseline.json](tests/canary-baseline.json) | 金絲雀基準數字 | 不要手改,用 `canary --update` |
 
@@ -407,44 +419,30 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 `K: mute 61→48`。(注意 3→5 不會失敗,因為書眉重複次數遠大於 5 ——
 **測試本身也要選會咬到的值**。)
 
-## 現況（2026-08-05）
+## 現況（2026-08-07）：已清空，等重建
 
-**唯一的 workspace 是 `acoustics_v2`**（`WORKSPACE` 在 `.env`，不進版控）。
-`acoustics_v155` 已於 2026-08-03 完全退役——容器、Postgres 列、Neo4j label、
-磁碟目錄全數移除。本檔提到 v155 的地方一律是**歷史**，不是現況。
+**dker 上的資料與容器已於 2026-08-07 全部移除。** 沒有跑著的服務、沒有索引、
+沒有解析快取。四個容器（lightrag／kbapi／postgres／neo4j）已移除，
+systemd 全部停掉並取消開機啟動。
 
-**2026-08-04 乾淨重建過一次**：資料搬到 `/data/lightrag`（自己的 postgres／neo4j
-實例），語料整批換成 Möser 聲學教科書 A–R 十八章。**舊語料的所有數字都不可
-再當現況引用**——包括本檔曾記載的 20 份／7,211 實體／510 chunk。
+保留在 dker 的 `/data/lightrag`：
 
 ```
-文件      18 份（A Conventions … R Ultrasound Absorption in Solids）
-          全部 processed、failed 0；走 :9710 審核台一份一份放行
-服務      lightrag :9621 查詢（容器 lightrag-acoustics_v2）
-          kbapi    :9700 圖片與單篇結構，唯讀（容器 kbapi-acoustics_v2）
-          intake   :9710 進料審核台（**宿主 systemd**，不在 compose —— 理由見
-                   deploy/systemd/lightrag-intake.service 檔頭）
-索引      1,589 chunk、14,226 實體、26,447 關係
-          ↑ 來源＝vdb 列數（extract-check.py，2026-08-05 實跑）
-接地      可疑率 2.7%（267／9,732 個可判定實體）；符號型 4,494 個「驗不了」
-          4 份 >5% 標黃：L Capsules 14.7%、K Muffler 13.3%、P Variational 7.5%、
-          G Porous 6.9%。**其中三份已查證不是幻覺，結論記在
-          `tests/verified-findings.json`，extract-check 超標時會自己印出來**
-          （P Variational 尚未查證）
-關係      兩端接地 14,602、符號型 11,259、只有一端 455（3.0%）、兩端皆無 131（0.9%）
-規則      ∂ 誤讀四種寫法已修（全母體 190 處，見 latex_fix.py 第 3 條）
-          canary 基準 18 份全數納入，latex_partials／latex_vetoed 全 0
-排程      三個 systemd 單元（daily-check 08:30、cold-backup 03:00、intake）
-          全部進版控於 deploy/systemd/，daily-check 每天比對 /etc 與 repo
-解析      pipeline + is_ocr=true + MinerU official
-embedding text-embedding-3-large @ 3072 + HNSW_HALFVEC
-兩雙眼睛  qwen3.6-35b-a3b（本機 100.71.26.77:8080）+ gpt-5.6-luna（雲端）
-          第三隻眼 xiaomi/mimo-v2.5（OpenRouter），只在三方皆異時呼叫
+records  183 檔   人工裁決與體檢表（版控副本在 repo 的 verdicts/）
+checks    32 檔   歷史體檢紀錄 —— 判斷「數字有沒有漂移」的母體
 ```
 
-**歷史對照（舊語料，已不存在，不可再重現）**：v155 → v2 重建當時量的
-chunk 512→510、實體 7,968→8,010、關係 10,407→10,535。那批文件已於
-2026-08-04 整批換掉，這組數字純屬歷史。
+主線是**重建到 LightRAG v1.5.6 並拿掉 Neo4j**（新版的 PostgreSQL 可以存圖）。
+理由見 [docs/decisions/0004](docs/decisions/0004-rebuild-instead-of-patching.md)，
+新環境必須保持的樣子見 [docs/rebuild-checklist.md](docs/rebuild-checklist.md)。
+**需求還沒釘死**——下一步是把它問清楚，不是直接動工。
+
+> ⚠️ **本檔以下各節出現的任何「現況數字」全部作廢**：份數、chunk 數、實體數、
+> 關係數、可疑率、服務埠、排程狀態。它們描述的是 2026-08-07 之前的系統，
+> 那個系統已經不存在。
+>
+> **規則與契約仍然有效**（語料相同、規則相同、模型相同），**數字不是**。
+> 舊數字要查：`git show archive/pre-rebuild-20260807:CLAUDE.md`
 
 ## 規則分兩類,不能混在一起
 
@@ -591,6 +589,9 @@ compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本�
 
 二態時未接地率與符號密度高度相關、與幻覺無關(散文 0%、論文 3.4%、C 55%)。
 分成「接地 / 符號型無法驗證 / 可疑」之後,C 從 55.1% 降到 3.4%,總計 3.7%。
+
+**⚠ 下面這組數字已作廢**（索引於 2026-08-07 清空）。留著是因為它示範了三態的
+效果與量級，重建後要重新量一次。
 
 ```
 acoustics_v2（2026-08-05 實跑，全 18 份；來源＝entity/relation vdb 的列數）

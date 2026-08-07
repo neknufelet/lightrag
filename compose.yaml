@@ -168,6 +168,10 @@ services:
     networks:
       - rag
 
+  # ⚠ 2026-08-07：這個服務要在重建時整個移除（見 docs/decisions/0004）。
+  # 容器已刪，但定義留著 —— 因為 PGTableGraphStorage 的環境變數名還沒查證，
+  # 現在拿掉會變成「沒有圖儲存」。確認之後把 LIGHTRAG_GRAPH_STORAGE 換掉、
+  # 刪這一段、刪 .env 的四個 NEO4J_* 鍵、改 backup-cold.sh 的 DBS 陣列。
   neo4j:
     image: neo4j:5                          # 與原實例同版：5.26.26 community
     container_name: lightrag-neo4j

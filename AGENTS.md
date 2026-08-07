@@ -1,91 +1,49 @@
-# lightrag 協作規則
+# lightrag — AI 協作者的路標
 
-> 本專案使用 Project Cairn 組織專案知識：`AGENTS.md` 是規則與導航入口，`cairn/` 是專案知識／狀態層。
-> **本專案的 `CLAUDE.md` 是既有的 650 行 SSOT，不是範本要求的單行 `@AGENTS.md` stub。**
-> 那是刻意的：它承載鐵則、契約、座標與身分，每個 session 自動載入，內容與職責都不可被取代。
-> 折衷是在 `CLAUDE.md` 檔尾加一行 `@AGENTS.md` 引用，兩者並存、職責分開（見下方「文件職責」）。
+**規則、契約、跨機座標全部在 [CLAUDE.md](CLAUDE.md)。先讀那個。**
 
-## 專案一句話
+這個檔存在的唯一理由：codex／opencode 這類 CLI 讀 `AGENTS.md`，不讀 `CLAUDE.md`。
+所以這裡**只放路標，不重複規則**——同一條規則有兩個地方就會漂移，而漂移不報錯。
 
-聲學知識庫：LightRAG 1.5.5 部署 ＋ MinerU 解析後處理。改在 florian-coder、驗在 florian-dker。
+| 要找什麼 | 去哪 |
+|---|---|
+| 鐵則、契約、座標、常用指令 | [CLAUDE.md](CLAUDE.md) |
+| 接下來做什麼 | [NEXT.md](NEXT.md) |
+| 某個決定為什麼那樣下 | [docs/decisions/](docs/decisions/) |
+| 新環境必須保持什麼樣子 | [docs/rebuild-checklist.md](docs/rebuild-checklist.md) |
+| 知道但沒處理的問題 | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) |
+| 遇到沒見過的問題怎麼查 | [docs/judgement-flow.md](docs/judgement-flow.md) |
+| 某天發生了什麼 | [cairn/LOG.md](cairn/LOG.md) |
 
-> 本檔由 `cairn init` 產生，已填入本專案自己的定位與 provider 設定；其他專案要沿用請先跑自己的 init。
+上位規範是 `~/ghq/github.com/neknufelet/standards/BASELINE.md`（**只在 florian-coder**，
+dker 沒有）。它的 9 條核心規則已 inline 在 CLAUDE.md，其餘 section 沒有——
+所以 commit 格式、文件 frontmatter 這類規則要去上游看，或跑 `scripts/standards-check.py`。
 
-## Init 設定
-
-- Graduation provider(s): Obsidian（vault: `Learning_DB/obsidian/Florian`，WebDAV 直寫）
-- 知識庫索引: `42_Cairn/lightrag/INDEX.md`
-- Graduation target: `42_Cairn/lightrag`
-
-## 進入專案後的閱讀順序
-
-1. 先讀 `CLAUDE.md` —— **本專案特有**，它是 SSOT，含鐵則與跨機座標，讀錯機器會做錯事。
-2. 再讀本檔（AGENTS.md）。
-3. 讀 `NEXT.md` 的待辦與「刻意不做」決策記錄。
-4. 讀 `cairn/LOG.md` 最新幾則（最新在最上面）。
-5. 依任務需要讀相關的 `cairn/` 知識專題文檔。
-
-## 文件職責
-
-| 檔案 | 角色 | 維護方式 |
-|---|---|---|
-| `CLAUDE.md`（根目錄） | **SSOT**：鐵則、契約、座標與身分、常用指令 | 既有文件，本系統不接管 |
-| `AGENTS.md`（根目錄） | Cairn 的規則與導航 | 很少變動，≤ 60 行 |
-| `NEXT.md` | 待辦、進行中、刻意不做的決策 | 既有文件，本系統不接管 |
-| `docs/` | 事故紀錄、決策程序、歷史工單 | 既有文件，本系統不接管 |
-| `cairn/LOG.md` | 時序流水帳 | 新的一則加在最上面，每則 ≤ 20 行，只放摘要與指標 |
-| `cairn/<topic>.md` | 知識專題文檔（當前真相） | 就地更新；踩坑寫進正文並用 `contains` 標記 |
-| `cairn/Reference/` | 外部原始輸入 | 需要時才建，只增不改 |
-| `cairn/Cited.md` | 知識庫引用清單 | 只放指標，永不複製原文 |
-
-> 其餘一律等到有具體訊號才建，不預先擺空殼。工程資產（程式或流程會消費的契約／設定／規格）不歸本系統管，留在程式樹裡，不進 `cairn/`。
-
-**本專案的特殊約定**：既有的 `CLAUDE.md`／`NEXT.md`／`docs/` **不搬進 `cairn/`**。
-理由是它們已經是這個專案調校過的形式，再抄一份只會製造第五層副本——而本專案已有實測的
-漂移事故（`chart` 那條規則在三處講法不一致，記於 `docs/precedents-inventory-20260804.md`）。
-`cairn/` 只承接**往後**的新知識，以及畢業到知識庫的那條路。
-
-## 衝突仲裁規則
-
-- 優先序：**`CLAUDE.md` 鐵則 > `cairn/` 知識專題文檔 > `cairn/LOG.md` 歷史**；規則層級的衝突由本檔裁決。
-- 業務／設計結論以 `cairn/` 知識專題文檔的最新紀錄為準，不看較舊的 LOG。
-
-## 知識庫消費反射
-
-- 開工前，若這件工作的**可複用內核**（它產出或依賴的任何結論）夠格畢業，先查 `42_Cairn/lightrag/INDEX.md`；
-  只為真正影響了產出的筆記加一筆 `cairn/Cited.md`（只放指標，永不抄正文）。
-
-## 文件協作規則
-
-- 動手前先判斷使用者要的是「討論／建議」還是「直接改文件」；說「先看一下／先評估」時先給分析，不要直接重寫正式文件。
-- 修正過去的判斷時用追加更正，不要無聲覆蓋。
-- 未確認的判斷不得寫成既成事實。
-
-## 知識沉澱規則
+## 知識往哪去
 
 **判準是「誰在什麼時候需要它」，不是「它屬於哪一類」。** 分類會吵，時機不會。
 
-| 什麼時候會需要 | 放哪 |
-|---|---|
-| 每次開工都要知道（鐵則、契約、座標） | `CLAUDE.md` |
-| 決定下一步做什麼時（待辦、刻意不做） | `NEXT.md` |
-| 想知道某天發生了什麼 | `cairn/LOG.md` |
-| **下次跑同一支檢查、看到同一個數字時** | **`tests/verified-findings.json`** |
-| 換個領域也成立、別的專案用得上 | 畢業進 `42_Cairn/lightrag` |
+| 什麼時候會需要 | 放哪 | 誰會發現沒做 |
+|---|---|---|
+| 每次開工都要知道 | `CLAUDE.md` | 沒有人 |
+| 決定下一步時 | `NEXT.md` | `standards-check` 檢查行數上限 |
+| 想知道某天發生了什麼 | `cairn/LOG.md` | `tests/test_log_freshness.py`（落後 git 超過一天就紅） |
+| **下次跑同一支檢查、看到同一個數字時** | `tests/verified-findings.json` | 工具自己在超標時印出前例 |
+| 換個領域也成立 | 畢業到 Obsidian `42_Cairn/lightrag/`（WebDAV 直寫） | 沒有人 |
 
-- 每有實質進展，在 `cairn/LOG.md` 最上面加一則（摘要＋指標）；結論沉澱進 `cairn/` 知識專題文檔。
-- 跨專案可複用的經驗，透過畢業機制沉澱進 `42_Cairn/lightrag`。
-
-**第四列是最容易漏的一格，而漏掉的代價是重複查證。** 實例：`K Muffler` 的接地
-可疑率在舊語料查過一次、結論寫進 CLAUDE.md；2026-08-05 跑 18 份體檢時
-`L Capsules` 出現同一個形狀，**又查了一次**。沒有這一格的話還會有第三次。
-所以這類「某份文件的某個指標超標，查過了，結論是什麼」一律進
-`tests/verified-findings.json`，**由檢查工具自己在超標時印出來**——
-不要求任何人記得去哪裡找。
+**第四列最容易漏，漏掉的代價是重複查證。** 實例：同一個接地率的形狀查過兩次
+（`K Muffler` 一次、`L Capsules` 一次）。沒有那一格會有第三次。
 
 ## 需要問，就是規則沒寫好
 
-**「這個要記嗎／記到哪裡？」這個問題本身就是缺陷訊號。** 遇到時的正確反應是
-**補這條路由規則，然後照著做**，不是問一次、做一次、下次再問一次。
+**「這個要記嗎／記到哪裡？」這個問題本身就是缺陷訊號。** 正確反應是補這條路由規則，
+然後照著做——不是問一次、做一次、下次再問一次。
 
-同理適用於任何反覆出現的判斷：如果同一個問題問過兩次，缺的不是答案，是規則。
+同理適用於任何反覆出現的判斷：同一個問題問過兩次，缺的不是答案，是規則。
+
+## 動手前
+
+- 先判斷使用者要的是「討論」還是「直接改」。說「先看一下／先評估」時給分析，
+  不要直接重寫正式文件。
+- 修正過去的判斷用追加更正，不要無聲覆蓋。
+- 未確認的判斷不得寫成既成事實。

@@ -20,7 +20,9 @@ description: 把新的文件類型接進 LightRAG 後處理流程。當使用者
 
 ## 不可違反的四條
 
-這四條是踩過坑換來的，改動前先讀 `docs/postprocess-workorder.md`。
+這四條是踩過坑換來的。原本的工單 `docs/postprocess-workorder.md` 已於 2026-08-07
+刪除（在 tag `archive/pre-rebuild-20260807` 裡）；現行的契約清單見
+`docs/rebuild-checklist.md`。
 
 1. **`preflight()` 拒絕，不猜。** 遇到未知型別就停下整份文件。用不適用的規則硬跑
    會產生「有產出但產出錯誤」——這個專案一路在防的就是這個。
