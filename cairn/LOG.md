@@ -3,6 +3,25 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-07（四）· 重建需求釘死、文件治理收口
+
+- **需求拷問完成，裁決在 `docs/rebuild-design.md`**（八個決定）。定位是「原料供應站」：
+  不下結論，把乾淨原料交給 Obsidian 的 agent。範圍縮到 `C Equivalent Networks.pdf`
+  一篇打通，手動分步跑。
+- **拷問推翻了草稿自己的三條假設**：skill「一行不改」等於凍結舊拓樸（改成凍契約不凍
+  位址）、`doc` 端點根本不回正文而 `search` 不能鎖定單篇（新增分節正文端點）、
+  227 個「不可再生」實際只有 10 個。
+- **第一個 topic note 誕生**：[irreproducible-claims.md](irreproducible-claims.md)。
+  Cairn 的核心機制第一次被啟用——上一則還寫著「仍是 0 個」。
+- **文件治理**：`AGENTS.md` 72 行 → 8 行純指標（上游範本本來就是一行 `# See CLAUDE.md`，
+  是本專案偏離了）；獨有內容進 `docs/knowledge-routing.md`；`NEXT.md` 補 BASELINE 1.4.0
+  要求的狀態總表與 mermaid 進度圖。**兩份導航表已各缺對方的項目**，後果是用 codex 的人
+  從來不會被告知有 8 條鐵則。
+- **兩支執行者掛上 pre-commit**：LOG 不得落後於 git、NEXT 的 done 不得追上待辦。
+  原本 `test_log_freshness.py` 的執行者是 dker 的 timer，實測 `systemctl list-timers`
+  只剩 apt-daily 兩個——規則有、執行者沒了。
+- commits：`ffe7d12` `7b0cc58` `e2cfdc8` `7e16abf`。
+
 ## 2026-08-07（三）· 規範層：BASELINE 1.9.0 → 2.0.0
 
 - **本專案的事故升格成跨專案規則。** 從 173 條踩坑清單提煉五條提案，請 fable 唯讀評估

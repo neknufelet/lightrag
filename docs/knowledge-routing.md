@@ -46,9 +46,12 @@ dker 沒有）。它的 9 條核心規則已 inline 在 `CLAUDE.md`，其餘 sec
 commit type 三處、導航表兩份（2026-08-07 發現）、三個 lightrag skill 在 repo 與
 `AI_TOOLS/skills/common/` 各一份（2026-08-07 發現，當時內容仍逐位元相同）。
 
-⚠ **`cairn/<topic>.md` 截至 2026-08-07 是 0 個。** Cairn 的核心機制（結論沉澱成當前
-真相）從來沒被啟用過，只有流水帳在跑。而 maintenance 規則明說「LOG 只放摘要與指標，
-結論放 topic」——本專案一直反過來做。
+**`cairn/<topic>.md` 在 2026-08-07 之前是 0 個**——Cairn 的核心機制（結論沉澱成當前
+真相）從來沒被啟用過，只有流水帳在跑，而 maintenance 規則明說「LOG 只放摘要與指標，
+結論放 topic」。同日建了第一個（`cairn/irreproducible-claims.md`）。
+
+⚠ **仍然沒有任何東西會發現 topic note 又變回 0 個。** LOG 有 `test_log_freshness.py`
+守著，topic 這一側沒有執行者。
 
 ## Cairn 的維護規則（做完事之後要做的）
 
