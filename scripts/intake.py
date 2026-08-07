@@ -1585,6 +1585,45 @@ class IntakeApp:
         target.unlink()
         LOGGER.info("刪除收件匣檔案 %s", name)
 
+    # daily-check 的結果超過這麼久沒更新，就當成「沒有在檢查」而不是「通過」。
+    # 24 小時是排程週期的兩倍——留一次失敗的餘裕，但不留到「停了一週還在顯示綠燈」。
+    CHECKS_STALE_AFTER_S = 24 * 3600
+
+    def daily_checks(self) -> dict[str, object]:
+        """把 daily-check 的紅綠燈拉到審核台上。
+
+        **這是這個專案的警報管道**（2026-08-08 PO 裁決）：「只要在 9710 有警告就好，
+        我都會透過那個」。ntfy 於 2026-08-07 拆除之後，紅綠狀態一直只落在
+        `${DATA_ROOT}/checks/latest.json`，**而沒有任何人會經過那裡**。
+
+        ⚠ **過期比紅燈更危險**：排程停掉之後 `latest.json` 會停在最後一次的結果，
+        於是「一週前通過」看起來跟「剛剛通過」一模一樣。所以一律回報 `age_s`，
+        並在超過 `CHECKS_STALE_AFTER_S` 時把 `state` 改成 `stale` —— 那不是通過，
+        是「沒有在檢查」。
+        """
+        path = self.paths.checks_dir / "latest.json"
+        if not path.is_file():
+            return {"state": "missing", "reason": f"{path} 不存在——daily-check 從來沒跑過？"}
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return {"state": "unreadable", "reason": f"{path} 讀不了：{exc}"}
+
+        age = max(0.0, time.time() - path.stat().st_mtime)
+        stamp = str(raw.get("at") or "")
+        status = str(raw.get("status") or "unknown")
+        state = "stale" if age > self.CHECKS_STALE_AFTER_S else status
+        failing = sorted(k for k, v in raw.items()
+                         if k.endswith("_rc") and isinstance(v, int) and v != 0)
+        return {
+            "state": state,          # ok / fail / stale / missing / unreadable
+            "reported": status,      # 檔案裡寫的原值，stale 時仍要看得到
+            "at": stamp,
+            "age_s": age,
+            "failing": failing,      # 哪幾項非零，例如 ["scan_rc", "tests_rc"]
+            "detail": raw.get("detail"),
+        }
+
     def health(self) -> dict[str, object]:
         with self._lock:
             worker_alive = self._worker is not None and self._worker.is_alive()
@@ -1694,6 +1733,7 @@ class IntakeApp:
             "pending_by_reason": sorted(grouped.values(), key=lambda item: str(item["reason"])),
             "convergence": convergence,
             "source_warnings": warnings,
+            "checks": self.daily_checks(),
             "health": self.health(),
             "links": self.links(),
             "foreign": foreign_rows,
@@ -2458,6 +2498,29 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
                      + _esc("；".join(str(item) for item in warnings)) + "</div>")
     if isinstance(foreign_error, str) and foreign_error:
         warn_html += f"<div class='banner'>⚠ {_esc(foreign_error)}</div>"
+
+    # daily-check 的紅綠燈。**這是本專案唯一的警報管道**（2026-08-08 裁決：
+    # 「只要在 9710 有警告就好」）。ok 不顯示 —— 常態不該佔畫面，否則真的紅燈
+    # 會被淹沒；其餘四種狀態都要出現在最上面。
+    checks = state.get("checks") if isinstance(state.get("checks"), dict) else {}
+    cs = str(checks.get("state") or "")
+    if cs and cs != "ok":
+        age = checks.get("age_s")
+        age_txt = f"{age / 3600:.0f} 小時前" if isinstance(age, (int, float)) else "時間不明"
+        if cs == "stale":
+            msg = (f"每日檢查已經 {age_txt}沒有更新（最後一次寫的是 "
+                   f"{checks.get('reported')}）——**這不是通過，是沒有在檢查**。"
+                   "排程可能停用了：systemctl status lightrag-daily-check.timer")
+        elif cs == "missing":
+            msg = str(checks.get("reason") or "每日檢查沒有結果檔")
+        elif cs == "unreadable":
+            msg = str(checks.get("reason") or "每日檢查的結果檔讀不了")
+        else:
+            failing = checks.get("failing")
+            which = "、".join(str(x) for x in failing) if isinstance(failing, list) and failing else "未指明"
+            msg = (f"每日檢查 {cs}（{age_txt}）：{which}。"
+                   f"細節 {checks.get('detail') or '（無）'}")
+        warn_html += f"<div class='banner'>🔔 {_esc(msg)}</div>"
 
     # 預設只展開「待審核」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。
