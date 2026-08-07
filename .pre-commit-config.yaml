@@ -1,0 +1,48 @@
+# .pre-commit-config.yaml — 標準模板 (STANDARDS v2026.05.01)
+#
+# P7 啟用節奏（勿改變此順序）：
+#   Phase 1 (現在): 只啟用 commit-msg → 強制 Conventional Commits 格式
+#   Phase 2 (視情況): 解除 ruff 註解 → 加 Python 格式化
+#   Phase 3 (視情況): 解除 gitleaks 註解 → 加 secret 掃描
+#
+# 安裝: uvx pre-commit install --hook-type commit-msg
+# 手動跑: uvx pre-commit run --hook-stage commit-msg --all-files
+
+repos:
+  # ============================================================
+  # Phase 1: commit-msg 格式驗證 (Conventional Commits)
+  # ============================================================
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - feat
+          - fix
+          - docs
+          - chore
+          - refactor
+          - test
+          - perf
+          - ci
+          - wip   # 允許 session-end wip commits
+
+  # ============================================================
+  # Phase 2: Python 格式化 (解除註解後啟用)
+  # ============================================================
+  # - repo: https://github.com/astral-sh/ruff-pre-commit
+  #   rev: v0.11.10
+  #   hooks:
+  #     - id: ruff
+  #       args: [--fix, --quiet]
+  #     - id: ruff-format
+  #       args: [--quiet]
+
+  # ============================================================
+  # Phase 3: Secret 掃描 (解除註解後啟用，需先設定 .gitleaks.toml)
+  # ============================================================
+  # - repo: https://github.com/gitleaks/gitleaks
+  #   rev: v8.21.1
+  #   hooks:
+  #     - id: gitleaks
