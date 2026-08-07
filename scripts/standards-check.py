@@ -202,14 +202,23 @@ class Checker:
     # ---------- 執行者層 ----------
 
     def check_commit_hook(self) -> None:
-        hook = REPO / ".git" / "hooks" / "commit-msg"
+        # 兩種 hook type 都要查。`.git/hooks/` 不進版控，所以重 clone 之後
+        # 兩個都會不見 —— 而「hook 不在」與「hook 在但全部通過」在畫面上
+        # 長得一樣，這正是這支檢查存在的理由。
+        msg_hook = REPO / ".git" / "hooks" / "commit-msg"
+        pre_hook = REPO / ".git" / "hooks" / "pre-commit"
         cfg = REPO / ".pre-commit-config.yaml"
-        ok = hook.is_file() and cfg.is_file()
-        detail = (f"hook {'在' if hook.is_file() else '不在'}、"
+        ok = msg_hook.is_file() and pre_hook.is_file() and cfg.is_file()
+        detail = (f"commit-msg {'在' if msg_hook.is_file() else '不在'}、"
+                  f"pre-commit {'在' if pre_hook.is_file() else '不在'}、"
                   f"設定檔 {'在' if cfg.is_file() else '不在'}")
+        if not ok:
+            detail += "　修法：`uvx pre-commit install --hook-type commit-msg` ＋ " \
+                      "`uvx pre-commit install`（兩條都要跑）"
         # hard：commit 格式是「規則寫了沒人執行」最典型的一條 ——
         # 2026-08-07 那天先前的 6 個 commit 全部違反，而我讀過 CLAUDE.md。
-        self.add("A05", "hard", "pre-commit 的 commit-msg hook 已安裝", ok, detail)
+        # 同日加入 pre-commit hook：它守 cairn/LOG.md 不落後於 git。
+        self.add("A05", "hard", "pre-commit 的兩個 hook 都已安裝", ok, detail)
 
     @staticmethod
     def core_rules(text: str, section_marker: str) -> list[str]:
