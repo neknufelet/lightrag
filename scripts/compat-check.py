@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
-from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
+from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -196,10 +196,13 @@ class Checker:
 
         @self.check("A-07", "hard", "LIGHTRAG_FORCE_REPARSE_MINERU 未開啟")
         def _():
+            # 判準與 postprocess.py 的 apply 閘門共用（pp/oracle.py），不在這裡
+            # 重寫一份 —— 兩份同義判準只要有人改一邊就會靜靜地不一致。
             v = self.o.force_reparse_flag()
-            ok = v.strip().lower() in ("", "0", "false", "no")
+            ok = not force_reparse_is_on(v)
             return ok, (f"值 ={v!r}。開啟時會先 clear_dir_contents(raw_dir) 再重抓，"
-                        "修補會在生效前被刪掉且 pipeline 回報成功"
+                        "修補會在生效前被刪掉且 pipeline 回報成功。"
+                        "`postprocess.py apply` 已會據此拒絕執行"
                         if not ok else "未設定"), {"value": v}
 
         @self.check("A-17", "hard", "host 有 poppler 工具")

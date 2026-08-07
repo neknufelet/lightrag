@@ -559,7 +559,7 @@ def _rollback_batch(
 def cmd_apply(a: argparse.Namespace, env: dict[str, str],
               bundles: list[Path] | None = None) -> int:
     from pp import apply as ap_mod, eyes
-    from pp.oracle import Oracle, container_for
+    from pp.oracle import Oracle, container_for, force_reparse_is_on
 
     paths = _paths()
     out_root = paths.crops_dir
@@ -567,6 +567,31 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
     # 容器跟著 --workspace 走。指定了 workspace 卻 exec 進另一個 workspace 的
     # 容器，等於拿 A 的 LightRAG 去認可 B 的 bundle —— 而且會成功。
     o = Oracle(container=container_for(a.workspace))
+
+    # 修補在生效前被刪掉：這道鎖擋的就是它。旗標開著時 LightRAG 重抓前會無條件
+    # 清空 raw_dir，於是現在寫進去的東西在下一次 scan 消失，而**索引照樣建成功、
+    # 沒有任何錯誤訊息**。三條進料路徑都收束到這個函式（CLI `apply`、
+    # `prepare --commit` 的第二步、審核台的 admit），所以一道鎖擋住全部。
+    # 問的是容器的環境變數，不是宿主的 —— 旗標只在容器裡有意義。
+    force_reparse = o.force_reparse_flag()
+    if force_reparse_is_on(force_reparse):
+        print(f"  ✗ 拒絕執行：容器的 LIGHTRAG_FORCE_REPARSE_MINERU = "
+              f"{force_reparse!r}（視為開啟）\n"
+              "\n"
+              "      這個旗標開著時，LightRAG 在重抓解析結果前會無條件清空快取目錄。\n"
+              "      現在寫進去的修補會在下一次 scan 被刪掉，而索引照樣建成功、\n"
+              "      不會有任何錯誤訊息 —— 整份文件的解析成果（6–10 小時）一起沒了。\n"
+              "\n"
+              "      正確做法：\n"
+              "        1. 關掉容器的 LIGHTRAG_FORCE_REPARSE_MINERU（.env 移除或設 0），\n"
+              "           然後 docker compose up -d --force-recreate lightrag\n"
+              "           （restart 不會重讀環境變數）\n"
+              "        2. 要讓已索引文件的修補生效，走 delete_document(delete_file=False)\n"
+              "           → 放回 PDF → /scan，並確認 log 出現 `raw cache hit`\n"
+              "\n"
+              "      絕不可 force reparse，絕不可在 UI 刪文件時勾 delete file。")
+        return 2
+
     rc = 0
     # 本輪已經 commit 成功的份，用來在後面任何一份失敗時整批退回。
     done: list = []

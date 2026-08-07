@@ -41,6 +41,22 @@ def container_for(workspace: str) -> str:
     return f"lightrag-{workspace}"
 
 
+# 這個旗標的判讀只有一份。`compat-check.py` 的 A-07 與 `postprocess.py` 的 apply
+# 閘門都用它 —— 兩處各寫一份 `in ("", "0", "false")` 的話，哪天有人只改一邊，
+# 就會出現「檢查說安全、修補卻被擋下」，或更糟的反向：檢查放行而資料被刪。
+_FORCE_REPARSE_OFF: tuple[str, ...] = ("", "0", "false", "no")
+
+
+def force_reparse_is_on(value: str) -> bool:
+    """`LIGHTRAG_FORCE_REPARSE_MINERU` 是不是開著。
+
+    **不認得的值一律當成「開著」。** 這個旗標開著時 LightRAG 會在重抓之前無條件
+    清空 raw_dir，把後處理的修補在生效前刪掉，而且索引照樣建成功、不報錯。
+    所以判讀必須往安全那邊倒 —— 猜錯「關著」的代價是靜默毀掉 6–10 小時的解析成果。
+    """
+    return value.strip().lower() not in _FORCE_REPARSE_OFF
+
+
 def _default_container() -> str:
     """延遲到真的需要預設容器時才讀 .env，讓明確容器不受影響。"""
     return container_for(env_workspace())
