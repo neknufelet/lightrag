@@ -46,12 +46,13 @@ flowchart LR
   排在送進索引之前——正好擋住「拖進 LightRAG WebUI 會跳過後處理」
 - ⬜ 接起來之後把埠與 `BIND_ADDR` 比照 kbapi（官方 python 映像 ＋ 掛 scripts，不自建）
 
-## 🔵 讓 dker 能跑測試
+## ⬜ 服務健康的判準要改
 
-- 🔵 **dker 上裝 pytest**（`apt install python3-pytest`）。有一批測試只有在那台跑才有
-  意義：`test_deploy_stack` 比對 `/opt/stacks/`、`test_systemd_units` 比對 `/etc`、
-  `test_verdicts` 看 `/data`。不裝的代價已經看到——`daily-check` 每天報「測試失敗」，
-  而它其實一次都沒跑過。`run-tests.sh` 2026-08-07 已改成明說「驗不了」而不是「失敗」
+- ⬜ **「容器在跑」不等於「服務可用」。** 2026-08-07 實測踩到：`docker compose ps` 顯示
+  `running`、`docker port` 卻是空的，外面完全連不上，而我因此誤判過一次「已救回」。
+  現有的檢查沒有一個會發現這個狀態。判準要改成「打得到端點」
+- ⬜ 失敗的容器要 `docker compose up -d --force-recreate` 才救得回來，單純 `up -d`
+  只是 Starting 它，埠不會綁回來。寫進哪份文件還沒決定
 
 ## ⬜ 上游畢業（standards，影響所有專案）
 

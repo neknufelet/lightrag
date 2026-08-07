@@ -3,6 +3,20 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-08· 重開機自動復原修好並驗過（零人工介入）
+
+- **`lightrag-stack.service` 裝上、第二次重開機實測通過**：`ExecStartPre` 等到 Tailscale
+  位址、`ExecStart` 拉起 stack，12/12 容器回來、埠綁上、節點 1,239 邊 1,995、端點全通。
+  **判準是「重開之後不碰它，服務自己好」**，不是「重開之後我修好了」。
+- **`systemd-units.py install` 加 `--only`**：原本會無條件啟用整個 ENABLE 清單，
+  包含兩個「等警報管道決定之後才開」的 timer 與 intake。為了裝一個新單元順手開三個
+  沒講好的東西，那是「順手做了沒講」。跳過的會明確印出來。
+- **dker 裝了 pytest**，109 個測試第一次在那台真的跑過（之前 daily-check 每天報
+  「測試失敗」，實際是根本沒跑）。
+- 前一則寫的「不用真的重開機也能驗完」**被同一天的實測推翻**，更正寫在
+  [testing-restart-policy.md](testing-restart-policy.md)：把大測試拆成小測試時，
+  要問**拆掉的縫裡有什麼**——這次縫裡正好就是缺陷。
+
 ## 2026-08-07（九）· 補洞：deploy 守衛、自動復原、一個說謊的訊號
 
 - **`deploy-stack.py`**：repo 的 compose 與 Dockge stack 那份不得漂移。verify/diff/install，

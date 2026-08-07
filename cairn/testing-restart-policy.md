@@ -87,8 +87,30 @@ failed to bind host port 100.87.88.7:9621/tcp: cannot assign requested address
 **教訓（比原本那條更重要）**：「把大測試拆成幾個小測試」時，要問**拆掉的縫裡有什麼**。
 這次拆掉的縫正好就是缺陷所在——開機順序。分開驗每一件都通過，合起來卻是壞的。
 
+## 修法與驗證（2026-08-08 完成）
+
+`lightrag-stack.service`：`After=docker.service tailscaled.service`，加一段
+`ExecStartPre` **自己等位址真的出現在某張介面上**（最多 120 秒）——`After=` 只保證
+那個 unit 起了，不保證位址已指派，那正是原本失敗的那條縫。
+
+第二次重開機實測，**零人工介入**：
+
+```
+lightrag-stack.service   active (exited)
+  ExecStartPre           status=0/SUCCESS   ← 等到位址了
+  ExecStart              status=0/SUCCESS
+容器                     12 / 12 running
+埠                       9621 → 100.87.88.7:9621、9700 → 100.87.88.7:9700
+資料                     節點 1,239、邊 1,995
+端點                     全通
+```
+
+**判準是「重開之後不碰它，服務自己好」**，不是「重開之後我修好了」。
+
 ## 未決
 
-- `lightrag-stack.service` 已寫好，安裝後要再重開一次驗它真的有效。
-- 「`docker compose ps` 顯示 running 但 `docker port` 是空的」這個狀態沒有任何檢查
-  會發現。它看起來完全正常，而外面連不上。
+- 「`docker compose ps` 顯示 running 但 `docker port` 是空的」這個狀態**沒有任何檢查
+  會發現**。它看起來完全正常，而外面連不上——我被騙過一次。要驗服務活著，
+  判準必須是「打得到端點」，不是「容器在跑」。
+- 失敗的容器要 `docker compose up -d --force-recreate` 才救得回來，單純 `up -d`
+  只是 Starting 它，埠不會綁回來。
