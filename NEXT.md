@@ -10,7 +10,7 @@
 ## 開新對話直接貼這段
 
 ```
-⚠️ 先確認工作目錄是 ~/ghq/github.com/neknufelet/lightrag-v1
+⚠️ 先確認工作目錄是 ~/ghq/github.com/neknufelet/lightrag
    （在別處開 session 會載到別的專案的 CLAUDE.md、找不到本檔。
      特別注意 ~/ghq/github.com/neknufelet/florian-dker/ ——
      那個資料夾只有一個 CLAUDE.md，而且是 **AOSR 專案**的，不是這裡的。
@@ -19,15 +19,24 @@
 專案 lightrag（聲學知識庫）。我在 florian-coder，透過 ssh 操作 florian-dker。
 
 座標
-  repo      ~/ghq/github.com/neknufelet/lightrag-v1（coder，工作台）
+  repo      ~/ghq/github.com/neknufelet/lightrag（coder，工作台）
             ~/ghq/github.com/neknufelet/lightrag（dker，部署，唯讀只 pull）
-  GitHub    neknufelet/lightrag（已改名；本地路徑維持原狀）
+            ↑ 2026-08-07 coder 端從 lightrag-v1 改名，兩台自此同路徑，
+              也符合 ghq 慣例（目錄名＝remote 的 repo 名）
+  GitHub    neknufelet/lightrag
   服務      dker: lightrag-acoustics_v2 :9621、kbapi-acoustics_v2 :9700
             自己的 lightrag-postgres 與 lightrag-neo4j（2026-08-03 從 DeepTutor 搬出）
   資料      **/data/lightrag 是唯一的根**（2026-08-04 乾淨重建後）。
             底下：inbox / library / work/{parsed,crops} / records / inputs/<ws>
                   / rag_storage / checks / postgres / neo4j
-            **/data/rag 從此與本專案無關**（那是 DeepTutor 的地盤）
+            ⚠️ **/data/rag 尚未完全脫離，不要整個刪掉。** 本專案還有兩處活的依賴：
+              scripts/backup-cold.sh:41 STAGE=/data/rag/coldstage（每天 03:00
+                冷備份複製整個 DB 的落點——刪掉會讓備份失去暫存區，而腳本會
+                mkdir -p 成功、看起來一切正常）
+              .env.example:148 INTAKE_SOURCES=/data/rag/knowledge_bases/...
+            /data/rag/knowledge_bases 是 DeepTutor 的，不歸我們碰。
+            /data/rag/lightrag（217 MB 舊目錄）待刪，見 REBUILD-11。
+            脫離計畫見 docs/rebuild-2026-08/00-合併方案.md
 
 先讀 CLAUDE.md 與 NEXT.md。**CLAUDE.md 的「現況」已於 2026-08-05 更新到位**
 （18 份、1,589 chunk、14,226 實體），可以直接信任。
