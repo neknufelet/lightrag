@@ -52,8 +52,10 @@ repos:
   - repo: local
     hooks:
       - id: doc-discipline
-        name: NEXT 沒堆積、LOG 沒落後
-        entry: pytest tests/test_log_freshness.py tests/test_next_done_ratio.py -q
+        name: NEXT 沒堆積、LOG 沒落後、沒有死引用
+        entry: >-
+          pytest tests/test_log_freshness.py tests/test_next_done_ratio.py
+          tests/test_no_dead_script_refs.py -q
         # language: python ＋ additional_dependencies，不是 system ——
         # system 會用「呼叫 pre-commit 的那個 python」，而 uvx 跑起來的
         # 那個沒有 pytest（實測 `No module named pytest`）。隔離環境讓它

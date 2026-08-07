@@ -8,7 +8,8 @@
 數字變少只有兩種可能，都是事故：有東西被誤刪，或同步方向搞反了
 （用舊的 repo 覆蓋掉 dker 上的新裁定）。
 
-方向與 `tests/test_pits.py` 相反但同理：那邊守「backlog 只准變短」，這邊守
+方向與 `tests/test_pits.py`（已於 2026-08-07 刪除）相反但同理：那邊守
+「backlog 只准變短」，這邊守
 「資產只准變多」。兩者都把基準寫進版控，所以變動一定出現在 `git diff` 裡。
 """
 from __future__ import annotations
