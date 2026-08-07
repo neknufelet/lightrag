@@ -66,8 +66,10 @@ flowchart LR
 ## ⬜ 之後
 
 - ⬜ 擴到 20 篇（語料要重挑還是照舊，未定）
-- ⚠️ **`backup-cold.sh` 今天改過 DBS 陣列（拿掉 neo4j）但一次都沒跑過**，
-  而 cold-backup 排程已經 enable。第一次自動執行要看結果——它會停容器再啟動
+- ⏸ **手動跑一次 `backup-cold.sh`，通過之後把 cold-backup 的排程開回來。**
+  它 2026-08-08 改過 DBS 陣列（拿掉 neo4j）但一次都沒跑過，而它會停容器再啟動，
+  所以 PO 當天把排程暫停了（`systemd-units.py` 的 `PAUSED`，verify 會說明理由不算失敗）。
+  **開回來時要同時把它從 `PAUSED` 移除**——留著會讓下次真的暫停時沒人發現
 - ⬜ canary 基準還是舊 20 篇的。語料定下來之後跑 `postprocess.py canary --update`，
   並在 commit 說明每個數字為什麼變
 - ⬜ 把 `oracle.mineru_options()` 接成**自動斷言**。2026-08-08 手動呼叫過、確認容器
