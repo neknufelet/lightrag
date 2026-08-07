@@ -55,23 +55,22 @@ def test_postgres_container_defaults_and_respects_env() -> None:
                                       "POSTGRES_HOST": "pg-custom"}) == "pg-override"
 
 
-def test_extract_and_compare_psql_use_the_new_default_container(
+def test_extract_psql_uses_the_new_default_container(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """原本這條同時涵蓋 compare-ws.py，2026-08-07 那支隨「只用一個 workspace」
+    的裁決一起刪除（ADR-0001；它的自述前提是「v155 凍結當對照組」，而 v155
+    已不存在）。斷言的意思不變：SQL 要走新的預設容器名。"""
     extract = _load("extract_check_rebuild", SCRIPTS / "extract-check.py")
-    compare = _load("compare_ws_rebuild", SCRIPTS / "compare-ws.py")
     calls: list[list[str]] = []
 
     def fake_run(command: list[str], **_kwargs: object) -> SimpleNamespace:
         calls.append(command)
-        stdout = "[]\n" if len(calls) == 1 else "\n"
-        return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+        return SimpleNamespace(returncode=0, stdout="[]\n", stderr="")
 
     monkeypatch.setattr(extract.subprocess, "run", fake_run)
-    monkeypatch.setattr(compare.subprocess, "run", fake_run)
     assert extract.psql("select 1", {}) == []
-    assert compare.psql({}, "select 1") == []
-    assert [command[2] for command in calls] == ["lightrag-postgres", "lightrag-postgres"]
+    assert [command[2] for command in calls] == ["lightrag-postgres"]
 
 
 def test_compat_empty_mother_is_unverifiable_and_does_not_probe_chunks(
