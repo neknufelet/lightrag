@@ -82,6 +82,19 @@ commit type 三處、導航表兩份（2026-08-07 發現）、三個 lightrag sk
 **第四列最容易漏，漏掉的代價是重複查證。** 實例：同一個接地率的形狀查過兩次
 （`K Muffler` 一次、`L Capsules` 一次）。沒有那一格會有第三次。
 
+## skill 放哪
+
+| 誰用它 | 放哪 |
+|---|---|
+| **跨專案／跨機器**（Obsidian 的 agent、任何目錄下都要能叫） | `AI_TOOLS/skills/common/`，靠 `git pull` ＋ chezmoi 同步 |
+| **只有在這個 repo 底下工作時才用得到** | `.claude/skills/`（例：`onboard-doc-type`） |
+
+`lightrag-search` / `lightrag-fetch` / `lightrag-images` **住在 `AI_TOOLS`，不在本 repo**。
+2026-08-07 之前兩邊各一份（當時內容還逐位元相同），本 repo 那份已刪除。
+
+⚠ **不要因為「它是 lightrag 專屬的」就搬回來**——判準是**誰用它**，不是它講什麼。
+那三個是 Obsidian 的 agent 在叫，而 Obsidian 不在這個 repo 底下，搬回來會直接失效。
+
 ## 只有兩種東西保證會被讀到
 
 **「放哪裡」跟「會不會被讀到」是兩件事。** 會自動載入的只有三個：`CLAUDE.md`
