@@ -1,6 +1,12 @@
-# LightRAG 1.5.5 — 由 Dockge 管理
-# 本目錄被 bind mount 進 dockge 容器的 /opt/stacks/lightrag-v1（見 /opt/stacks/dockge/compose.yaml），
-# 所以原始碼留在 ghq 有版控，同時 Dockge UI 也能直接管理這個 stack。
+# LightRAG — 用 docker compose 直接管理（不再由 Dockge 管）
+#
+# 2026-08-07 解除 Dockge 綁定。原本 dockge 的 compose 有一條
+#   - /home/florian/ghq/github.com/neknufelet/lightrag:/opt/stacks/lightrag
+# 把這個 repo 掛進 Dockge 容器。**那條掛載讓 Dockge UI 的「刪除」按鈕會刪掉 repo 本身**
+# ——包含 dker 上唯一的 .env（54 個鍵、7 個秘密）。移除掛載之後 UI 就看不到這個 stack。
+# ⚠ 那個改動在 dker 的 /opt/stacks/dockge/compose.yaml，**不在版控**
+#   （備份：同目錄的 compose.yaml.bak-20260807）。重建 dker 時要記得它。
+# 現在的操作方式：ssh 到 dker，在 repo 目錄跑 docker compose。
 #
 # 單一實例：靠 .env 的 WORKSPACE 切換知識庫。要同時跑第二個知識庫時，
 # 複製本目錄為另一個 stack，改 WORKSPACE 與 HOST_PORT 即可 —— 儲存層

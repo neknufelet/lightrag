@@ -30,7 +30,7 @@ tag `archive/pre-rebuild-20260807`。
 | LightRAG 的 `.env` | **只在這台**（54 個鍵，8 個是秘密。清單在 `.env.example` 開頭） |
 | 資料根 | `/data/lightrag` — **現在只剩 `records` 183 檔、`checks` 32 檔** |
 | 本專案容器 | **全部移除**（2026-08-07） |
-| 別人的容器 | dockge、ntfy、backrest、roonserver、zotero-pdf2zh、samba、nginx、hbbs/hbbr、vibevoice — **不要碰** |
+| 別人的容器 | dockge、backrest、roonserver、zotero-pdf2zh、samba、nginx、hbbs/hbbr、vibevoice — **不要碰** |
 | 壞的東西 | `nvidia-smi` 是 driver/library mismatch，要在這台用 GPU 會踩到 |
 
 **`/data/rag` 已廢除**（見 ADR-0003），不得再寫入任何東西。
