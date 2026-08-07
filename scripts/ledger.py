@@ -210,9 +210,56 @@ def cmd_show(a) -> int:
     return 0
 
 
+def ghost_docs(root: Path, ws: str) -> tuple[list[str], int]:
+    """有體檢表、但文件已不在現役母體的份數，以及現役母體的大小。
+
+    回傳 `(幽靈清單, 現役份數)`。現役份數為 0 時**不要**把所有體檢表當成幽靈 ——
+    那是「母體讀不到」（例如在 coder 上跑，根本沒有 /data），不是「文件都不見了」。
+    兩者的正確處置不同，混在一起就是把「不知道」講成「知道」。
+    """
+    d = ledger_dir(root, ws)
+    have = {p.name.removesuffix(".json") for p in d.glob("*.pdf.json")} if d.is_dir() else set()
+    current = set(known_pdfs(root, ws))
+    if not current:
+        return [], 0
+    return sorted(have - current), len(current)
+
+
 def cmd_summary(a) -> int:
     d = ledger_dir(a.root, a.workspace)
     files = sorted(d.glob("*.pdf.json")) if d.is_dir() else []
+
+    # ── 停用閘門：母體脫節時拒絕輸出總表 ────────────────────────────────
+    # 2026-08-07 實測到的問題：語料在 08-04 整批換掉，但舊的 20 張體檢表還在，
+    # 於是總表印出「264 格：通過 151、fail 9」——**那 151 個通過與 9 個 fail
+    # 全部屬於已經不在庫裡的文件**，而現役 18 份幾乎一格都沒驗（未設定 104）。
+    #
+    # 這比印出 0 更危險：漂亮的高通過數會讓人放心，而它量的是不存在的東西。
+    # 所以這裡拒絕輸出，不做「順便標記一下」——標記過的假結論還是假結論，
+    # 而人只會看最後那一行總計。
+    ghosts, n_current = ghost_docs(a.root, a.workspace)
+    if n_current == 0:
+        print(f"{a.workspace}　**驗不了**：讀不到現役文件母體（{inputs_dir(a.root, a.workspace)} "
+              f"與 {DataPaths(a.root).parsed_dir} 都沒有 PDF）。")
+        print("  這不是「沒有文件」，是「這台機器看不到資料」——體檢表要在 dker 上跑。")
+        return 3
+    if ghosts:
+        print(f"{a.workspace}　**已停用**：體檢表與現役母體脫節，拒絕輸出總表。")
+        print(f"  現役文件 {n_current} 份，其中 {len(ghosts)} 張體檢表的文件已不存在：")
+        for name in ghosts[:8]:
+            print(f"    {name.removesuffix('.pdf')}")
+        if len(ghosts) > 8:
+            print(f"    …另外 {len(ghosts) - 8} 份")
+        print("\n  為什麼拒絕而不是照印：那些幽靈文件貢獻了總表上絕大部分的『通過』，")
+        print("  於是畫面顯示一個漂亮的高通過數，而現役文件其實幾乎一格都沒驗。")
+        print("  比印出 0 更難察覺——0 會讓人懷疑，高通過數不會。")
+        print("\n  處置：先歸檔幽靈體檢表，再回來跑這支。")
+        print("    python3 scripts/archive-ledger.py            # 先 dry-run 看清單")
+        print("    python3 scripts/archive-ledger.py --move      # 確認後才移動")
+        print("  （歸檔會移到 records/ledger-archive-<日期>/，不刪除；")
+        print("   版控副本在 repo 的 verdicts/records/ledger/）")
+        return 3
+
     # 沒有體檢表的文件也要出現在總表上。少一列跟「那份全過」在畫面上長得一樣。
     docs = sorted({p.name.removesuffix(".json") for p in files}
                   | set(known_pdfs(a.root, a.workspace)))
