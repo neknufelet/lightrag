@@ -12,6 +12,7 @@ import json
 import os
 import shlex
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -63,7 +64,34 @@ def _default_container() -> str:
 
 
 class OracleError(RuntimeError):
-    """容器互動失敗。訊息帶原始 stderr，不要吞掉。"""
+    """容器互動失敗。訊息帶原始 stderr，不要吞掉。
+
+    ⚠ **但秘密要遮蔽。** 2026-08-08 實測：一次呼叫錯誤讓這個例外把整份 `.env`
+    印進終端機，`LIGHTRAG_API_KEY` 與 `POSTGRES_PASSWORD` 隨之外洩。
+    「不要吞掉 stderr」與「不要印出秘密」不衝突——見 `_redact()`。
+    """
+
+
+# 鍵名含這些字樣就當秘密。**用樣式不用白名單**：白名單漏掉新加的鍵時會安靜地
+# 洩漏，而樣式最壞只是多遮蔽幾個無害的值。方向要選錯得比較安全的那邊。
+_SECRET_HINTS: tuple[str, ...] = ("KEY", "PASSWORD", "TOKEN", "SECRET", "CREDENTIAL")
+
+
+def is_secret_key(name: str) -> bool:
+    """鍵名看起來像不像秘密。`.env.example` 開頭那六個都會命中。"""
+    upper = name.upper()
+    return any(hint in upper for hint in _SECRET_HINTS)
+
+
+def _redact(text: str, env: dict[str, str] | None) -> str:
+    """把 env 裡秘密鍵的**值**從文字裡換掉。
+
+    遮的是值不是鍵名——鍵名本身有用（讓人知道是哪一個），值才是不能外流的。
+    """
+    for key, value in (env or {}).items():
+        if value and len(value) >= 6 and is_secret_key(key):
+            text = text.replace(value, f"<{key} 已遮蔽>")
+    return text
 
 
 @dataclass(frozen=True)
@@ -82,20 +110,41 @@ class Oracle:
         # 容器內 lightrag 以 uid 1000 執行，與宿主 florian 相同；但 docker exec
         # 預設以 root 執行，會讓掛載檔案變成 root，宿主後處理便無法修改。
         cmd = ["docker", "exec", "-u", exec_user]
-        for k, v in (env or {}).items():
-            cmd += ["-e", f"{k}={v}"]
+
+        # **秘密不上指令列。** 舊版用 `-e KEY=VALUE`，於是：
+        #   (a) 同一台機器上任何人 `ps aux` 都看得到全部秘密
+        #   (b) 逾時那條 `raise` 印的是完整 cmd —— 六個秘密一次全出來
+        # `docker exec --env-file` 讀檔，值不進 argv。檔案 0600、用完即刪。
+        # 2026-08-08 實測外洩過一次（LIGHTRAG_API_KEY 與 POSTGRES_PASSWORD）。
+        env_file: str | None = None
+        if env:
+            fd, env_file = tempfile.mkstemp(prefix="oracle-env-", suffix=".env")
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                os.chmod(env_file, 0o600)
+                for k, v in env.items():
+                    # 含換行的值會破壞 env-file 格式，而且我們的鍵不該有換行。
+                    # 靜靜跳過會讓設定「少一個鍵」且無訊號，所以直接拒絕。
+                    if "\n" in v:
+                        os.unlink(env_file)
+                        raise OracleError(f"環境變數 {k} 的值含換行，無法用 --env-file 傳遞")
+                    fh.write(f"{k}={v}\n")
+            cmd += ["--env-file", env_file]
+
         cmd += [self.container, *argv]
         try:
             p = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
         except subprocess.TimeoutExpired as e:
-            raise OracleError(f"逾時 {self.timeout}s：{shlex.join(cmd)}") from e
+            raise OracleError(_redact(f"逾時 {self.timeout}s：{shlex.join(cmd)}", env)) from e
         except FileNotFoundError as e:
             raise OracleError("找不到 docker 指令") from e
+        finally:
+            if env_file:
+                Path(env_file).unlink(missing_ok=True)
         if p.returncode != 0:
-            raise OracleError(
+            # stderr 會原樣回聲我們傳進去的東西（容器名、參數），所以也要遮。
+            raise OracleError(_redact(
                 f"exit {p.returncode}：{shlex.join(cmd[:4])}…\n"
-                f"stderr: {p.stderr.strip()[:600]}"
-            )
+                f"stderr: {p.stderr.strip()[:600]}", env))
         return p.stdout
 
     def py(self, code: str, env: dict[str, str] | None = None):
