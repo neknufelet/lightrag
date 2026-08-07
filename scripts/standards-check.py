@@ -161,9 +161,10 @@ class Checker:
             "docs/decisions": ("hard", ""),
             "CHANGELOG.md": ("soft", ""),
             "STATUS.md": ("soft", ""),
-            # 本專案的明文豁免：CLAUDE.md 是既有的 SSOT，不是範本要求的單行
-            # @AGENTS.md stub。理由寫在 AGENTS.md 檔頭（它承載鐵則、契約、跨機座標，
-            # 每個 session 自動載入，內容與職責都不可被取代）。
+            # 本專案的明文豁免：SSOT 是 CLAUDE.md（Claude Code 每個 session 自動
+            # 載入它，不載入 AGENTS.md），不是範本預設的反向。AGENTS.md 仍是 hard
+            # 必要檔，因為 codex／opencode 只讀它 —— 但它 2026-08-07 起是純指標，
+            # 零內容，理由寫在它自己的檔頭與 docs/knowledge-routing.md。
             "AGENTS.md": ("hard", ""),
         }
         missing_hard: list[str] = []

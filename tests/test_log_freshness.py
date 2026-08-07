@@ -1,8 +1,11 @@
 """`cairn/LOG.md` 不得落後於實際工作。
 
-**為什麼需要這支**：`AGENTS.md` 寫著「每有實質進展，在 `cairn/LOG.md` 最上面加一則」，
+**為什麼需要這支**：Cairn 的維護規則寫著「每有實質進展，在 `cairn/LOG.md` 最上面加一則」，
 但沒有任何東西會發現沒做。2026-08-07 實測：LOG 最新一則是 08-05，之後累積了
 **14 個 commit** 完全沒記，而且沒有任何訊號。
+
+規則的落地版在 `docs/knowledge-routing.md`（2026-08-07 之前這支引用的是 `AGENTS.md`，
+但那句話從來不在 `AGENTS.md` 裡——引用本身就是漂移的實例）。
 
 這與 `tests/test_pits.py` 是同一個公式的第二個實例：**規則要有執行者，
 沒有執行者的規則不是規則，是願望。** 那支守「待補清單只准變短」，
@@ -89,5 +92,5 @@ def test_log_is_not_behind_the_commits() -> None:
         f"cairn/LOG.md 最新一則是 {log_date}，最後一個 commit 是 {commit_date}"
         f"（落後 {lag} 天，上限 {MAX_LAG_DAYS} 天）。\n"
         f"這段期間有 {len(lines)} 個 commit 沒有進流水帳：\n  {preview}{more}\n"
-        "AGENTS.md：「每有實質進展，在 cairn/LOG.md 最上面加一則」。"
+        "docs/knowledge-routing.md：「每有實質進展，在 cairn/LOG.md 最上面加一則」。"
         "在最上面補一則（摘要＋指標，≤20 行），這條就會轉綠。")

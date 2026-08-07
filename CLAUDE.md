@@ -81,12 +81,13 @@ tag `archive/pre-rebuild-20260807`。
 
 | 要找什麼 | 去哪 |
 |---|---|
-| 導航（哪個檔放什麼） | [AGENTS.md](AGENTS.md) |
 | 接下來做什麼 | [NEXT.md](docs/NEXT.md) |
 | **鐵則 8 條與領域知識** | [docs/hard-rules.md](docs/hard-rules.md) ← 動 `scripts/pp/` 或規則之前必讀 |
 | 新環境必須保持什麼樣子 | [docs/rebuild-checklist.md](docs/rebuild-checklist.md) |
 | 某個決定為什麼那樣下 | [docs/decisions/](docs/decisions/) |
 | 知道但決定不修 | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) |
+| 遇到沒見過的問題怎麼查 | [docs/judgement-flow.md](docs/judgement-flow.md) |
+| 這個東西該放 `docs/` 還是 `cairn/` | [docs/knowledge-routing.md](docs/knowledge-routing.md) |
 | 多 worker 分工（draft，未定案） | [docs/workflow.md](docs/workflow.md) |
 | 某天發生了什麼 | [cairn/LOG.md](cairn/LOG.md) |
 
