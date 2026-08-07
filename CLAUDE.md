@@ -51,9 +51,11 @@ tag `archive/pre-rebuild-20260807`。
 
 ## 藍桶規則（9 條，BASELINE SNAPSHOT，勿手改此區塊）
 
-> `baseline_version: 1.9.1`　`rules_sha256: d31afca400873b28`　`synced: 2026-08-07`
-> （9 條與上游**逐字比對相同，已用程式驗過**。1.9.1 是勘誤版——修死引用、統一
-> commit type 清單、範本補上 snapshot 區塊；**無任何規則內容變動**，指紋因此未變。）
+> `baseline_version: 2.0.0`　`rules_sha256: f2d0bcfa04c43fb3`　`synced: 2026-08-07`
+> （9 條與上游**逐字比對相同，用程式抽出、不手抄**。2.0.0 動了核心第 9 條
+> ——加上「貼出的輸出必須是原文、不符時以輸出為準」，所以指紋從
+> `d31afca400873b28` 變成現值。指紋算法：
+> `grep -E '^[0-9]+\. \*\*' BASELINE.md | sha256sum | cut -c1-16`）
 
 1. **Read before write**：修改任何檔案前先讀取現有內容，禁止覆蓋未讀的內容。
 2. **No silent drops**：任何資料、欄位、邏輯在重構時不得無聲消失；刪除必須明確說明。
@@ -63,22 +65,7 @@ tag `archive/pre-rebuild-20260807`。
 6. **Explicit resource management**：file handle、DB connection、thread 必須用 `with` 或明確 `close()`。
 7. **Pathlib over string paths**：路徑全程用 `pathlib.Path`，不靠 `os.path` 字串拼接。
 8. **Tests before merge**：新功能必須有對應測試（至少一個 smoke test），無測試的 PR 不得合入主線。
-9. **Verify-then-claim（驗證再斷言）**：任何關於「跑著的系統行為／狀態」的陳述（checkpoint、PR、回覆）必須附**驗證指令及其輸出**（curl／`docker exec`／pytest／實測），不得只靠讀 code 推理；未驗證者明確標 `(未驗,推測)`，不混入事實陳述。涉及 baked image／容器／部署的系統，須區分「源碼狀態」與「as-built 跑著的狀態」。
-
-**第 9 條在本專案有加強版**：LightRAG 跑在 dker、源碼改在 coder，兩者**物理隔離**。
-在 coder 跑的任何東西只能證明源碼層；凡是 canary 數字、閘門判定、契約斷言、
-容器狀態，一律附 dker 上的實跑輸出。不是紀律問題，是事實問題——**LightRAG 的
-`.env` 只在 dker**（DB 密碼、OpenAI key、MinerU token），碰 DB 或容器的腳本在
-coder 上跑不起來。
-
-> ⚠️ **但 coder 不是「沒有 `.env`」。** `deploy/llama-qwen36-moe/.env` 就在 coder
-> （llama.cpp 伺服器跑在這台的 :8080），一個鍵 `LLAMA_API_KEY`，chmod 600、
-> 被 gitignore 擋著、沒進版控。
-> 本檔原本寫「coder 上連 `.env` 都沒有」——**那是錯的，而且與上面座標表
-> 「LLM binding 就是 florian-coder 這台」自相矛盾**。2026-08-07 修正。
-
-**第 4 條的既有例外**：`scripts/` 是薄 CLI 層，`print` 是它的**輸出**不是 log，
-維持現狀。`lib` 性質的模組（`scripts/pp/`）不得用 `print` 做診斷輸出。
+9. **Verify-then-claim（驗證再斷言）**：任何關於「跑著的系統行為／狀態」的陳述（checkpoint、PR、回覆）必須附**驗證指令及其輸出**（curl／`docker exec`／pytest／實測），不得只靠讀 code 推理；未驗證者明確標 `(未驗,推測)`，不混入事實陳述。涉及 baked image／容器／部署的系統，須區分「源碼狀態」與「as-built 跑著的狀態」。貼出的輸出必須是指令**實際輸出的原文**；斷言與輸出不符時，**以輸出為準、改斷言**。「附了驗證指令、卻寫下與輸出不符的數字」比沒驗更糟——讀者會因為看到指令而更信任那個假數字（血淚 2026-08-07：grep 當場回 2 而 commit 訊息寫 0；同日稍晚宣稱行數676→115，實測是 445→115，676 不存在於任何 commit）。引用的數字必須來自**可重現的來源**（某個 commit、某次指令的輸出），或明確標示是中途狀態。
 
 ---
 ## 提交紀律（最小版，BASELINE ≥ 1.8.0）
