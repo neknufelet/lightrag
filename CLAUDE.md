@@ -105,68 +105,6 @@ coder 上跑不起來。
 
 ---
 
-## 執行方針與驗收路由
-
-| 角色 | 職責 |
-|---|---|
-| 你（product owner） | 決策、範圍確認、驗收 |
-| Claude（opus，指揮） | 技術決策討論、出單、調度、對抗驗收、docs |
-| codex terra | code 實作（受工單指派） |
-| codex sol／luna | 單審與終審 |
-| deepseek | 對抗找碴（路徑觸發） |
-
-執行模式：**線性**，不多開平行線。Workflow 是品質工具（對抗驗證、skeptic、
-回歸閘），不是人力並行化。
-
-### 一般票（三站＋回程）
-
-```
-opus 出單 → codex terra 實作 → sol 終審 → 【驗證回程：dker 實跑】
-```
-
-### 重票（五站＋回程）
-
-```
-fable 設計成單 → sol 單審 → codex terra 實作
-  → deepseek 找碴（碰 pp/rules 或閘門判準時觸發）
-  → 終審雙軌：sol（追溯 需求→單→diff→輸出）＋ opus-cold（親跑驗證）
-  → 【驗證回程：dker 實跑】
-```
-
-**重票觸發清單（命中任一即重票，不由指揮心證）**
-
-1. 動 `scripts/pp/rules/**` 或任何**閘門判準**（門檻、三態界線、`SYMBOLIC_RATIO`）
-2. 動 `compat-check.py` 的 `VERIFY-1-A##` 契約斷言
-3. **會改變 canary 基準數字**
-4. 動 `.env` 的鍵、`compose.yaml`、或任何部署契約
-5. 動既有測試語義或體檢表閘門定義
-6. **碰資料**：刪除、`reindex`、`apply --commit`、任何寫進 `/data` 或 DB 的操作
-7. diff > 200 行
-
-**有疑義＝重票。** 第 6 條是本專案特有的——這裡的資料操作**不可逆**，
-而且沒有備份時代的教訓還很新。
-
-**綁住指揮的兩條**：① 指揮**只能升檔、不得降檔**；判為一般票時必須寫明沒有
-命中清單哪一條。② 終審**任一方 BLOCK 即不過**，指揮不得推翻。
-
-**沒有人驗自己**：fable 寫設計⇒不進終審；指揮出單調度⇒不寫設計、不當終審
-（終審的 Anthropic 席是**冷啟動分身 opus-cold**）。
-
-### worker 速查與呼叫法
-
-**全部 worker CLI 只在 florian-coder。** dker 上只有 `claude`。
-
-| 角色 | worker | 模型 | 池子 |
-|---|---|---|---|
-| 指揮／對 PO 窗口 | opus | 本 session | anthropic ⚠ |
-| 重票設計成單 | fable | Agent tool subagent | anthropic ⚠ |
-| 實作 | codex terra | `gpt-5.6-terra` xhigh | openai |
-| 單審＋終審 | codex sol | `gpt-5.6-sol` xhigh | openai |
-| 終審 Anthropic 席 | opus-cold | Agent tool **冷啟動** subagent | anthropic ⚠ |
-| 對抗找碴 | deepseek | `deepseek/deepseek-v4-pro`（opencode） | deepseek |
-| 長文審閱／第二意見 | codex luna | `gpt-5.6-luna` xhigh | openai |
-
-```bash
 # 實作（模型必帶，否則吃 ~/.codex/config.toml 的全域預設＝sol）
 timeout <N> codex exec -C <repo> -s workspace-write \
   -m gpt-5.6-terra -c model_reasoning_effort="xhigh" \
@@ -202,77 +140,15 @@ timeout <N> opencode run -m deepseek/deepseek-v4-pro "<PROMPT>" > <scratch>/out.
 
 ## 工作項目命名規則
 
-> 格式規則的 SSOT 是 BASELINE「工作項目命名規則」（≥ 1.9.0）。**本節只做兩件
-> 上游要求各專案自己做的事**：① 前綴註冊表（本專案有哪些線）②
-> 子程序字母的語意定義（上游明寫「由該線自行定義並在專案 CLAUDE.md 註記」）。
+格式 `<前綴><編號>`；前綴是**大寫 ≥4 字母**的線名（完整規則在 BASELINE 1.9.0）。
+單字母可以用，但**不能單獨站著**——判準是「這個 label 單獨出現時，讀者能不能認出
+它屬於哪條線」。`REBORN-2` 合法，光禿禿的 `R2` 不行。跨文件引用一律全稱。
 
-**格式**（摘自 BASELINE 1.9.0，勿在此改規則）
+現在的線：**`REBORN`**（乾淨重建＋升級 v1.5.6，主線）、**`GUARD`**（給規則配執行者）。
+歷史的線（`REBUILD`／`CUTOVER`／`PPWORK`／`VERIFY`／`BACKUP`／`SYMBOL`／`SCANNER`／
+`SPEEDUP`／`SCALEUP`）已隨 2026-08-07 的清理退場，在 tag `archive/pre-rebuild-20260807`。
 
-```
-<前綴><編號>[.<子步>][-<字母><編號>]
-
-前綴    工作線種類。**大寫 ≥4 字母**的描述性縮寫或全名
-編號    該線內單調遞增的 gate／步驟，不回頭、不重用
-.<n>    子步：同一個 gate 的細分
--<字母><編號>   子程序：一個 gate 底下平行的驗證程序／分析臂／修正輪
-```
-
-**單字母不是不能用，是不能「單獨站著」。** 判準只有一條：**這個 label 單獨
-出現時，讀者能不能認出它屬於哪條線。**
-
-- ✅ `VERIFY-1-A25`、`REBUILD-4`、`PPWORK-7`
-- ❌ `A-25`、`W7`、`階段 4` 光禿禿站著
-
-實務判準：同一份文件內第一次提及必寫全稱；**跨文件引用一律全稱**
-（NEXT.md、commit message、工單標題都算跨文件）。
-
-**本專案的子程序字母**（依上游要求在此定義；未在此註冊的字母不得使用）
-
-| 字母 | 語意 | 用在哪條線 |
-|---|---|---|
-| `A` | assertion，契約斷言 | `VERIFY-1`（`compat-check.py` 的 26 條） |
-| `G` | gate，體檢表閘門 | `VERIFY-3`（`ledger.py` 的 8 個） |
-| `R` | round，同一 gate 的第 n 輪 | 各線通用（例：`SYMBOL-1-R2` ＝ 50 題考卷的第二輪） |
-
-**狀態標記**（BASELINE 統一 legend）：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`。
-NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標記）。
-
-**前綴註冊表**
-
-| 前綴 | 工作線 | 範圍 | 狀態 |
-|---|---|---|---|
-| `REBUILD` | acoustics_v2 乾淨重建（原「階段 0–5」） | `REBUILD-0`…`REBUILD-5` | ✅ 完成 2026-08-03 |
-| `CUTOVER` | v2 接手上線＋v155 退役 | `CUTOVER-1`…`CUTOVER-4` | ✅ 完成 2026-08-03 |
-| `PPWORK` | 後處理實作工單（原 `W0`–`W12`） | `PPWORK-0`…`PPWORK-12` | 大部分完成 |
-| `VERIFY` | 驗證程序 | `VERIFY-1`…（見下） | 常態 |
-| `BACKUP` | 備份接線與驗證 | `BACKUP-1`… | 進行中 |
-| `SYMBOL` | `is_symbolic` 判準重量（含 50 題考卷） | `SYMBOL-1`… | 待做 |
-| `SCANNER` | 封閉掃描器進版控、變常駐探針 | `SCANNER-1` | 待做 |
-| `SPEEDUP` | MTP 加速評估 | `SPEEDUP-1` | 待做 |
-| `SCALEUP` | 擴量到 390 份 | `SCALEUP-1`… | 待做 |
-| `REBORN` | 乾淨重建＋升級 v1.5.6（**主線**，見 ADR-0004） | `REBORN-1`…`REBORN-5` | 🔵 進行中 |
-| `GUARD` | 給規則配機器執行者（規則有、執行者沒有） | `GUARD-1`…`GUARD-4` | 🔵 進行中 |
-
-**`VERIFY` 線的編號**（一支檢查腳本一個號）
-
-| label | 工具 | 子程序 |
-|---|---|---|
-| `VERIFY-1` | `compat-check.py` | `VERIFY-1-A01`…`A26`（契約斷言，缺號 04/08/09/12/15 是歷史刪除） |
-| `VERIFY-2` | `postprocess.py canary` | `VERIFY-2-R1`…`R8`（pages/items/mute/held/ratio/tables_total/repairable/review） |
-| `VERIFY-3` | `ledger.py summary` ⏸ **已自我停用**（母體脫節，2026-08-07） | `VERIFY-3-G1`…`G8`（8 個閘門） |
-| `VERIFY-4` | `coverage-check.py` | 解析漏詞 |
-| `VERIFY-5` | `extract-check.py` | 接地三態 |
-| `VERIFY-6` | `parse-check.py` | 解析品質 |
-| `VERIFY-7` | `eq-check.py` | 方程式三票多數決 |
-| `VERIFY-8` | `compare-ws.py` | 跨 workspace 對照 |
-
-**`A-##` 在程式裡先不改名。** 它是 `compat-check.py --json` 輸出的 `id` 欄，
-`/data/lightrag/checks/` 底下的歷史紀錄以它為鍵，改名會讓歷史無法與新紀錄
-對照——而那正是漂移偵測的母體。**正解是輸出多帶一個 `suite: "VERIFY-1"` 欄**，
-完整 label 由兩者組出來；人讀的地方（文件、工單）一律寫全稱 `VERIFY-1-A01`。
-（這一項本身是 `VERIFY-1` 線的待辦，未做。）
-
----
+狀態標記：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`。
 
 ## 文件地圖
 
@@ -488,148 +364,62 @@ luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且�
 
 **我們沒有改過 LightRAG 一行程式碼。** 後處理改的是磁碟上的 `content_list.json`
 與 `_manifest.json`，耦合的對象是「LightRAG 如何讀寫 `__parsed__`」這組**未言明的
-契約**，不是它的原始碼。所以升級不會有 patch 衝突，但契約可能悄悄改變。
+契約**，不是它的原始碼。所以升級不會有 patch 衝突，**但契約可能悄悄改變**。
 
-設定全部在**容器外**：
+設定全部在容器外：`.env`（實際值，gitignore + chmod 600）、`.env.example`
+（每個鍵**為什麼**是這個值——那才是真正的文件）、`compose.yaml`（映像以 digest 釘選）。
 
-| 在哪 | 內容 | 版控 |
-|---|---|---|
-| `.env` | 實際值（含金鑰） | ❌ gitignore，chmod 600 |
-| `.env.example` | 每個鍵 + **為什麼設這個值** | ✅ |
-| `compose.yaml` | 映像以 digest 釘選 | ✅ |
-
-`.env.example` 才是真正的文件 —— 它記的不是「有這個鍵」，而是「為什麼是這個值」，
-例如 `MAX_ASYNC` 底下寫著當初 10 次逾時、1 份文件整份失敗的成因，以及
-「真正要提升吞吐得在伺服器端開 `--parallel N`，開了之後 `MAX_ASYNC` 才有意義往上調」。
-換機器或換人接手時看那個檔就夠。
-
-**⚠ 2026-08-03 實測到的三方不一致**：伺服器已經開了 `--parallel 4`（`n_slots = 4`），
-`.env.example` 寫 `MAX_ASYNC=4`，但 **dker 的 live `.env` 仍是 `MAX_ASYNC=2`**——
-也就是 4 個 slot 開著卻只餵 2 路。這是 `SPEEDUP` 線要量的第一件事，別直接改。
-
-**升級的步驟：**
+**升級步驟：**
 
 ```bash
-# 1. 先記下現況
-python3 scripts/compat-check.py --json > /tmp/before.json
-python3 scripts/postprocess.py canary          # 應為綠
-
-# 2. 改 compose.yaml 的 digest，重建
-
-# 3. 契約有沒有變 —— 這是關鍵
-python3 scripts/compat-check.py                # 契約 15 項 + 每份文件 6 項
-python3 scripts/postprocess.py canary          # 規則行為有沒有漂移
-python3 scripts/parse-check.py                 # 解析品質
-python3 scripts/extract-check.py               # 抽取品質
+python3 scripts/compat-check.py --json > /tmp/before.json   # 1. 先記現況
+python3 scripts/postprocess.py canary                      #    應為綠
+#                                                            2. 改 compose 的 digest，重建
+python3 scripts/compat-check.py     # 3. 契約有沒有變 ← 這是關鍵
+python3 scripts/postprocess.py canary   #    規則行為有沒有漂移
+python3 scripts/parse-check.py          #    解析品質
+python3 scripts/extract-check.py        #    抽取品質
 ```
 
-`compat-check.py` 就是為升級寫的 —— 它把「後處理依賴的假設」變成可執行的斷言。
-文件會過期，斷言不會。任何一項 hard 失敗就**不要動工**，先查契約哪裡變了。
+`compat-check.py` 就是為升級寫的——它把「後處理依賴的假設」變成可執行的斷言。
+**文件會過期，斷言不會。任何一項 hard 失敗就不要動工**，先查契約哪裡變了。
 
-已知的契約點（都有對應斷言）：`critical_file` 是 `content_list.json` 且驗
-size+sha256、`_coerce_text` 的欄位順序、sidecar 的 `self_ref` 用陣列索引、
-`page_number` 被跳過而 `header`/`footer` 走 fallback 進索引。
+已知的契約點（都有對應斷言，`--json` 的 `id` 欄可對照歷史紀錄）：
 
-新增兩點：
+- `critical_file` 是 `content_list.json` 且驗 size+sha256
+- `_coerce_text` 讀的欄位順序（決定「消音」要清哪一個）
+- sidecar 的 `self_ref` 用**陣列索引**（所以不能刪項目，見鐵則 2）
+- `page_number` 被跳過而 `header`／`footer` 走 fallback 進索引
+- `_build_ir_drawing` 的型別集合是 `{image, picture, drawing}`，且它讀
+  `image_caption`／`image_footnote` ⇒ **`chart→image` 整條規則站在這兩件事上**。
+  哪天 LightRAG 把 `chart` 加進集合，那條規則就該退休
+- `chunk_top_k` 仍然控制回傳的片段數。**空庫上它結構性驗不了**（chunk 恆 0，
+  `b > a` 不可能成立）⇒ 已三態化為「驗不了」而非紅燈。
+  **不要改用 `max_total_tokens` 收**：它先扣圖譜再給原文，設 8000 時
+  `available_chunk_tokens` 變負數，chunk 直接回 0 個且不報錯
+- Postgres 與 API 回報的文件數一致（兩個獨立來源交叉比對，兩邊都 0 時回「驗不了」）
 
-- **A-24 走 `_build_ir_drawing` 的型別集合是 `{image, picture, drawing}`,
-  而它讀 `image_caption` / `image_footnote`。** `chart→image` 整條規則就
-  站在這兩件事上。哪天 LightRAG 把 `chart` 加進集合,規則就該退休（斷言的
-  說明會直接這樣寫）；caption 欄位改名的話,現在的搬動會把 caption 搬丟。
-- **A-25 `chunk_top_k` 仍然控制回傳的片段數。** kbapi 的 `chunks` 參數就是
-  下傳成它。失效時 `/kb/*/search` 會靜靜回到每次 55–60KB —— 不報錯,只是把
-  呼叫端的 context 灌爆,所以每次都真的打一次查詢來驗。
-  注意:**空 workspace 上它結構性驗不了**(chunk 數恆 0,`b > a` 不可能成立),
-  該讀成「驗不了」而非紅燈 —— 2026-08-02 建 v2 時發現,已三態化。
-  **三態化的最終驗證在 2026-08-03 拿到**:v2 索引完 20 份後,同一條斷言
-  **自動從「驗不了」轉回真實判斷**(`chunk_top_k=2 → 2 個、=8 → 8 個,
-  母體 20 份已索引`),不必改任何一行程式。「母體不足」與「契約壞了」
-  被分開之後,兩種狀態各自都會在該響的時候響。
-  **不要改用 `max_total_tokens` 收**:它先扣圖譜再給原文,設 8000 時
-  `available_chunk_tokens` 變負數,chunk 直接回 0 個且不報錯。
-- **A-26 Postgres 與 LightRAG API 回報的文件數一致。** 兩個獨立來源的母體數
-  不一致時，視為可能連到不同的資料庫；兩邊都是 0 時回報「驗不了」，不把空庫
-  當成硬失敗。
-- **同一組 Postgres 裡多個 workspace 共存時,每一句 SQL 都要帶 `workspace`。**
-  儲存層靠這個欄位隔離,而兩個 workspace 的 `file_path` 是同一批 PDF 檔名 ——
-  漏掉條件時逐份報表會把兩邊的同一份文件**併成一列**,數字看起來完全正常
-  (大約兩倍)、不報錯、不會有任何訊號。實測踩過(2026-08-03,extract-check.py
-  三句 SQL 全漏):合計實體 14,402 = v155 7,191 + v2 7,211,而且**翻轉了三份
-  文件的閘門判定**。上述 extract-check 舊量測的來源容器未固定，來源存疑；數字不改。
-  單一 checkout 時代這個 bug 不可觀測 —— 與階段 0 的
-  「容器名寫死」同一族,開第二個 workspace 的那一刻才引爆。
-  修完的驗證方式:**拿舊 workspace 重跑,要重現歷史數字**(v155 回 3.2%,
-  與本檔記載逐位元相同)。
+## 抽取品質：接地檢查必須三態
 
-## 待辦
+`extract-check.py` 拿每個實體名字去對它來源的 chunk。原理跟抽文字層當 ground truth
+一樣：**拿產出對來源，不要相信它**。確定性、不呼叫模型、免費。
 
-在 [NEXT.md](NEXT.md) —— 本檔只放規則與契約,待辦與進行中的狀態不放這裡。
-待辦做完就從 NEXT 刪;過程學到的教訓沉澱回本檔或對應文件,不留屍體。
-「刻意不做」的決策記錄也在那裡,動它們之前先讀理由。
+**必須三態，不能兩態。** 字串比對只對散文有效——表格裡常常只有符號。實測 C 的
+chunk-002 是 `<td>G</td><td>$G=I/\Delta U=1/Z$</td>`，完全沒有 `Conductance` 這個字，
+但模型抽出 Conductance 是**正確的**：從符號推論概念名稱正是它該做的事。
 
-排程檢查已存在(2026-08-02 起):`lightrag-daily-check.timer` 每天 08:30 跑
-compat-check + canary,紅燈打自架 ntfy(`/opt/stacks/ntfy`,:9800),腳本本身
-掛掉走 systemd `OnFailure=` 獨立備援。狀態落地 `/data/lightrag/checks/`。
-**「誰會報錯」的答案從「沒有人」改成它。**
+所以分成「接地 / 符號型無法驗證 / 可疑」。二態時未接地率與符號密度高度相關、
+與幻覺無關（散文 0%、論文 3.4%、C 55%）；三態化後 C 從 55.1% 降到 3.4%。
 
-第二支排程於 2026-08-03 接上：`lightrag-cold-backup.timer` 每天 03:00 跑
-`scripts/backup-cold.sh`。它會**停服務抄目錄**（停機約 75 秒，幾乎全花在容器優雅
-關機與健康檢查，本地複製只要 1 秒），但**沒有新的抽取成果就自己跳過、完全不停機**
-——判準是資料庫內容指紋不是時鐘。兩支排程各有自己的 `OnFailure=` 備援單元，
-且備援**刻意不走 `notify.sh`**：備援不能依賴可能正是故障原因的主路徑。
+**「可疑」不等於「幻覺」，形狀要逐份看過才算量到。** 逐份看過的結果分兩族，
+都不是捏造：**符號→概念命名**（模型替裸符號取描述性名字，例如 `Coefficient Ta`、
+`Modified Bessel Function I0`）與**概念→引用文獻**（章節或文獻條目被拆成實體）。
+前者是三態判準的邊界效應——同一族東西，散文比例低於 `SYMBOLIC_RATIO` 的落進
+「驗不了」，高於的落進「可疑」。要真的降下來得**重量 `is_symbolic` 判準**，
+不是調門檻（鐵則 5）。
 
-## 抽取品質:接地檢查
-
-`extract-check.py` 拿每個實體名字去對它來源的 chunk。原理跟 `pdfcrop` 抽文字層
-當 ground truth 一樣:**拿產出對來源,不要相信它**。確定性、不呼叫模型、免費。
-
-必須三態。字串比對只對散文有效 —— 表格裡常常只有符號,實測 C 的 chunk-002 是
-`<td>G</td><td>$G=I/\Delta U=1/Z$</td>`,完全沒有 `Conductance` 這個字,但模型
-抽出 Conductance 是**正確的**:從符號推論概念名稱正是它該做的事。
-
-二態時未接地率與符號密度高度相關、與幻覺無關(散文 0%、論文 3.4%、C 55%)。
-分成「接地 / 符號型無法驗證 / 可疑」之後,C 從 55.1% 降到 3.4%,總計 3.7%。
-
-**⚠ 下面這組數字已作廢**（索引於 2026-08-07 清空）。留著是因為它示範了三態的
-效果與量級，重建後要重新量一次。
-
-```
-acoustics_v2（2026-08-05 實跑，全 18 份；來源＝entity/relation vdb 的列數）
-14,226 實體 → 接地 9,465、符號型 4,494（驗不了）、可疑 267 　可疑率 2.7%
-26,447 關係 → 兩端接地 14,602、符號型 11,259、只有一端 455（3.0%）、兩端皆無 131（0.9%）
-
-4 份 >5% 標黃：L Capsules 14.7%、K Muffler 13.3%、P Variational 7.5%、G Porous 6.9%
-```
-
-**標黃那幾份的判定不再靠讀這份文件。** `tests/verified-findings.json` 記著
-「哪份的哪個指標查過、結論是什麼」，`extract-check` 超標時**自己印出來**——
-因為這類結論只在跑那支檢查、看到那個數字時才需要，放在這裡等人來找會被重查。
-（實際發生過：K Muffler 在舊語料查過一次，2026-08-05 L Capsules 又查一次。）
-現值偏離查證當時超過 50% 時它會改說「要重查」，不再回報舊結論。
-
-**歷史：關係那一列曾經是錯的,而且錯法就是它自己修的那個 bug。** 更早的版本寫
-`20,873 關係 → 12,459 / 7,491 / 689 / 234`,每一項都約是實際的 **2 倍** ——
-那是 `extract-check.py` 補上 `workspace` 條件（commit `9ef8026`）**之前**的雙重計數。
-那個 commit 更新了實體那一列,漏了關係那一列,於是「兩個 workspace
-被併成一列」的症狀留在文件裡活了下來。（那批語料已於 2026-08-04 整批換掉,
-這些數字純屬歷史。）
-
-教訓與該 commit 自己寫的契約點同一條:多 workspace 共存時,**修完 SQL 還要
-把所有引用舊數字的地方一起重算**——數字沒有錯誤訊息,它只是靜靜地錯著。
-
-**「可疑」不等於「幻覺」——形狀要逐份看過才算量到。** 逐份看過的結果一律
-不是捏造,分成兩族:
-
-| 形狀 | 長相 | 例 |
-|---|---|---|
-| 符號→概念命名 | 模型替裸符號取描述性名字 | K Muffler `Coefficient Ta`、L Capsules `Velocity Variable v_tr`、G Porous `Modified Bessel Function I0` |
-| 概念→引用文獻 | 章節／文獻條目被拆成實體 | L Capsules `Chapter 20`、`Section L.1` |
-
-前者是**三態判準的邊界效應**:同一族的東西,散文比例低於
-`SYMBOLIC_RATIO=0.35` 的落進「驗不了」,高於的落進「可疑」。所以
-K Muffler 15.1%(全庫最高)的分子裡 92 個只有 1 個是引用文獻 ——
-**NEXT 記載的 v155 結論「K Muffler 大量概念→引用文獻型」在 v2 母體被推翻**。
-要真的降下來得重量 `is_symbolic` 的判準(門檻用量的不要用調的)。
+> ⚠️ 2026-08-07 索引已清空，所有接地數字作廢，重建後要重新量。
+> 舊數字：`git show archive/pre-rebuild-20260807:CLAUDE.md`
 
 ## 兩雙眼睛:為什麼要兩個
 
