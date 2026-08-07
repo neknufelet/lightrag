@@ -19,14 +19,21 @@
 「正確」，而漂移偵測就變成偵測自己的 bug。渲染只有一個實作，`install` 寫出去、
 `verify` 拿同一份渲染結果去對，差異一定是真的差異。
 
-**佔位符**：`@REPO@`（checkout 路徑）、`@USER@`（跑腳本的使用者）、
-`@WORKSPACE@` 與 `@DATA_ROOT@`
-（都讀 `.env`）。全部是換機器會變的東西，寫死就等於這份 repo 只能在一台機器上用。
+**佔位符**：`@REPO@`（checkout 路徑）、`@USER@`（跑腳本的使用者）、`@WORKSPACE@`、
+`@DATA_ROOT@`、`@STACK_DIR@`（Dockge 的 stack 目錄）、`@BIND_ADDR@`（開機時要等它
+出現的位址）。都讀 `.env`。全部是換機器會變的東西，寫死就等於這份 repo 只能在
+一台機器上用。
 
 用法：
     systemd-units.py verify           # 比對 /etc 與 repo，不一致回 2
     systemd-units.py render <目錄>     # 渲染到目錄，不碰 /etc
     systemd-units.py install          # 渲染 → 寫入 /etc → daemon-reload → enable（要 sudo）
+    systemd-units.py install --only lightrag-stack.service
+                                      # 檔案全寫，但只 enable 指定的那個
+
+⚠ 不帶 `--only` 會 enable **整個 ENABLE 清單**，包含 daily-check 與 cold-backup
+的 timer。2026-08-07 的裁決是「重建後先決定警報走哪裡，再把排程重新 enable」
+（`docs/NEXT.md`），所以在那之前要用 `--only`。
 """
 from __future__ import annotations
 
@@ -179,10 +186,26 @@ def cmd_install(args: argparse.Namespace) -> int:
         target.chmod(0o644)
         print(f"  {'~' if old is not None else '+'} {name}")
     subprocess.run(["systemctl", "daemon-reload"], check=True)
-    for unit in ENABLE:
+
+    # `--only` 存在的理由：ENABLE 裡有 daily-check 與 cold-backup 的 timer，而
+    # 2026-08-07 的裁決是「重建後先決定警報走哪裡，再把排程重新 enable」
+    # （docs/NEXT.md）。不分開的話，裝一個新單元會順手把三個沒講好的東西也開起來
+    # ——那是「順手做了沒講」，本專案抱怨最多的一種。
+    wanted = tuple(args.only) if args.only else ENABLE
+    unknown = [u for u in wanted if u not in rendered]
+    if unknown:
+        print(f"✗ 不認得這些單元：{', '.join(unknown)}", file=sys.stderr)
+        return 2
+
+    for unit in wanted:
         subprocess.run(["systemctl", "enable", "--now", unit], check=True)
         print(f"  ✓ enable --now {unit}")
-    print(f"\n{len(rendered)} 個單元已安裝。repo={args.repo} user={args.user}")
+    skipped = [u for u in ENABLE if u not in wanted]
+    if skipped:
+        # 收合輸出時必須報出「幾項沒做」——否則「沒印出來」跟「沒跳過」長得一樣。
+        print(f"  （檔案已寫入但**沒有 enable**：{', '.join(skipped)}）")
+    print(f"\n{len(rendered)} 個單元的檔案已安裝，{len(wanted)} 個已啟用。"
+          f"repo={args.repo} user={args.user}")
     return 0
 
 
@@ -204,7 +227,10 @@ def main() -> int:
     sub.add_parser("verify", help="比對 /etc 與 repo").add_argument(
         "--diff", action="store_true", help="印出逐行差異")
     sub.add_parser("render", help="渲染到目錄，不碰 /etc").add_argument("target")
-    sub.add_parser("install", help="寫入 /etc 並 enable（要 sudo）")
+    inst = sub.add_parser("install", help="寫入 /etc 並 enable（要 sudo）")
+    inst.add_argument("--only", action="append", metavar="UNIT",
+                      help="只 enable 指定的單元（可重複）。檔案仍會全部寫入。"
+                           "不給就照 ENABLE 清單全開")
     args = parser.parse_args()
 
     if args.user is None:
