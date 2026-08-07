@@ -116,6 +116,10 @@ def test_query_failure_marks_population_incomplete(capsys: pytest.CaptureFixture
 
 def test_existing_output_requires_force(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     module, symbolic, answer, output = _module(), tmp_path / "symbolic.json", tmp_path / "answer.json", tmp_path / "out.json"
+    # 這條測的是「已有輸出要 --force」，跟 .env 無關。2026-08-07 之前它在 coder 上
+    # 能過，是因為 load_env 在檔案不存在時**靜默回空字典**；那個行為已改成丟例外，
+    # 所以這裡要顯式給一份空設定，而不是靠副作用。
+    monkeypatch.setattr(module, "load_env", lambda _repo, **_kw: {})
     symbolic.write_text('{"entities": [{"name": "Restated"}]}', encoding="utf-8")
     answer.write_text(json.dumps({"items": _answer()}), encoding="utf-8")
     output.write_text("old", encoding="utf-8")

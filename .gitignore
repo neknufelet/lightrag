@@ -8,6 +8,12 @@ data/
 rag_storage/
 inputs/
 
+# 來源 PDF。它們是輸入資料不是 repo 內容，而且很大（C 那份 1.6 MB）。
+# 只擋 docs/ 底下 —— **不能寫成 `*.pdf`**：verdicts/work/crops/ 底下有一批
+# **目錄**叫 `<檔名>.pdf`（例如 `C Equivalent Networks.pdf/verified/373.html`），
+# 那條會把 173 個人工裁定一起擋掉。
+/docs/*.pdf
+
 *.log
 .DS_Store
 __pycache__/

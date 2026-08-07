@@ -28,7 +28,7 @@ summary: "從 173 條坑清單裡提煉出唯一在乾淨重建後仍然成立�
 | `MINERU_IS_OCR` | `true` | 文字層路徑靜默吃掉 x-height 字母（a c e g m n o r s u w y），**對文字層完好的非掃描 PDF 最嚴重**。實測 43 個掉字裡 40 個是 x-height |
 | `MINERU_MODEL_VERSION` | `pipeline` | 預設的 `vlm` 讓 16/57 表格區域完全空白（同檔同 `is_ocr` 實測），連圖片備份都沒有 |
 | `ENTITY_EXTRACTION_USE_JSON` | `true` | 本機 4-bit 模型的關係記錄只吐 4/5 欄位 ⇒ LightRAG **100% 拒收**。症狀是「實體正常、關係 0」 |
-| `EMBEDDING_SEND_DIM` | 有設（不能只設 `EMBEDDING_DIM`） | API 仍回 3072 維，LightRAG 誤判成雙倍向量數，**索引寫入時才失敗**，錯誤訊息不指向根因 |
+| `EMBEDDING_SEND_DIM` | **只有在 `EMBEDDING_DIM` ≠ 模型原生維度時才必要** | 它管的是「要不要把 `dimensions` 參數送給 API」。設了較小的 `EMBEDDING_DIM` 卻沒送，API 仍回原生維度，LightRAG 誤判成雙倍向量數，**索引寫入時才失敗**，錯誤訊息不指向根因。⚠ 2026-08-07 更正：舊版寫成無條件必要，那是錯的——現行 `EMBEDDING_DIM=3072` 就是 `text-embedding-3-large` 的原生維度，不需要截斷，所以這個鍵缺席是對的 |
 | `PP_EYE_C_PROVIDER` | 明確指定，不能空 | OpenRouter 同一模型 ID 會被路由到不同供應商 ⇒ 分不清差異是模型錯還是換了後端，交叉驗證的前提被破壞 |
 | `KBAPI_PORT` | 在 `.env`（不進版控） | 不能改用 compose `profiles:` 停用 kbapi——那會隨版控進主線，下次 `up -d` 就不起 kbapi，:9700 靜靜消失、三個 skill 一起啞 |
 

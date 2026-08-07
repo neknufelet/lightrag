@@ -111,10 +111,29 @@ def bbox_to_points(bbox: list, page_w: float, page_h: float) -> tuple[float, flo
             x1 / 1000 * page_w, y1 / 1000 * page_h)
 
 
-def load_env(repo: Path) -> dict[str, str]:
+class EnvFileMissing(FileNotFoundError):
+    """`.env` 不在。**這是致命錯誤，不是空設定。**"""
+
+
+def load_env(repo: Path, *, required: bool = True) -> dict[str, str]:
+    """讀 repo 根目錄的 `.env`。
+
+    **檔案不在時丟例外，不回空字典。** 2026-08-07 把 `.env` 搬到
+    `/opt/stacks/lightrag/` 時踩到：舊版在檔案不存在時 `return {}`，於是 16 支
+    呼叫端全部拿到「沒有任何設定」**繼續跑**——`MINERU_IS_OCR` 沒了、
+    `ENTITY_EXTRACTION_USE_JSON` 沒了，而畫面上一個錯誤訊息都沒有。
+    那正是本專案一路在防的形狀：不是壞掉，是安靜地做錯事。
+
+    `required=False` 只給「真的可以沒有設定」的呼叫端，目前沒有。
+    """
     p = repo / ".env"
     if not p.exists():
-        return {}
+        if not required:
+            return {}
+        raise EnvFileMissing(
+            f"{p} 不存在。現役的 .env 在 dker 的 /opt/stacks/lightrag/.env"
+            "（2026-08-07 搬出 git checkout，repo 根目錄放一條 symlink 指過去）。\n"
+            "coder 上刻意沒有 .env —— 需要它的腳本只能在 dker 跑。")
     out = {}
     for line in p.read_text().splitlines():
         line = line.strip()
