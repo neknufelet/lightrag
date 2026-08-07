@@ -8,7 +8,7 @@
 | 要找什麼 | 去哪 |
 |---|---|
 | 鐵則、契約、座標、常用指令 | [CLAUDE.md](CLAUDE.md) |
-| 接下來做什麼 | [NEXT.md](NEXT.md) |
+| 接下來做什麼 | [NEXT.md](docs/NEXT.md) |
 | 某個決定為什麼那樣下 | [docs/decisions/](docs/decisions/) |
 | 新環境必須保持什麼樣子 | [docs/rebuild-checklist.md](docs/rebuild-checklist.md) |
 | 知道但沒處理的問題 | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) |

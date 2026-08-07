@@ -51,7 +51,7 @@ README_LIKE = {"README.md", "verdicts/README.md", "cairn/README.md"}
 
 # 行數上限。BASELINE 對 NEXT.md 寫「經驗閾值 < ~80 行；超過就是該掃了」；
 # CHEATSHEET 對 STATUS.md 寫「≤100 silent / 101–200 warning / >200 拒絕」。
-LINE_LIMITS = {"NEXT.md": 80, "STATUS.md": 100}
+LINE_LIMITS = {"docs/NEXT.md": 80, "STATUS.md": 100}
 
 
 @dataclass
@@ -156,7 +156,7 @@ class Checker:
 
     def check_required_files(self) -> None:
         wanted = {
-            "NEXT.md": ("hard", ""),
+            "docs/NEXT.md": ("hard", ""),
             "docs/KNOWN_ISSUES.md": ("hard", ""),
             "docs/decisions": ("hard", ""),
             "CHANGELOG.md": ("soft", ""),

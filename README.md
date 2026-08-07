@@ -12,7 +12,7 @@
 - 新環境必須保持什麼樣子：[docs/rebuild-checklist.md](docs/rebuild-checklist.md)
 - 重建前的完整狀態：tag `archive/pre-rebuild-20260807`
 
-**規則、契約、座標在 [CLAUDE.md](CLAUDE.md)**，接下來做什麼在 [NEXT.md](NEXT.md)。
+**規則、契約、座標在 [CLAUDE.md](CLAUDE.md)**，接下來做什麼在 [NEXT.md](docs/NEXT.md)。
 
 ## 兩台機器
 

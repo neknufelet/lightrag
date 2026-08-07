@@ -82,7 +82,7 @@ tag `archive/pre-rebuild-20260807`。
 | 要找什麼 | 去哪 |
 |---|---|
 | 導航（哪個檔放什麼） | [AGENTS.md](AGENTS.md) |
-| 接下來做什麼 | [NEXT.md](NEXT.md) |
+| 接下來做什麼 | [NEXT.md](docs/NEXT.md) |
 | **鐵則 8 條與領域知識** | [docs/hard-rules.md](docs/hard-rules.md) ← 動 `scripts/pp/` 或規則之前必讀 |
 | 新環境必須保持什麼樣子 | [docs/rebuild-checklist.md](docs/rebuild-checklist.md) |
 | 某個決定為什麼那樣下 | [docs/decisions/](docs/decisions/) |
