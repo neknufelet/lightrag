@@ -243,6 +243,8 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 | `SCANNER` | 封閉掃描器進版控、變常駐探針 | `SCANNER-1` | 待做 |
 | `SPEEDUP` | MTP 加速評估 | `SPEEDUP-1` | 待做 |
 | `SCALEUP` | 擴量到 390 份 | `SCALEUP-1`… | 待做 |
+| `REBORN` | 乾淨重建＋升級 v1.5.6（**主線**，見 ADR-0004） | `REBORN-1`…`REBORN-5` | 🔵 進行中 |
+| `GUARD` | 給規則配機器執行者（規則有、執行者沒有） | `GUARD-1`…`GUARD-4` | 🔵 進行中 |
 
 **`VERIFY` 線的編號**（一支檢查腳本一個號）
 
@@ -250,7 +252,7 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 |---|---|---|
 | `VERIFY-1` | `compat-check.py` | `VERIFY-1-A01`…`A26`（契約斷言，缺號 04/08/09/12/15 是歷史刪除） |
 | `VERIFY-2` | `postprocess.py canary` | `VERIFY-2-R1`…`R8`（pages/items/mute/held/ratio/tables_total/repairable/review） |
-| `VERIFY-3` | `ledger.py summary` | `VERIFY-3-G1`…`G8`（8 個閘門） |
+| `VERIFY-3` | `ledger.py summary` ⏸ **已自我停用**（母體脫節，2026-08-07） | `VERIFY-3-G1`…`G8`（8 個閘門） |
 | `VERIFY-4` | `coverage-check.py` | 解析漏詞 |
 | `VERIFY-5` | `extract-check.py` | 接地三態 |
 | `VERIFY-6` | `parse-check.py` | 解析品質 |
@@ -270,7 +272,9 @@ NEXT.md 頂部要維護「狀態總表」（一行一線：當前 item ＋ 標�
 | 檔案 | 內容 | 什麼時候看 |
 |---|---|---|
 | **CLAUDE.md**(本檔) | 現況、鐵則、每條規則的證據基礎 | 每次開工 |
-| [NEXT.md](NEXT.md) | **待辦與進行中**(含刻意不做的決策與理由) | 每次開工 |
+| [NEXT.md](NEXT.md) | **只有待辦**（上限 80 行，做完刪整行）。2026-08-07 從 799 行瘦身，內容分流到下面三處 | 每次開工 |
+| [docs/decisions/](docs/decisions/) | **ADR：某個決定為什麼那樣下**（單一庫、不做 MTP、廢除 `/data/rag`、重建而不補探針） | 想推翻某個決定前 |
+| [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | **知道但決定不修**的 14 條，各附理由 | 看到某個問題想修之前 |
 | [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
 | [docs/judgement-flow.md](docs/judgement-flow.md) | **遇到新問題時的決策程序**：偵測 → 驗偵測器 → 分類 → 叫眼睛 → 判不準怎麼辦 | 發現一個沒見過的問題時 |
 | [docs/log_20260803.md](docs/log_20260803.md) | **當日工作日誌**：過程與理由（尤其「查完決定不做」的六項與各自的實測依據）＋**已歸檔的完成項**（2026-08-05 從 NEXT.md 搬來的 `SYMBOL-1/2/3`、`BACKUP-2/3`，含實測數字與決策理由） | 想知道某個決定當初為什麼那樣下 |
