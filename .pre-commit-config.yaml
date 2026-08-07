@@ -32,8 +32,12 @@ repos:
           - wip   # 允許 session-end wip commits
 
   # ============================================================
-  # 本專案自訂：Cairn 的流水帳不得落後於 git
+  # 本專案自訂：文件紀律（LOG 不落後、NEXT 不堆積）
   # ============================================================
+  #
+  # 兩支合起來才是完整的一圈：一支逼你把做完的事記進 LOG，
+  # 一支逼你把 NEXT 裡的殘骸掃掉。只有前者的話 NEXT 會越來越肥，
+  # 只有後者的話掃掉的東西沒有去處。
   #
   # 為什麼接在這裡而不是排程：這條規則的執行者原本是 dker 上的
   # lightrag-daily-check.timer → run-tests.sh → pytest。2026-08-07 實測
@@ -47,9 +51,9 @@ repos:
   # 每次 commit 都付會讓人開始用 --no-verify，那比沒有檢查更糟。
   - repo: local
     hooks:
-      - id: cairn-log-freshness
-        name: cairn/LOG.md 沒有落後於 commit
-        entry: pytest tests/test_log_freshness.py -q
+      - id: doc-discipline
+        name: NEXT 沒堆積、LOG 沒落後
+        entry: pytest tests/test_log_freshness.py tests/test_next_done_ratio.py -q
         # language: python ＋ additional_dependencies，不是 system ——
         # system 會用「呼叫 pre-commit 的那個 python」，而 uvx 跑起來的
         # 那個沒有 pytest（實測 `No module named pytest`）。隔離環境讓它
