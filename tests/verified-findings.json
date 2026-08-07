@@ -1,45 +1,88 @@
 {
-  "_why": "『某份文件的某個指標超標，已經查過，結論是什麼』的紀錄。存在的理由是重複查證：K Muffler 的接地可疑率在舊語料查過一次、結論寫進 CLAUDE.md；2026-08-05 跑 18 份體檢時 L Capsules 出現同一個形狀，又查了一次。沒有這個檔還會有第三次。",
-  "_rule": "檢查工具在指標超標時**自動印出**對應的紀錄，不要求任何人記得去哪裡找。紀錄必須帶 verified_on 與當時的數字——現值偏離太多時工具要說『已查證但數字已變動，要重查』，因為過期的結論比沒有結論更危險（它會讓人跳過該做的查證）。",
-  "_key": "check/doc/metric 三者組成鍵。doc 用 file_path 的關鍵字比對，不用全名。",
-  "findings": [
-    {
-      "check": "extract-check",
-      "metric": "grounding_suspect_rate",
-      "doc": "K Muffler Acoustics",
-      "verified_on": "2026-08-03",
-      "verdict": "not_hallucination",
-      "at_verification": {"suspect": 92, "rate": 0.151},
-      "summary": "92 個可疑裡只有 1 個是引用文獻型，其餘是傳遞矩陣的裸符號被取了描述性名字",
-      "root_cause": "SYMBOLIC_RATIO=0.35 的邊界效應：同一族東西，散文比例低於門檻的落進『驗不了』、高於的落進『可疑』",
-      "sample": ["Coefficient Ta", "Matrix GA", "H12 Parameter"],
-      "source": "CLAUDE.md「抽取品質:接地檢查」",
-      "note": "這條同時推翻了 v155 時代『大量概念→引用文獻』的歸因"
-    },
-    {
-      "check": "extract-check",
-      "metric": "grounding_suspect_rate",
-      "doc": "L Capsules and Cabins",
-      "verified_on": "2026-08-05",
-      "verdict": "not_hallucination",
-      "at_verification": {"entities": 302, "symbolic": 152, "suspect": 22, "rate": 0.147},
-      "summary": "22 個可疑裡 19 個是符號→概念命名（模型替裸符號加了描述詞），3 個是章節/函數引用型",
-      "root_cause": "同 K Muffler，是 SYMBOLIC_RATIO 的邊界效應。這份特別高的原因是符號密度全庫最高（302 個實體裡 152 個符號型，50%），分母小、符號多，門檻切在中間就會製造高比例的假可疑",
-      "sample": ["Velocity Variable v_tr", "Impedance Variable Z_T", "Position Parameter a_K", "Wave Number k_a,r"],
-      "source": "本次體檢 2026-08-05，逐個看過全部 22 個",
-      "note": "關係層的『只有一端對得到』15.0%（全庫 3.0%）另有成因：書本結構的交叉引用被抽成關係（Chapter 20 → Vol. III）。不是錯，但對檢索沒有價值——若日後檢索品質有問題，這類結構性關係是嫌疑犯之一。**這一項尚未處置。**"
-    },
-    {
-      "check": "extract-check",
-      "metric": "grounding_suspect_rate",
-      "doc": "G Porous Absorbers",
-      "verified_on": "2026-08-03",
-      "verdict": "not_hallucination",
-      "at_verification": {"rate": 0.064},
-      "summary": "與 K Muffler 同一件事的 Bessel 版：裸符號被取描述性名字",
-      "root_cause": "SYMBOLIC_RATIO=0.35 的邊界效應",
-      "sample": ["Modified Bessel Function I0"],
-      "source": "CLAUDE.md「抽取品質:接地檢查」"
-    }
-  ]
+ "_why": "『某份文件的某個指標超標，已經查過，結論是什麼』的紀錄。存在的理由是重複查證：K Muffler 的接地可疑率在舊語料查過一次、結論寫進 CLAUDE.md；2026-08-05 跑 18 份體檢時 L Capsules 出現同一個形狀，又查了一次。沒有這個檔還會有第三次。",
+ "_rule": "檢查工具在指標超標時**自動印出**對應的紀錄，不要求任何人記得去哪裡找。紀錄必須帶 verified_on 與當時的數字——現值偏離太多時工具要說『已查證但數字已變動，要重查』，因為過期的結論比沒有結論更危險（它會讓人跳過該做的查證）。",
+ "_key": "check/doc/metric 三者組成鍵。doc 用 file_path 的關鍵字比對，不用全名。",
+ "findings": [
+  {
+   "check": "extract-check",
+   "metric": "grounding_suspect_rate",
+   "doc": "K Muffler Acoustics",
+   "verified_on": "2026-08-03",
+   "verdict": "not_hallucination",
+   "at_verification": {
+    "suspect": 92,
+    "rate": 0.151
+   },
+   "summary": "92 個可疑裡只有 1 個是引用文獻型，其餘是傳遞矩陣的裸符號被取了描述性名字",
+   "root_cause": "SYMBOLIC_RATIO=0.35 的邊界效應：同一族東西，散文比例低於門檻的落進『驗不了』、高於的落進『可疑』",
+   "sample": [
+    "Coefficient Ta",
+    "Matrix GA",
+    "H12 Parameter"
+   ],
+   "source": "CLAUDE.md「抽取品質:接地檢查」",
+   "note": "這條同時推翻了 v155 時代『大量概念→引用文獻』的歸因"
+  },
+  {
+   "check": "extract-check",
+   "metric": "grounding_suspect_rate",
+   "doc": "L Capsules and Cabins",
+   "verified_on": "2026-08-05",
+   "verdict": "not_hallucination",
+   "at_verification": {
+    "entities": 302,
+    "symbolic": 152,
+    "suspect": 22,
+    "rate": 0.147
+   },
+   "summary": "22 個可疑裡 19 個是符號→概念命名（模型替裸符號加了描述詞），3 個是章節/函數引用型",
+   "root_cause": "同 K Muffler，是 SYMBOLIC_RATIO 的邊界效應。這份特別高的原因是符號密度全庫最高（302 個實體裡 152 個符號型，50%），分母小、符號多，門檻切在中間就會製造高比例的假可疑",
+   "sample": [
+    "Velocity Variable v_tr",
+    "Impedance Variable Z_T",
+    "Position Parameter a_K",
+    "Wave Number k_a,r"
+   ],
+   "source": "本次體檢 2026-08-05，逐個看過全部 22 個",
+   "note": "關係層的『只有一端對得到』15.0%（全庫 3.0%）另有成因：書本結構的交叉引用被抽成關係（Chapter 20 → Vol. III）。不是錯，但對檢索沒有價值——若日後檢索品質有問題，這類結構性關係是嫌疑犯之一。**這一項尚未處置。**"
+  },
+  {
+   "check": "extract-check",
+   "metric": "grounding_suspect_rate",
+   "doc": "G Porous Absorbers",
+   "verified_on": "2026-08-03",
+   "verdict": "not_hallucination",
+   "at_verification": {
+    "rate": 0.064
+   },
+   "summary": "與 K Muffler 同一件事的 Bessel 版：裸符號被取描述性名字",
+   "root_cause": "SYMBOLIC_RATIO=0.35 的邊界效應",
+   "sample": [
+    "Modified Bessel Function I0"
+   ],
+   "source": "CLAUDE.md「抽取品質:接地檢查」"
+  },
+  {
+   "check": "coverage-check",
+   "metric": "missing_word_rate",
+   "doc": "C Equivalent Networks",
+   "verified_on": "2026-08-02",
+   "verdict": "known_and_attributed",
+   "at_verification": {
+    "rate": 0.10499,
+    "missing": 381,
+    "pdf_words": 3629
+   },
+   "summary": "10.5% 超標但已逐詞歸因完畢，不是新問題：表格結構黏連 117 詞（27%）、內容在圖裡 73 詞、bbox 未覆蓋 91 詞（24%）",
+   "root_cause": "三類都不在後處理能碰的範圍：黏連要重排表格結構（與定點補格互斥，見 KI-001）、圖裡的內容只能靠 VLM、bbox 未覆蓋的 91 詞根本不在任何 item 裡（19 個跨頁 continued 標籤、19 個表格標題行、53 個在 p33／p51 兩頁被 MinerU 整塊發成 image）",
+   "sample": [
+    "tanh",
+    "viix",
+    "continued",
+    "neck"
+   ],
+   "source": "verdicts/records/ledger/C Equivalent Networks.pdf.json 的 parse.coverage note；逐詞歸因在 records/review/c-uncovered-words.md",
+   "note": "2026-08-02 由 12.0%（436 詞）降到 10.5%，救回 55 詞來自五筆定點補格。2026-08-07 重建後重跑得 10.6%（383/3629），差 2 個詞＝0.055%，是重現不是退步。**這條是 fail 但已知**——不要再查一次，要動它得先解 KI-001。"
+  }
+ ]
 }

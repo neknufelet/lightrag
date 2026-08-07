@@ -80,6 +80,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp import findings  # noqa: E402
 from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -355,6 +356,19 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
                 continue
             print(f"\n=== {r['doc']}　漏詞率 {r['rate']*100:.1f}% ===")
             print("  漏最多的詞：" + "、".join(f"{w}({n})" for w, n in r["top"]))
+
+            # 超標時把「這份查過了、結論是什麼」印在旁邊。2026-08-07 實測缺這段的
+            # 代價：C 的 10.6% 超標，而它 2026-08-02 就已逐詞歸因完（表格黏連 117、
+            # 圖裡 73、bbox 未覆蓋 91），結論在 ledger 裡 —— 但工具沒說，於是又查了
+            # 一次。verified-findings.json 的 _rule 明寫「不要求任何人記得去哪裡找」，
+            # extract-check 接了、這支沒接。
+            if r["rate"] > threshold:
+                hit = findings.lookup("coverage-check", "missing_word_rate", r["doc"],
+                                      current={"rate": r["rate"], "missing": r["missing"],
+                                               "pdf_words": r["pdf_words"]})
+                if hit:
+                    for line in hit.lines():
+                        print(line)
     return 1 if n_over else 0
 
 
