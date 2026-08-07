@@ -97,3 +97,35 @@ def test_state_payload_carries_checks(tmp_path: Path) -> None:
     app = _app(tmp_path)
     _write(app, {"at": "20260808T000000", "status": "fail", "tests_rc": 1})
     assert app.state()["checks"]["state"] == "fail"
+
+
+def test_dirty_inputs_error_gives_a_runnable_remedy(tmp_path: Path) -> None:
+    """擋下來不等於把問題丟給人 —— 錯誤訊息要給可以直接跑的下一步。
+
+    2026-08-08 實測：手動跑管線時把 PDF scp 進 inputs、跑完沒清，四篇一放行全部
+    撞到這個守衛。當時的訊息只有「不是純淨空目錄：<檔名>」，**沒說怎麼辦**，
+    於是每一次都要人去查。`ledger.py` 在體檢表脫節時就是印出處置指令的，
+    這裡照同一個模式。
+    """
+    import pytest
+
+    app = _app(tmp_path)
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+    (inputs / "殘留.pdf").write_bytes(b"%PDF-1.4\n")
+
+    with pytest.raises(RuntimeError) as e:
+        app._assert_inputs_empty()
+    msg = str(e.value)
+    assert "殘留.pdf" in msg, "要指名道姓是哪個檔"
+    assert "繞過後處理" in msg, "要說清楚為什麼擋，否則下一個人會想繞過它"
+    assert "mv " in msg and "library" in msg, "要給可以直接跑的指令"
+    assert "不要直接刪" in msg, "要提醒那可能是唯一副本"
+
+
+def test_clean_inputs_passes(tmp_path: Path) -> None:
+    """__parsed__ 是 compose 掛進去的目錄，本來就在，不該被當成殘留。"""
+    app = _app(tmp_path)
+    inputs = app.paths.inputs_dir(app.workspace)
+    (inputs / "__parsed__").mkdir(parents=True, exist_ok=True)
+    app._assert_inputs_empty()   # 不得丟例外

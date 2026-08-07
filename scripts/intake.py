@@ -1243,10 +1243,35 @@ class IntakeApp:
         return sorted(path for path in inputs.glob("*.pdf") if path.is_file())
 
     def _assert_inputs_empty(self) -> None:
+        """放行前 `inputs/<ws>` 不得有任何 PDF。
+
+        **為什麼擋**：放行時 LightRAG 會掃描整個 `inputs/<ws>`，多出來的檔會被
+        一起索引，**而且繞過後處理** —— 表格修補、LaTeX 修正、雜訊消音全都不會
+        發生，索引起來卻看起來完全正常。
+
+        **為什麼不自動清掉**：這支服務沒辦法知道那個檔是別的流程正在用的，還是
+        殘留。刪錯的代價是「某份文件在這台的唯一副本沒了」。所以擋下來並**把處置
+        指令直接印出來** —— 與 `ledger.py` 在體檢表脫節時的做法同一個模式：
+        擋住不等於把問題丟給人，要給可以直接跑的下一步。
+
+        （2026-08-08 實測：手動跑管線時把 PDF `scp` 進 inputs、跑完沒清，
+        四篇一放行全部撞到這裡。訊息當時只說「不是純淨空目錄」，沒說怎麼辦。）
+        """
         existing = self._inputs_pdf_paths()
-        if existing:
-            names = ", ".join(path.name for path in existing)
-            raise RuntimeError(f"放行中止：inputs/{self.workspace} 不是純淨空目錄：{names}")
+        if not existing:
+            return
+        names = ", ".join(path.name for path in existing)
+        inputs = self.paths.inputs_dir(self.workspace)
+        stamp = time.strftime("%Y%m%d")
+        archive = self.paths.library_dir / f"manual-{stamp}"
+        raise RuntimeError(
+            f"放行中止：inputs/{self.workspace} 不是純淨空目錄：{names}\n"
+            f"  為什麼擋：放行時 LightRAG 會掃描整個 {inputs}，"
+            f"多出來的檔會被一起索引且**繞過後處理**。\n"
+            f"  這通常是手動跑管線留下的殘留（intake 自己走的流程會清）。處置：\n"
+            f"    mkdir -p '{archive}'\n"
+            f"    mv '{inputs}'/*.pdf '{archive}'/\n"
+            f"  **搬到 library 不要直接刪** —— 那可能是某份文件在這台的唯一副本。")
 
     def _copy_admitted(self, job: Job, source: Path) -> Path:
         inputs = self.paths.inputs_dir(self.workspace)
