@@ -3,6 +3,26 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-07（五）· 清理 coder
+
+- **刪掉六個前提已消失的檔**（約 1,960 行）：`compare-ws.py`（比較對象 v155 不存在了）、
+  `llm-bench.py`＋測試（選型已定案）、`mathpix-test.py`＋`pp/mathpix.py`（第三隻眼實測
+  選的是 MiMo）、`askrag.py`。不搬 `archive/` 目錄——歷史在 git 與 tag 裡。
+- **`archive-ledger.py` 原本也在清單上，查證後撤回**：重建後庫裡只有 1 份文件、
+  成績單有 20 張，19 張立刻脫節，而 `ledger.py` 那時會拒絕輸出總表並叫人跑這支。
+  **清單靠自述判斷不夠，要查誰在引用它。**
+- **skill 定位裁決**：三個 lightrag skill 住 `AI_TOOLS/skills/common/`，repo 副本刪除。
+  判準不是「是不是本專案專屬」，是**誰用它**——Obsidian 的 agent 不在這個 repo 底下。
+- **修掉一個每個 session 都在說的謊**：`lightrag-search` 的 `description` 寫
+  「20 parsed papers」，那個庫已移除。`description` 是強制載入的，所以每次開場都灌一次
+  假前提。三個 skill 都加上「重建中、連不上就如實說」（`AI_TOOLS` 的 `2c75ace`）。
+- **`verdicts/README.md` 更正**：不再說 173 個全部不可再生，見
+  [irreproducible-claims.md](irreproducible-claims.md)。
+- **設計文件更正**：`extract-check.py` 早就在做「實體名能不能在原文找到」的檢查，
+  原本寫成待做。
+- **新長出三條上游畢業候選**，寫進 `docs/NEXT.md`，不在這一輪做。
+- commits：`7a0414b` `b0c8d7d` `c7186f5`。
+
 ## 2026-08-07（四）· 重建需求釘死、文件治理收口
 
 - **需求拷問完成，裁決在 `docs/rebuild-design.md`**（八個決定）。定位是「原料供應站」：

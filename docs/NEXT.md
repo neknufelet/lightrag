@@ -20,50 +20,45 @@ summary: "當前待辦的唯一 SSOT。需求已於 2026-08-07 釘死，裁決�
 
 | 線 | 狀態 | 卡在哪 |
 |---|---|---|
-| 需求與設計 | ✅ | 裁決在 [docs/rebuild-design.md](rebuild-design.md) |
-| 規則執行者 | 🔵 | LOG 檢查已上；done 比例檢查未做 |
-| 沉澱知識 | ⬜ | `cairn/<topic>.md` 至今 0 個 |
-| 清理 coder | ⬜ | 等 PO 看過清單才動手 |
-| 一篇打通 | ⬜ | 前面三線做完才開始 |
+| 一篇打通 | 🔵 | 下一步。第一件事是驗映像支不支援 `PGTableGraphStorage` |
+| 上游畢業 | ⬜ | 三條候選，影響所有專案，另開一輪 |
+| 擴到 20 篇 | ⬜ | 等一篇打通 |
+| 警報管道 | ⬜ | 等一篇打通；先決定走哪裡再 enable 排程 |
+
+需求與設計、規則執行者、沉澱知識、清理 coder 四條已於 2026-08-07 收線，
+經過見 [cairn/LOG.md](../cairn/LOG.md)。
 
 ## 進度圖
 
 ```mermaid
 flowchart LR
-  D["✅ 需求與設計"] --> G["🔵 規則執行者"]
-  G --> K["⬜ 沉澱知識"]
-  K --> C["⬜ 清理 coder"]
-  C --> P["⬜ 一篇打通<br/>C Equivalent Networks"]
-  P --> S["⬜ 擴到 20 篇"]
+  P["🔵 一篇打通<br/>C Equivalent Networks"] --> S["⬜ 擴到 20 篇"]
   P --> A["⬜ 警報管道"]
+  U["⬜ 上游畢業<br/>standards"]
 ```
 
-## 🔵 規則執行者
+## 🔵 一篇打通（設計見 [docs/rebuild-design.md](rebuild-design.md)）
 
-- 🔵 加 `tests/test_next_done_ratio.py`，掛上 pre-commit
-
-## ⬜ 沉澱知識
-
-- ⬜ `cairn/LOG.md` 補這一輪；建第一個 `cairn/<topic>.md`
-
-## ⬜ 清理 coder
-
-- ⬜ 320 個追蹤檔依「重建後還存不存在」過一遍，**先給 PO 清單再動手**
-- ⬜ 三個 lightrag skill 從 `AI_TOOLS/skills/common/` 歸位到 repo（現在兩份副本，
-  載入的是共用區那份，違反「專案 skill 不放共用區」）
-- ⬜ 修掉 skill `description` 宣稱的「20 parsed papers」——那個庫已不存在，
-  而 `description` 是強制進上下文的，**每個 session 都被灌一次假前提**
-
-## ⬜ 一篇打通（設計見 [docs/rebuild-design.md](rebuild-design.md)）
-
-- ⬜ 驗證選定映像支援 `PGTableGraphStorage`；不支援就退回 Neo4j 並記進 KNOWN_ISSUES
+- 🔵 驗證選定映像支援 `PGTableGraphStorage`；不支援就退回 Neo4j 並記進 KNOWN_ISSUES。
+  **這條沒過之前不要動 `compose.yaml` 的 neo4j 段**——拿掉就沒有圖儲存
 - ⬜ 解析 `C Equivalent Networks.pdf`（`is_ocr=true`、`pipeline`），量基準數字
 - ⬜ 10 張人工裁定的表按頁碼對位；對不上的明確報出來，不猜
-- ⬜ 入庫，驗**關係數不是 0**、實體名可在原文找到的比例
-- ⬜ 三個 skill 的端點逐一打過
+- ⬜ 入庫，驗**關係數不是 0**；接上 `scripts/extract-check.py` 量實體名的接地率
+- ⬜ 三個 skill 的端點逐一打過（skill 住 `AI_TOOLS`，不在本 repo）
+
+## ⬜ 上游畢業（standards，影響所有專案）
+
+- ⬜ `test_next_done_ratio.py` 進 `PROJECT_TEMPLATE/`——BASELINE 要求每條規則有執行者，
+  卻**沒出貨任何執行者給專案**，範本只有文件範本沒有檢查範本
+- ⬜ 「不可再生／唯一副本」這類**描述性標籤**也要有執行者。BASELINE 的「規則的執行者」
+  那節只管規則，而標籤寫錯會安靜地扭曲後面每個決策
+- ⬜ **黑名單不是驗證器**。上游 `self-check.py` 的 `dead_refs` 只認三個寫死的樣式，
+  所以 README 說 `scripts/` 有 `scan_projects`／`compact_logs`／`test_smoke`（都不存在）
+  它還是回報「乾淨」
 
 ## ⬜ 之後
 
+- ⬜ 擴到 20 篇；入庫自動化（`intake.py` 那套狀態機對新架構還成不成立未驗）
 - ⬜ 警報管道**先決定走哪裡，再**把排程重新 enable。一個沒人看的紅燈等於沒有檢查
 - ⬜ 重跑 `systemd-units.py install`——`/etc` 裡還是舊版（含已刪除的 OnFailure 備援）
 - ⬜ 接上 `scripts/pp/oracle.py` 的 `mineru_options()`（現在全 repo 零呼叫端），
