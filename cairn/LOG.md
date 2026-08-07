@@ -3,6 +3,33 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-07（九）· 補洞：deploy 守衛、自動復原、一個說謊的訊號
+
+- **`deploy-stack.py`**：repo 的 compose 與 Dockge stack 那份不得漂移。verify/diff/install，
+  比對與安裝共用同一個讀取實作（理由同 `systemd-units.py`）。dker 實測一致，
+  `sha256:d434673f3e6df381`。⚠ 執行者仍弱——只有人跑它時才執行。
+- **自動復原：殺程序過、重開機不過。** 從宿主殺容器主程序 → `RestartCount` 0→1、
+  47 秒後 healthy、資料完好。我據此寫下「不用真的重開機也能驗完」——**那句是錯的**，
+  PO 授權後真的重開，露出一個殺程序測不到的缺陷（見下一條）。
+  過程中兩次假警報的方法論寫進 [testing-restart-policy.md](testing-restart-policy.md)。
+- **重開機我們的服務不會回來（真缺陷）**：`failed to bind host port 100.87.88.7:9621:
+  cannot assign requested address`。開機時 docker 比 tailscale 早起，而我們刻意綁
+  Tailscale 位址（`:9700` 完全沒有認證，綁 `0.0.0.0` 等於知識庫在區網裸奔）。
+  綁定失敗是**啟動失敗不是程序死亡**，restart policy 救不了。同機別人的 10 個容器全綁
+  `0.0.0.0`，所以只有我們踩到。修法：`lightrag-stack.service`，`ExecStartPre` 等位址
+  真的出現（`After=tailscaled` 不夠，那只保證 unit 起了不保證位址已指派）。
+- **`docker compose up -d` 救不回失敗的容器，要 `--force-recreate`。** 這條最陰險：
+  `docker compose ps` 顯示 `running`、`docker port` 卻是**空的**，外面完全連不上。
+  我因此誤判過一次「服務已救回」。**`ps` 說 running 不等於服務可用。**
+- **抓到一個一直在說謊的訊號**：dker 的 daily-check 輸出「測試失敗：pytest rc=1」，
+  但那不是測試失敗，是**那台根本沒裝 pytest**。兩件完全不同的事長成同一句話，
+  紅燈落在 `/data/lightrag/checks/` 沒人看得懂——而排程停用、沒有警報，也沒人去看。
+  `run-tests.sh` 改成先問裝了沒，沒裝就說「驗不了」並回 exit 3（回 0 會讓「只驗一半」
+  看起來像「全部通過」）。
+- ⚠ **dker 不能跑 pytest 這件事還沒解**，只是不再說謊。要裝要 PO 決定。
+- commit 訊息寫錯一次測試數（109 vs 實際 108+1 skip），**push 前發現，用 amend 改掉**
+  ——推出去之後就只能追加了。
+
 ## 2026-08-07（八）· 一篇打通全程完成，關係數 1,995
 
 - **抽取 40 分鐘跑完，節點 1,239 / 邊 1,995。** 設計 D3 的斷言「關係數不是 0」以最大

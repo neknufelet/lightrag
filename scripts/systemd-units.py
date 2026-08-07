@@ -45,7 +45,10 @@ SYSTEM_DIR = Path("/etc/systemd/system")
 # 開機時要 enable 的。2026-08-07：兩個 -crashed 備援單元隨 ntfy 一起移除，
 # 所以現在沒有 OnFailure 觸發的單元 —— 腳本掛掉只留在 journal，沒有人會被打斷。
 ENABLE = ("lightrag-daily-check.timer", "lightrag-cold-backup.timer",
-          "lightrag-intake.service")
+          "lightrag-intake.service",
+          # 2026-08-07 加：沒有它，重開機之後 lightrag 與 kbapi 不會回來
+          # （docker 比 tailscale 早起，綁 Tailscale 位址失敗）。實測過。
+          "lightrag-stack.service")
 
 LOGGER = logging.getLogger("systemd-units")
 
@@ -69,8 +72,15 @@ def env_value(repo: Path, key: str, default: str) -> str:
 
 def render_all(repo: Path, user: str,
                workspace: str = "acoustics_v2",
-               data_root: str = "/data/lightrag") -> dict[str, str]:
-    """把 deploy/systemd/ 的每個檔套上這台機器的值。"""
+               data_root: str = "/data/lightrag",
+               stack_dir: str = "/opt/stacks/lightrag",
+               bind_addr: str = "100.87.88.7") -> dict[str, str]:
+    """把 deploy/systemd/ 的每個檔套上這台機器的值。
+
+    `@STACK_DIR@` 與 `@BIND_ADDR@` 是 2026-08-07 為 lightrag-stack.service 加的：
+    前者是 Dockge 的 stack 目錄（compose 在那裡），後者是要等它出現的那個位址。
+    兩個都是換機器會變的東西，寫死等於這份 repo 只能在一台機器上用。
+    """
     out: dict[str, str] = {}
     for path in sorted(UNIT_DIR.iterdir()):
         if path.suffix not in (".service", ".timer"):
@@ -79,14 +89,17 @@ def render_all(repo: Path, user: str,
         out[path.name] = (body.replace("@REPO@", str(repo))
                               .replace("@USER@", user)
                               .replace("@WORKSPACE@", workspace)
-                              .replace("@DATA_ROOT@", data_root))
+                              .replace("@DATA_ROOT@", data_root)
+                              .replace("@STACK_DIR@", stack_dir)
+                              .replace("@BIND_ADDR@", bind_addr))
     return out
 
 
 def cmd_render(args: argparse.Namespace) -> int:
     target = Path(args.target)
     target.mkdir(parents=True, exist_ok=True)
-    rendered = render_all(args.repo, args.user, args.workspace, args.data_root)
+    rendered = render_all(args.repo, args.user, args.workspace, args.data_root,
+                          args.stack_dir, args.bind_addr)
     for name, body in rendered.items():
         (target / name).write_text(body, encoding="utf-8")
         print(f"  {target / name}")
@@ -100,7 +113,8 @@ def cmd_verify(args: argparse.Namespace) -> int:
     **缺檔與內容不符都算失敗**，而且分開報：缺檔是「這台機器根本沒裝」，
     內容不符是「有人手改了 /etc 沒回寫 repo」。兩者的處置不同。
     """
-    rendered = render_all(args.repo, args.user, args.workspace, args.data_root)
+    rendered = render_all(args.repo, args.user, args.workspace, args.data_root,
+                          args.stack_dir, args.bind_addr)
     if not rendered:
         print("✗ deploy/systemd/ 沒有任何單元檔 —— 母體是空的，這不是通過")
         return 2
@@ -153,7 +167,8 @@ def cmd_install(args: argparse.Namespace) -> int:
     if os.geteuid() != 0:
         print("✗ install 要寫 /etc/systemd/system，請用 sudo")
         return 2
-    rendered = render_all(args.repo, args.user, args.workspace, args.data_root)
+    rendered = render_all(args.repo, args.user, args.workspace, args.data_root,
+                          args.stack_dir, args.bind_addr)
     for name, body in sorted(rendered.items()):
         target = SYSTEM_DIR / name
         old = target.read_text(encoding="utf-8") if target.is_file() else None
@@ -181,6 +196,10 @@ def main() -> int:
                              "sudo 下讀 SUDO_USER）")
     parser.add_argument("--workspace", default=None, help="填進 @WORKSPACE@（預設讀 .env）")
     parser.add_argument("--data-root", default=None, help="填進 @DATA_ROOT@（預設讀 .env）")
+    parser.add_argument("--stack-dir", default=None,
+                        help="填進 @STACK_DIR@，Dockge 的 stack 目錄（預設讀 .env）")
+    parser.add_argument("--bind-addr", default=None,
+                        help="填進 @BIND_ADDR@，開機時要等它出現的位址（預設讀 .env）")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("verify", help="比對 /etc 與 repo").add_argument(
         "--diff", action="store_true", help="印出逐行差異")
@@ -195,6 +214,10 @@ def main() -> int:
         args.workspace = env_value(args.repo, "WORKSPACE", "acoustics_v2")
     if args.data_root is None:
         args.data_root = env_value(args.repo, "DATA_ROOT", "/data/lightrag")
+    if args.stack_dir is None:
+        args.stack_dir = env_value(args.repo, "STACK_DIR", "/opt/stacks/lightrag")
+    if args.bind_addr is None:
+        args.bind_addr = env_value(args.repo, "BIND_ADDR", "100.87.88.7")
 
     return {"verify": cmd_verify, "render": cmd_render, "install": cmd_install}[args.cmd](args)
 

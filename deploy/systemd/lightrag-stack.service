@@ -1,0 +1,32 @@
+[Unit]
+Description=lightrag stack（開機時等 Tailscale 位址就緒再拉起）
+# **這個單元存在的唯一理由：2026-08-07 實測重開機後我們的服務不會回來。**
+#
+#   failed to bind host port 100.87.88.7:9621/tcp: cannot assign requested address
+#
+# 開機時 Docker 比 Tailscale 早起，而我們的兩個容器綁的是 Tailscale 位址
+# （刻意的：:9700 完全沒有認證，綁 0.0.0.0 等於知識庫在區網上裸奔）。
+# 綁定失敗 ⇒ 容器退出 ⇒ restart policy 也救不回來（那是啟動失敗不是程序死亡）。
+# 同一台上別人的 10 個容器都綁 0.0.0.0，所以只有我們踩到。
+#
+# ⚠ After=tailscaled.service **不夠**：那只保證那個 unit 起了，不保證位址已經
+# 指派。真正等的東西在 ExecStartPre。
+After=docker.service tailscaled.service network-online.target
+Wants=network-online.target tailscaled.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=@USER@
+WorkingDirectory=@STACK_DIR@
+
+# 等綁定位址真的出現在某張介面上，最多 120 秒。
+# 等不到就失敗並說原因 —— 悄悄跳過會讓「服務沒起來」看起來像「開機正常」。
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do ip -4 addr show | grep -qw "@BIND_ADDR@" && exit 0; sleep 2; done; echo "等了 120 秒仍沒有 @BIND_ADDR@ —— Tailscale 沒起來？" >&2; exit 1'
+
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose stop
+
+[Install]
+WantedBy=multi-user.target

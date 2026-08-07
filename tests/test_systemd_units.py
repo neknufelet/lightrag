@@ -30,14 +30,17 @@ def _module() -> ModuleType:
 
 def _args(module: ModuleType) -> argparse.Namespace:
     return argparse.Namespace(repo=Path("/srv/lightrag"), user="svc",
-                              workspace="ws_x", data_root="/srv/data", diff=False)
+                              workspace="ws_x", data_root="/srv/data",
+                              stack_dir="/srv/stack", bind_addr="10.0.0.9",
+                              diff=False)
 
 
 def _installed(module: ModuleType, target: Path) -> Path:
     """把 repo 的單元渲染進 target，模擬一台裝好的機器。"""
     target.mkdir(parents=True, exist_ok=True)
     for name, body in module.render_all(Path("/srv/lightrag"), "svc",
-                                        "ws_x", "/srv/data").items():
+                                        "ws_x", "/srv/data",
+                                        "/srv/stack", "10.0.0.9").items():
         (target / name).write_text(body, encoding="utf-8")
     return target
 
@@ -108,20 +111,26 @@ def test_empty_source_is_not_a_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert "母體是空的" in capsys.readouterr().out
 
 
-def test_units_are_exactly_the_five_that_remain() -> None:
-    """五個單元一個都不能少、一個都不能多。
+def test_units_are_exactly_the_six_that_remain() -> None:
+    """六個單元一個都不能少、一個都不能多。
 
     2026-08-07 拆掉 ntfy，兩個 `-crashed` 備援單元一起移除（它們的內容就是
     `curl` 到 ntfy）。**所以現在沒有任何 OnFailure 觸發的單元**——腳本本身掛掉
     只留在 journal，沒有人會被打斷。這條斷言同時擋住「有人把備援加回來卻沒有
     通知管道」。
+
+    **2026-08-07 由五個變六個**：加了 `lightrag-stack.service`。理由不是想加功能，
+    是實測重開機之後 lightrag 與 kbapi **不會回來**——docker 比 tailscale 早起，
+    綁 `100.87.88.7` 失敗（`cannot assign requested address`），而那是啟動失敗不是
+    程序死亡，restart policy 救不了。同一台上別人的 10 個容器綁 `0.0.0.0`，
+    所以只有我們踩到。
     """
     module = _module()
-    names = set(module.render_all(Path("/x"), "u", "w", "/d").keys())
+    names = set(module.render_all(Path("/x"), "u", "w", "/d", "/s", "1.2.3.4").keys())
     assert names == {
         "lightrag-daily-check.service", "lightrag-daily-check.timer",
         "lightrag-cold-backup.service", "lightrag-cold-backup.timer",
-        "lightrag-intake.service",
+        "lightrag-intake.service", "lightrag-stack.service",
     }, names
     assert set(module.ENABLE) == names - {"lightrag-daily-check.service",
                                           "lightrag-cold-backup.service"}
