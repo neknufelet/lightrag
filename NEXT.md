@@ -97,6 +97,36 @@ workspace**（PO 2026-08-05 定案；理由是 `QueryParam` 沒有文件範圍�
 過程紀錄在 `$RECORDS/REBUILD-20260804.md`（在 /data，已在備份範圍）。
 ```
 
+## ⚡ 2026-08-07：第一批四件落地（先讀這節）
+
+**全部有 dker 實跑輸出。** commit `7593e51`／`1dccf79`／`dd1ba8d`＋`ledger` 那個。
+
+| 做了什麼 | dker 驗證輸出 |
+|---|---|
+| `/data/rag` 斷根：冷備份暫存區 → `/data/lightrag-coldstage`、`INTAKE_SOURCES` 留空 | `STAGE 在 DB_ROOT 底下嗎 = False`（必須是 False，否則 `cp -a` 會複製進自己） |
+| README 備份表換成實測現況（原本三列全錯，方向相反） | plan `lightrag-snapshot` paths=`/userdata/data/lightrag` 每 6 小時；冷備份最新 `6bfca80c` 08-07 03:01 |
+| `apply` 在 `FORCE_REPARSE` 開著時拒絕執行 | 真容器旗標 `''` → `force_reparse_is_on()=False` → 放行（正確）；`A-07 hard ok` |
+| `ledger.py summary` 母體脫節時自我停用 | `rc=3`「已停用：現役 18 份，其中 15 張體檢表的文件已不存在」 |
+| 不可再生的人工裁定進版控 `verdicts/`（227 檔 1.3 MB） | 守衛 `tests/test_verdicts.py` 4 案例綠 |
+
+**砍掉一件**：原清單的「容器掛載點 inode 探針」——PO 判定不合理（那是在補
+`rm -rf` bind mount 來源目錄造成的下游問題，正解是「永遠不刪那個目錄，要清就清裡面」
+一句規矩，不需要每天跑的程式；且要乾淨重建的話它更沒價值）。實測四個掛載點目前全部對齊。
+
+### ⬜ 等 PO 決定才能動的三件
+
+1. **backrest 關排程的順序。** PO 要關 `rag-snapshot`（在備一個已不存在的路徑）與
+   `lightrag-snapshot`。⚠ 後者**是現在唯一在保護 `work/parsed` 與 `records` 的東西**：
+   冷備份的跳過判準是 Postgres 抽取指紋，「只解析、還沒放行」的新解析快取不會觸發它。
+   建議順序：先把冷備份判準改成「DB 有變**或**解析快取有變」→ 驗它真的會因為解析成果
+   而跑 → 再關那兩個排程。**只能關排程，不能停 backrest 容器**（冷備份借用容器裡的
+   restic 與金鑰上傳）。另三個 plan 是 Obsidian／Zotero／Calibre，不得一起關。
+2. **`archive-ledger.py --move`**（歸檔那 15 張幽靈體檢表）。碰資料，等授權。
+   版控副本已在 `verdicts/records/ledger/`，所以歸檔不會失去任何東西。
+3. **「其他全部刪除」**（`work/parsed` 307 MB、裁圖與轉錄快取 41 MB 等，共約 350 MB）。
+   不可逆。人工裁定已進 git，所以刪除本身安全，但**刪掉解析快取等於接受下次要重跑
+   6–10 小時的 MinerU**。要不要刪取決於是否真的走乾淨重建。
+
 ## ⚡ 2026-08-05：整本書跑完，文件已對齊（先讀這節）
 
 **A–R 十八章全部進知識庫，收件匣清空。** 這一輪之後 CLAUDE.md 的「現況」是準的。
@@ -415,9 +445,10 @@ note 欄（`$RECORDS/ledger/`），不是口頭放行。要翻案先讀那三則
       ⚠ 引用 `extract-check` 數字的地方要標明**量測來源容器**——見 `REBUILD-1`，
       那些數字很可能量的是 DeepTutor 的庫。
 
-- [ ] **`REBUILD-11`：舊目錄 `/data/rag/lightrag`（217 MB）尚未刪。**
-      `records` 與 `crops` 已 sha256 逐位元驗證複製完成，但保險起見留著。
-      確認新環境穩定後再刪。
+- [x] **`REBUILD-11`：舊目錄 `/data/rag/lightrag` 已由 PO 清除** ✅ 2026-08-07。
+      整個 `/data/rag` 都清了（含 DeepTutor 的 `knowledge_bases`）。
+      ⚠ backrest 的 `rag-snapshot` plan 仍每 4 小時對那個已不存在的路徑產出快照
+      ——**回報成功但內容是空的**。那不是本專案的庫，處置見上方待決定第 1 項。
 
 ---
 
@@ -496,12 +527,10 @@ note 欄（`$RECORDS/ledger/`），不是口頭放行。要翻案先讀那三則
       按這個量**消音確實生效**。
       **兩條出路，擇一**：① 給它一個新問題（現在這個已經被消音解掉了）；
       ② 讓它改報相異字串數而不是命中率。不動它就等於留一個永遠亮紅的假訊號。
-- [ ] **裁決材料進版控**。今天的定案（∂ 族白名單、C 補格、為什麼某些東西
-      刻意不碰）寫在 `$RECORDS/review/` 底下，
-      **2026-08-03 起真的有備份了**（在那之前這句是空話），但仍**不在 git**——
-      三個月後問「為什麼 `\mathfrak{O}` 在白名單上」，答案存在但不在版控裡、
-      不會出現在任何 diff。
-      建議把各檔的**「定案」節**抽出來進 git，龐大的原始材料與裁圖留在 `/data`
+- [x] **裁決材料進版控** ✅ 完成 2026-08-07。整份進了 `verdicts/`（227 檔 1.3 MB），
+      不只抽「定案」節——文字檔全部加起來才 1.3 MB，抽節的成本高於收益，
+      而且抽錯就沒有原文可回溯。裁圖（`records/review/crops` 1.5 MB）留在 `/data`。
+      同步指令與權威歸屬寫在 `verdicts/README.md`，守衛是 `tests/test_verdicts.py`。
 - [ ] `cmd_apply` 的批次原子性已實作並用注入失敗測過，但**新的機械規則對
       canary 是隱形的**（它的計數不在被追蹤的八個量裡）——內容變動型的規則
       需要自己的漂移偵測
