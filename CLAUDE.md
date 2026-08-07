@@ -1,36 +1,52 @@
-# lightrag — 聲學知識庫（LightRAG 1.5.5 部署 ＋ MinerU 解析後處理）
+# lightrag — 聲學知識庫
 
-> **上位規範**：`~/ghq/github.com/neknufelet/standards/BASELINE.md`（SSOT，唯一可改源；
-> 本次同步自 `baseline_version 1.9.0`，`date_modified 2026-08-03`）。
-> **注意：那個 repo 只在 florian-coder 上**，florian-dker 沒有。所以下方
-> `BASELINE SNAPSHOT` 是核心規則的**唯讀凍結副本**（含版本戳記）——inline 於此是
-> 因為被引用的檔不會自動載入 session context，而這個專案有一半的工作在沒有
-> standards repo 的那台機器上進行。**勿手改 snapshot 區塊**；要改規則改 BASELINE
-> 並 bump `baseline_version`，再同步本區塊。
+**2026-08-07：系統清空了，需求還沒釘死。** 這個檔被砍到只剩「機器關係」與上位規範的
+9 條——因為它每開一次 session 就載入一次，舊版 648 行的成本每次都要付，而裡面有一半
+描述的是已經不存在的系統（今天實測：連續三處自相矛盾的陳述被 PO 抓到）。
+
+**其餘規則不從這裡讀，等需求釘死之後再決定要不要回來。** 舊版全文在
+tag `archive/pre-rebuild-20260807`。
 
 ---
 
-## 座標與身分（每次開工先確認自己在哪）
+## 機器關係
 
-這個專案有一半的 bug 來自身分搞混——「兩個 workspace 被併成一列」、
-「在 v2 的 checkout 驗到 v155 的容器」、「URL 說 v155 但答案來自 v2」，
-全是同一族。所以第一段就把座標釘死。
+### florian-coder（本機，Tailscale `100.71.26.77`）——工作台
 
-| 維度 | 值 |
+| | |
 |---|---|
-| GitHub repo | `neknufelet/lightrag`（單一） |
-| branch | `master`（單一；`rebuild/acoustics-v2` 已於 2026-08-03 合併並完成任務） |
-| **工作台** | **florian-coder**：`~/ghq/github.com/neknufelet/lightrag`。所有編輯在這裡。worker CLI（codex／opencode）只有這台有 |
-| **部署** | **florian-dker**（Tailscale `100.87.88.7`）：同路徑。**唯讀＋只 `git pull`，禁止直接編輯** |
-| 資料／容器 | 只在 florian-dker：**`/data/lightrag` 是唯一的資料根**（解析快取 `work/parsed`、裁決紀錄 `records`、索引 `postgres`／`neo4j`）、`lightrag-acoustics_v2` :9621、`kbapi-acoustics_v2` :9700。**`/data/rag` 已於 2026-08-07 廢除**，不得再寫入 |
-| 儲存後端 | **⚠ 容器已於 2026-08-07 移除，這一列描述的是重建目標不是現況。** 重建後：只有 `lightrag-postgres`（database `lightrag`），資料在 `/data/lightrag/postgres`。**Neo4j 要拿掉**——v1.5.6 的 PostgreSQL 可以同時當四種後端（KV／DocStatus／Vector／Graph），我們原本只有 Graph 掛在 Neo4j。見 [ADR-0004](docs/decisions/0004-rebuild-instead-of-patching.md) |
-| LLM binding | **就是 florian-coder 這台**（Tailscale `100.71.26.77`）的 :8080，容器 `llama-qwen36-moe`（`ghcr.io/ggml-org/llama.cpp:server-cuda`，build 10200／`5f55650a7`，模型 `Qwen3.6-35B-A3B-UD-IQ4_XS`，2× RTX 3060）。**跑的是 `--parallel 4`，啟動 log `n_slots = 4`**（2026-08-03 實測）。舊文件寫「第三台」「單 slot」，**兩個都錯**——它不是第三台機器，slot 也不是 1 |
-| workspace | **`acoustics_v2`（唯一）**。`acoustics_v155` 已完全退役，文件裡提到它的地方一律是歷史 |
+| repo | `~/ghq/github.com/neknufelet/lightrag` ← **所有編輯與 commit 在這裡** |
+| 上位規範 | `~/ghq/github.com/neknufelet/standards`（**只有這台有**） |
+| 抽取用 LLM | 容器 `llama-qwen36-moe` :8080，2× RTX 3060，`--parallel 4`。它自己的 `.env` 在 `deploy/llama-qwen36-moe/.env`（一個鍵 `LLAMA_API_KEY`） |
+| worker CLI | `codex`、`opencode`（**只有這台有**） |
+| git hook | pre-commit 擋 commit 格式（`<type>(<scope>): <subject>`） |
+| **沒有** | LightRAG 的 `.env`、跑 LightRAG 的 docker |
 
-**為什麼 dker 的 checkout 必須唯讀**：雙 checkout 分岔**不會報錯**，只會靜靜分家，
-直到某天數字對不上。這與本專案已記載的「兩個 workspace 漏 SQL 條件」同族——
-雙來源、無訊號。要在 dker 現場迭代（例如改規則後反覆跑 canary）是可以的，
-但收斂後必須回 coder 走正式流程，不要在 dker 上累積未推的改動。
+### florian-dker（ssh，Tailscale `100.87.88.7`）——部署
+
+| | |
+|---|---|
+| repo | 同路徑，**唯讀，只 `git pull`** |
+| LightRAG 的 `.env` | **只在這台**（54 個鍵，8 個是秘密。清單在 `.env.example` 開頭） |
+| 資料根 | `/data/lightrag` — **現在只剩 `records` 183 檔、`checks` 32 檔** |
+| 本專案容器 | **全部移除**（2026-08-07） |
+| 別人的容器 | dockge、ntfy、backrest、roonserver、zotero-pdf2zh、samba、nginx、hbbs/hbbr、vibevoice — **不要碰** |
+| 壞的東西 | `nvidia-smi` 是 driver/library mismatch，要在這台用 GPU 會踩到 |
+
+**`/data/rag` 已廢除**（見 ADR-0003），不得再寫入任何東西。
+
+### 外部服務
+
+| 誰 | 做什麼 | 注意 |
+|---|---|---|
+| OpenAI | embedding（`text-embedding-3-large` @3072）＋第二雙眼睛（`gpt-5.6-luna`） | 每次重建約 US$6 |
+| MinerU 官方 API | PDF 解析 | **token 2026-09-04 到期** |
+| OpenRouter | 第三隻眼，只在三方皆異時呼叫 | 必須釘住 provider，否則同一模型 ID 會被路由到不同供應商 |
+| 自架 ntfy | dker :9800，警報 | |
+| backrest | dker，備份 → rclone 到 Google Drive | rag 相關的兩個排程 PO 已說要關，**還沒關** |
+
+**為什麼要兩台**：coder 上沒有 LightRAG 的 `.env` 也沒有它的 docker，所以「我在 coder
+上驗過了」在物理上做不到。凡是關於跑著的系統的陳述，一律附 dker 的實跑輸出。
 
 ---
 
@@ -66,380 +82,34 @@ coder 上跑不起來。
 維持現狀。`lib` 性質的模組（`scripts/pp/`）不得用 `print` 做診斷輸出。
 
 ---
-
-## 溝通方式（人話＋技術話雙軌，BASELINE ≥ 1.6.0 同步）
-
-- **雙軌（先人話、後技術話）**：有結論或設計判斷的回報一律兩段——①**人話**（白話短句、結論先行、非技術背景也讀得懂的因果）；②**技術話**（精確機制、`file:line`、函式／參數名、數值與單位、驗證指令／輸出）。
-- **缺一不可**：白話不得省略關鍵技術細節（否則無法驗證／接手）；技術不得取代白話結論（否則抓不到重點）。純確認／瑣碎回覆豁免。
-- 與第 9 條互補（技術話須附驗證），與既有風格相容（短句、結論先行、表格節制、decision 用 yes/no 收斂）。
-
----
-
-## 提交紀律（Commit-on-done，BASELINE ≥ 1.8.0 同步）
-
-- **做完即提交**：完成且驗證（實跑綠）的閘門／工單／明確範圍當場提隔離 commit；禁「done 但 uncommitted」長存。
-- **開新線前驗乾淨基線**：`git status` 對範圍乾淨才開工。
-- **只顯式 staging**：禁 `git add .`／`-A`；共用檔 hunk-stage；永不提交 `.env`／金鑰。
-- **留髒須記**：真須留髒過 session，於 `NEXT.md` 明記「線 X：done、未提交、檔清單」。
-
-**本專案加一條——跨機鎖步**：commit 只發生在 coder。dker 只 `git pull`。
-一個線的生命週期是「coder 改 → commit → push → dker pull → **dker 實跑驗證** →
-把輸出貼回 commit 或 NEXT.md」。**驗證輸出沒拿到，那條線就還沒 done。**
-
-**推出去之後不得 `--amend`。** 想把 dker 的實跑輸出補進 commit 訊息時很容易
-這樣做——但 dker 可能已經 pull 走原本那個 commit，amend + force push 之後
-**它手上抱著一個遠端已經不存在的 hash，下次 `pull --ff-only` 直接失敗**。
-實測踩過（2026-08-05，`8cf0c0a` → `23312c5`）。這次 git 有報錯是運氣，
-一般的雙 checkout 分岔是靜靜分家的。
-
-正確做法二選一：
-
-- **先驗再提交**：拿到 dker 輸出之後才 commit（大多數情況做得到，
-  因為 push 只是為了讓 dker pull 得到，可以先 push 到分支或直接用 rsync 過去驗）
-- **另開一個 commit 補紀錄**：訊息寫「補 <hash> 的 dker 實跑輸出」
-
-真的 amend 了（例如還沒 push），推之前先確認 dker 沒 pull 過那個 hash；
-已經 pull 過就只能在 dker 上 `git reset --hard origin/master`，**而且要先驗
-兩個 commit 的檔案內容真的一致**（`git diff --stat <舊> <新>` 無輸出）——
-內容不一致的話那不是 amend，是把 dker 上的東西弄丟。
-
----
-
-# 實作（模型必帶，否則吃 ~/.codex/config.toml 的全域預設＝sol）
-timeout <N> codex exec -C <repo> -s workspace-write \
-  -m gpt-5.6-terra -c model_reasoning_effort="xhigh" \
-  -o <scratch>/last.txt "$(cat ticket.md)" </dev/null > <scratch>/run.log 2>&1
-
-# 審查（唯讀）
-timeout <N> codex exec -C <repo> -s read-only \
-  -m gpt-5.6-sol -c model_reasoning_effort="xhigh" \
-  -o <scratch>/verdict.txt "$(cat brief.md)" </dev/null > <scratch>/run.log 2>&1
-
-# 對抗找碴
-timeout <N> opencode run -m deepseek/deepseek-v4-pro "<PROMPT>" > <scratch>/out.txt 2>&1
-```
-
-⚠ **實測踩過的坑**：① `--ask-for-approval` 在 `codex exec` 不存在。
-② 本機 shell 是 zsh，`${PIPESTATUS[0]}` 會靜默吃掉 exit code——用 `${pipestatus[1]}` 或別接 pipe。
-③ 兩支的 stdout 都有 ANSI＋banner，機器解析用 `-o <FILE>`。
-④ `~/.codex/config.toml` 全域是 `gpt-5.6-sol` ＋ `danger-full-access`，
-**不帶 `-m`／`-s` 的呼叫都會是 sol ＋ 全機存取**。
-⑤ 審查席要能查證就給它 repo（`-C <repo>`）＋額外材料目錄（`--add-dir`）——
-只給摘要它只能回「判不準」，實測第一輪就是這樣。
-⑥ **prompt 超過 128 KiB 不能當參數傳，要走 stdin：`codex exec - < prompt.txt`。**
-上面那個 `"$(cat ticket.md)"` 的慣用寫法對大題本會死在
-`argument list too long`。**不是 `ARG_MAX`**（那是 2 MB），是 Linux 的
-**單一參數上限 `MAX_ARG_STRLEN` = 128 KiB**。而且錯誤訊息指向 `timeout`
-不是 codex（`run:1: argument list too long: timeout`），很容易誤判成別的問題。
-實測 2026-08-03：149,890 字元的題本直接失敗，改 stdin 後正常。
-
-**額度紀律**：Anthropic 池是唯一吃緊的。重活優先擺 OpenAI／DeepSeek 池；
-親跑驗證幾乎不花 token（綠的時候只回幾行），貴的是讀 diff 與長推理。
-
----
-
-## 工作項目命名規則
-
-格式 `<前綴><編號>`；前綴是**大寫 ≥4 字母**的線名（完整規則在 BASELINE 1.9.0）。
-單字母可以用，但**不能單獨站著**——判準是「這個 label 單獨出現時，讀者能不能認出
-它屬於哪條線」。`REBORN-2` 合法，光禿禿的 `R2` 不行。跨文件引用一律全稱。
-
-現在的線：**`REBORN`**（乾淨重建＋升級 v1.5.6，主線）、**`GUARD`**（給規則配執行者）。
-歷史的線（`REBUILD`／`CUTOVER`／`PPWORK`／`VERIFY`／`BACKUP`／`SYMBOL`／`SCANNER`／
-`SPEEDUP`／`SCALEUP`）已隨 2026-08-07 的清理退場，在 tag `archive/pre-rebuild-20260807`。
-
-狀態標記：`✅完成 / 🔵進行中 / ⬜未起 / ⏸暫停 / ⚠️卡住`。
-
-## 文件地圖
-
-| 檔案 | 內容 | 什麼時候看 |
-|---|---|---|
-| **CLAUDE.md**(本檔) | 現況、鐵則、每條規則的證據基礎 | 每次開工 |
-| [NEXT.md](NEXT.md) | **只有待辦**（上限 80 行，做完刪整行）。2026-08-07 從 799 行瘦身，內容分流到下面三處 | 每次開工 |
-| [docs/decisions/](docs/decisions/) | **ADR：某個決定為什麼那樣下**（單一庫、不做 MTP、廢除 `/data/rag`、重建而不補探針） | 想推翻某個決定前 |
-| [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | **知道但決定不修**的 14 條，各附理由 | 看到某個問題想修之前 |
-| [.claude/skills/onboard-doc-type/SKILL.md](.claude/skills/onboard-doc-type/SKILL.md) | 接入新文件類型的完整流程與常見誤判 | 要加新 PDF、或 preflight 擋下某份 |
-| [docs/judgement-flow.md](docs/judgement-flow.md) | **遇到新問題時的決策程序**：偵測 → 驗偵測器 → 分類 → 叫眼睛 → 判不準怎麼辦 | 發現一個沒見過的問題時 |
-| [docs/rebuild-checklist.md](docs/rebuild-checklist.md) | **新環境必須保持什麼樣子**：13 條，其中 8 條是 `.env` 的值且壞掉不報錯 | 重建、換版、改 `.env` 之前 |
-| [cairn/LOG.md](cairn/LOG.md) | 逆時序流水帳，最新的在最上面 | 想知道某天發生了什麼 |
-
-> **2026-08-07 刪掉了五份歷史文件**（`log_20260803.md`、`rebuild-plan.md`、
-> `postprocess-workorder.md`、`precedents-inventory-20260804.md`、`rebuild-2026-08/`
-> 整個目錄，共 9,179 行）。它們描述的是已被砍掉的系統，留在工作區只會讓下一個
-> session 把作廢的數字當現況。**全部在 tag `archive/pre-rebuild-20260807` 裡**：
-> `git show archive/pre-rebuild-20260807:docs/postprocess-workorder.md`
-| [README.md](README.md) | 部署、解析選項實測、**備份現況(哪些有、哪些沒有)** | 環境有問題時 |
-| [tests/canary-baseline.json](tests/canary-baseline.json) | 金絲雀基準數字 | 不要手改,用 `canary --update` |
-
-## 鐵則
-
-踩過坑換來的。違反前先讀工單。**這一組只會增加，不會刪**，所以標題不寫數量——
-之前寫「七條」而內文寫「六條」而實際七條，三個數字互不相同，沒有人發現。
-
-> **與上面藍桶 9 條的關係**：藍桶是**跨專案**的工程基線（唯讀，改要改
-> BASELINE）；這一組是**這個領域**的鐵則，從這個專案的實際事故長出來，
-> 只在這裡成立。兩者不衝突也不重疊——藍桶講「怎麼寫程式」，這一組講
-> 「處理 MinerU 產物時什麼會靜靜地錯」。兩套都要遵守，沒有優先序問題。
-
-1. **`preflight()` 拒絕,不猜。** 遇到未知型別就停整份文件。
-   用不適用的規則硬跑會產生「有產出但產出錯誤」—— 這個專案一路在防的就是它。
-2. **消音,不刪除。** `.parsed/` 的 `tables.json` 用 `content_list.json#/6` 這種
-   **陣列索引**當 `self_ref`。刪一個項目,其後所有引用靜靜指向別的東西。
-3. **LightRAG 的行為用 `pp/oracle.py` 問,不要推測。**
-   實測踩過:推測 `chart` 的 `img_path` 會污染索引,查 `_coerce_text` 後發現
-   它只讀 `("text","content","body","code_body")`,根本不讀 `img_path`。
-4. **先查輸入,再查偵測器,最後才查模型。**
-   實測踩過:方程式「三方皆異」看起來像模型都讀不出來,實際是裁圖的垂直
-   padding 用了表格的 6 點,把上下鄰居框進圖裡 —— 六個模型對共同部分完全
-   一致,只是各自決定轉幾條。改成 1 點後「三方皆異」歸零。
-   給模型看的東西不對,再多模型、再好的比對邏輯都沒用。
-5. **門檻用量的,不要用調的。** 覺得誤判多時先看**差在哪些具體記號**。
-   實測有五次「以為要調門檻」其實是偵測器量錯東西(清單見 SKILL.md)。
-6. **探針要在沒人問的時候會響。** 只有指定目標才跑的檢查,防的是「你已經
-   懷疑的事」—— 而你已經懷疑的事不需要探針。
-   實測踩過:A-16「沒有未知的項目型別」本來就抓得到 `chart`,但單篇檢查被
-   `if a.doc:` 關著,而你只會對正在處理的那一份指定。184 個 `chart` 分散在
-   11 份文件裡,從專案開始到發現為止**一次都沒被喊過**。
-   同理:收合輸出時必須報出「幾項通過未列出」,否則「沒印出來」跟「沒檢查」
-   在畫面上長得一樣。
-7. **「乾淨的 0」要先當成量錯，不是結論。** 量測工具回報一個漂亮的零
-   （0 個命中、0 筆差異、兩組都 0）時，**最可能的解釋是驗證的東西跟真正在跑的
-   東西不是同一個**，不是「真的沒有」。
-   實測踩過三次，全在 2026-08-03 同一天，全都「看起來像乾淨的結論」：
-   - `psql -c` **不展開** `:'var'`，SQL 在測試裡是綠的（測試斷言的是**字串字面**
-     有那段），到 dker 實跑當場語法錯。**測到字面，沒測到行為。**
-   - 命名規則探針用 `<|>` 分隔格式解析，但 LightRAG 1.5.5 走的是 **JSON 格式**
-     ⇒ 控制組與實驗組都解析出 0 個，看起來像「規則沒效」，其實是解析器對不上。
-   - `lightrag_entity_chunks` 的欄位是 `chunk_ids`（**陣列**），用單數 `chunk_id`
-     join ⇒ 三組實體數全 0，看起來像「內容全掉了」。
-   **對策（三支腳本都已照做）**：在工具裡直接寫死「**這個數字若為 0，先當成壞了，
-   印出警告，不要輸出結論**」——控制組本來就該重現既有結果，重現不了就是量錯。
-   與鐵則 4 同族但不同層：那條講「輸入不對」，這條講「**輸出是空的時候更要懷疑自己**」。
-
-8. **重解析同一份 PDF，拿到的不是同一份東西。** MinerU 對表格的辨識**不可重現**：
-   同一個 PDF、同樣的解析選項，兩次跑出來「哪些表格是空的」不一樣。
-   實測 2026-08-04（`C Equivalent Networks`，8/02 與 8/04 兩次解析）：
-   兩輪各有 **10 張**空表格，但**只有 5 張重疊**——5 張前次空的這次讀出來了，
-   5 張前次讀得出來的這次空了。
-   **危險在於人工裁定是綁陣列索引的**（`work/crops/<doc>/verified/<idx>.html`）。
-   索引穩定時裁定仍指向同一張實體表格，但**它覆蓋的那一組已經不是待判的那一組**：
-   5 張新空的沒有裁定，5 張有裁定的已經不需要。
-   **對策**：重解析後**先驗索引對齊再套裁定**，不要假設。決定性的檢查是拿舊裁圖
-   檔名交叉比對——`crops/t<索引>-<頁碼>.png` 同時編碼索引與頁碼，
-   逐張核對「該索引現在是不是 table、頁碼對不對」，全中才算對齊。
-   實測該次 57 張全部對得上，所以裁定可用；**但那是驗出來的，不是推出來的**。
-   與鐵則 2 同族不同層：那條講「刪項目會讓索引指向別人」，這條講
-   「**索引沒動，但它指的東西的狀態變了**」。
-
-## 常用指令
-
-> **這些全部只在 florian-dker 跑得起來。** 它們要 `.env`（不進版控）、要
-> `docker exec` 進容器、要連 Postgres／Neo4j——工作台 coder 上一個都跑不動,
-> 會直接噴錯。**這是好事**:它讓「我在 coder 上驗過了」這種自我欺騙在物理上
-> 發生不了。凡是這些指令的輸出,一律是驗證回程的產物。
->
-> `--workspace` 預設讀 `.env` 的 `WORKSPACE`;**`.env` 沒有就強制要求明確指定**,
-> 沒有字面預設值（猜錯的預設不會報錯,只會安靜地對別的庫做事）。
-
-```bash
-python3 scripts/parse-only.py                     # 只解析不抽取（規則建立期用這個）
-python3 scripts/postprocess.py plan               # 只讀,算出打算改什麼
-python3 scripts/postprocess.py plan --details --doc <關鍵字>
-python3 scripts/postprocess.py check --doc <關鍵字>   # 兩雙眼睛 + 逐格比對
-python3 scripts/postprocess.py canary             # 規則漂移偵測 ← 改規則後必跑
-python3 scripts/compat-check.py                   # LightRAG 契約斷言（預設連全部文件一起驗）
-python3 scripts/compat-check.py --no-docs         # 只驗契約與環境（快）
-python3 scripts/compat-check.py --doc <關鍵字>     # 只驗某一份，且逐項列出
-python3 scripts/extract-check.py                  # 抽取品質：實體與關係對照原文（三態）
-python3 scripts/eq-check.py --n 30                # 方程式：MinerU/qwen/luna 三票多數決
-python3 scripts/parse-check.py --details          # 解析品質
-```
-
-### 測試
-
-```bash
-scripts/run-tests.sh                             # pytest + test_gates.py，單一入口
-python3 -m pytest tests/ -q                       # pytest 入口（可單獨除錯）
-python3 tests/test_gates.py                       # 自製閘門框架，pytest 不會收集
-```
-
-有兩個入口是刻意的：`tests/test_gates.py` 的案例函式以 `t_` 開頭，並由自己的
-`case()`／`if __name__ == "__main__"` 執行，所以 pytest 會顯示 `collected 0 items`。
-平常用 `scripts/run-tests.sh`，它會依序跑上面兩條指令，任一邊非零就整體失敗；
-只有要單獨除錯時才直接跑其中一條。
-
-## 金絲雀:規則漂移偵測
-
-規則是**一份一份文件逼出來的**,每次改動都可能無意間動到別份。手動逐份比對
-數字會漏,而漏掉的漂移不會有錯誤訊息。
-
-```bash
-python3 scripts/postprocess.py canary            # exit 0 通過 / 2 漂移
-python3 scripts/postprocess.py canary --update   # 認可為新基準
-```
-
-基準 [tests/canary-baseline.json](tests/canary-baseline.json) **進版控**,
-所以規則改動造成的行為變化會直接出現在 `git diff` 裡。
-
-比對這幾個量:`pages` `items` `mute` `held` `ratio` `tables_total`
-`repairable` `review`。
-
-**改規則的正確順序:**
-
-1. 改 → 2. `canary`(預期會失敗) → 3. 逐條確認每個漂移都是**想要的**
-→ 4. `canary --update` → 5. commit 訊息**說明每個數字為什麼變**
-
-沒說明的數字變動 = 未被察覺的漂移。
-
-實測驗證過金絲雀真的會失敗:門檻 3→20 時它指出 `C: mute 110→101`、
-`K: mute 61→48`。(注意 3→5 不會失敗,因為書眉重複次數遠大於 5 ——
-**測試本身也要選會咬到的值**。)
-
-## 現況（2026-08-07）：已清空，等重建
-
-**dker 上的資料與容器已於 2026-08-07 全部移除。** 沒有跑著的服務、沒有索引、
-沒有解析快取。四個容器（lightrag／kbapi／postgres／neo4j）已移除，
-systemd 全部停掉並取消開機啟動。
-
-保留在 dker 的 `/data/lightrag`：
-
-```
-records  183 檔   人工裁決與體檢表（版控副本在 repo 的 verdicts/）
-checks    32 檔   歷史體檢紀錄 —— 判斷「數字有沒有漂移」的母體
-```
-
-主線是**重建到 LightRAG v1.5.6 並拿掉 Neo4j**（新版的 PostgreSQL 可以存圖）。
-理由見 [docs/decisions/0004](docs/decisions/0004-rebuild-instead-of-patching.md)，
-新環境必須保持的樣子見 [docs/rebuild-checklist.md](docs/rebuild-checklist.md)。
-**需求還沒釘死**——下一步是把它問清楚，不是直接動工。
-
-> ⚠️ **本檔以下各節出現的任何「現況數字」全部作廢**：份數、chunk 數、實體數、
-> 關係數、可疑率、服務埠、排程狀態。它們描述的是 2026-08-07 之前的系統，
-> 那個系統已經不存在。
->
-> **規則與契約仍然有效**（語料相同、規則相同、模型相同），**數字不是**。
-> 舊數字要查：`git show archive/pre-rebuild-20260807:CLAUDE.md`
-
-## 規則分兩類,不能混在一起
-
-混在一起是設計錯誤 —— 兩類的失效方式完全不同。
-
-### 耐久規則:綁文件領域,換模型仍成立
-
-**改動前先看它有多少份文件的證據。** 只有 1 份的很可能是那份文件的巧合。
-
-| 規則 | 證據 | 狀態 |
-|---|---|---|
-| 消音 header/footer,不刪除 | 7 份 | 穩 |
-| 書眉門檻依頁數 `max(2, min(3, ⌈pages×0.5⌉))` | 7 份 | 穩 |
-| 兩雙眼睛**必須不同家族**(同模型的系統性誤讀會原樣重現) | 原理 | 穩 |
-| 分歧要**逐格**定位,不用整表純量分數 | 原理 + 1 份 | 穩 |
-| `aside_text` 先跑重複/樣板規則,`is_gibberish` 只當單次殘骸的後備 | 2 份 | 穩 |
-| 書眉/頁尾數**樣板**(數字抹成 `#`),不數字面字串 | 2 份 | 穩 |
-| `chart` 只登記不處理 | 3 份（含一份 50 個 chart） | 穩 |
-| 接地檢查要**三態**:符號型 chunk 的未接地是「驗不了」不是「錯」 | 5 份 | 穩 |
-
-### 易腐觀察:綁特定模型,換代即失效
-
-記錄在 [tests/model-observations.json](tests/model-observations.json)。
-
-**這些一律不得寫成流程中的自動裁決規則。** 例如「列數不一致優先採信 luna」——
-luna 撐不過半年,換代後那條規則不是變舊,是**變成錯的而且錯得很安靜**:
-新模型的失誤型態可能完全相反,但規則還在照舊裁決。
-
-`compat-check.py` 的 **A-23** 比對記錄的模型與 `.env` 現行設定,不一致就 hard FAIL,
-逼人重新量測。驗證過它抓得到換代。
-
-模型換掉時的正確做法:
-
-1. 重跑 `postprocess.py check`(舊快取以裁圖 sha 為鍵,不會混到)
-2. 重新看圖判定,量新模型錯在哪一類
-3. 更新 `model-observations.json` 的 `eye_*`、`measured_on`、`observations`
-4. `compat-check.py` 應回綠
-
-`domain_facts` 那一節是例外 —— 那些是文件的性質(羅馬數字下標難讀、
-跨頁續表詞彙重疊、文字層表示不了數學),換模型仍然成立,可以累積。
-
-## LightRAG 升級時怎麼辦
-
-**我們沒有改過 LightRAG 一行程式碼。** 後處理改的是磁碟上的 `content_list.json`
-與 `_manifest.json`，耦合的對象是「LightRAG 如何讀寫 `__parsed__`」這組**未言明的
-契約**，不是它的原始碼。所以升級不會有 patch 衝突，**但契約可能悄悄改變**。
-
-設定全部在容器外：`.env`（實際值，gitignore + chmod 600）、`.env.example`
-（每個鍵**為什麼**是這個值——那才是真正的文件）、`compose.yaml`（映像以 digest 釘選）。
-
-**升級步驟：**
-
-```bash
-python3 scripts/compat-check.py --json > /tmp/before.json   # 1. 先記現況
-python3 scripts/postprocess.py canary                      #    應為綠
-#                                                            2. 改 compose 的 digest，重建
-python3 scripts/compat-check.py     # 3. 契約有沒有變 ← 這是關鍵
-python3 scripts/postprocess.py canary   #    規則行為有沒有漂移
-python3 scripts/parse-check.py          #    解析品質
-python3 scripts/extract-check.py        #    抽取品質
-```
-
-`compat-check.py` 就是為升級寫的——它把「後處理依賴的假設」變成可執行的斷言。
-**文件會過期，斷言不會。任何一項 hard 失敗就不要動工**，先查契約哪裡變了。
-
-已知的契約點（都有對應斷言，`--json` 的 `id` 欄可對照歷史紀錄）：
-
-- `critical_file` 是 `content_list.json` 且驗 size+sha256
-- `_coerce_text` 讀的欄位順序（決定「消音」要清哪一個）
-- sidecar 的 `self_ref` 用**陣列索引**（所以不能刪項目，見鐵則 2）
-- `page_number` 被跳過而 `header`／`footer` 走 fallback 進索引
-- `_build_ir_drawing` 的型別集合是 `{image, picture, drawing}`，且它讀
-  `image_caption`／`image_footnote` ⇒ **`chart→image` 整條規則站在這兩件事上**。
-  哪天 LightRAG 把 `chart` 加進集合，那條規則就該退休
-- `chunk_top_k` 仍然控制回傳的片段數。**空庫上它結構性驗不了**（chunk 恆 0，
-  `b > a` 不可能成立）⇒ 已三態化為「驗不了」而非紅燈。
-  **不要改用 `max_total_tokens` 收**：它先扣圖譜再給原文，設 8000 時
-  `available_chunk_tokens` 變負數，chunk 直接回 0 個且不報錯
-- Postgres 與 API 回報的文件數一致（兩個獨立來源交叉比對，兩邊都 0 時回「驗不了」）
-
-## 抽取品質：接地檢查必須三態
-
-`extract-check.py` 拿每個實體名字去對它來源的 chunk。原理跟抽文字層當 ground truth
-一樣：**拿產出對來源，不要相信它**。確定性、不呼叫模型、免費。
-
-**必須三態，不能兩態。** 字串比對只對散文有效——表格裡常常只有符號。實測 C 的
-chunk-002 是 `<td>G</td><td>$G=I/\Delta U=1/Z$</td>`，完全沒有 `Conductance` 這個字，
-但模型抽出 Conductance 是**正確的**：從符號推論概念名稱正是它該做的事。
-
-所以分成「接地 / 符號型無法驗證 / 可疑」。二態時未接地率與符號密度高度相關、
-與幻覺無關（散文 0%、論文 3.4%、C 55%）；三態化後 C 從 55.1% 降到 3.4%。
-
-**「可疑」不等於「幻覺」，形狀要逐份看過才算量到。** 逐份看過的結果分兩族，
-都不是捏造：**符號→概念命名**（模型替裸符號取描述性名字，例如 `Coefficient Ta`、
-`Modified Bessel Function I0`）與**概念→引用文獻**（章節或文獻條目被拆成實體）。
-前者是三態判準的邊界效應——同一族東西，散文比例低於 `SYMBOLIC_RATIO` 的落進
-「驗不了」，高於的落進「可疑」。要真的降下來得**重量 `is_symbolic` 判準**，
-不是調門檻（鐵則 5）。
-
-> ⚠️ 2026-08-07 索引已清空，所有接地數字作廢，重建後要重新量。
-> 舊數字：`git show archive/pre-rebuild-20260807:CLAUDE.md`
-
-## 兩雙眼睛:為什麼要兩個
-
-實測 C 的 10 張空表格,**沒有哪個模型比較準**,而且錯法互補:
-
-- luna 會**看錯字元**(`S_n`→`S_h`、`p_I`→`p_l`)
-- qwen 會**切錯結構**(該分的併、該併的分)
-- 兩者都會錯在**羅馬數字下標**(區域 I/II),方向相反
-
-只用其中一個,另一個抓得到的那類錯誤就會靜靜進索引。`pp/eyes.py` 會擋下
-「兩雙眼睛是同一個模型」—— 同模型的系統性誤讀會一模一樣地重現,
-互相印證等於沒印證。
-
-luna 不接受 `temperature=0`(只允許預設 1),所以**首次轉錄有抽樣變異**;
-快取之後才穩定。分歧要重抽一次才知道是真的還是雜訊。
-
-**一致不等於沒有多餘的東西。** 實測(2026-08-02,C #525):qwen 對示意圖格
-**捏造外部圖片網址**(`<img src="https://i.imgur.com/…">`)。crosscheck 只回答
-「兩眼一不一致」,不回答「多出了什麼」——兩眼剛好都幻覺時會全綠通過。
-所以**內容閘門掛在寫入點**(`postprocess.py` 的 `gate_table_html`:單一完整
-table、無 `<img>`、無 prompt 洩漏),且自動採用與人工裁定走同一道。
-
-@AGENTS.md
+## 提交紀律（最小版，BASELINE ≥ 1.8.0）
+
+- **做完即提交**：驗證過的範圍當場提隔離 commit，禁「done 但 uncommitted」長存。
+- **只顯式 staging**：禁 `git add .`／`-A`；永不提交 `.env` 或金鑰。
+- **推出去之後不得 `--amend`。** dker 可能已 pull 走那個 hash，amend + force push
+  之後它抱著一個遠端不存在的 hash，`pull --ff-only` 直接失敗。2026-08-05 實測踩過。
+- commit 訊息用 `<type>(<scope>): <subject>`，pre-commit 會擋。緊急時
+  `--no-verify` 可繞過（知道有這個後門比不知道好）。
+
+## 其他東西在哪
+
+| 要找什麼 | 去哪 |
+|---|---|
+| 導航（哪個檔放什麼） | [AGENTS.md](AGENTS.md) |
+| 接下來做什麼 | [NEXT.md](NEXT.md) |
+| **鐵則 8 條與領域知識** | [docs/hard-rules.md](docs/hard-rules.md) ← 動 `scripts/pp/` 或規則之前必讀 |
+| 新環境必須保持什麼樣子 | [docs/rebuild-checklist.md](docs/rebuild-checklist.md) |
+| 某個決定為什麼那樣下 | [docs/decisions/](docs/decisions/) |
+| 知道但決定不修 | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) |
+| 多 worker 分工（draft，未定案） | [docs/workflow.md](docs/workflow.md) |
+| 某天發生了什麼 | [cairn/LOG.md](cairn/LOG.md) |
+
+## 溝通
+
+- **先人話、後技術話。** 白話不得省略關鍵技術細節（否則無法驗證），技術不得取代
+  白話結論（否則抓不到重點）。純確認豁免。
+- **不要堆內部術語**（坑編號、票別、inode 那類）。PO 是決策者不是實作者。
+- **每次改完交四行**：改了什麼／沒改什麼／沒驗什麼／會壞什麼。**第二行最重要**——
+  「發現了、沒動、也沒講」是 PO 抱怨最多的事。
+- **附了驗證指令就要貼真實輸出。** 2026-08-07 犯過一次：附了 grep 指令卻寫了
+  與輸出不符的數字。那比「沒驗就斷言」更糟，因為讀者會因為看到指令而更信任那個數字。
