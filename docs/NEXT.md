@@ -41,9 +41,13 @@ flowchart LR
 
 - 🔵 寫 deploy 動作把 compose 複製到 `/opt/stacks/lightrag/`（比照 `systemd-units.py
   install`），並加「兩邊 sha256 相同」的斷言。**現在那份是手動複製的，沒有東西守它**
-- ⬜ 解析 `C Equivalent Networks.pdf`（`is_ocr=true`、`pipeline`），量基準數字
-- ⬜ 10 張人工裁定的表按頁碼對位；對不上的明確報出來，不猜
+- 🔵 跑後處理（`postprocess.py` plan → apply）：四支機械規則、163 個 LaTeX 修正重生、
+  10 張表套用人工裁定。**解析與對位已完成**（556 項、57 表、9 空表、裁定 10/10 對得上）
 - ⬜ 入庫，驗**關係數不是 0**；接上 `scripts/extract-check.py` 量實體名的接地率
+- ⬜ 修 `mineru_common.load_env()`：檔案不存在時回空字典**不報錯**，所有腳本會拿到
+  「沒有任何設定」繼續跑。2026-08-07 搬 `.env` 時踩出來的，現在靠 symlink 撐著
+- ⬜ 更正 `rebuild-checklist.md` 的 `EMBEDDING_SEND_DIM` 那條：它管截斷，只有在
+  `EMBEDDING_DIM` ≠ 模型原生維度時才必要，現在寫成無條件會誤導
 - ⬜ 三個 skill 的端點逐一打過（skill 住 `AI_TOOLS`，不在本 repo）
 
 ## ⬜ 上游畢業（standards，影響所有專案）
