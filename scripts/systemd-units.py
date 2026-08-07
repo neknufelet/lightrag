@@ -203,7 +203,15 @@ def cmd_install(args: argparse.Namespace) -> int:
     skipped = [u for u in ENABLE if u not in wanted]
     if skipped:
         # 收合輸出時必須報出「幾項沒做」——否則「沒印出來」跟「沒跳過」長得一樣。
-        print(f"  （檔案已寫入但**沒有 enable**：{', '.join(skipped)}）")
+        #
+        # **但要分清楚「這次沒動」與「現在是停用的」**：2026-08-08 實測，原本寫
+        # 「檔案已寫入但沒有 enable」，而清單裡的 lightrag-stack.service 其實上一輪
+        # 就 enable 了 —— 那句話讀起來像它是停用的。查一次真實狀態再講。
+        for unit in skipped:
+            state = subprocess.run(["systemctl", "is-enabled", unit],
+                                   capture_output=True, text=True, check=False)
+            now = state.stdout.strip() or "unknown"
+            print(f"  · 這次沒動 {unit}（目前 {now}）")
     print(f"\n{len(rendered)} 個單元的檔案已安裝，{len(wanted)} 個已啟用。"
           f"repo={args.repo} user={args.user}")
     return 0
