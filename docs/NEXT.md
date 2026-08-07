@@ -22,7 +22,6 @@ summary: "當前待辦的唯一 SSOT。一篇打通已於 2026-08-07 完成，�
 |---|---|---|
 | 擴到 20 篇 | ⬜ | 語料要先挑 |
 | 上游畢業 | ⬜ | 三條候選，影響所有專案，另開一輪 |
-| 警報管道 | ⬜ | 先決定走哪裡再 enable 排程 |
 
 **已收線**：一篇打通（節點 1,239 / 邊 1,995、裁定 10/10、空表 9→1、五端點全通）、
 部署守衛、重開機自動復原、收件匣審核台（`:9710`，開機自動起）。
@@ -34,7 +33,6 @@ summary: "當前待辦的唯一 SSOT。一篇打通已於 2026-08-07 完成，�
 flowchart LR
   P["⬜ 挑語料<br/>MPP 那批"] --> E["⬜ naive vs mix<br/>圖譜值不值得"]
   E --> S["⬜ 擴到 20 篇"]
-  S --> A["⬜ 警報管道"]
   U["⬜ 上游畢業<br/>standards"]
 ```
 
@@ -68,8 +66,12 @@ flowchart LR
 ## ⬜ 之後
 
 - ⬜ 擴到 20 篇（語料要重挑還是照舊，未定）
-- ⬜ 警報管道**先決定走哪裡，再**把排程重新 enable。一個沒人看的紅燈等於沒有檢查
-- ⬜ 接上 `scripts/pp/oracle.py` 的 `mineru_options()`（現在全 repo 零呼叫端），
-  接上之後 `rebuild-checklist.md` A 節那六條就有執行者
+- ⚠️ **`backup-cold.sh` 今天改過 DBS 陣列（拿掉 neo4j）但一次都沒跑過**，
+  而 cold-backup 排程已經 enable。第一次自動執行要看結果——它會停容器再啟動
+- ⬜ canary 基準還是舊 20 篇的。語料定下來之後跑 `postprocess.py canary --update`，
+  並在 commit 說明每個數字為什麼變
+- ⬜ 把 `oracle.mineru_options()` 接成**自動斷言**。2026-08-08 手動呼叫過、確認容器
+  實際用的是 `is_ocr=True`／`model_version=pipeline`，但那是人跑的——
+  `rebuild-checklist.md` A 節那六條仍然沒有執行者
 - ⬜ KI-001 表格結構黏連：掉字 10.6% 裡最大的一族（117 詞）。要解得重排表格結構
 - ⚠️ **MinerU API token 2026-09-04 到期**——到期後解析直接不能跑
