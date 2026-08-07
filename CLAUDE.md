@@ -51,9 +51,9 @@ tag `archive/pre-rebuild-20260807`。
 
 ## 藍桶規則（9 條，BASELINE SNAPSHOT，勿手改此區塊）
 
-> `baseline_version: 1.9.0`　`rules_sha256: d31afca400873b28`
-> （9 條核心規則與上游逐字比對相同，已用程式驗過。1.9.0 相對 1.8.0 的改動
-> 在「工作項目命名規則」那個非核心 section，`rules_sha256` 因此未變。）
+> `baseline_version: 1.9.1`　`rules_sha256: d31afca400873b28`　`synced: 2026-08-07`
+> （9 條與上游**逐字比對相同，已用程式驗過**。1.9.1 是勘誤版——修死引用、統一
+> commit type 清單、範本補上 snapshot 區塊；**無任何規則內容變動**，指紋因此未變。）
 
 1. **Read before write**：修改任何檔案前先讀取現有內容，禁止覆蓋未讀的內容。
 2. **No silent drops**：任何資料、欄位、邏輯在重構時不得無聲消失；刪除必須明確說明。
