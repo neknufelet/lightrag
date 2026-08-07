@@ -3,6 +3,24 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-07（三）· 規範層：BASELINE 1.9.0 → 2.0.0
+
+- **本專案的事故升格成跨專案規則。** 從 173 條踩坑清單提煉五條提案，請 fable 唯讀評估
+  （97k tokens／23 次工具呼叫），四條採納、一條的藥方被它否決。
+- **BASELINE 2.0.0**（`standards` 的 `f3f5e30`）：核心第 9 條加強、新增「規則的執行者」
+  與「量測紀律」、提交紀律加「不得 amend 已推送」。指紋 `d31afca4…` → `f2d0bcfa…`。
+- **上游體檢 11 項全部修完**，其中 **5 項現在是機器在守**（`standards/scripts/self-check.py`
+  接在 pre-commit：frontmatter／指紋／範本 snapshot／type 清單／死引用）。
+- **根因是「只有 BASELINE 有人維護」**：它改過十次，其餘八個檔自 2026-05-23 遷入 git
+  後一個字都沒動 ⇒ 範本出貨「5 條」私貨、版本號凍三個月、引用一個不存在的 skill。
+- **PO 定位自己是「系統外審查」** ⇒ 寫進 BASELINE：人的審查不算執行者，
+  `沒有人` 不因為「反正會被發現」而降級。
+- 本專案側：snapshot 同步兩次、`NEXT.md` 搬到 `docs/`、拆掉 ntfy、解除 Dockge 對 repo
+  的 bind mount（那條掛載會讓 UI 的刪除按鈕刪掉 repo 本身）。
+- 詳細理由與條文在 `standards/BASELINE.md` 與 `standards/CHANGELOG.md`。
+  ⚠ **`cairn/<topic>.md` 仍是 0 個**——今天新長出來的知識（工具層與規範層怎麼分工）
+  還沒定案，等 fable 評估後再建 topic，不先寫成要改的東西。
+
 ## 2026-08-07（下半）· 清空、砍文件、拆通知
 
 - **dker 清空**：四個容器移除、`/data/lightrag` 只留 `records` 183 檔與 `checks` 32 檔

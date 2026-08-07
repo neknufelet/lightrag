@@ -19,6 +19,28 @@
 dker 沒有）。它的 9 條核心規則已 inline 在 CLAUDE.md，其餘 section 沒有——
 所以 commit 格式、文件 frontmatter 這類規則要去上游看，或跑 `scripts/standards-check.py`。
 
+## `cairn/` 還是 `docs/`？判準是「知識還是資產」
+
+**這一條存在的理由**：2026-08-07 PO 問「LOG 在 `cairn/`、NEXT 在 `docs/`，這一定會出事」。
+判準原本沒寫下來，所以他必須問——而**需要問就是規則沒寫好**。
+
+判準來自 Cairn 自己的 maintenance 規則：「工程資產留在 `cairn/` 外面，只有**關於**資產的
+知識可以進 `cairn/`」。
+
+| 是什麼 | 放哪 | 例 |
+|---|---|---|
+| **資產**：程式或流程會消費它 | `docs/`、`tests/`、程式樹 | `docs/NEXT.md`（待辦）、`docs/rebuild-checklist.md`（契約）、`docs/KNOWN_ISSUES.md`、`tests/*.json`（基準） |
+| **知識**：為什麼這樣做、踩了什麼坑、可複用的模式 | `cairn/` | `cairn/LOG.md`（時間軸）、`cairn/<topic>.md`（當前真相） |
+| **一次性的裁決＋當時的理由**（凍結，不改） | `docs/decisions/` | ADR。與 `cairn/<topic>.md` 的差別：ADR 是快照，topic 是會就地更新的當前真相 |
+
+所以 `LOG.md` 在 `cairn/`、`NEXT.md` 在 `docs/` **不是矛盾**——一個是知識、一個是資產。
+真正會出事的是「同一類東西兩個地方」（本專案已踩三次：文件地圖兩份、版本史兩份、
+commit type 三處）。
+
+⚠️ **`cairn/<topic>.md` 目前是 0 個。** Cairn 的核心機制（結論沉澱成當前真相）從來沒被
+啟用過，只有流水帳在跑。而 maintenance 規則明說「LOG 只放摘要與指標，結論放 topic」——
+本專案一直反過來做。
+
 ## 知識往哪去
 
 **判準是「誰在什麼時候需要它」，不是「它屬於哪一類」。** 分類會吵，時機不會。
