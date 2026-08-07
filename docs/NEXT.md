@@ -39,9 +39,8 @@ flowchart LR
 
 ## 🔵 一篇打通（設計見 [docs/rebuild-design.md](rebuild-design.md)）
 
-- 🔵 建 `/opt/stacks/lightrag/`（**真目錄，不是指向 repo 的掛載**）、把 `.env` 從
-  git checkout 搬進去、寫一支 deploy 動作把 compose 複製過去（比照
-  `systemd-units.py install`），並加「兩邊 sha256 相同」的斷言
+- 🔵 寫 deploy 動作把 compose 複製到 `/opt/stacks/lightrag/`（比照 `systemd-units.py
+  install`），並加「兩邊 sha256 相同」的斷言。**現在那份是手動複製的，沒有東西守它**
 - ⬜ 解析 `C Equivalent Networks.pdf`（`is_ocr=true`、`pipeline`），量基準數字
 - ⬜ 10 張人工裁定的表按頁碼對位；對不上的明確報出來，不猜
 - ⬜ 入庫，驗**關係數不是 0**；接上 `scripts/extract-check.py` 量實體名的接地率
@@ -56,6 +55,13 @@ flowchart LR
 - ⬜ **黑名單不是驗證器**。上游 `self-check.py` 的 `dead_refs` 只認三個寫死的樣式，
   所以 README 說 `scripts/` 有 `scan_projects`／`compact_logs`／`test_smoke`（都不存在）
   它還是回報「乾淨」
+
+## ⏸ 暫緩
+
+- ⏸ **`:9621` 要不要對外關掉。** PO 當初做 kbapi 的主要動機就是「只開一個埠」，
+  但 9621 一直也開著，目標沒達成。2026-08-07 決定暫時保留——LightRAG 的 WebUI
+  有圖譜瀏覽器，對「拓展想法」可能有用。關掉的做法是把 `BIND_ADDR` 那半改成
+  `127.0.0.1`（dker 本機腳本照跑，Tailscale 上看不到），不需要改任何腳本
 
 ## ⬜ 之後
 

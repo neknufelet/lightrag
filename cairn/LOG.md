@@ -3,6 +3,25 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-07（六）· 系統起來了：v1.5.6、圖進 Postgres、Dockge stack
+
+- **`PGTableGraphStorage` 從推測變成實跑**。三層都驗過：映像清單有它 → 啟動 log
+  `[acoustics_v2] PGTableGraphStorage initialized` → Postgres 裡真的建出
+  `lightrag_graph_nodes` 與 `lightrag_graph_edges`。擴充只有 `plpgsql`＋`vector`，
+  **沒有 age**，確認不需要 Apache AGE。13 張表全在同一個庫。
+- **v1.5.5 沒有這個選項**（問映像本人），而 compose 原本釘的 digest 就是 v1.5.5——
+  升級是必要條件不是順便。v1.5.5 映像已從 dker 移除。
+- **三個容器 healthy**：lightrag（1.5.6）、postgres、kbapi。`:9700` 與 `:9621` 都回應。
+- **`.env` 搬出 git checkout** → `/opt/stacks/lightrag/.env`。刪 repo 不再連帶弄丟秘密。
+  順帶清掉死鍵 `NTFY_URL`（ntfy 今天拆了，全 repo 零讀取端）。現在 54 鍵。
+- **數錯一次並更正**：`^[A-Z_]+=` 配不到含數字的鍵名（`NEO4J` 的 `4`），少算 4 個，
+  錯的數字進了 `e39d6d4`。用追加更正不 amend——已推送。
+- **kbapi 的定位釐清**：它不是薄代理，是**兩個 skill 的唯一來源**——LightRAG 沒有
+  「這篇有哪些表格／公式／圖」的端點，那些資料在 MinerU 產物裡，它從沒讀過。
+  PO 當初做它的主因是「只開一個埠」，但 `:9621` 一直也開著，**目標其實沒達成**；
+  暫時保留（WebUI 有圖譜瀏覽器），決定寫進 NEXT。
+- ⚠ **庫是空的，抽取一次都沒跑過。** 「能建表」不等於「能寫入」。
+
 ## 2026-08-07（五）· 清理 coder
 
 - **刪掉六個前提已消失的檔**（約 1,960 行）：`compare-ws.py`（比較對象 v155 不存在了）、
