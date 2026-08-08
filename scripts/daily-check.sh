@@ -61,6 +61,25 @@ if [ "$units_rc" -ne 0 ]; then
   fail_msgs+=("systemd 單元與 repo 不一致 (rc=$units_rc) → $CHECK_DIR/units-$ts.txt")
 fi
 
+# ── 部署一致性：stack 那份 compose 有沒有跟 repo 一致 ──────────────────
+# 這支 2026-08-08 之前**沒有任何人呼叫**（deploy-stack.py 檔頭自己寫了「執行者
+# 目前是弱的」）。寫好的檢查沒被呼叫，等於沒寫。
+python3 scripts/deploy-stack.py verify > "$CHECK_DIR/deploy-$ts.txt" 2>&1
+deploy_rc=$?
+if [ "$deploy_rc" -ne 0 ]; then
+  fail_msgs+=("stack 的 compose 與 repo 不一致 (rc=$deploy_rc) → $CHECK_DIR/deploy-$ts.txt")
+fi
+
+# ── 部署新鮮度：跑著的是不是最新的碼 ───────────────────────────────────
+# 檔案放對了不代表跑著的是它。2026-08-08 實測 dker 落後 origin 3 個 commit
+# （含一個 fix(intake)），而容器 healthy、端點會回應、測試也過 —— 跑舊碼
+# **完全沒有外顯症狀**。三條：落後 origin／工作區被手改／容器比它該跑的碼舊。
+python3 scripts/deploy-stack.py freshness > "$CHECK_DIR/fresh-$ts.txt" 2>&1
+fresh_rc=$?
+if [ "$fresh_rc" -ne 0 ]; then
+  fail_msgs+=("部署不新鮮 (rc=$fresh_rc) → $CHECK_DIR/fresh-$ts.txt")
+fi
+
 # ── REBUILD-6：單一測試入口───────────────────────────────────────────────
 # run-tests.sh 內會依序跑 pytest 與自製的 test_gates.py；pytest 不會收集後者，
 # 因此兩者缺一不可。測試失敗屬於檢查紅燈，讓本支以 exit 1 通知；不要把它誤當
@@ -85,8 +104,15 @@ fi
 
 status=pass
 [ ${#fail_msgs[@]} -gt 0 ] && status=fail
-printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"tests_rc":%d,"detail":"%s"}\n' \
-  "$ts" "$status" "$rc" "$scan_rc" "$units_rc" "$tests_rc" "$CHECK_DIR/compat-$ts.json" \
+
+# 這份結果是**哪一版的碼**產生的。沒有它，一筆過期的紅燈與一筆剛跑出來的紅燈
+# 在審核台上長得一模一樣 —— 而處置完全不同（前者要先問「排程還活著嗎」）。
+# 「檢查結果要帶上產生它的版本」是要升上游的通則之一。
+commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
+
+printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"deploy_rc":%d,"fresh_rc":%d,"tests_rc":%d,"detail":"%s"}\n' \
+  "$ts" "$status" "$commit" "$rc" "$scan_rc" "$units_rc" "$deploy_rc" "$fresh_rc" \
+  "$tests_rc" "$CHECK_DIR/compat-$ts.json" \
   > "$CHECK_DIR/latest.json"
 
 # 保留最新 120 份。`v2-*` 那組是 CUTOVER 之前雙 checkout 時代留下的**歷史**
@@ -94,7 +120,8 @@ printf '{"at":"%s","status":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"test
 # 漏掉的話就是一堆只增不減、永遠不會過期的檔案。
 find "$CHECK_DIR" \( -name 'compat-2*' -o -name 'canary-2*' \
                      -o -name 'v2-compat-2*' -o -name 'v2-canary-2*' \
-                     -o -name 'scan-2*' -o -name 'units-2*' \) |
+                     -o -name 'scan-2*' -o -name 'units-2*' \
+                     -o -name 'deploy-2*' -o -name 'fresh-2*' \) |
   sort | head -n -120 | xargs -r rm --
 
 if [ "$status" = fail ]; then

@@ -99,6 +99,44 @@ def test_state_payload_carries_checks(tmp_path: Path) -> None:
     assert app.state()["checks"]["state"] == "fail"
 
 
+def test_commit_is_carried_through(tmp_path: Path) -> None:
+    """結果要帶上產生它的 commit。
+
+    **為什麼**：沒有版本的話，「這條檢查後來被修好了」與「這個問題還在」在畫面上
+    長得一樣，讀者會照著一份舊碼的判斷去處置。這是要升上游的通則之一：
+    檢查結果必須帶上產生它的版本。
+    """
+    app = _app(tmp_path)
+    _write(app, {"at": "20260808T000000", "status": "fail",
+                 "commit": "9a727fb", "tests_rc": 1})
+    assert app.daily_checks()["commit"] == "9a727fb"
+
+
+def test_old_format_without_commit_still_readable(tmp_path: Path) -> None:
+    """舊格式沒有 commit 欄位，不得因此整個讀不了。
+
+    升級當下 `latest.json` 還是舊的那一份——如果新欄位是必填，審核台會在最需要
+    它的時候（剛部署完）變成 unreadable。
+    """
+    app = _app(tmp_path)
+    _write(app, {"at": "20260808T000000", "status": "fail", "tests_rc": 1})
+    got = app.daily_checks()
+    assert got["state"] == "fail"
+    assert got["commit"] is None
+
+
+def test_new_rc_fields_show_up_in_failing(tmp_path: Path) -> None:
+    """新增的 deploy_rc／fresh_rc 要自動出現在 failing 清單裡。
+
+    `failing` 是掃所有 `_rc` 結尾的鍵算出來的，所以新檢查不必改這裡——但那個
+    「不必改」要有測試守著，否則下次有人把它改成寫死清單也不會有人發現。
+    """
+    app = _app(tmp_path)
+    _write(app, {"at": "20260808T000000", "status": "fail", "commit": "abc1234",
+                 "compat_rc": 0, "deploy_rc": 2, "fresh_rc": 2, "tests_rc": 0})
+    assert app.daily_checks()["failing"] == ["deploy_rc", "fresh_rc"]
+
+
 def test_dirty_inputs_error_gives_a_runnable_remedy(tmp_path: Path) -> None:
     """擋下來不等於把問題丟給人 —— 錯誤訊息要給可以直接跑的下一步。
 

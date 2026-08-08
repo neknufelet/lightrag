@@ -90,3 +90,55 @@ def test_stack_matches_repo() -> None:
     assert mod.cmd_verify(_args(mod, STACK_DIR)) == 0, (
         "stack 的 compose.yaml 與 repo 不一致。"
         "repo 是 SSOT——若 stack 那份是在 Dockge UI 改的，先把改動搬回 repo。")
+
+
+# ── freshness：檔案放對了不代表跑著的是它 ──────────────────────────────
+
+
+def test_nanosecond_timestamp_is_parsed() -> None:
+    """docker 的 `StartedAt` 是奈秒精度，`fromisoformat` 只吃到微秒。
+
+    不截掉會丟 ValueError，而那個例外看起來像「docker 壞了」而不是「多了三位
+    小數」—— 探針自己壞掉卻報成被探測的東西壞掉，是最難查的一種。
+    """
+    mod = _module()
+    epoch = mod._rfc3339_to_epoch("2026-08-08T09:15:12.123456789Z")
+    assert abs(epoch - mod._rfc3339_to_epoch("2026-08-08T09:15:12.123456Z")) < 1e-6
+
+
+def test_second_precision_timestamp_is_parsed() -> None:
+    """沒有小數部分也要能解析 —— 不是每個 runtime 都吐奈秒。"""
+    mod = _module()
+    assert mod._rfc3339_to_epoch("2026-08-08T09:15:12Z") > 0
+
+
+def test_only_kbapi_cares_about_scripts() -> None:
+    """`scripts/` 只掛進 kbapi，其餘三個跑 baked image。
+
+    **為什麼這條重要**：拿 HEAD 當基準的話，一個純文件 commit 就會讓四個容器
+    全部轉紅。「一個預期中、沒人打算修的紅燈，會訓練人開始無視所有紅燈」
+    （systemd-units.py:63）。依據是 compose.yaml 的掛載，不是猜的。
+    """
+    mod = _module()
+    assert "scripts" in mod._deploy_paths_for("kbapi-acoustics_v2")
+    for name in ("lightrag-acoustics_v2", "lightrag-postgres", "lightrag-infinity"):
+        assert "scripts" not in mod._deploy_paths_for(name), name
+        assert "compose.yaml" in mod._deploy_paths_for(name), name
+
+
+def test_deploy_paths_survive_a_workspace_rename() -> None:
+    """判斷用前綴不用完整名字 —— 容器名含 workspace，改名不該讓檢查失效。"""
+    mod = _module()
+    assert mod._deploy_paths_for("kbapi-whatever_new") == \
+        mod._deploy_paths_for("kbapi-acoustics_v2")
+
+
+def test_last_commit_epoch_reads_real_history() -> None:
+    """對真的 repo 問「compose.yaml 最後何時被改」，要拿得到數字。
+
+    這條同時守住「路徑名寫錯」——寫錯的路徑會回 None，而 None 在 freshness 裡
+    是紅燈而不是靜默跳過。
+    """
+    mod = _module()
+    assert mod._last_commit_epoch(("compose.yaml",)) is not None
+    assert mod._last_commit_epoch(("this-path-does-not-exist",)) is None

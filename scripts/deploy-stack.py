@@ -19,13 +19,15 @@ git checkout ⇒ 下次 `git pull --ff-only` 直接失敗（dker 的 repo 是唯
 **比對與安裝共用同一個讀取實作**（`_read`），理由與 `systemd-units.py` 相同：
 分成兩份的話兩邊會各自演化出不同的「正確」，漂移偵測就變成偵測自己的 bug。
 
-⚠ **執行者目前是弱的。** `verify` 只有在有人跑它、或 dker 上跑 `run-tests.sh` 時才
-會執行——而 dker 的排程 2026-08-07 起全部停用。真正的解法是重建警報管道之後把
-`daily-check` 接回來（見 `docs/NEXT.md`）。在那之前，這支至少讓「想查的時候查得到」，
-而不是「只能靠記得」。
+**`freshness` 守的是另一半：檔案放對了，不代表跑著的是它。**
+2026-08-08 實測 dker 落後 origin 3 個 commit（含一個 `fix(intake)`），而容器
+healthy、端點會回應、測試也過——**跑舊碼完全沒有外顯症狀**。根因是「部署」不是
+一個動作而是一串要靠人記得的動作：pull、restart、確認新碼真的在跑。漏掉任何一步
+都不會有人吭聲。只做 pull + restart 而不驗證，是同一個坑換位置再踩。
 
 用法：
-    deploy-stack.py verify            # 比對，不一致回 2
+    deploy-stack.py verify            # 比對 compose，不一致回 2
+    deploy-stack.py freshness         # 跑著的是不是最新的碼，不是回 2
     deploy-stack.py diff              # 印出差在哪
     deploy-stack.py install           # repo → stack（會先印 diff 並要 --commit）
     deploy-stack.py install --commit  # 真的寫
@@ -35,8 +37,12 @@ from __future__ import annotations
 import argparse
 import difflib
 import hashlib
+import json
+import re
 import shutil
+import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -44,6 +50,27 @@ SOURCE = REPO / "compose.yaml"
 
 # 換機器會變，所以可覆寫；預設是 dker 上的實際位置。
 DEFAULT_STACK_DIR = Path("/opt/stacks/lightrag")
+
+# 部署機唯一該有的分支。落後它就是「跑舊碼」。
+UPSTREAM_REF = "origin/master"
+
+# compose 給自己容器打的專案標籤。用它列容器**而不是寫死名字**——名字含
+# workspace（`kbapi-acoustics_v2`），寫死就會在改 workspace 時安靜地少檢查一台。
+COMPOSE_PROJECT = "lightrag"
+
+# 改動哪些路徑之後，容器要重啟才會生效。
+#
+# 依據是 compose.yaml 的掛載，不是猜的：**只有 kbapi 掛了
+# `${REPO_DIR}/scripts:/app/scripts:ro`**，其餘三個跑 baked image ＋ 資料目錄。
+# 所以 `scripts/` 改了跟 lightrag／postgres／infinity 無關。
+#
+# 為什麼要分開：拿 HEAD 當基準的話，一個純文件 commit 就會讓四個容器全部轉紅。
+# 「一個預期中、沒人打算修的紅燈，會訓練人開始無視所有紅燈」——這條寫在
+# systemd-units.py:63，這裡是同一個道理。
+DEPLOY_PATHS_DEFAULT: tuple[str, ...] = ("compose.yaml",)
+DEPLOY_PATHS_BY_PREFIX: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("kbapi-", ("compose.yaml", "scripts")),
+)
 
 
 class StackError(RuntimeError):
@@ -101,6 +128,110 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 2
 
 
+def _run(argv: list[str], timeout: int = 60) -> subprocess.CompletedProcess[str]:
+    """跑一個外部指令。不丟例外——呼叫端要能分辨「指令失敗」與「答案是壞的」。"""
+    return subprocess.run(argv, capture_output=True, text=True,
+                          timeout=timeout, check=False)
+
+
+def _git(*args: str, timeout: int = 60) -> subprocess.CompletedProcess[str]:
+    return _run(["git", "-C", str(REPO), *args], timeout=timeout)
+
+
+def _rfc3339_to_epoch(value: str) -> float:
+    """docker 的 `StartedAt` 是奈秒精度的 RFC3339，`fromisoformat` 只吃到微秒。
+
+    直接丟進去會 ValueError，而那個例外看起來像「docker 壞了」而不是「多了三位
+    小數」——所以在這裡把它截掉，不要讓呼叫端去猜。
+    """
+    text = re.sub(r"(\.\d{6})\d+", r"\1", value.strip().replace("Z", "+00:00"))
+    return datetime.fromisoformat(text).timestamp()
+
+
+def _deploy_paths_for(container: str) -> tuple[str, ...]:
+    for prefix, paths in DEPLOY_PATHS_BY_PREFIX:
+        if container.startswith(prefix):
+            return paths
+    return DEPLOY_PATHS_DEFAULT
+
+
+def _last_commit_epoch(paths: tuple[str, ...]) -> float | None:
+    """最後一個動到這些路徑的 commit 時間。沒有任何 commit 動過就回 None。"""
+    p = _git("log", "-1", "--format=%ct", "--", *paths)
+    value = p.stdout.strip()
+    return float(value) if p.returncode == 0 and value else None
+
+
+def _project_containers() -> list[tuple[str, float]]:
+    """本專案跑著的容器與各自的啟動時間。"""
+    p = _run(["docker", "ps", "--filter",
+              f"label=com.docker.compose.project={COMPOSE_PROJECT}",
+              "--format", "{{.Names}}"])
+    if p.returncode != 0:
+        raise StackError(f"docker ps 失敗：{p.stderr.strip()[:200]}")
+    names = [n for n in p.stdout.split() if n]
+    out: list[tuple[str, float]] = []
+    for name in names:
+        q = _run(["docker", "inspect", "-f", "{{json .State.StartedAt}}", name])
+        if q.returncode != 0:
+            raise StackError(f"docker inspect {name} 失敗：{q.stderr.strip()[:200]}")
+        out.append((name, _rfc3339_to_epoch(json.loads(q.stdout))))
+    return out
+
+
+def cmd_freshness(args: argparse.Namespace) -> int:
+    """跑著的東西是不是最新的碼。三條各自獨立，全綠才回 0。"""
+    problems: list[str] = []
+
+    # ── 1. 落後版控 ──────────────────────────────────────────────
+    fetched = _git("fetch", "--quiet", "origin", timeout=120)
+    if fetched.returncode != 0:
+        # 抓不到就是「不知道」，不是「沒落後」。三態的正確用法。
+        problems.append(f"git fetch 失敗，落後與否無法判斷：{fetched.stderr.strip()[:200]}")
+    else:
+        p = _git("rev-list", "--count", f"HEAD..{UPSTREAM_REF}")
+        behind = int(p.stdout.strip() or 0) if p.returncode == 0 else -1
+        if behind != 0:
+            problems.append(f"落後 {UPSTREAM_REF} {behind} 個 commit —— 跑的是舊碼")
+        else:
+            print(f"版控　與 {UPSTREAM_REF} 同步")
+
+    # ── 2. 工作區乾淨 ────────────────────────────────────────────
+    # 部署機的 repo 是唯讀、只 pull。有未提交的改動就代表有人手改了檔案，
+    # 那份改動不在版控裡、沒有人審過，而且下次 `pull --ff-only` 會直接失敗。
+    p = _git("status", "--porcelain")
+    dirty = [ln for ln in p.stdout.splitlines() if ln.strip()]
+    if dirty:
+        problems.append(f"工作區有 {len(dirty)} 項未提交改動（部署機應唯讀）："
+                        f"{[ln[3:] for ln in dirty[:5]]}")
+    else:
+        print("工作區　乾淨")
+
+    # ── 3. 容器比它該跑的碼新 ────────────────────────────────────
+    for name, started in sorted(_project_containers()):
+        paths = _deploy_paths_for(name)
+        commit_at = _last_commit_epoch(paths)
+        if commit_at is None:
+            problems.append(f"{name}：查不到 {list(paths)} 的最後 commit")
+            continue
+        lag_h = (commit_at - started) / 3600
+        if started < commit_at:
+            problems.append(
+                f"{name} 啟動於 {datetime.fromtimestamp(started):%m-%d %H:%M}，"
+                f"但 {list(paths)} 的最後 commit 是 "
+                f"{datetime.fromtimestamp(commit_at):%m-%d %H:%M}（晚 {lag_h:.1f} 小時）"
+                " —— 檔案更新了，跑著的還是舊的，要重啟")
+        else:
+            print(f"{name}　啟動晚於 {list(paths)} 的最後 commit")
+
+    if problems:
+        print()
+        for line in problems:
+            print(f"**{line}**")
+        return 2
+    return 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     stack_dir = Path(args.stack_dir)
     _guard_stack_dir(stack_dir)
@@ -148,13 +279,15 @@ def main() -> int:
                     help=f"Dockge 的 stack 目錄（預設 {DEFAULT_STACK_DIR}）")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("verify", help="比對 repo 與 stack，不一致回 2")
+    sub.add_parser("freshness", help="跑著的是不是最新的碼，不是回 2")
     sub.add_parser("diff", help="印出差在哪")
     inst = sub.add_parser("install", help="repo → stack")
     inst.add_argument("--commit", action="store_true", help="真的寫檔（預設只印 diff）")
     a = ap.parse_args()
 
     try:
-        return {"verify": cmd_verify, "diff": cmd_diff, "install": cmd_install}[a.cmd](a)
+        return {"verify": cmd_verify, "freshness": cmd_freshness,
+                "diff": cmd_diff, "install": cmd_install}[a.cmd](a)
     except StackError as e:
         print(f"停下來：{e}", file=sys.stderr)
         return 3

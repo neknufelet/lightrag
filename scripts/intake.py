@@ -1647,6 +1647,10 @@ class IntakeApp:
             "age_s": age,
             "failing": failing,      # 哪幾項非零，例如 ["scan_rc", "tests_rc"]
             "detail": raw.get("detail"),
+            # 產生這筆結果的 commit。沒有它，「這條檢查後來被修好了」與
+            # 「這個問題還在」在畫面上無法區分 —— 讀者會照著一份舊碼的判斷去處置。
+            # daily-check.sh 寫入；舊的結果檔沒有這個欄位，所以要容許缺席。
+            "commit": raw.get("commit"),
         }
 
     def health(self) -> dict[str, object]:
@@ -2287,6 +2291,14 @@ a:hover{text-decoration:underline}
 .links a:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
 .banner{margin-top:2px;padding:9px 14px;border-radius:2px;font-size:13px;
   background:var(--sunk);border-left:3px solid var(--review);color:var(--ink-2)}
+/* 紅燈分兩種，處置完全不同，所以顏色也要分：
+   .bad   新鮮的失敗 —— 現在就有東西壞了，去看 detail。
+   .stale 結果凍住了 —— **你不知道現在是好是壞**，先去救排程，不要讀那個值。
+   灰色是刻意的：過期的結果不該用警示色搶注意力，那會讓人以為問題在被檢查的
+   東西上，而實際上問題在檢查本身沒有在跑。 */
+.banner.bad{border-left-color:var(--blocked)}
+.banner.stale{border-left-color:var(--line);color:var(--ink-3)}
+.banner .stamp{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
 
 /* ── 版面：佇列 ｜ 判斷 ────────────────────────────── */
 .layout{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);
@@ -2532,7 +2544,9 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     if cs and cs != "ok":
         age = checks.get("age_s")
         age_txt = f"{age / 3600:.0f} 小時前" if isinstance(age, (int, float)) else "時間不明"
+        tone = ""
         if cs == "stale":
+            tone = " stale"
             msg = (f"每日檢查已經 {age_txt}沒有更新（最後一次寫的是 "
                    f"{checks.get('reported')}）——**這不是通過，是沒有在檢查**。"
                    "排程可能停用了：systemctl status lightrag-daily-check.timer")
@@ -2541,11 +2555,17 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
         elif cs == "unreadable":
             msg = str(checks.get("reason") or "每日檢查的結果檔讀不了")
         else:
+            tone = " bad"
             failing = checks.get("failing")
             which = "、".join(str(x) for x in failing) if isinstance(failing, list) and failing else "未指明"
             msg = (f"每日檢查 {cs}（{age_txt}）：{which}。"
                    f"細節 {checks.get('detail') or '（無）'}")
-        warn_html += f"<div class='banner'>🔔 {_esc(msg)}</div>"
+        # 產生它的 commit 跟著顯示：一筆紅燈是哪一版的碼判的，決定了它還算不算數。
+        commit = checks.get("commit")
+        stamp_html = (f" <span class='stamp'>由 {_esc(str(commit))} 產生</span>"
+                      if commit else
+                      " <span class='stamp'>（這筆結果沒有記版本，是舊格式）</span>")
+        warn_html += f"<div class='banner{tone}'>🔔 {_esc(msg)}{stamp_html}</div>"
 
     # 預設只展開「待審核」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。
