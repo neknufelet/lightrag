@@ -150,3 +150,43 @@ def test_ratio_counts_list_items_not_just_text() -> None:
     assert p.body_chars_before == 500, "分母要含 list_items"
     assert p.body_chars_after == 100
     assert abs(p.ratio - 0.8) < 1e-9, p.ratio
+
+
+def test_apply_clears_list_items_not_only_text() -> None:
+    """**核心**：只清 `text` 對參考清單完全沒作用，但計數看起來正常。
+
+    參考清單的型別是 `list`、內容在 `list_items`、`text` 是空的。
+    這是靜默失效的教科書案例：報「消了 N 項」而東西還在。
+    """
+    items = [
+        _head("References", 2),
+        {"type": "list", "sub_type": "ref_text", "page_idx": 1,
+         "list_items": ["1. A. Author, 2020.", "2. B. Author, 2021."]},
+    ]
+    p = rs.plan(items)
+    assert rs.apply_to_items(items, p) == 2
+    assert items[0]["text"] == "", "標題要被清掉"
+    assert items[1]["list_items"] == [], "清單本體也要被清掉"
+    assert items[1]["_pp_original_list_items"] == ["1. A. Author, 2020.",
+                                                   "2. B. Author, 2021."]
+
+
+def test_revert_restores_list_items() -> None:
+    """還原不需要備份檔 —— 原文就存在項目裡。"""
+    items = [{"type": "list", "sub_type": "ref_text", "page_idx": 1,
+              "list_items": ["1. A. Author, 2020."]}]
+    p = rs.plan(items)
+    rs.apply_to_items(items, p)
+    assert rs.revert_items(items) == 1
+    assert items[0]["list_items"] == ["1. A. Author, 2020."]
+    assert "_pp_original_list_items" not in items[0]
+
+
+def test_apply_is_idempotent_on_already_muted_items() -> None:
+    """跑第二次不得把空值蓋掉原文備份 —— 那會讓還原拿回空的。"""
+    items = [{"type": "list", "sub_type": "ref_text", "page_idx": 1,
+              "list_items": ["1. A. Author, 2020."]}]
+    rs.apply_to_items(items, rs.plan(items))
+    rs.apply_to_items(items, rs.plan(items))      # 第二次
+    rs.revert_items(items)
+    assert items[0]["list_items"] == ["1. A. Author, 2020."], "原文必須完好"

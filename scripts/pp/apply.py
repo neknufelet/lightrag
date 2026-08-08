@@ -36,7 +36,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pp.docctx import DocContext  # noqa: E402
 from pp.oracle import Oracle, OracleError  # noqa: E402
 from pp.paths import ContainerPaths  # noqa: E402
-from pp.rules import chart_type, empty_table, latex_fix, layout_noise  # noqa: E402
+from pp.rules import (  # noqa: E402
+    chart_type,
+    empty_table,
+    latex_fix,
+    layout_noise,
+    reference_section,
+)
 
 
 class ApplyError(RuntimeError):
@@ -234,6 +240,14 @@ def apply_doc(
     if noise.suspicious:
         raise ApplyError(f"{ctx.doc_name}：消音比例 {noise.ratio:.1%} 超標，拒絕自動套用")
 
+    # 參考文獻／致謝區段。與版面雜訊分開算，因為訊號與門檻都不同：
+    # 版面雜訊靠「每頁重複」、佔比 1–6%；參考清單靠「章節區段」、佔比 8–23%。
+    # 合在一起算會讓參考清單把版面雜訊的門檻撐爆，兩條規則互相遮蔽。
+    refs = reference_section.plan(items)
+    if refs.suspicious:
+        raise ApplyError(
+            f"{ctx.doc_name}：參考文獻區段消音比例 {refs.ratio:.1%} 超標，拒絕自動套用")
+
     tables = empty_table.plan(items, *ctx.page_size)
     want = verified_tables or {}
     want_text = verified_text or {}
@@ -241,7 +255,7 @@ def apply_doc(
 
     # 兩條規則不得打到同一個項目：消音會把 text 清空並寫 _pp_original_text，
     # 文字修補會寫同一組欄位 —— 撞在一起時後跑的那條贏，而且不會有訊息。
-    muted_idx = {m.index for m in noise.mutes}
+    muted_idx = {m.index for m in noise.mutes} | {m.index for m in refs.mutes}
     clash = sorted(muted_idx & {int(k) for k in want_text})
     if clash:
         raise ApplyError(f"{ctx.doc_name}：項目 {clash} 同時是消音目標與文字修補目標，拒絕")
@@ -363,7 +377,8 @@ def apply_doc(
         raise
 
     # ── 改動 ──
-    r.muted = layout_noise.apply_to_items(items, noise)
+    r.muted = (layout_noise.apply_to_items(items, noise)
+               + reference_section.apply_to_items(items, refs))
     for k, txt in sorted(want_text.items(), key=lambda kv: int(kv[0])):
         if k in done_txt:                 # 上一輪就是這個內容，不重寫
             continue
@@ -486,7 +501,9 @@ def revert_doc(
     items = json.loads(ctx.content_list_path.read_text())
     r = ApplyResult(ctx.doc_name, items_before=len(items))
 
-    r.muted = layout_noise.revert_items(items)
+    # 兩支都要跑：layout_noise 還原 `text`，reference_section 還原 `list_items`。
+    # 只跑前者的話，參考清單會永遠回不來（而且不會有訊息）。
+    r.muted = layout_noise.revert_items(items) + reference_section.revert_items(items)
     # `layout_noise.revert_items` 只認 `_pp_original_text`（消音與大多數文字修補
     # 都走那個欄位）。`code_body` 之類的其餘內容欄位在這裡補還原 —— 少了這段，
     # 還原會宣稱成功卻把 #8 那種項目留在修補後的狀態。

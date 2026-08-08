@@ -42,7 +42,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import LEAK, add_workspace_arg, load_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
-from pp.rules import chart_type, empty_table, latex_fix, layout_noise  # noqa: E402
+from pp.rules import (  # noqa: E402
+    chart_type,
+    empty_table,
+    latex_fix,
+    layout_noise,
+    reference_section,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
@@ -120,21 +126,24 @@ def plan_one(raw: Path, *, source_dir: Path | None = None) -> dict:
     ctx.preflight()
     w, h = ctx.page_size
     noise = layout_noise.plan(ctx.items, ctx.n_pages)
+    refs = reference_section.plan(ctx.items)
     tables = empty_table.plan(ctx.items, w, h)
     charts = chart_type.plan(ctx.items, ctx.raw_dir)
     # LaTeX 正規化在唯讀階段也要算出來。`apply` 本來就會算一次，但那時已經在
     # 寫檔 —— 唯讀看不到的修改等於沒有人審過，而 σ̂→∂ 一份文件就改 138 處公式符號。
     # 這裡傳的是 ctx.items，`latex_fix.plan` 只讀不寫。
     latex = latex_fix.plan(ctx.items)
-    return {"ctx": ctx, "noise": noise, "tables": tables,
+    return {"ctx": ctx, "noise": noise, "refs": refs, "tables": tables,
             "charts": charts, "latex": latex}
 
 
 def render(p: dict, details: bool) -> None:
     ctx, noise, tables = p["ctx"], p["noise"], p["tables"]
+    refs = p["refs"]
     print(f"\n=== {ctx.doc_name} ===")
     print(f"  {ctx.n_pages} 頁、{len(ctx.items)} 個項目、頁面 {ctx.page_size[0]:.0f}×{ctx.page_size[1]:.0f} pt")
     print(f"  過濾：{noise.summary()}")
+    print(f"  文獻：{refs.summary()}")
     print(f"  表格：{tables.summary()}")
     print(f"  圖片：{p['charts'].line()}")
     print(f"  LaTeX：{p['latex'].summary()}")

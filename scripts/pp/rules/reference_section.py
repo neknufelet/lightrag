@@ -160,3 +160,44 @@ def plan(items: list[dict]) -> RefPlan:
 
     total = sum(item_chars(it) for it in items)
     return RefPlan(mutes, sections, total, total - sum(item_chars(items[i]) for i in muted_idx))
+
+
+def apply_to_items(items: list[dict], plan_: RefPlan) -> int:
+    """就地消音。原文存進 `_pp_original_*` —— 還原時讀它，查帳時比對它。
+
+    ⚠ **必須同時清 `text` 與 `list_items`。** 參考清單的型別是 `list`，內容全在
+    `list_items` 陣列裡而 `text` 是空的 —— 只清 `text`（`layout_noise` 的作法）
+    對它**完全沒有作用**，但函式仍會回報「消了 N 項」。那是靜默失效：
+    數字看起來對，參考文獻照樣進索引。
+
+    `text` 沿用 `_pp_original_text` 這個鍵，所以 `layout_noise.revert_items`
+    還原得了它；`list_items` 是本規則獨有的，由下面的 `revert_items` 負責。
+    """
+    n = 0
+    for m in plan_.mutes:
+        it = items[m.index]
+        touched = False
+        if it.get("text"):
+            it["_pp_original_text"] = it["text"]
+            it["text"] = ""
+            touched = True
+        if it.get("list_items"):
+            it["_pp_original_list_items"] = it["list_items"]
+            it["list_items"] = []
+            touched = True
+        n += 1 if touched else 0
+    return n
+
+
+def revert_items(items: list[dict]) -> int:
+    """還原 `list_items`。`text` 那半由 `layout_noise.revert_items` 負責（同一個鍵）。
+
+    分開寫而不是自己也還原 `text`：兩支都還原同一個鍵的話，先跑的那支還原、
+    後跑的那支看到鍵已不在就當成沒事，計數會少算一半——而計數是查帳的依據。
+    """
+    n = 0
+    for it in items:
+        if "_pp_original_list_items" in it:
+            it["list_items"] = it.pop("_pp_original_list_items")
+            n += 1
+    return n
