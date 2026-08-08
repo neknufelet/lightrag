@@ -208,11 +208,19 @@ services:
   # LightRAG 的 embedding 接法沒有 infinity 這個選項，但可以用 `openai` 把 host
   # 指過來（跟 LLM 接 llama.cpp 完全同一招）；rerank 則用 `cohere`。
   #
-  # **模型**（皆開源，授權已查證）：
-  #   BAAI/bge-m3              embedding，5.68 億參數，1024 維，MIT
-  #   BAAI/bge-reranker-v2-m3  rerank，5.68 億參數，Apache 2.0
-  # 兩個都支援 100+ 語言與跨語言檢索 —— PO 用中文問、論文是英文的，這是必要條件。
-  # 合計約 2.5 GB，8 GB 的卡還剩五成以上。
+  # **只做 rerank，不做 embedding**（2026-08-08 PO 裁決）。embedding 留在 OpenAI：
+  # 實算過現在的規模全部重算約 85 萬 token、十美分上下，錢不構成搬本地的理由；
+  # 而 rerank 本來就沒有現成服務，是純新增。BAAI/bge-m3 因此從啟動參數移除。
+  #
+  # **模型**（皆開源、Apache 2.0，授權已查證）：
+  #   Qwen/Qwen3-Reranker-4B   40 億參數，int8，主力
+  #   BAAI/bge-reranker-v2-m3  5.68 億參數，fp16，對照組（留著才能並排比較）
+  # 兩個都支援多語言 —— PO 用中文問、論文是英文的，這是必要條件。
+  #
+  # ⚠ **Qwen3-Reranker 是生成式的**，每份候選跑一次 LLM 前向；bge 那種 cross-encoder
+  #   是一次前向吐分數。實測 mix 一次送 40–73 個候選，所以延遲要實際量過才能定案。
+  # ⚠ **4B 不能用 fp16**：8 GB 權重 > 這張卡可用的 7.6 GB。int8 是唯一的路。
+  #   fp8 也不行 —— 2070 是 Turing（compute 7.5），fp8 要 Ada 以後才有。
   infinity:
     # 同 lightrag：釘 digest 不釘 tag。對應 v0.0.76（2026-08-08 在 dker 拉下、
     # 用 docker image inspect --format '{{.RepoDigests}}' 取值）。映像 7.55 GB。
@@ -247,14 +255,21 @@ services:
     #   **權重大小不等於顯存需求**：吃記憶體的大宗是 batch × 序列長度的
     #   中間張量。估「模型才 2.5 GB，8 GB 綽綽有餘」是錯的。
     #
-    # --batch-size 8：預設 32。實際用量是查詢時 1 筆、rerank 一次 20–30 筆、
-    #   進料時成批 —— 8 已經足夠，而 batch 直接乘進中間張量。
+    # --batch-size 8：預設 32。實際用量是 rerank 一次 20–70 筆候選 ——
+    #   8 已經足夠，而 batch 直接乘進中間張量。4B 那個給 4，它大得多。
+    #
+    # ⚠ **多值參數是按位置對應 model-id 的**（Infinity 的規則：單一值會廣播到
+    #   所有模型，多個值則逐一對應）。所以下面 dtype 與 batch-size 的順序
+    #   必須跟 model-id 的順序一致，寫反了會把 int8 套到小模型、fp16 套到 4B
+    #   —— 那會直接 OOM，而且錯誤訊息不會告訴你是順序寫反。
     command: >
       v2
-      --model-id BAAI/bge-m3
+      --model-id Qwen/Qwen3-Reranker-4B
       --model-id BAAI/bge-reranker-v2-m3
-      --batch-size 8
+      --dtype int8
       --dtype float16
+      --batch-size 4
+      --batch-size 8
       --port 7997
       --device cuda
 
