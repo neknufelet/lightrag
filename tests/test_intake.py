@@ -887,3 +887,50 @@ def test_a_deferred_admit_does_not_retry_itself(tmp_path: Path) -> None:
 
     assert job.status == "planned"
     assert app._queue.empty(), "退回之後又把自己排進佇列了 —— 這會變成迴圈"
+
+
+def test_the_inbox_offers_one_button_for_the_whole_batch(tmp_path: Path) -> None:
+    """收件匣有兩份以上時要有「全部解析」。
+
+    worker 是循序的、`submit_parse` 忙碌時回 409，所以一篇一篇按的話第二篇
+    會被擋。放十幾篇進來時這不是麻煩，是不能用。
+    """
+    app = _app(tmp_path)
+    for name in ("一.pdf", "二.pdf", "三.pdf"):
+        app.save_upload(name, PDF + name.encode())
+    html = render_html(app.state())
+
+    assert "data-act='parse-all'" in html, "多份候選卻只能一篇一篇按"
+    assert "全部解析（3 份）" in html
+    ids = [str(row["candidate_id"]) for row in app.state()["sections"]["selection"]]
+    match = re.search(r"data-act='parse-all' data-id='([^']+)'", html)
+    assert match is not None
+    assert sorted(match.group(1).split(",")) == sorted(ids), "批次按鈕漏了候選"
+
+
+def test_a_single_candidate_gets_no_batch_button(tmp_path: Path) -> None:
+    """一份的時候不顯示 —— 那顆按鈕跟旁邊的「只解析」做同一件事。
+
+    這是上面那支的控制組：如果它變成「永遠顯示」，這支會紅。
+    """
+    app = _app(tmp_path)
+    app.save_upload("只有一份.pdf", PDF)
+    html = render_html(app.state())
+    assert "data-act='parse'" in html, "連單份的解析按鈕都不見了"
+    assert "data-act='parse-all'" not in html
+
+
+def test_the_batch_api_takes_every_candidate_at_once(tmp_path: Path) -> None:
+    """按鈕送出的那串 id，API 要真的整批收下。
+
+    只驗畫面有按鈕不夠 —— 按鈕送出去被打回 400 的話，畫面看起來一樣正常。
+    """
+    app = _app(tmp_path)
+    for name in ("一.pdf", "二.pdf", "三.pdf"):
+        app.save_upload(name, PDF + name.encode())
+    ids = [str(row["candidate_id"]) for row in app.state()["sections"]["selection"]]
+
+    jobs = app.submit_parse(ids)
+
+    assert len(jobs) == 3
+    assert {job.status for job in jobs} == {"parsing"}

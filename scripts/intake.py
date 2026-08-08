@@ -2181,6 +2181,33 @@ def _render_candidate_row(candidate: Mapping[str, object]) -> str:
     )
 
 
+def _render_parse_all(candidates: Sequence[Mapping[str, object]]) -> str:
+    """整批送去解析。
+
+    **為什麼需要**：worker 是循序的，一次只跑一件，而 `submit_parse` 在忙碌時
+    直接回 409。所以一篇一篇按的話，第二篇會被擋 —— 使用者得守在旁邊等每一篇
+    跑完（解析＋自動放行＋抽取，一篇好幾分鐘）再按下一篇。放 14 篇進來時
+    這不是「有點麻煩」，是不能用。
+
+    API（`_candidate_ids`）本來就收得下 `candidate_ids` 複數，缺的只是按鈕。
+
+    兩份以下不顯示：一顆「全部解析（1 份）」跟旁邊那顆「只解析」做的是同一件事，
+    只是多佔一行。
+    """
+    if len(candidates) < 2:
+        return ""
+    ids = ",".join(str(row.get("candidate_id", "")) for row in candidates)
+    return (
+        "<div class='row'>"
+        "<span class='nm'>這一批全部送去解析</span>"
+        f"<button data-act='parse-all' data-id='{_esc(ids)}'>"
+        f"全部解析（{len(candidates)} 份）</button>"
+        "<span class='sub'><span>一次排隊、依序跑</span>"
+        "<span>計畫乾淨的會自動放行，要你看的會停在「等你看」</span></span>"
+        "</div>"
+    )
+
+
 def _render_job_row(job: Mapping[str, object], current: str | None = None) -> str:
     metrics = job.get("metrics") if isinstance(job.get("metrics"), dict) else {}
     if not isinstance(metrics, dict):
@@ -2260,14 +2287,16 @@ def _render_foreign_row(row: Mapping[str, object]) -> str:
 
 def _render_section(key: str, title: str, rows: Sequence[Mapping[str, object]],
                     renderer: Callable[[Mapping[str, object]], str],
-                    open_default: bool = False) -> str:
+                    open_default: bool = False, prefix: str = "") -> str:
     """一節佇列。預設收起來 —— 攤開全部等於沒有分節。
 
     內容區限高捲動（CSS 的 .sec-body），所以 387 份的選片區不會把畫面撐爆。
+
+    `prefix` 是整節的動作列（例如「全部解析」），只在**這節有東西**時出現 ——
+    空的佇列上掛一顆按不動的按鈕，只會讓人以為壞了。
     """
     body = "".join(renderer(row) for row in rows)
-    if not body:
-        body = "<div class='empty'>沒有</div>"
+    body = prefix + body if body else "<div class='empty'>沒有</div>"
     attr = " open" if open_default else ""
     return (
         f"<details data-sec='{_esc(key)}'{attr}>"
@@ -2619,6 +2648,7 @@ JS = r"""const post = async (path, body) => {
 document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
   const a = b.dataset.act;
   if (a === 'parse')  return post('/api/parse',  {candidate_id: b.dataset.id});
+  if (a === 'parse-all') return post('/api/parse', {candidate_ids: b.dataset.id.split(',')});
   if (a === 'admit')  return post('/api/admit',  {job_id: b.dataset.id});
   if (a === 'return') return post('/api/return', {job_id: b.dataset.id});
   if (a === 'retry')  return post('/api/retry',  {job_id: b.dataset.id});
@@ -2775,7 +2805,8 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     any_row = lambda row: (_render_job_row(row, selected_job_id)  # noqa: E731
                            if row.get("job_id") else _render_foreign_row(row))
     queue = (
-        _render_section("selection", "收件匣", selection, _render_candidate_row)
+        _render_section("selection", "收件匣", selection, _render_candidate_row,
+                        prefix=_render_parse_all(selection))
         + _render_section("parsing", "解析中", parsing, job_row,
                           open_default=bool(parsing))
         + _render_section("review", "等你看", review, job_row, open_default=True)
