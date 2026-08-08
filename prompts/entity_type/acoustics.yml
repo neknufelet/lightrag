@@ -34,8 +34,9 @@ entity_types_guidance: |
   - Artifact: Physical or digital objects created by humans (tools, software, devices)
   - NaturalObject: Natural non-living objects (minerals, celestial bodies, chemical compounds)
 
-  This corpus is English acoustics research papers. Two kinds of text look like
-  entities but carry no retrievable meaning. DO NOT extract them.
+  This corpus is English acoustics research papers. The rules below fix three
+  things that were measured in the graph on 2026-08-08 and are known to hurt
+  retrieval rather than help it.
 
   1. BIBLIOGRAPHIC NAMES. Skip author names, co-author names, and their
      affiliated institutions when they appear in a reference list, bibliography,
@@ -49,20 +50,57 @@ entity_types_guidance: |
      Extract "Helmholtz resonator" as a Concept; do not extract "Helmholtz"
      as a Person just because the term contains a surname.
 
-  2. DOCUMENT-INTERNAL LABELS. Skip pointers that only identify a location
-     inside one document: "Figure 3", "Fig. 3", "FIG. 3", "Equation 5",
-     "Eq. (5)", "Table 2", "Section 4.1", "Appendix A", "Reference [12]".
+  2. NUMBERED LABELS. A label made of a common noun plus a number, letter or
+     Roman numeral is never a good entity name on its own, because **every
+     paper uses the same labels**. "Equation 5" from two different papers
+     becomes one node and fabricates a cross-document relationship that does
+     not exist. There are two kinds and they are handled differently.
 
-     These are position markers, not subjects. They are also actively harmful
-     here: the same label appears in every paper, so "Equation 5" from two
-     different papers merges into one node and fabricates a cross-document
-     relationship that does not exist.
+     2a. POSITION MARKERS — never extract these at all:
+         Figure 3, Fig. 3, Fig 3, FIG. 3, Figure 1A, Figure 4F,
+         Equation 5, Eq. 7, Equation 20b, Table 2, Section 4.1, Section II,
+         Appendix A, Chapter 3, Reference 38, Ref 38.
+         They say where something sits in a document, nothing more.
 
-     Extract what the figure or equation is ABOUT instead. From
-     "Fig. 3 shows the absorption coefficient of the coiled-up channel",
-     extract "absorption coefficient" and "coiled-up channel" — not "Fig. 3".
-     Keep the label inside the description text when it helps a human locate
-     the source; just do not make it an entity of its own.
+         Extract what the figure or equation is ABOUT instead. From
+         "Fig. 3 shows the absorption coefficient of the coiled-up channel",
+         extract "absorption coefficient" and "coiled-up channel" — not "Fig. 3".
+         Keep the label in the description text when it helps a human find the
+         source; just do not make it an entity of its own.
+
+     2b. LABELS THE PAPER DEFINES — extract, but **qualify the name** so it
+         cannot collide with the same label in another paper:
+         Region II, Zone I, Mode I, Configuration 3, Part II, Case 2,
+         Sample A, Type I, Step 4.
+         These often do carry meaning: a paper may define "Region II" as a
+         specific frequency band, and "Mode I" is a real mechanics term.
+
+         So do not drop them — name them by what they ARE, with the label
+         kept in parentheses:
+             "Region II"       ->  "low-frequency absorption region (Region II)"
+             "Configuration 3" ->  "slit-neck resonator array (Configuration 3)"
+             "Mode I"          ->  "first-order resonance mode (Mode I)"
+         If the surrounding text does not say what the label denotes, leave it
+         out entirely rather than guessing a description.
+
+  3. NAME THE ENTITY THE WAY THE SOURCE WRITES IT — never in Title Case.
+
+     Capitalise a word only when the source capitalises it for a reason:
+     proper nouns (Helmholtz), acronyms (MPP, HTTP, FEM), Roman numerals
+     (Region II), and symbols (Z_Mi, D_n,v). Everything else stays lower
+     case, even when the term appears inside a heading.
+
+     Do NOT Title-Case the name. Title Case destroys exactly the parts that
+     carry meaning, and each mangled form then exists as a second entity
+     alongside the correct one, splitting one concept across two nodes:
+         Region II              becomes  Region Ii
+         HTTP lattice structure becomes  Http Lattice Structure
+         equations for D_n,v    becomes  Equations For Dn,v
+
+     A term that appears in a heading and again in a sentence is ONE entity.
+     Use the sentence form:
+         heading "Orifice Partition Impedance" + body "the orifice partition
+         impedance is ..."  ->  orifice partition impedance
 
 entity_extraction_json_examples:
   - |
