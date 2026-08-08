@@ -196,6 +196,71 @@ services:
     networks:
       - rag
 
+  # 本地 embedding + rerank（2026-08-08 新增）。
+  #
+  # **為什麼放 dker**：這台有一張 RTX 2070 8 GB，實測 `nvidia-smi` 顯示用量 1 MiB
+  # ——完全閒置。coder 那兩張 3060 已被 llama 佔滿（合計只剩 2.4 GB），放不下。
+  # ⚠ CLAUDE.md 說 dker 的 `nvidia-smi` 是 driver/library mismatch，**那條已過期**
+  #   （2026-08-08 實測 driver 595.84 / CUDA 13.2 正常，`lspci` 確認 TU106M）。
+  #
+  # **為什麼是 Infinity**：一個容器同時供 embedding 與 rerank，而且兩邊都講
+  # 標準形狀——`/v1/embeddings` 是 OpenAI 相容、`/rerank` 是 Cohere 相容。
+  # LightRAG 的 embedding 接法沒有 infinity 這個選項，但可以用 `openai` 把 host
+  # 指過來（跟 LLM 接 llama.cpp 完全同一招）；rerank 則用 `cohere`。
+  #
+  # **模型**（皆開源，授權已查證）：
+  #   BAAI/bge-m3              embedding，5.68 億參數，1024 維，MIT
+  #   BAAI/bge-reranker-v2-m3  rerank，5.68 億參數，Apache 2.0
+  # 兩個都支援 100+ 語言與跨語言檢索 —— PO 用中文問、論文是英文的，這是必要條件。
+  # 合計約 2.5 GB，8 GB 的卡還剩五成以上。
+  infinity:
+    # 同 lightrag：釘 digest 不釘 tag。對應 v0.0.76（2026-08-08 在 dker 拉下、
+    # 用 docker image inspect --format '{{.RepoDigests}}' 取值）。映像 7.55 GB。
+    image: michaelf34/infinity@sha256:90bd83ecfb9922e9fdceec906cfb79863ad8aeaa45b15b950266679c3e2efd24
+    container_name: lightrag-infinity
+    restart: unless-stopped
+
+    # 只綁 Tailscale 位址，跟其他服務一致
+    ports:
+      - "${BIND_ADDR:-100.87.88.7}:${INFINITY_PORT:-7997}:7997"
+
+    volumes:
+      # 模型權重快取。不放進 repo，也不放資料根的備份範圍 —— 它隨時可從
+      # HuggingFace 重新下載，是**可再生**的，備份它只是浪費空間。
+      - ${DATA_ROOT:-/data/lightrag}/models:/app/.cache/huggingface
+
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+
+    # 兩個模型同時載入，各自用自己的名字被呼叫。
+    # --device cuda 是明確指定 —— 讓「沒吃到 GPU」變成啟動失敗，
+    # 而不是安靜地掉回 CPU 然後每次查詢慢十倍卻沒人發現。
+    command: >
+      v2
+      --model-id BAAI/bge-m3
+      --model-id BAAI/bge-reranker-v2-m3
+      --port 7997
+      --device cuda
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    networks:
+      - rag
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:7997/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # 第一次啟動要下載兩個模型（約 2.5 GB），給足時間
+      start_period: 600s
+
 # Neo4j 服務已於 2026-08-07 移除。四種儲存全部在 Postgres 上：KV／DocStatus／
 # Vector 早就是，Graph 換成 PGTableGraphStorage（v1.5.6 引進，不需要 Apache AGE）。
 #
