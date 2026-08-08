@@ -965,14 +965,21 @@ class IntakeApp:
         #
         # 只救 parsing／repairing：那兩個是「排進佇列但還沒開始」唯一會停的狀態。
         # admitted 之後的每一步都在 worker 裡面走，不可能沒開始。
+        # ⚠ 判準是「**有沒有碰過索引**」（OWNED_STATUSES），不是「有沒有開始跑」。
+        # parsing／repairing 這兩步都還沒把檔案複製進 inputs，LightRAG 從頭到尾
+        # 沒看過它們 —— 拿它們去問索引，得到的「不存在」是**問錯對象**，不是失敗。
+        # 2026-08-08 實測：一份解析到一半的文件因此被判死，而它只需要重跑
+        # （parse-only 有有效 bundle 就跳過，apply 也可重跑，兩者都不會重複收費）。
         requeued: set[str] = set()
         for job in active:
-            if job.stage_started_at is not None or job.status not in {"parsing", "repairing"}:
+            if job.status not in {"parsing", "repairing"}:
                 continue
             kind = "parse" if job.status == "parsing" else "admit"
             self._queue.put((kind, job.job_id))
             requeued.add(job.job_id)
-            message = f"服務重啟時這份還在排隊（沒有開始跑），原樣重新排回 {kind}。"
+            where = "還在排隊" if job.stage_started_at is None else "跑到一半"
+            message = (f"服務重啟時這份{where}，而且還沒碰過索引，"
+                       f"原樣重新排回 {kind}。")
             self.store.append_log(job.job_id, message)
             LOGGER.info("job %s %s", job.job_id, message)
         if requeued:

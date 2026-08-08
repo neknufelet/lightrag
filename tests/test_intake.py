@@ -1092,3 +1092,34 @@ def test_a_failed_admission_releases_the_inputs_staging_area(tmp_path: Path) -> 
     leftover = list(app.paths.inputs_dir(app.workspace).glob("*.pdf"))
     assert leftover == [], f"失敗之後 {leftover} 留在收件區，會擋住後面所有放行"
     assert app._inputs_blocked_reason() is None
+
+
+def test_restart_requeues_a_parse_that_was_interrupted_midway(tmp_path: Path) -> None:
+    """解析到一半被重啟：重新排回去，**不是判定失敗**。
+
+    解析中的文件 LightRAG 從頭到尾沒看過（檔案還沒複製進 inputs），拿它去問
+    索引得到的「不存在」是**問錯對象**。2026-08-08 實測：一份解析到一半的
+    文件因此被判死，而它只需要重跑 —— parse-only 有有效 bundle 就跳過，
+    不會重複向 MinerU 收費。
+    """
+    app, queued = _restart_with_index(
+        tmp_path, "parsing", {"別人的.pdf": "processed"},
+        stage_started_at="2026-08-08T15:00:00+00:00")
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+
+    assert job.status == "parsing", f"解析中的被改成 {job.status}"
+    assert queued == [("parse", job.job_id)]
+
+
+def test_restart_requeues_an_admit_that_had_not_touched_the_index(tmp_path: Path) -> None:
+    """repairing 也一樣：那一步還沒把檔案複製進 inputs。
+
+    判準是 OWNED_STATUSES（有沒有碰過索引），不是「有沒有開始跑」。
+    """
+    app, queued = _restart_with_index(
+        tmp_path, "repairing", {"別人的.pdf": "processed"},
+        stage_started_at="2026-08-08T15:00:00+00:00")
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+
+    assert job.status == "repairing"
+    assert queued == [("admit", job.job_id)]
