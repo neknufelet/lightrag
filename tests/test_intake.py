@@ -1006,3 +1006,89 @@ def test_restart_still_fails_a_job_that_really_ran_and_vanished(tmp_path: Path) 
     assert job.status == "failed", job.status
     assert "找不到這份文件" in (job.error or "")
     assert queued == []
+
+
+# ── 放行後的 compat-check：soft 不擋、hard 要擋（PO 2026-08-08 當場踩到）──
+
+
+def _compat_result(tmp_path: Path, code: int) -> OperationResult:
+    """讓 compat-check 回指定的離開碼，看那道關卡怎麼判。"""
+    from intake import SubprocessRunner
+
+    runner = SubprocessRunner(ROOT, {})
+    job = Job.from_candidate(_fake_candidate())
+    job.workspace = "test"
+    # `_explain_exit` 會把細節接在離開碼後面 —— 那正是舊版字串比對失效的原因
+    runner._run = lambda command, timeout: (      # type: ignore[method-assign]
+        OperationResult(True, "全部通過", code=0) if code == 0 else
+        OperationResult(False, "輸出", f"exit {code}：細節細節", code=code))
+    return runner._compat_check(job)
+
+
+def _fake_candidate():
+    from intake import Candidate
+
+    return Candidate(
+        candidate_id="c" * 32,
+        source_root=Path("/tmp"),
+        source_path=Path("/tmp/自己的.pdf"),
+        source_name="inbox",
+        source_key="inbox-x",
+        filename="自己的.pdf",
+        sha256="sha256:" + "d" * 64,
+        size=1,
+    )
+
+
+def test_a_soft_compat_failure_does_not_block_the_admission(tmp_path: Path) -> None:
+    """compat-check 的 soft 失敗（exit 5）不得擋下放行。
+
+    這段本來就打算容忍，判準卻寫成 `result.error == f"exit {5}"`，而
+    `_explain_exit` 早就把細節接在後面（`exit 5：…`）——**字串比對永遠不成立，
+    而且不會報錯**。2026-08-08 A-32 上線讓 compat-check 第一次在這條路上回 5，
+    整批放行當場被自己的紅燈擋死。
+    """
+    assert _compat_result(tmp_path, 5).ok, "soft 失敗擋下了放行"
+
+
+def test_a_hard_compat_failure_still_blocks_the_admission(tmp_path: Path) -> None:
+    """控制組：hard 失敗（exit 2）仍然要擋。
+
+    放寬的是 soft 那一級，不是「所有非 0 都放行」。沒有這一支的話，
+    上面那條可以靠「永遠回 True」通過。
+    """
+    result = _compat_result(tmp_path, 2)
+    assert not result.ok
+    assert "exit 2" in (result.error or "")
+
+
+def test_a_clean_compat_check_passes(tmp_path: Path) -> None:
+    """全綠也要會過 —— 否則上面兩支可能是在驗一條根本走不到的路。"""
+    assert _compat_result(tmp_path, 0).ok
+
+
+class _FailingIndexRunner(FakeRunner):
+    """索引驗證那一步失敗 —— 放行走到一半掛掉。"""
+
+    def wait_indexed(self, job: Job) -> OperationResult:
+        self.calls.append("wait")
+        return OperationResult(False, "輸出", "exit 2：真的壞了", code=2)
+
+
+def test_a_failed_admission_releases_the_inputs_staging_area(tmp_path: Path) -> None:
+    """放行失敗要把自己複製進收件區的那份撤掉，否則堵死後面每一件。
+
+    收件區必須是純淨空目錄才准放行，而失敗路徑從來沒清過 —— 實測一件在
+    compat-check 掛掉之後，後面 15 件全部退回「等你看」，而擋人的理由是
+    **前一件的檔名**。
+    """
+    app = _app(tmp_path)
+    app.runner = _FailingIndexRunner(app.paths.root)   # type: ignore[assignment]
+    job = _ready_to_admit(app, "自己的.pdf")
+
+    app._run_admit(job.job_id)
+
+    assert job.status == "failed"
+    leftover = list(app.paths.inputs_dir(app.workspace).glob("*.pdf"))
+    assert leftover == [], f"失敗之後 {leftover} 留在收件區，會擋住後面所有放行"
+    assert app._inputs_blocked_reason() is None

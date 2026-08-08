@@ -564,6 +564,10 @@ class OperationResult:
     output: str = ""
     error: str | None = None
     payload: dict[str, object] | None = None
+    # 子行程的離開碼。**判斷失敗種類要用它，不要比對訊息字串** ——
+    # 訊息會為了給人看而加細節，而字串比對不會因此報錯，只會安靜地永遠不成立
+    # （2026-08-08：soft 失敗的容忍就是這樣壞掉的，見 `_compat_check`）。
+    code: int | None = None
 
 
 @dataclass(frozen=True)
@@ -749,7 +753,9 @@ class SubprocessRunner:
             return OperationResult(False, "", f"無法執行命令：{type(exc).__name__}: {exc}")
         output = completed.stdout or ""
         if completed.returncode != 0:
-            return OperationResult(False, output, _explain_exit(completed.returncode, output))
+            return OperationResult(False, output,
+                                   _explain_exit(completed.returncode, output),
+                                   code=completed.returncode)
         return OperationResult(True, output)
 
     def parse(self, job: Job, source_pdf: Path) -> OperationResult:
@@ -841,9 +847,13 @@ class SubprocessRunner:
             "--doc", job.filename,
         ]
         result = self._run(command, self.command_timeout)
-        if not result.ok and result.error == f"exit {self._COMPAT_SOFT_FAIL}":
+        # ⚠ 比離開碼，不要比訊息。舊版比的是 `f"exit {5}"`，而 `_explain_exit`
+        # 早就把細節接在後面（`exit 5：…`），於是這個容忍**永遠不成立**而且
+        # 不會有人知道。2026-08-08 A-32 上線讓 compat-check 第一次在這條路上
+        # 回 5，整批放行當場被自己的紅燈擋死。
+        if not result.ok and result.code == self._COMPAT_SOFT_FAIL:
             LOGGER.warning("compat-check 有 soft 失敗（不擋流程）：%s", job.filename)
-            return OperationResult(True, result.output)
+            return OperationResult(True, result.output, code=result.code)
         return result
 
 
@@ -1537,6 +1547,7 @@ class IntakeApp:
     def _run_admit(self, job_id: str) -> None:
         job = self._job_for_worker(job_id)
         admitted: Path | None = None
+        settled = False
         try:
             parsed = self.paths.parsed_dir / job.filename
             if (job.parsed_source_path is not None
@@ -1582,6 +1593,7 @@ class IntakeApp:
                 self._mark_failed(job_id, indexed.error or "索引驗證失敗")
                 return
             self._cleanup_admitted(job, admitted)
+            settled = True
             with self._lock:
                 transition(job, "indexed")
                 self.store.save(job)
@@ -1589,6 +1601,32 @@ class IntakeApp:
             self._mark_failed(
                 job_id, f"放行失敗：{type(exc).__name__}: {exc}", exception=exc,
             )
+        finally:
+            if not settled and admitted is not None:
+                self._release_inputs(job, admitted)
+
+    def _release_inputs(self, job: Job, admitted: Path) -> None:
+        """放行沒走完時，把暫存在收件區的那份撤掉。
+
+        **一件失敗會堵死整條佇列。** 收件區必須是純淨空目錄才准放行
+        （`_inputs_blocked_reason`），而失敗路徑從來沒有清掉自己複製進去的那份，
+        於是後面每一件放行都被擋 —— 2026-08-08 實測：一件在 compat-check 掛掉，
+        後面 15 件全部退回「等你看」，而擋人的理由是**前一件的檔名**。
+
+        清不掉就只記 log 不再往上丟：這裡已經在失敗處理路徑上，
+        再丟一個例外只會把真正的死因蓋掉。
+        """
+        try:
+            self._cleanup_admitted(job, admitted)
+        except (OSError, RuntimeError) as exc:
+            LOGGER.error("放行失敗後清不掉 inputs 的 %s：%s —— "
+                         "後續放行會被擋，需要人工搬走", admitted, exc)
+            self.store.append_log(
+                job.job_id,
+                f"⚠ 放行失敗後 {admitted} 沒清掉（{type(exc).__name__}），"
+                "後面的放行會被擋住，要人工處理")
+        else:
+            LOGGER.info("放行沒走完，已撤掉 inputs 的 %s", admitted)
 
     def _run_resume(self, job_id: str) -> None:
         """重啟後掛回一份 LightRAG 還在處理的文件。
