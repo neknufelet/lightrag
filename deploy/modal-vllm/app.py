@@ -1,0 +1,118 @@
+"""vLLM + 官方 FP8 權重。**這條路會換掉模型的數值行為，不是「只換位址」。**
+
+跟 `deploy/modal-llama/`（已拆）的差別，一句話：那支保證輸出一致但只快 2 倍，
+這支可能快很多但**輸出會變**。
+
+    llama.cpp + IQ4_XS（本機現役）   17.7 GB   輸出與現有圖譜一致
+    vLLM      + FP8                  ~35 GB   輸出會變 ⇒ 基準要重新量
+
+⚠ **所以這支只有在「反正要重抽一次」的時候才該用。** 本專案目前確實欠一次
+（規則 2a 的小寫修正還沒進圖譜，`compat-check` 的 A-32 是紅的），所以時機剛好；
+但那是一個要明確做的決定，不是順手切換。
+
+## 為什麼是 FP8 + H100，不是 BF16 也不是 A100
+
+    BF16 + A100 80G   70 GB 權重塞進 80 GB → 只剩 10 GB 給 KV，槽開不多
+    FP8  + A100 80G   省了記憶體，但 **Ampere 沒有 FP8 張量核心**，vLLM 會即時
+                      反量化回 BF16 —— 算力一點都沒賺到
+    FP8  + H100 80G   35 GB 權重 + 45 GB KV，而且 FP8 在 Hopper 上是原生的  ✅
+
+## vLLM 值得試的地方（也正是實測到 llama.cpp 平掉的地方）
+
+2026-08-09 實測 llama.cpp 在 A100 上跑這顆 MoE：並行 1→16 只換到 2.1 倍
+（401.9 → 848.3 tok/s，真實抽取形狀）。三個機制正好打在那個瓶頸上：
+
+    連續批次        請求結束就補新的，不用等整批對齊
+    PagedAttention  KV 像分頁一樣管，不會因為每槽預留 8192 而浪費
+    專家並行        MoE 專用核心，正是上面那條曲線平掉的原因
+
+用法：
+
+    modal secret create vllm-api-key --from-dotenv deploy/modal-vllm/.env
+    modal run    deploy/modal-vllm/app.py::download    # 約 35 GB，一次
+    modal deploy deploy/modal-vllm/app.py
+
+⚠ 這個檔**還沒被跑過（未驗）**。
+"""
+from __future__ import annotations
+
+import subprocess
+
+import modal
+
+MODEL_NAME = "Qwen/Qwen3.6-35B-A3B-FP8"
+MODEL_DIR = "/models/qwen3.6-35b-a3b-fp8"
+SERVED_NAME = "qwen3.6-35b-a3b"          # LightRAG 的 LLM_MODEL 對這個名字
+
+# ⚠ **這個 tag 是會動的。** 第一次跑成功之後要換成 digest ——
+# 沒釘住的話「跑的是哪一版 vLLM」答不出來，而抽取結果會跟著版本變。
+# （本機那支 llama.cpp 就是釘 digest 的，見 deploy/llama-qwen36-moe/compose.yaml:23）
+VLLM_IMAGE = "vllm/vllm-openai:latest"
+
+GPU = "H100"
+
+# 單槽最大脈絡。**這裡刻意開到查詢也夠用**：
+#   抽取一次約  8,000 token
+#   查詢       MAX_TOTAL_TOKENS = 50,000
+# llama.cpp 那邊被迫二選一（總脈絡 ÷ 槽數），vLLM 的 PagedAttention 是動態分配，
+# 所以可以同時滿足兩者 —— 這是換過來最實際的好處之一。
+MAX_MODEL_LEN = 65536
+
+# 併發上限。vLLM 是連續批次，這只是天花板不是預先切好的槽。
+# **實際該設多少要量**：8／16／32／64 各跑一次，吞吐不再上升的那一點。
+MAX_NUM_SEQS = 64
+
+app = modal.App("lightrag-vllm-qwen36")
+volume = modal.Volume.from_name("qwen36-fp8", create_if_missing=True)
+
+
+download_image = modal.Image.debian_slim().pip_install("huggingface_hub[hf_transfer]")
+
+
+@app.function(image=download_image, volumes={MODEL_DIR: volume}, timeout=60 * 60)
+def download() -> None:
+    """在機房裡抓 35 GB，不從家裡上傳。"""
+    import os
+
+    os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+    from huggingface_hub import snapshot_download
+
+    snapshot_download(
+        repo_id=MODEL_NAME,
+        local_dir=MODEL_DIR,
+        # GGUF 與 pytorch bin 都不要 —— 這個 repo 只需要 safetensors 與設定檔
+        ignore_patterns=["*.pt", "*.bin", "*.gguf"],
+    )
+    volume.commit()
+
+
+serve_image = modal.Image.from_registry(VLLM_IMAGE).entrypoint([])
+
+
+@app.function(
+    image=serve_image,
+    gpu=GPU,
+    volumes={MODEL_DIR: volume},
+    secrets=[modal.Secret.from_name("vllm-api-key")],   # 提供 VLLM_API_KEY
+    timeout=60 * 60 * 4,
+    scaledown_window=300,
+)
+@modal.concurrent(max_inputs=MAX_NUM_SEQS)
+@modal.web_server(port=8000, startup_timeout=900)
+def serve() -> None:
+    """啟動 vLLM 的 OpenAI 相容伺服器。
+
+    ⚠ **金鑰走環境變數 `VLLM_API_KEY`，不進命令列。** `--api-key` 會出現在
+    `ps` 與容器設定裡，本專案 2026-08-08 因此外洩過一次。
+    """
+    command = [
+        "vllm", "serve", MODEL_DIR,
+        "--served-model-name", SERVED_NAME,
+        "--max-model-len", str(MAX_MODEL_LEN),
+        "--max-num-seqs", str(MAX_NUM_SEQS),
+        # 留一成給啟動時的暫時配置，剩下都給 KV
+        "--gpu-memory-utilization", "0.90",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+    ]
+    subprocess.Popen(command)

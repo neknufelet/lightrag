@@ -104,7 +104,10 @@ def download() -> None:
 
 # ── 伺服器 ────────────────────────────────────────────────────────────
 
-serve_image = modal.Image.from_registry(LLAMA_IMAGE, add_python="3.12")
+# ⚠ `.entrypoint([])` 不能省。llama.cpp 那個 image 的 ENTRYPOINT 是個會解析
+# 子指令的包裝，Modal 要在裡面跑自己的 python runtime 時會被它攔下來，
+# 容器 crash-loop 而錯誤只有一行 `invalid argument: python`（2026-08-09 實測）。
+serve_image = modal.Image.from_registry(LLAMA_IMAGE, add_python="3.12").entrypoint([])
 
 
 @app.function(
