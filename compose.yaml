@@ -81,6 +81,11 @@ services:
       # LightRAG 的 archive_source 仍只認容器內的 __parsed__；把這個子 mount
       # 導到獨立工作區，宿主就不會把解析快取混在索引入口裡。
       - ${DATA_ROOT:-/data/lightrag}/work/parsed:/app/data/inputs/${WORKSPACE}/__parsed__
+      # 抽取規則（唯讀）。走官方的 prompt profile 機制，**不 fork 映像** ——
+      # 映像仍以 digest 釘選，換版時這份規則原封不動跟著走。
+      # 內容與理由見 prompts/entity_type/acoustics.yml；由 PROMPT_DIR 與
+      # ENTITY_TYPE_PROMPT_FILE 兩個鍵啟用（LightRAG 從 addon_params.py:49 讀）。
+      - ${REPO_DIR:?REPO_DIR 未設定}/prompts:/app/prompts:ro
 
     networks:
       - rag

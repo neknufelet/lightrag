@@ -1,0 +1,90 @@
+# 聲學語料的實體抽取規則。
+#
+# 走 LightRAG 官方的 prompt profile 機制（PROMPT_DIR/entity_type/<檔名>.yml），
+# **不 fork 映像**——映像仍以 digest 釘選，換版時這份規則原封不動跟著走。
+#
+# 為什麼需要它（2026-08-08 體檢實測，見 docs/audit-20260808.md 第 6、8 條）：
+# 跨文件的 131 個共用實體裡，拆開看只有約 63 個是領域概念。
+#   47 個（36%）是人名與機構  ← 全部來自參考文獻，不是內容
+#   17 個是 `Equation 5` 這種泛用標籤，而且是**跨論文的假合併**：
+#      A 論文的第 5 式和 B 論文的第 5 式被併成同一個節點，
+#      於是「這兩篇有關聯」這個結論是假的。
+#      另外 `Figure 2` 與 `Fig. 2` 各自是節點，同一張圖還分家。
+#
+# ⚠ 拿掉 `Figure N` 實體**不影響找圖**。找圖是 kbapi 從 chunk 內文用正規式抓的
+#   （kbapi.py:368-395），不經過圖譜；實測「完全不提編號」的查詢照樣回 FIG. 2。
+#   這一條先讀實作才確定，別憑直覺以為會壞。
+#
+# 只提供 json 版的範例，因為 `.env` 是 ENTITY_EXTRACTION_USE_JSON=true。
+# 若哪天改成 false，LightRAG 會明確報「must define entity_extraction_examples」
+# 而不是安靜地用預設——那個錯誤是我們要的，不要為了消除它而先填一份沒驗過的。
+
+entity_types_guidance: |
+  Classify each entity using one of the following types. If no type fits, use `Other`.
+
+  - Person: Human individuals, real or fictional
+  - Creature: Non-human living beings (animals, mythical beings, etc.)
+  - Organization: Companies, institutions, government bodies, groups
+  - Location: Geographic places (cities, countries, buildings, regions)
+  - Event: Occurrences, incidents, ceremonies, meetings
+  - Concept: Abstract ideas, theories, principles, beliefs
+  - Method: Procedures, techniques, algorithms, workflows
+  - Content: Creative or informational works (books, articles, films, reports)
+  - Data: Quantitative or structured information (statistics, datasets, measurements)
+  - Artifact: Physical or digital objects created by humans (tools, software, devices)
+  - NaturalObject: Natural non-living objects (minerals, celestial bodies, chemical compounds)
+
+  This corpus is English acoustics research papers. Two kinds of text look like
+  entities but carry no retrievable meaning. DO NOT extract them.
+
+  1. BIBLIOGRAPHIC NAMES. Skip author names, co-author names, and their
+     affiliated institutions when they appear in a reference list, bibliography,
+     citation, footnote, acknowledgement, or author/affiliation block.
+     These describe who wrote a paper, not what the paper is about, and every
+     paper cites a different set, so they create large numbers of nodes that no
+     question will ever ask about.
+
+     Keep a person or organization ONLY when the surrounding text makes a claim
+     about them, or when the name is part of an established technical term.
+     Extract "Helmholtz resonator" as a Concept; do not extract "Helmholtz"
+     as a Person just because the term contains a surname.
+
+  2. DOCUMENT-INTERNAL LABELS. Skip pointers that only identify a location
+     inside one document: "Figure 3", "Fig. 3", "FIG. 3", "Equation 5",
+     "Eq. (5)", "Table 2", "Section 4.1", "Appendix A", "Reference [12]".
+
+     These are position markers, not subjects. They are also actively harmful
+     here: the same label appears in every paper, so "Equation 5" from two
+     different papers merges into one node and fabricates a cross-document
+     relationship that does not exist.
+
+     Extract what the figure or equation is ABOUT instead. From
+     "Fig. 3 shows the absorption coefficient of the coiled-up channel",
+     extract "absorption coefficient" and "coiled-up channel" — not "Fig. 3".
+     Keep the label inside the description text when it helps a human locate
+     the source; just do not make it an entity of its own.
+
+entity_extraction_json_examples:
+  - |
+    {
+      "entities": [
+        {
+          "name": "<entity_name>",
+          "type": "<entity_type>",
+          "description": "<entity_description>"
+        },
+        {
+          "name": "<related_entity_name>",
+          "type": "<related_entity_type>",
+          "description": "<related_entity_description>"
+        }
+      ],
+      "relationships": [
+        {
+          "source": "<entity_name>",
+          "target": "<related_entity_name>",
+          "keywords": "<relationship_keywords>",
+          "description": "<relationship_description>"
+        }
+      ]
+    }
