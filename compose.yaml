@@ -231,14 +231,30 @@ services:
 
     environment:
       - HF_HOME=/app/.cache/huggingface
+      # 碎片化時讓 PyTorch 自己擴張分段，而不是直接 OOM
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
     # 兩個模型同時載入，各自用自己的名字被呼叫。
+    #
     # --device cuda 是明確指定 —— 讓「沒吃到 GPU」變成啟動失敗，
     # 而不是安靜地掉回 CPU 然後每次查詢慢十倍卻沒人發現。
+    #
+    # ⚠ **--dtype float16 不是可選的，是必須的**（2026-08-08 實測踩到）。
+    #   Infinity 預設 float32，兩個 5.68 億參數的模型光權重就約 4.6 GB，
+    #   加上 warmup 的中間張量直接 CUDA OOM、容器進重啟迴圈：
+    #     torch.OutOfMemoryError: Tried to allocate 1.02 GiB.
+    #     GPU 0 has a total capacity of 7.60 GiB of which 644.38 MiB is free.
+    #   **權重大小不等於顯存需求**：吃記憶體的大宗是 batch × 序列長度的
+    #   中間張量。估「模型才 2.5 GB，8 GB 綽綽有餘」是錯的。
+    #
+    # --batch-size 8：預設 32。實際用量是查詢時 1 筆、rerank 一次 20–30 筆、
+    #   進料時成批 —— 8 已經足夠，而 batch 直接乘進中間張量。
     command: >
       v2
       --model-id BAAI/bge-m3
       --model-id BAAI/bge-reranker-v2-m3
+      --batch-size 8
+      --dtype float16
       --port 7997
       --device cuda
 
