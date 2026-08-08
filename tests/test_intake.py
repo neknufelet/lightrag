@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import shutil
 import socket
 import sys
 import threading
@@ -480,7 +482,7 @@ def _with_index(app: IntakeApp, rows: list[dict[str, str]]) -> IntakeApp:
     for row in rows:
         grouped.setdefault(row["status"], []).append(row)
     app.client.request = lambda *a, **k: {"statuses": grouped}  # type: ignore[method-assign]
-    app._foreign = None
+    app._index_cache = None
     return app
 
 
@@ -624,3 +626,197 @@ def test_restart_does_not_guess_when_lightrag_is_unreachable(tmp_path: Path) -> 
     assert job.status == "extracting", "連不上就把在途工作殺掉了"
     assert "問不到 LightRAG" in (job.error or "")
     assert queued == []
+
+
+# ── 分節以知識庫為準：畫面不得與資料庫各說各話（PO 2026-08-08）──────────
+
+
+def _ready_to_admit(app: IntakeApp, filename: str) -> Job:
+    """做出一份「審查通過、解析成果齊全」、狀態停在 repairing 的 job。"""
+    app.save_upload(filename, PDF)
+    candidate = next(item for item in app._candidates()[0] if item.filename == filename)
+    job = Job.from_candidate(candidate)
+    job.workspace = app.workspace
+    job.decision = "clean"
+    job.plan = _plan(filename)
+    job.status = "repairing"
+    app._jobs[job.job_id] = job
+    parsed = app.paths.parsed_dir / filename
+    parsed.parent.mkdir(parents=True, exist_ok=True)
+    parsed.write_bytes(PDF)
+    job.parsed_source_path = str(parsed)
+    bundle = app.paths.parsed_bundle_dir(filename)
+    bundle.mkdir(parents=True, exist_ok=True)
+    (bundle / "content_list.json").write_text("[]", encoding="utf-8")
+    app.store.save(job)
+    return job
+
+
+def test_foreign_document_still_processing_is_not_in_the_indexed_section(tmp_path: Path) -> None:
+    """別人送的、還在抽取的，不得出現在「已進知識庫」。
+
+    實測 2026-08-08：同一頁上「已處理 4」與「已進知識庫 5」並存。成因是計數
+    那半有過濾 status=='processed'，顯示那半把 foreign 整串接在 completed
+    後面，不分狀態。教訓學過一次（2026-08-04），只補在計數上。
+    """
+    app = _app(tmp_path)
+    _with_index(app, [{"file_path": "別人的.pdf", "status": "processing"}])
+
+    state = app.state()
+    assert [row["filename"] for row in state["sections"]["in_progress"]] == ["別人的.pdf"]
+    assert state["sections"]["completed"] == [], "還在抽取的被列進已進知識庫"
+    assert state["convergence"]["processed"] == 0
+
+
+def test_own_indexed_job_drops_back_while_the_index_is_rerunning_it(tmp_path: Path) -> None:
+    """自己送的那份被重抽時，畫面要跟著掉回「處理中」。
+
+    簿記只答得出「我送出去了」。重抽會把已完成的文件打回 processing，而簿記
+    不會跟著變 —— 實測 2026-08-08 重抽期間畫面 4 份全寫「已進知識庫」，
+    資料庫同時 3 份 processing。
+    """
+    app = _app(tmp_path)
+    _job_in(app, "自己的.pdf", "indexed")
+    _with_index(app, [{"file_path": "自己的.pdf", "status": "processing"}])
+
+    state = app.state()
+    assert [row["filename"] for row in state["sections"]["in_progress"]] == ["自己的.pdf"]
+    assert state["sections"]["completed"] == [], "重抽中的文件被當成已完成"
+    assert state["convergence"]["processed"] == 0
+
+
+def test_unknown_index_status_counts_as_still_running(tmp_path: Path) -> None:
+    """認不得的狀態一律當成還在跑。
+
+    錯放在「處理中」只是讓人多等；錯放在「已進知識庫」會讓人以為可以開始用了。
+    """
+    app = _app(tmp_path)
+    _with_index(app, [{"file_path": "怪狀態.pdf", "status": "somethingelse"}])
+
+    state = app.state()
+    assert [row["filename"] for row in state["sections"]["in_progress"]] == ["怪狀態.pdf"]
+    assert state["convergence"]["processed"] == 0
+
+
+def test_index_unreachable_falls_back_to_bookkeeping_not_to_zero(tmp_path: Path) -> None:
+    """問不到知識庫時退回本站簿記，不得反過來說謊成「什麼都沒進去」。"""
+    app = _app(tmp_path)
+    _job_in(app, "自己的.pdf", "indexed")
+
+    def _boom(*args: object, **kwargs: object) -> dict[str, object]:
+        raise OSError("斷線")
+
+    app.client.request = _boom  # type: ignore[method-assign]
+    app._index_cache = None
+
+    state = app.state()
+    assert [row["filename"] for row in state["sections"]["completed"]] == ["自己的.pdf"]
+    assert state["convergence"]["processed"] == 1
+    assert "問不到 LightRAG" in str(state["foreign_error"]), "連不上卻沒有警告"
+
+
+def test_the_counter_and_the_indexed_section_cannot_disagree(tmp_path: Path) -> None:
+    """同一頁的兩個數字必須是同一件東西 —— 這是本輪的核心迴歸。
+
+    舊版兩處各算一次，於是「已處理 4」與「已進知識庫 5」同時出現在畫面上，
+    而沒有任何東西會發現。
+    """
+    app = _app(tmp_path)
+    _job_in(app, "自己的.pdf", "indexed")
+    _with_index(app, [
+        {"file_path": "自己的.pdf", "status": "processed"},
+        {"file_path": "別人跑完的.pdf", "status": "processed"},
+        {"file_path": "別人在跑的.pdf", "status": "processing"},
+    ])
+
+    state = app.state()
+    assert state["convergence"]["processed"] == len(state["sections"]["completed"]) == 2
+    assert [row["filename"] for row in state["sections"]["in_progress"]] == ["別人在跑的.pdf"]
+
+    html = render_html(state)
+    match = re.search(r"data-sec='completed'.*?<span class='count'>(\d+)</span>", html, re.S)
+    assert match is not None
+    assert int(match.group(1)) == state["convergence"]["processed"], "畫面與計數對不上"
+
+
+def test_in_flight_foreign_document_keeps_the_page_refreshing(tmp_path: Path) -> None:
+    """有東西在跑的時候整頁要自動更新。
+
+    舊版的「有沒有在跑」只看自己的 job，於是重抽期間 data-running='0'，
+    畫面完全不動 —— 使用者得手動重整才看得到變化。
+    """
+    app = _app(tmp_path)
+    _with_index(app, [{"file_path": "別人在跑的.pdf", "status": "processing"}])
+
+    assert "data-running='1'" in render_html(app.state()), "有東西在跑但畫面不會更新"
+
+
+# ── 放行被擋：「現在不方便」不是「這份文件壞了」（PO 2026-08-08）──────────
+
+
+def test_busy_inputs_sends_the_job_back_to_review_not_to_failed(tmp_path: Path) -> None:
+    """收件區被別的流程佔著時退回「等你看」，不標失敗。
+
+    實測 2026-08-08：2017 那篇 decision=clean、reasons=[]，只因為重抽拿
+    inputs 當暫存區就被判 failed。而 failed 的唯一出口會刪掉解析成果。
+    """
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "自己的.pdf")
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+    (inputs / "別的流程在用.pdf").write_bytes(PDF)
+
+    app._run_admit(job.job_id)
+
+    assert job.status == "planned", "「現在不方便」被記成「這份文件壞了」"
+    assert "這次沒有放行" in (job.error or "")
+    assert job.plan is not None, "計畫被清掉了，等於還要再審一次"
+    assert app.paths.parsed_bundle_dir("自己的.pdf").is_dir(), "解析成果被動到了"
+    assert "apply" not in app.runner.calls, "擋下來之後照樣跑了修補"
+    assert "這次沒有放行" in render_html(app.state()), "退回了但畫面沒說原因"
+
+
+def test_retry_puts_a_failed_job_back_without_touching_the_parse(tmp_path: Path) -> None:
+    """計畫還有效的失敗可以重試，而且不動已經做好的解析成果。"""
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "自己的.pdf")
+    job.status = "failed"
+    job.error = "放行失敗：inputs 不是純淨空目錄"
+    app.store.save(job)
+    bundle = app.paths.parsed_bundle_dir("自己的.pdf")
+    before = sorted(path.name for path in bundle.iterdir())
+
+    app.submit_retry(job.job_id)
+
+    assert job.status == "planned"
+    assert job.error is None, "上一次的錯誤留在畫面上會讓人以為又被擋了"
+    assert sorted(path.name for path in bundle.iterdir()) == before
+
+
+def test_retry_refuses_when_the_parse_is_gone(tmp_path: Path) -> None:
+    """解析成果不在了就不能收下重試 —— 那會變成「宣稱不用重跑」卻其實要。"""
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "自己的.pdf")
+    job.status = "failed"
+    shutil.rmtree(app.paths.parsed_bundle_dir("自己的.pdf"))
+
+    with pytest.raises(IntakeError):
+        app.submit_retry(job.job_id)
+    assert job.status == "failed"
+
+
+def test_reset_keeps_a_parse_that_passed_review(tmp_path: Path) -> None:
+    """重置保留通過審查的解析成果 —— MinerU 重抓要錢也要時間。
+
+    反例（沒通過審查的照刪）由
+    test_failed_job_is_visible_and_reset_restores_all_candidate_sources 守著。
+    """
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "自己的.pdf")
+    job.status = "failed"
+    app.store.save(job)
+
+    app.submit_reset(job.job_id)
+
+    assert app.paths.parsed_bundle_dir("自己的.pdf").is_dir(), (
+        "重置把通過審查的解析成果刪了，下一輪要重付一次 MinerU")

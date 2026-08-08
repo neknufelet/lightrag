@@ -72,14 +72,20 @@ TRANSITIONS: dict[str, frozenset[str]] = {
     "candidate": frozenset({"parsing"}),
     "parsing": frozenset({"planned", "failed_parse", "failed"}),
     "planned": frozenset({"repairing", "returned", "failed"}),
-    "repairing": frozenset({"admitted", "failed"}),
+    # repairing → planned：收件區被別的流程佔著時退回「等你看」。那是時機問題
+    # 不是文件問題，不該走 failed（見 _defer_to_review）。
+    "repairing": frozenset({"admitted", "planned", "failed"}),
     "admitted": frozenset({"scanning", "failed"}),
     "scanning": frozenset({"extracting", "failed"}),
     "extracting": frozenset({"indexed", "failed"}),
     "failed_parse": frozenset(),
     "indexed": frozenset(),
     "returned": frozenset(),
-    "failed": frozenset(),
+    # failed → planned：**唯一的出口不該是「整份丟掉重來」。**
+    # 舊版這裡是空集合，於是失敗的唯一處置是重置為候選，而重置會刪掉
+    # MinerU 的解析成果（要錢、要時間）。計畫還有效時應該能直接重試 ——
+    # 守門是在動任何東西之前擋的，沒有東西需要回滾。
+    "failed": frozenset({"planned"}),
 }
 
 
@@ -889,7 +895,7 @@ class IntakeApp:
         self.runner = runner or SubprocessRunner(repo, self._runner_environment())
         self.client = LightRAGClient(self.environment)
         # 與 LightRAG 對帳的結果快取；state() 會被輪詢，每次都打 API 太吵。
-        self._foreign: tuple[float, list[dict[str, object]], str | None] | None = None
+        self._index_cache: tuple[float, dict[str, str], str | None] | None = None
         self._ensure_directories()
         self._recover_active_jobs()
 
@@ -1067,6 +1073,9 @@ class IntakeApp:
             if job.status != "planned" or job.decision != "clean":
                 raise IntakeError("只有機械計畫通過的待審核文件可以放行", 409)
             job.workspace = self.workspace
+            # 上一次退回的原因不要留到這一次 —— 舊訊息掛在畫面上會讓人
+            # 以為又被擋了一次。
+            job.error = None
             transition(job, "repairing")
             self.store.save(job)
             self._queue.put(("admit", job.job_id))
@@ -1082,6 +1091,42 @@ class IntakeApp:
                 raise IntakeError("只有待審核文件可以退回", 409)
             job.workspace = self.workspace
             self._queue.put(("return", job.job_id))
+        return job
+
+    def submit_retry(self, job_id: str) -> Job:
+        """失敗但計畫還有效的，放回「等你看」，**不動任何已經做好的東西**。
+
+        與「重置為候選」的差別就是代價：重置會刪掉解析成果，下一輪得再送一次
+        MinerU（要錢、要時間）；重試只是把狀態撥回去，解析成果原封不動。
+
+        擋在前面的三個條件都是**可驗的事實**，不是推測：計畫通過過、解析來源
+        PDF 還在而且內容沒變、解析成果還在。任何一項不成立就只能走重置 ——
+        那時候「已經做好的東西」本來就不完整了。
+
+        撥回 planned 而不是直接重跑放行：擋下來的原因（例如收件區被佔用）可能
+        還在，讓人再按一次是唯一能確認「現在方便了」的方式。
+        """
+        with self._lock:
+            if self._busy():
+                raise IntakeError("已有序列工作進行中，請等待狀態更新", 409)
+        job = self._get_job(job_id)
+        if job.status != "failed":
+            raise IntakeError("只有失敗的 job 可以重試", 409)
+        if job.decision != "clean" or job.plan is None:
+            raise IntakeError("這份沒有通過審查的計畫，只能用「放回收件匣」重來", 409)
+        parsed = self.paths.parsed_dir / job.filename
+        if not parsed.is_file() or _sha256(parsed) != job.source_sha256:
+            raise IntakeError("解析來源 PDF 不見了或內容已變，只能用「放回收件匣」重來", 409)
+        bundle = self.paths.parsed_bundle_dir(job.filename)
+        if not (bundle / "content_list.json").is_file():
+            raise IntakeError("解析成果不在了，只能用「放回收件匣」重來", 409)
+        with self._lock:
+            job.workspace = self.workspace
+            transition(job, "planned")
+            job.error = None
+            self.store.save(job)
+        LOGGER.info("job %s 重試：計畫仍有效，撥回待審核", job_id)
+        self.store.append_log(job_id, "重試：計畫仍有效，解析成果保留，撥回待審核")
         return job
 
     def _worker_loop(self) -> None:
@@ -1242,8 +1287,8 @@ class IntakeApp:
         inputs = self.paths.inputs_dir(self.workspace)
         return sorted(path for path in inputs.glob("*.pdf") if path.is_file())
 
-    def _assert_inputs_empty(self) -> None:
-        """放行前 `inputs/<ws>` 不得有任何 PDF。
+    def _inputs_blocked_reason(self) -> str | None:
+        """放行前 `inputs/<ws>` 不得有任何 PDF。擋得住就回原因，乾淨就回 None。
 
         **為什麼擋**：放行時 LightRAG 會掃描整個 `inputs/<ws>`，多出來的檔會被
         一起索引，**而且繞過後處理** —— 表格修補、LaTeX 修正、雜訊消音全都不會
@@ -1254,24 +1299,34 @@ class IntakeApp:
         指令直接印出來** —— 與 `ledger.py` 在體檢表脫節時的做法同一個模式：
         擋住不等於把問題丟給人，要給可以直接跑的下一步。
 
-        （2026-08-08 實測：手動跑管線時把 PDF `scp` 進 inputs、跑完沒清，
-        四篇一放行全部撞到這裡。訊息當時只說「不是純淨空目錄」，沒說怎麼辦。）
+        **為什麼回字串而不是一律丟例外**：呼叫端要能分辨「這份文件有問題」與
+        「現在不方便」。後者不該進 failed，見 `_defer_to_review`。
+
+        （2026-08-08 實測兩次：先是手動跑管線把 PDF `scp` 進 inputs、跑完沒清，
+        四篇一放行全部撞到這裡；當天稍晚重抽拿 inputs 當暫存區，2017 放行撞上，
+        被判 failed 而它自己 decision=clean、reasons=[]。）
         """
         existing = self._inputs_pdf_paths()
         if not existing:
-            return
+            return None
         names = ", ".join(path.name for path in existing)
         inputs = self.paths.inputs_dir(self.workspace)
         stamp = time.strftime("%Y%m%d")
         archive = self.paths.library_dir / f"manual-{stamp}"
-        raise RuntimeError(
+        return (
             f"放行中止：inputs/{self.workspace} 不是純淨空目錄：{names}\n"
             f"  為什麼擋：放行時 LightRAG 會掃描整個 {inputs}，"
             f"多出來的檔會被一起索引且**繞過後處理**。\n"
-            f"  這通常是手動跑管線留下的殘留（intake 自己走的流程會清）。處置：\n"
+            f"  如果是重抽／手動跑管線正在用它當暫存區，等那邊跑完再放行就好。\n"
+            f"  如果是殘留（intake 自己走的流程會清），處置：\n"
             f"    mkdir -p '{archive}'\n"
             f"    mv '{inputs}'/*.pdf '{archive}'/\n"
             f"  **搬到 library 不要直接刪** —— 那可能是某份文件在這台的唯一副本。")
+
+    def _assert_inputs_empty(self) -> None:
+        reason = self._inputs_blocked_reason()
+        if reason is not None:
+            raise RuntimeError(reason)
 
     def _copy_admitted(self, job: Job, source: Path) -> Path:
         inputs = self.paths.inputs_dir(self.workspace)
@@ -1309,7 +1364,23 @@ class IntakeApp:
             raise RuntimeError(f"重置拒絕刪除未驗證的 {label} 檔案：{path}")
         path.unlink()
 
-    def _remove_reset_artifacts(self, job: Job) -> None:
+    def _remove_reset_artifacts(self, job: Job) -> bool:
+        """清掉重置要清的東西。回傳「解析成果有沒有留下」。
+
+        **解析成果預設留著。** MinerU 要錢也要時間，而 `parse-only.py` 本來就會
+        跳過已有的有效 bundle（「重抓要錢」），所以留著等於下一輪免費。
+        `is_bundle_valid` 比對的是來源檔的大小與內容雜湊，不是檔案身分，
+        所以這裡照樣刪掉 work/parsed 的 PDF 副本 —— 下一輪重新複製一份出來，
+        雜湊一樣就仍然有效；換成別的同名 PDF 則會失效並重抓，兩邊都對。
+
+        **什麼時候該刪**：這份解析成果**沒有通過審查**的時候（`plan is None`）。
+        那表示它連被看過都還沒有 —— 解析途中就掛了、或計畫算不出來，內容值不值得
+        信任沒有人知道。反過來，走到過審查就代表這份解析成果被檢查過了，留著安全。
+
+        判準用「有沒有計畫」而不是「失敗代號是不是 failed_parse」：解析階段有好
+        幾條路會丟例外（bundle 缺 content_list、plan 算不出來），那些都會落成
+        `failed` 而不是 `failed_parse`，用代號分會把它們一起留下來。
+        """
         if not _safe_pdf_name(job.filename):
             raise RuntimeError("重置拒絕使用不安全的文件檔名")
         source_key_path = Path(job.source_key)
@@ -1344,10 +1415,13 @@ class IntakeApp:
             self._remove_reset_pdf(path, root, job.source_sha256, label)
 
         raw = self.paths.parsed_bundle_dir(job.filename)
+        if job.plan is not None:
+            return raw.is_dir()
         if raw.exists():
             if raw.parent.resolve() != parsed_root.resolve() or not raw.is_dir():
                 raise RuntimeError(f"重置拒絕刪除未驗證的 parsed bundle：{raw}")
             shutil.rmtree(raw)
+        return False
 
     def submit_reset(self, job_id: str) -> str:
         with self._lock:
@@ -1358,7 +1432,7 @@ class IntakeApp:
             if job.status not in {"failed", "failed_parse", "returned"}:
                 raise IntakeError("只有失敗的 job 可以重置為候選", 409)
             try:
-                self._remove_reset_artifacts(job)
+                kept_bundle = self._remove_reset_artifacts(job)
                 job_dir = self.paths.intake_job_dir(job.job_id)
                 if (job_dir.resolve().parent != self.paths.intake_jobs_dir.resolve()
                         or job_dir.name != job.job_id):
@@ -1371,7 +1445,11 @@ class IntakeApp:
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("重置 job %s 為候選失敗", job.job_id)
                 raise IntakeError(f"重置失敗：{type(exc).__name__}: {exc}", 409) from exc
-        LOGGER.info("job %s 已重置為候選：candidate_id=%s", job.job_id, job.candidate_id)
+        LOGGER.info(
+            "job %s 已重置為候選：candidate_id=%s，解析成果%s",
+            job.job_id, job.candidate_id,
+            "保留（下一輪不必重抓）" if kept_bundle else "已刪除",
+        )
         return job.candidate_id
 
     def _run_admit(self, job_id: str) -> None:
@@ -1384,14 +1462,23 @@ class IntakeApp:
                 raise RuntimeError("job 的 parsed source 不在既定 work/parsed 路徑")
             if not parsed.is_file() or _sha256(parsed) != job.source_sha256:
                 raise RuntimeError("放行前找不到或驗證不了解析來源 PDF")
-            self._assert_inputs_empty()
+            blocked = self._inputs_blocked_reason()
+            if blocked is not None:
+                self._defer_to_review(job_id, blocked)
+                return
             applied = self.runner.apply(job)
             self._append_operation(job, "修補", applied)
             if not applied.ok:
                 self._mark_failed(job_id, applied.error or "修補失敗")
                 return
             # 設計 C 的核心順序：apply 成功之後才允許複製進 inputs。
-            self._assert_inputs_empty()
+            #
+            # 這一次擋下來也是退回而不是失敗：apply 走的是「同內容不重寫、
+            # `_pp_original_*` 只記第一次」（pp/apply.py），重跑安全。
+            blocked = self._inputs_blocked_reason()
+            if blocked is not None:
+                self._defer_to_review(job_id, blocked)
+                return
             admitted = self._copy_admitted(job, parsed)
             job.admitted_path = str(admitted)
             with self._lock:
@@ -1473,6 +1560,35 @@ class IntakeApp:
             self._mark_failed(
                 job_id, f"退回失敗：{type(exc).__name__}: {exc}", exception=exc,
             )
+
+    def _defer_to_review(self, job_id: str, reason: str) -> None:
+        """「現在不方便」退回「等你看」，不標失敗。
+
+        擋下放行的理由分兩種，處置完全不同：
+
+          這份文件有問題      → failed，要人去看它
+          現在不方便          → 退回待審核，等一下再按一次就好
+
+        收件區被別的流程佔著屬於後者：文件本身 decision=clean、計畫還有效、
+        守門是在動任何東西**之前**擋的，沒有東西需要回滾。舊版把它標成 failed，
+        而 failed 的唯一出口是「重置為候選」，那條路會刪掉 MinerU 的解析成果
+        （2026-08-08 的 2017：4.0MB、要錢也要時間，而且它從頭到尾沒有錯）。
+
+        錯誤訊息留在 job 上讓畫面顯示 —— 退回而不說原因，使用者只會看到
+        按了沒反應。
+        """
+        message = f"這次沒有放行：{reason}"
+        LOGGER.warning("job %s 退回待審核：%s", job_id, message)
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                LOGGER.error("要退回待審核但找不到 job：%s：%s", job_id, message)
+                return
+            if job.status == "repairing":
+                transition(job, "planned")
+            job.error = message
+            self.store.save(job)
+        self.store.append_log(job_id, message)
 
     def _mark_failed(
         self,
@@ -1702,6 +1818,31 @@ class IntakeApp:
         candidates, warnings = self._candidates()
         jobs = self._jobs_snapshot()
         public_jobs = [self._public_job(job) for job in sorted(jobs, key=lambda item: item.updated_at)]
+        foreign_rows, foreign_error = self._foreign_documents()
+        index_status, _ = self._index_documents()
+
+        # 「進知識庫了沒」問的是**知識庫的現實**，不是本站的簿記。兩者會脫節，
+        # 而且兩個方向都實測踩過：
+        #   ① 簿記說 indexed、知識庫正在重抽那一份 → 畫面說完成，其實還在跑
+        #      （2026-08-08：重抽期間畫面 4 份全寫「已進知識庫」，資料庫 3 份
+        #       processing）
+        #   ② 簿記說 failed、知識庫其實跑完了 → 兩邊都不算，那份文件憑空消失
+        # 所以分節一律以知識庫的狀態為準，而且**本站送的與別人送的走同一條規則**
+        # —— 舊版只對「別人送的」做過濾，計數那半修好了、顯示那半沒有，於是
+        # 同一頁上出現「已處理 4」與「已進知識庫 5」。
+        def bucket(filename: str, fallback: str) -> str:
+            """知識庫怎麼說。問不到、或它根本沒這一列，才退回本站的簿記。"""
+            status = index_status.get(filename)
+            if status is None:
+                return fallback
+            if status == "processed":
+                return "completed"
+            if status == "failed":
+                return "failed"
+            # 認不得的狀態一律當成還在跑。**寧可錯放在「處理中」也不要錯放在
+            # 「已進知識庫」** —— 前者只是讓人多等，後者會讓人以為可以開始用了。
+            return "in_progress"
+
         sections: dict[str, list[dict[str, object]]] = {
             "selection": [candidate.public() for candidate in candidates],
             "parsing": [item for item in public_jobs if item["status"] == "parsing"],
@@ -1709,12 +1850,17 @@ class IntakeApp:
             "in_progress": [item for item in public_jobs if item["status"] in {
                 "repairing", "admitted", "scanning", "extracting",
             }],
-            "completed": [item for item in public_jobs if item["status"] == "indexed"],
+            "completed": [],
             "skipped": [item for item in public_jobs if item["status"] == "returned"],
             "failed": [item for item in public_jobs if item["status"] in {
                 "failed_parse", "failed",
             }],
         }
+        for item in public_jobs:
+            if item["status"] == "indexed":
+                sections[bucket(str(item["filename"]), "completed")].append(item)
+        for row in foreign_rows:
+            sections[bucket(str(row["filename"]), "in_progress")].append(row)
         grouped: dict[str, dict[str, object]] = {}
         for item in public_jobs:
             if item["status"] == "planned" and item["decision"] != "clean":
@@ -1731,20 +1877,13 @@ class IntakeApp:
                     job_list.append({"job_id": item["job_id"], "filename": item["filename"],
                                      "source": item["source"]})
         events = self.events.read()
-        foreign_rows, foreign_error = self._foreign_documents()
-        # 「已處理」問的是**知識庫的現實**，不是 job 的狀態。
+        # **數的和列的必須是同一件東西。** 舊版這裡自己算一次、畫面那邊自己
+        # 算一次，於是同一頁的兩個數字互相矛盾而沒有任何東西會發現。現在
+        # 「已處理」就是「已進知識庫」那一節的長度，兩者不可能再對不上。
         #
-        # job 狀態會跟現實脫節：實測遇到一份文件已經索引成功，但因為
-        # compat-check 的 soft 失敗被誤判成 failed，於是計數說 0 而庫裡有 1 份。
-        # 本站處理的（indexed）＋ 對帳查到的（索引裡有但本站沒紀錄）才是真相。
-        #
-        # 但對帳那一半只能數**真的跑完的**。索引裡 status=processing 的列是
-        # 「正在跑」不是「已處理」，把它加進來會讓計數提前跳號 —— 實測 2026-08-04
-        # 咬到：B 還在抽取，畫面已經說「已進知識庫 2」。字面值實查為小寫
-        # processing／processed（GET /documents 的 statuses 鍵與 item.status 同值）。
-        processed = (sum(1 for job in jobs if job.status == "indexed")
-                     + sum(1 for row in foreign_rows
-                           if str(row.get("status")) == "processed"))
+        # 字面值實查為小寫 processing／processed（GET /documents 的 statuses
+        # 鍵與 item.status 同值）。
+        processed = len(sections["completed"])
         events = sorted(events, key=lambda event: str(event.get("created_at", "")))
         last_event = events[-1] if events else None
         distance = None
@@ -1769,32 +1908,20 @@ class IntakeApp:
             "foreign_error": foreign_error,
         }
 
-    def _foreign_documents(self) -> tuple[list[dict[str, object]], str | None]:
-        """索引裡有、但本站沒有紀錄的文件。
+    def _index_documents(self) -> tuple[dict[str, str], str | None]:
+        """索引裡每份文件的現況：檔名 → 狀態。**「它現在怎麼樣」的唯一真相來源。**
 
-        審核台只記得自己經手過的。用 CLI 或別的方式進去的文件它不知道，
-        於是畫面顯示 1 份而資料庫其實有 2 份 —— 而使用者會照畫面做決定。
+        本站的簿記只答得出「我送出去了」，答不出「它現在怎麼樣」——
+        重抽會把已經完成的文件打回 processing，而簿記不會跟著變。
 
-        連不上時回報**錯誤訊息**而不是空清單：一個安靜的 0 會讓人以為
+        連不上時回報**錯誤訊息**而不是空字典：一個安靜的 0 會讓人以為
         「沒有別的東西」，那比看到警告危險。
         """
         now = time.monotonic()
-        if self._foreign is not None and now - self._foreign[0] < 30.0:
-            return self._foreign[1], self._foreign[2]
+        if self._index_cache is not None and now - self._index_cache[0] < 30.0:
+            return self._index_cache[1], self._index_cache[2]
 
-        # 排除的是「本站**負責那一列**的」：在途（已經送進 inputs）或已完成。
-        #
-        # 兩個方向都踩過，而且是對稱的：
-        # ① 排除「本站有紀錄的」太寬 —— 文件已索引成功但 job 因誤判卡在
-        #    failed，於是它既不算 completed 也不算 foreign，兩邊都漏掉。
-        # ② 排除「本站 indexed 的」太窄 —— 正在抽取的那一份不算成功處理，
-        #    於是自己送的文件被貼上「不是這裡送的」，而且被計進「已處理」。
-        #    2026-08-04 實測：B 抽到第 41 段時畫面說「已進知識庫 2」，實際 1 份。
-        #
-        # 正確的界線是 OWNED_STATUSES：**本站碰過索引，且還沒放手**。
-        # failed／returned／planned 不排除 —— 那是 ① 要救的情況。
-        mine = {job.filename for job in self._jobs.values() if job.status in OWNED_STATUSES}
-        rows: list[dict[str, object]] = []
+        rows: dict[str, str] = {}
         error: str | None = None
         try:
             # 用 GET /documents 而不是 /documents/paginated：後者的 page_size
@@ -1810,14 +1937,38 @@ class IntakeApp:
                         if not isinstance(item, dict):
                             continue
                         name = str(item.get("file_path") or item.get("id") or "")
-                        if name and name not in mine:
-                            rows.append({"filename": name,
-                                         "status": str(item.get("status") or status_name),
-                                         "source": "不是這裡送進去的"})
+                        if name:
+                            rows[name] = str(item.get("status") or status_name)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             error = f"問不到 LightRAG 的文件清單（{type(exc).__name__}），下面的份數可能不完整"
 
-        self._foreign = (now, rows, error)
+        self._index_cache = (now, rows, error)
+        return rows, error
+
+    def _foreign_documents(self) -> tuple[list[dict[str, object]], str | None]:
+        """索引裡有、但本站沒有紀錄的文件。
+
+        審核台只記得自己經手過的。用 CLI 或別的方式進去的文件它不知道，
+        於是畫面顯示 1 份而資料庫其實有 2 份 —— 而使用者會照畫面做決定。
+        """
+        index, error = self._index_documents()
+
+        # 排除的是「本站**負責那一列**的」：在途（已經送進 inputs）或已完成。
+        #
+        # 兩個方向都踩過，而且是對稱的：
+        # ① 排除「本站有紀錄的」太寬 —— 文件已索引成功但 job 因誤判卡在
+        #    failed，於是它既不算 completed 也不算 foreign，兩邊都漏掉。
+        # ② 排除「本站 indexed 的」太窄 —— 正在抽取的那一份不算成功處理，
+        #    於是自己送的文件被貼上「不是這裡送的」，而且被計進「已處理」。
+        #    2026-08-04 實測：B 抽到第 41 段時畫面說「已進知識庫 2」，實際 1 份。
+        #
+        # 正確的界線是 OWNED_STATUSES：**本站碰過索引，且還沒放手**。
+        # failed／returned／planned 不排除 —— 那是 ① 要救的情況。
+        mine = {job.filename for job in self._jobs.values() if job.status in OWNED_STATUSES}
+        rows: list[dict[str, object]] = [
+            {"filename": name, "status": status, "source": "不是這裡送進去的"}
+            for name, status in index.items() if name not in mine
+        ]
         return rows, error
 
     def links(self) -> dict[str, str]:
@@ -2015,7 +2166,13 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
     is_current = current is not None and job.get("job_id") == current
     action = ""
     if status in {"failed", "failed_parse", "returned"}:
-        action = f"<button data-act='reset' data-id='{job_id}'>放回收件匣</button>"
+        # 計畫還通過著的失敗給「重試」，而且排在「放回收件匣」前面 ——
+        # 並排的兩顆按鈕裡，先看到的那顆會被當成建議做法，而重試不會刪掉
+        # 已經做好的解析成果（重抓要錢、要時間）。
+        if status == "failed" and decision == "clean":
+            action = (f"<button data-act='retry' data-id='{job_id}'"
+                      f" title='計畫還有效，解析成果保留'>重試</button>")
+        action += f"<button data-act='reset' data-id='{job_id}'>放回收件匣</button>"
     elif status == "planned":
         action = f"<a class='btn' href='?job={job_id}'>看計畫</a>"
     pages = metrics.get("pages")
@@ -2031,7 +2188,9 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
         size_bits.append(f"<span>{_esc(_busy_note(status, job.get('updated_at')))}</span>")
     error = job.get("error")
     err_html = ""
-    if status in {"failed", "failed_parse"} and isinstance(error, str) and error:
+    # planned 也要顯示：放行被擋下來會把文件退回這一節並留下原因，不顯示的話
+    # 使用者只看得到「按了沒反應」。
+    if status in {"failed", "failed_parse", "planned"} and isinstance(error, str) and error:
         err_html = f"<span class='err'>⚠ {_esc(error)}</span>"
     chip = (f"<span class='chip {_chip_class(status, decision)}'>"
             f"{_esc(_status_label(status, decision))}</span>")
@@ -2045,6 +2204,18 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
     )
 
 
+def _index_status_label(status: object) -> str:
+    """知識庫回的狀態 → 人話。**明說是知識庫講的**，因為這一列的可信度來自它，
+    不是來自本站的簿記。認不得的原樣顯示 —— 翻譯不出來就不要假裝看得懂。
+    """
+    return {
+        "processed": "知識庫說已完成",
+        "processing": "知識庫說正在抽取",
+        "pending": "知識庫說排隊中",
+        "failed": "知識庫說失敗",
+    }.get(str(status), str(status))
+
+
 def _render_foreign_row(row: Mapping[str, object]) -> str:
     """索引裡有、但本站沒紀錄的文件。沒有 job 就沒有動作可做，只標明它存在。
 
@@ -2056,7 +2227,7 @@ def _render_foreign_row(row: Mapping[str, object]) -> str:
         f"<span class='nm' title='{_esc(row.get("filename", ""))}'>"
         f"{_esc(row.get('filename', ''))}</span>"
         "<span class='chip idle'>不是這裡送的</span>"
-        f"<span class='sub'><span>{_esc(row.get('status', ''))}</span>"
+        f"<span class='sub'><span>{_esc(_index_status_label(row.get('status')))}</span>"
         "<span>用 CLI 或其他方式進去的</span></span>"
         "</div>"
     )
@@ -2425,6 +2596,7 @@ document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
   if (a === 'parse')  return post('/api/parse',  {candidate_id: b.dataset.id});
   if (a === 'admit')  return post('/api/admit',  {job_id: b.dataset.id});
   if (a === 'return') return post('/api/return', {job_id: b.dataset.id});
+  if (a === 'retry')  return post('/api/retry',  {job_id: b.dataset.id});
   if (a === 'reset')  return post('/api/reset',  {job_id: b.dataset.id});
   if (a === 'rm') {
     if (!confirm('從收件匣刪除 ' + b.dataset.id + '？')) return;
@@ -2518,7 +2690,7 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     in_progress, completed, selection = sec("in_progress"), sec("completed"), sec("selection")
     skipped = sec("skipped")
 
-    foreign = state.get("foreign") if isinstance(state.get("foreign"), list) else []
+    # foreign 的列已經在 state() 依知識庫狀態分進各節了，這裡只取錯誤訊息。
     foreign_error = state.get("foreign_error")
     health = state.get("health") if isinstance(state.get("health"), dict) else {}
     running = bool(health.get("running")) or bool(parsing) or bool(in_progress)
@@ -2573,22 +2745,22 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     #   收件匣 → 解析 → 等你看 → （卡住的）→ 處理 → 進知識庫 →（失敗）
     # 預設只展開「等你看」——那是唯一需要你動腦的一節。
     job_row = lambda row: _render_job_row(row, selected_job_id)  # noqa: E731
-    indexed_rows = list(completed) + list(foreign)
+    # 三節可能同時裝著本站的 job 與別人送的列（見 state() 的分節規則），
+    # 用同一個 renderer 分辨：有 job_id 就是本站的。
+    any_row = lambda row: (_render_job_row(row, selected_job_id)  # noqa: E731
+                           if row.get("job_id") else _render_foreign_row(row))
     queue = (
         _render_section("selection", "收件匣", selection, _render_candidate_row)
         + _render_section("parsing", "解析中", parsing, job_row,
                           open_default=bool(parsing))
         + _render_section("review", "等你看", review, job_row, open_default=True)
         + _render_pending_groups(state.get("pending_by_reason"))
-        + _render_section("in_progress", "處理中", in_progress, job_row,
+        + _render_section("in_progress", "處理中", in_progress, any_row,
                           open_default=bool(in_progress))
-        + _render_section(
-            "completed", "已進知識庫", indexed_rows,
-            lambda row: (_render_job_row(row, selected_job_id)
-                         if row.get("job_id") else _render_foreign_row(row)))
+        + _render_section("completed", "已進知識庫", completed, any_row)
         + _render_section("skipped", "已跳過", skipped, job_row,
                           open_default=bool(skipped))
-        + _render_section("failed", "失敗", failed, job_row,
+        + _render_section("failed", "失敗", failed, any_row,
                           open_default=bool(failed))
     )
 
@@ -2703,6 +2875,10 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     return
                 if parsed.path == "/api/return":
                     job = app.submit_return(job_id)
+                    self._json({"job": app._public_job(job)}, 202)
+                    return
+                if parsed.path == "/api/retry":
+                    job = app.submit_retry(job_id)
                     self._json({"job": app._public_job(job)}, 202)
                     return
                 if parsed.path == "/api/reset":
