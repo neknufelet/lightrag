@@ -72,6 +72,15 @@ MOUNTED_CODE_BY_SERVICE: dict[str, tuple[str, ...]] = {
     "kbapi": ("scripts",),
 }
 
+# systemd 單元檔在哪。**不是每個跑 repo 程式碼的東西都是容器** —— 審核台 :9710
+# 就是一個 systemd service，2026-08-08 實測它跑著 7 小時前的 intake.py，而第一版
+# freshness 只看 compose 容器，**完全看不到它**。
+#
+# 判準：`Type=simple`（常駐）會把程式碼留在記憶體裡，所以會變舊；
+#       `Type=oneshot` 每次執行都重新讀檔，永遠是最新的，不必檢查。
+SYSTEMD_DIR = REPO / "deploy" / "systemd"
+SYSTEMD_CODE_PATHS: tuple[str, ...] = ("scripts",)
+
 
 class StackError(RuntimeError):
     """部署前提不成立。**一律停下來，不猜。**"""
@@ -205,6 +214,43 @@ def _project_containers() -> list[dict[str, object]]:
     return out
 
 
+def _long_running_units() -> list[str]:
+    """跑 repo 程式碼、而且**常駐**的 systemd 單元名。
+
+    從單元檔推導而不是寫死清單：新增一個常駐服務時，這裡自動涵蓋它。
+    `Type=oneshot` 排除掉——那種每次執行都重新讀檔，不會變舊。
+    """
+    if not SYSTEMD_DIR.is_dir():
+        return []
+    out: list[str] = []
+    for path in sorted(SYSTEMD_DIR.glob("*.service")):
+        text = path.read_text(encoding="utf-8")
+        is_simple = any(ln.strip() == "Type=simple" for ln in text.splitlines())
+        runs_repo_code = "@REPO@/scripts/" in text
+        if is_simple and runs_repo_code:
+            out.append(path.name)
+    return out
+
+
+def _unit_start_epoch(unit: str) -> float | None:
+    """單元主行程的啟動時間。單元沒在跑就回 None。
+
+    走 `MainPID` ＋ `ps -o etimes=`（已經跑了幾秒）而不是解析 systemd 的時間字串
+    ——後者是**依語系而變的**人類可讀格式，在別的機器上會解析失敗，而解析失敗
+    看起來會像「查不到」而不是「我的解析器壞了」。
+    """
+    import time
+    p = _run(["systemctl", "show", unit, "--property=MainPID", "--value"])
+    pid = p.stdout.strip()
+    if p.returncode != 0 or not pid or pid == "0":
+        return None
+    q = _run(["ps", "-o", "etimes=", "-p", pid])
+    secs = q.stdout.strip()
+    if q.returncode != 0 or not secs.isdigit():
+        return None
+    return time.time() - int(secs)
+
+
 def cmd_freshness(args: argparse.Namespace) -> int:
     """跑著的東西是不是最新的碼。三條各自獨立，全綠才回 0。"""
     problems: list[str] = []
@@ -273,6 +319,28 @@ def cmd_freshness(args: argparse.Namespace) -> int:
                 f"（晚 {(commit_at - started) / 3600:.1f} 小時）—— 跑的是舊碼，要重啟")
         else:
             print(f"{name}　掛著的 {list(paths)} 沒有比它新")
+
+    # ── 5. 常駐的 systemd 服務有沒有比它跑的碼舊 ─────────────────────
+    # **不是每個跑 repo 程式碼的東西都是容器。** 審核台 :9710 就是一個 systemd
+    # service（刻意不在 compose 裡，見 compose.yaml:150）。第一版 freshness 只看
+    # compose 容器，於是它跑著 7 小時前的 intake.py 而沒有任何人知道——
+    # 症狀是審核台顯示的檢查結果少了 commit 欄位，而那個欄位當天才加上。
+    commit_at = _last_commit_epoch(SYSTEMD_CODE_PATHS)
+    for unit in _long_running_units():
+        started = _unit_start_epoch(unit)
+        if started is None:
+            problems.append(f"{unit}：常駐服務但沒在跑（或問不到 MainPID）")
+        elif commit_at is None:
+            problems.append(f"{unit}：查不到 {list(SYSTEMD_CODE_PATHS)} 的最後 commit")
+        elif started < commit_at:
+            problems.append(
+                f"{unit} 啟動於 {datetime.fromtimestamp(started):%m-%d %H:%M}，"
+                f"但 {list(SYSTEMD_CODE_PATHS)} 的最後 commit 是 "
+                f"{datetime.fromtimestamp(commit_at):%m-%d %H:%M}"
+                f"（晚 {(commit_at - started) / 3600:.1f} 小時）—— 跑的是舊碼，"
+                f"要 systemctl restart {unit}")
+        else:
+            print(f"{unit}　啟動晚於它跑的碼")
 
     if problems:
         print()

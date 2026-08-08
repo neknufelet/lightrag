@@ -166,3 +166,31 @@ def test_last_commit_epoch_reads_real_history() -> None:
     mod = _module()
     assert mod._last_commit_epoch(("compose.yaml",)) is not None
     assert mod._last_commit_epoch(("this-path-does-not-exist",)) is None
+
+
+def test_only_long_running_units_are_checked() -> None:
+    """`Type=oneshot` 的單元不必檢查新鮮度 —— 它們每次執行都重新讀檔。
+
+    只有常駐（`Type=simple`）的會把程式碼留在記憶體裡。清單從單元檔推導而不是
+    寫死，所以新增一個常駐服務時會自動被涵蓋。
+
+    **為什麼需要這支**：第一版 freshness 只看 compose 容器，而審核台 :9710 是
+    systemd service（刻意不在 compose 裡）。2026-08-08 實測它跑著 7 小時前的
+    intake.py，**完全在檢查範圍之外**。
+    """
+    mod = _module()
+    units = mod._long_running_units()
+    assert "lightrag-intake.service" in units, "審核台是常駐服務，必須被檢查"
+    for oneshot in ("lightrag-daily-check.service", "lightrag-cold-backup.service",
+                    "lightrag-stack.service"):
+        assert oneshot not in units, f"{oneshot} 是 oneshot，不該被當成會變舊的服務"
+
+
+def test_unit_start_epoch_returns_none_for_a_unit_that_is_not_running() -> None:
+    """問一個不存在的單元要回 None，不能丟例外也不能瞎猜一個時間。
+
+    回 None 在 freshness 裡是紅燈（「常駐服務但沒在跑」），那是對的——
+    服務掛了跟服務是舊的都要有人知道。
+    """
+    mod = _module()
+    assert mod._unit_start_epoch("this-unit-does-not-exist-drill.service") is None
