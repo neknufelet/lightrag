@@ -20,70 +20,36 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 
 ---
 
-## 🔴 從這裡開始：重抽跑完了嗎
+## 🔴 從這裡開始：實體碎片化（重抽已驗收完成）
 
-**2026-08-08 21:10 啟動全面重抽**（5 份；2017 那篇沒進過知識庫，要另外放行，見下）。
-新的抽取規則第一次生效，約 2.5 小時。**重抽本身不用人按任何東西。**
+重抽 2026-08-08 完成並驗收通過，六份文件全部 `processed`，圖譜已蓋規則雜湊
+`sha256:c2f2d394…`。驗收數字與逐條判讀在 [LOG](../cairn/LOG.md)。**下一件就是這個：**
 
-**第一件事：確認它結束了、而且沒失敗。**
+- ⬜ 跑實體碎片化流程（audit 7／工單 16）
+  → `entity-merge.py plan` 產候選 → `review --top 8` 產**附原文**的審查表 →
+  LLM 看一輪 → PO 定案
 
-```bash
-ssh florian-dker 'tail -30 /data/lightrag/records/reindex-20260808.log'
-ssh florian-dker 'docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAF"|" \
-  -c "select status, count(*) from lightrag_doc_status where workspace='"'"'acoustics_v2'"'"' group by 1;"'
-# 綠燈：5 份都是 processed，沒有 failed
-```
+  重抽後的候選長相變了：剩下的 84 組「只差大小寫」**不是** Title Case 破壞
+  （那類已隨規則 1、3 消失），是**符號本身的大小寫**：`b_0`⟂`B_0`、
+  `bessel function J_1`⟂`Bessel function J_1`、`c1111`⟂`C1111`。
+  ⚠ 合併**不可逆**，而且**符號大小寫在聲學裡可能是語意**（`b_0` 與 `B_0`
+  未必同一個量）。這批比重抽前那批更需要人判斷，不是更少。
 
-### 然後比對基準 —— 這是這次重抽的驗收
+- ⬜ 跑那 10 題　→ 中文題分數接近英文檔次
+  （這也是「調預算有沒有讓答案變好」的唯一驗收）
 
-```bash
-ssh florian-dker 'cd ~/ghq/github.com/neknufelet/lightrag && \
-  python3 scripts/graph-shape.py --compare /data/lightrag/records/graph-shape-before-reextract.json'
-```
+  預算側已驗完：四題各餵滿 20 段原文（`CHUNK_TOP_K` 上限），
+  整包 27–38k／50,000 token。**是數量上限在擋不是預算在擋，加預算沒用。**
+  還沒量的是「答案有沒有比較好」。
 
-重抽**之前**的數字（已存檔，重抽後補不回來）：
+## 抽取規則比圖譜新一版（刻意的）
 
-| 指標 | 之前 | 目標 | 對應規則 |
-|---|---|---|---|
-| 節點總數 | 3,137 | **不能崩掉** | 規則太嚴讓圖譜變空也是失敗 |
-| 泛用標籤節點 | 96 | **0** | 2a（`Figure 3`／`Equation 5`／`Table 2`） |
-| person／organization | 793 | 大幅下降 | 1（參考文獻的作者與機構） |
-| 只差大小寫的組 | 89 | **0** | 3（`Region II` vs `Region Ii`） |
+- ⬜ 規則 2a 的小寫修正還沒進圖譜　→ `compat-check` A-32 回綠
 
-⚠ **「節點總數不能崩掉」跟其他三條一樣重要。** 三條規則都是在**減少**東西，
-過頭了就是把真內容一起砍掉——那不會報錯，只會讓答案變差。
-
-### 比對完之後，依序做這四件
-
-- ⬜ 蓋上規則雜湊　→ `extraction-profile.py check` 回 0
-
-  ```bash
-  ssh florian-dker 'cd ~/ghq/github.com/neknufelet/lightrag && python3 scripts/extraction-profile.py stamp'
-  ```
-  **這一步不能拖。** 沒有它，之後新進的文件用新規則、舊的用舊規則，圖譜混著
-  兩代而沒有紅燈。現行規則雜湊是 `sha256:c2f2d394efb14a2d51b4cae7e07a73bc`。
-
-- ⬜ 把 2017 那篇放進去　→ 文件數變 6，`graph-shape` 節點數再增加
-
-  已經在審核台的「等你看」，`decision=clean`，解析成果原封不動（4.0MB）。
-  **重抽跑完、`inputs/acoustics_v2` 清空之後**按放行即可，不必重解析。
-  現在按會再撞一次守門（這次會退回「等你看」而不是判失敗）。
-
-- ⬜ 更新 canary 基準　→ `postprocess.py canary` 回 0
-
-  ```bash
-  ssh florian-dker 'cd ~/ghq/github.com/neknufelet/lightrag && python3 scripts/postprocess.py canary --update'
-  ```
-  現在基準還停在退役的舊語料（教科書 A–R 那組），每天報「17 份消失、3 份新增」。
-  **必須在重抽之後才做**，否則要更新兩次。
-
-- ⬜ 重量檢索預算　→ 原文段裡的參考文獻佔比從 10% 降下來
-
-  ```bash
-  ssh florian-dker 'cd ~/ghq/github.com/neknufelet/lightrag && python3 scripts/context-budget.py'
-  ```
-  重抽前：四題各 20 段原文，其中 6/80 段（token 的 10%）是參考清單。
-  消音之後應該接近 0——**那是「參考文獻消音」這條規則唯一的驗收方式**。
+  重抽後殘留的 28 個泛用標籤全是小寫（`equation 22`、`eq. 7`），規則已補
+  「不分大小寫」（`a2616c1`）。**不為了 28 個節點重抽**，下次有新文件進來時
+  一起生效，或擇期重抽。
+  在那之前 A-32 會一直是 soft FAIL —— 那是它該說的話，不是壞掉。
 
 ## 審核台顯示假狀態（2026-08-08 重抽時抓到，同日修掉 `837b78f`）
 
@@ -102,43 +68,16 @@ ssh florian-dker 'cd ~/ghq/github.com/neknufelet/lightrag && \
 
   現在的處置是退回「等你看」讓人稍後再按，代價是**人要記得回來按**。
 
-## 第 3 批剩下的（重抽驗收通過之後）
-
-- ⬜ 跑實體碎片化流程（audit 7／工單 16）
-  → `entity-merge.py plan` 產候選 → `review --top 8` 產**附原文**的審查表 →
-  LLM 看一輪 → PO 定案
-
-  **必須在重抽之後跑**，重抽會改變候選清單。重抽前的數字：225 組重複、其中
-  177 組從來沒被檢索到、真正值得看的 48 組、浪費 4.3% 的實體格位。
-  規則 3（不套標題大小寫）應該會先消掉其中一大類，剩下的才是要人判斷的。
-  ⚠ 合併**不可逆**。判準寫在 `entity-merge.py` docstring：不是「長得像就合併」，
-  是「這組真的出現在檢索結果裡、而且浪費了多少格位」。
-
-- ⬜ 跑那 10 題　→ 中文題分數接近英文檔次
-  （這也是「調預算有沒有讓答案變好」的唯一驗收，見下一節）
-
-## 檢索預算：已改，但品質還沒量
-
-2026-08-08 把三個耦合的值一起改了（圖譜上限 6000+8000→3000+4000、
-`--parallel` 4→2、`MAX_TOTAL_TOKENS` 25k→50k）。原文段數 5–9 → **20（餵滿
-`CHUNK_TOP_K`）**。但**量到的是「拿到多少原文」，不是「答案有沒有變好」。**
-
-- ⬜ 用那組題目跑實際回答，比對改前改後　→ 有一份可比的評分，而不只是 token 數
-- ⬜ 救回或重寫 `llm-bench.py`　→ 能在現行 `--parallel 2` 下重量吞吐
-
-  `.env.example` 的併發表是 **2026-08-03、`--parallel 4` 時代**的歷史值，而量它的
-  工具已於 `7a0414b` 刪除。**現在沒有辦法重跑那組數字**，等於那個交換只有一半有證據。
-
 ## 從第 2、3 批檢討出來的規範（見 [review-20260808](review-before-reextract-20260808.md)）
 
-三條已經有執行者了（`scripts/guard-command.py` ＋ `.claude/settings.json`）：
-秘密整包輸出、管線後面的 `$?`、直接讀或 source `.env`。**還沒有執行者的：**
+五條已經有執行者了。三條在 `scripts/guard-command.py` ＋ `.claude/settings.json`
+（秘密整包輸出、管線後面的 `$?`、直接讀或 source `.env`），
+一條在 `tests/test_no_hardcoded_host.py`（寫死 localhost，`ed1f832`），
+一條在 `compat-check` 的 A-32（規則改了沒重抽，`0cc70ba`）。**還沒有執行者的：**
 
 - ⬜ 「有權威來源時不得自己重算」　→ 升上游 BASELINE
   （2026-08-08 四次：容器要不要重建、設定雜湊、chunk token 數、實體型別查錯表。
   自己算的全錯，而且**錯的方向都是「看起來沒問題」**）
-- ⬜ 「不要寫死 localhost」要有執行者　→ grep 得到就紅
-  （`.env.example` 早就寫了這條，而當天新寫的腳本照樣違反）
 - ⬜ 「文件不得寫死可量測的數字」要有執行者　→ 不能只靠人記得
   （第 2 批正在根治這個病，而我同一天又犯了一次）
 - ⬜ 「啟發式的結果不得直接當數字報」　→ 至少要有一個權威訊號覆驗
