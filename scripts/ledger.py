@@ -144,7 +144,7 @@ def save(root: Path, ws: str, rec: dict) -> Path:
     return p
 
 
-def cmd_set(a) -> int:
+def cmd_set(a: argparse.Namespace) -> int:
     if a.gate not in GATES:
         sys.exit(f"ledger: 未知的閘門 {a.gate!r}。允許的是：\n  " + "\n  ".join(GATES))
     if a.state not in STATES:
@@ -178,7 +178,7 @@ def cmd_set(a) -> int:
     return 0
 
 
-def cmd_show(a) -> int:
+def cmd_show(a: argparse.Namespace) -> int:
     d = ledger_dir(a.root, a.workspace)
     if a.doc:
         docs = [resolve_doc(a.root, a.workspace, a.doc)]
@@ -226,7 +226,7 @@ def ghost_docs(root: Path, ws: str) -> tuple[list[str], int]:
     return sorted(have - current), len(current)
 
 
-def cmd_summary(a) -> int:
+def cmd_summary(a: argparse.Namespace) -> int:
     d = ledger_dir(a.root, a.workspace)
     files = sorted(d.glob("*.pdf.json")) if d.is_dir() else []
 

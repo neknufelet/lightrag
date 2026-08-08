@@ -205,7 +205,7 @@ def words(text: str) -> collections.Counter:
     return collections.Counter(WORD.findall(t.lower()))
 
 
-def _strings(v) -> list[str]:
+def _strings(v: object) -> list[str]:
     """遞迴收字串。captions / footnotes / list_items 都是清單，
     有的還是清單包字典，一律走到底。"""
     if isinstance(v, str):

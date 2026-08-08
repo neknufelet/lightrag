@@ -63,21 +63,17 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
   現在庫裡有幾份不寫死，用指令數：
   `docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAc "select count(*) from lightrag_doc_status where workspace='acoustics_v2';"`
 
-## 第 2 批：文件對齊（2 條）
+## 型別註解的欠帳（棘輪，清完一個刪一行）
 
-- ⬜ 把寫死的數字換成量它的指令：CLAUDE.md 三處、README 兩處、
-  `hard-rules.md` 的 MAX_ASYNC 段、CLAUDE.md 的「dker GPU 壞掉」（audit 12–19、24）
-  → grep 不到寫死的鍵數／容器數／篇數
-- ⬜ 加檢查：skill 有沒有照 ADR-0005 做　→ 跨 repo 的規則目前無執行者
-- ⬜ 清掉 139 處缺型別註解，然後把 `ANN` 加進 `ruff.toml`　→ `ruff check --select ANN` 為 0
-  （藍桶 3。純量的問題，可以分批清）
-- ⬜ 分出「哪些檔是 CLI 入口」，再對其餘檔啟用 `T20`　→ 非入口檔的 `print` 為 0
-  （藍桶 4。336 處裡絕大多數是 CLI 的正常輸出不是拿 print 當 log，
-  所以不能整包開——要先有「入口」的定義）
+ANN 已對整包開啟，**新寫的碼一定要有型別註解**。下面是既有的欠帳，清單在
+`ruff.toml` 的 `per-file-ignores`，共 102 處：
 
-**CLAUDE.md 已知寫錯的兩處**（2026-08-08 實測）：說「本專案容器全部移除」，實際
-`lightrag-acoustics_v2`、`lightrag-infinity`、`kbapi-acoustics_v2`、`lightrag-postgres`
-四個在跑；說 `.env` 54 個鍵 6 個秘密，實際 60 個鍵 7 個秘密。
+- ⬜ `postprocess.py` 18／`kbapi.py` 17／`entity-merge.py` 14／`test_oracle_secrets.py` 12
+- ⬜ `pp/crosscheck.py` 8／`test_gates.py` 7／`test_intake.py` 5／`parse-check.py` 5
+- ⬜ `test_deploy_stack.py` 4／`test_canary.py` 4／`pp/rules/latex_fix.py` 4
+- ⬜ `pp/oracle.py` 2／`pp/eyes.py` 1／`mineru_common.py` 1
+  → 這三個要先決定 `json.loads` 的回傳型別怎麼寫（`Json` 別名還是 `object`），
+  **那是設計選擇不是打字**，不要在補註解時順手做掉
 
 ## 第 3 批：抽取治本 ＋ 重進料（6 條，改程式＋重抽約兩小時，一起做）
 

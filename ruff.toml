@@ -27,6 +27,7 @@ select = [
   "PTH",             # 藍桶 7：路徑用 pathlib 不用 os.path 字串拼接
   "PLW1510",         # subprocess.run 沒寫 check —— 靜默失敗的常見來源
   "RUF",             # ruff 自家規則（RUF001-003 在下面關掉）
+  "ANN",             # 藍桶 3：函式簽名要有型別註解（未清完的檔在下面逐一列出）
 ]
 
 ignore = [
@@ -52,13 +53,46 @@ ignore = [
 
 # `severity()` 是一張對齊的判準表：五行 `if 條件: return 等級`，靠對齊讓人一眼
 # 看完整個梯度。拆成十行會失去那個一眼 —— 這裡的可讀性來自版面，不是行數。
-"scripts/parse-check.py" = ["E701"]
+"scripts/parse-check.py" = ["E701", "ANN"]
 
-# ── 沒有啟用、但確實對應藍桶的兩組（2026-08-08 量過，記下來免得下次重量）──
+# ── ANN 待清清單（2026-08-08 建立，共 102 處）────────────────────────────
 #
-#   ANN（藍桶 3 型別註解）      139 處
-#   T20（藍桶 4 不用 print）    336 處
+# **這是棘輪不是豁免。** ANN 已經對整包開啟，所以**新寫的碼一定要有型別註解**；
+# 下面這些檔是既有的欠帳，逐一列出、附數量，清完一個就刪一行。
 #
-# T20 不啟用的理由不只是量：**這些腳本是 CLI，print 就是它們的輸出**，不是拿
-# print 當 log。藍桶 4 管的是後者。要守前者得先分出「哪些檔是入口」，那是另一件事。
-# ANN 是純量的問題，可以分批清完再開。兩者都記在 docs/NEXT.md。
+# 為什麼不一次清完：144 個違規分散在 17 個檔、形狀各異，每一個都要讀懂函式才知道
+# 正確的型別。**寫錯的註解比沒有註解更糟——它會說謊，而且看起來像做完了。**
+# 一次補完的風險遠高於分批。
+#
+# 已清完的（不在清單上）：compat-check.py 35 處、ledger.py 3、judge.py 3、
+# coverage-check.py 1，以及本次新增的所有程式碼。
+#
+# ⚠ 幾個難的先留著，它們需要先做一個設計決定而不是打字：
+#   mineru_common.read_json / pp/oracle.py 的 py()／py_argv() 回的是 json.loads
+#   的結果 —— 誠實的型別要嘛是一個 `Json` 別名，要嘛是 `object`（會逼呼叫端縮小）。
+#   那是設計選擇，不該在補註解的順手做掉。
+"scripts/postprocess.py" = ["ANN"]            # 18 處
+"scripts/kbapi.py" = ["ANN"]                  # 17 處
+"scripts/entity-merge.py" = ["ANN"]           # 14 處
+"tests/test_oracle_secrets.py" = ["ANN"]      # 12 處
+"scripts/pp/crosscheck.py" = ["ANN"]          # 8 處
+"tests/test_gates.py" = ["ANN"]               # 7 處
+"tests/test_intake.py" = ["ANN"]              # 5 處
+"tests/test_deploy_stack.py" = ["ANN"]        # 4 處
+"tests/test_canary.py" = ["ANN"]              # 4 處
+"scripts/pp/rules/latex_fix.py" = ["ANN"]     # 4 處
+"scripts/pp/oracle.py" = ["ANN"]              # 2 處，見上面的 Json 別名備註
+"scripts/pp/eyes.py" = ["ANN"]                # 1 處
+"scripts/mineru_common.py" = ["ANN"]          # 1 處，見上面的 Json 別名備註
+
+# ── T20（藍桶 4 不用 print）刻意不在這裡守，改用測試 ────────────────────
+#
+# T20 對整包開會抓到 336 處，而 2026-08-08 逐檔查證：**那 336 處全部落在 CLI
+# 入口**，沒有一個是拿 print 當 log。也就是藍桶 4 其實早就滿足了，開 T20 只會
+# 製造 336 個假警報，然後逼人維護一份 18 個檔的豁免清單——每新增一支腳本就要
+# 記得加一行，忘了就是一片紅。
+#
+# 規則的實質是「誰在說話」：入口的 print 是輸出，模組的 print 是污染呼叫端的
+# stdout（本專案多支腳本用 --json 餵給下一支程式）。那個判準寫得成程式，所以
+# 寫在 tests/test_no_print_in_library_modules.py，用 AST 分類，不用檔案清單。
+# **檔案清單會過期，判準不會。**

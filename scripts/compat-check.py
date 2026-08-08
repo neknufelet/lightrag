@@ -24,8 +24,10 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
@@ -193,7 +195,7 @@ class Result:
 
 
 class Checker:
-    def __init__(self, oracle: Oracle, workspace: str):
+    def __init__(self, oracle: Oracle, workspace: str) -> None:
         self.o = oracle
         self.ws = workspace
         self.results: list[Result] = []
@@ -202,9 +204,10 @@ class Checker:
         self.results.append(r)
         return r
 
-    def check(self, id_: str, level: str, what: str):
+    def check(self, id_: str, level: str, what: str
+              ) -> Callable[[Callable[[], tuple[bool, str, dict]]], Result]:
         """裝飾器：把例外變成失敗，而不是讓整支掛掉。"""
-        def deco(fn):
+        def deco(fn: Callable[[], tuple[bool, str, dict]]) -> Result:
             try:
                 ok, detail, data = fn()
             except OracleError as e:
@@ -216,9 +219,9 @@ class Checker:
 
     # ---------- 契約層 ----------
 
-    def contract(self):
+    def contract(self) -> None:
         @self.check("A-01", "hard", "探針與 server 執行的是同一份 lightrag")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             d = self.o.module_identity()
             hashes = {h for _, h in d["cache_copies"]}
             ok = len(hashes) <= 1
@@ -226,7 +229,7 @@ class Checker:
                         f"{'md5 一致' if ok else 'md5 不一致 —— 探針可能不是實際執行的那份'}"), d
 
         @self.check("A-02", "hard", "is_bundle_valid 可用且簽章不變")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             d = self.o.py(
                 "import json,inspect\n"
                 "from lightrag.parser.external.mineru.cache import is_bundle_valid as f\n"
@@ -235,7 +238,7 @@ class Checker:
             return d.startswith(want), d, {"signature": d}
 
         @self.check("A-03", "hard", "磁碟佈局常數不變")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             c = self.o.constants()
             want = {"RAW_SUFFIX": ".mineru_raw", "PARSED_SUFFIX": ".parsed",
                     "PARSED_DIR_NAME": "__parsed__",
@@ -245,7 +248,7 @@ class Checker:
                              + (f"；不符：{bad}" if bad else "")), c
 
         @self.check("A-05", "hard", "快取驗證只看 6 項，不看 total_size_bytes")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             src = self.o.py(
                 "import json,inspect\n"
                 "from lightrag.parser.external.mineru import cache as c\n"
@@ -264,13 +267,13 @@ class Checker:
             return ok, ("；".join(notes) or "如預期：只驗 critical_file 的 size+sha256"), {}
 
         @self.check("A-06", "hard", "_coerce_text 讀的欄位不變（決定消音清哪個欄位）")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             fields = self.o.ir_text_fields()
             want = ["text", "content", "body", "code_body"]
             return fields == want, f"{fields}", {"fields": fields}
 
         @self.check("A-24", "hard", "drawing 的型別集合與 caption 欄位不變（chart→image 的前提）")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             c = self.o.ir_drawing_contract()
             types, fields = c.get("types") or [], c.get("fields") or []
             want_t = ["image", "picture", "drawing"]
@@ -285,7 +288,7 @@ class Checker:
             return ok, note, {"types": types, "fields": fields}
 
         @self.check("A-06b", "hard", "page_number 在 heading 偵測之前被無條件跳過")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             src = self.o.py(
                 "import json,inspect\n"
                 "from lightrag.parser.external.mineru import ir_builder as B\n"
@@ -297,7 +300,7 @@ class Checker:
                         else "順序改變 —— page_number 可能被當成標題進 IR"), {}
 
         @self.check("A-07", "hard", "LIGHTRAG_FORCE_REPARSE_MINERU 未開啟")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             # 判準與 postprocess.py 的 apply 閘門共用（pp/oracle.py），不在這裡
             # 重寫一份 —— 兩份同義判準只要有人改一邊就會靜靜地不一致。
             v = self.o.force_reparse_flag()
@@ -308,15 +311,15 @@ class Checker:
                         if not ok else "未設定"), {"value": v}
 
         @self.check("A-17", "hard", "host 有 poppler 工具")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             missing = [t for t in ("pdftoppm", "pdftotext", "pdfinfo") if not shutil.which(t)]
             return not missing, (f"缺少 {missing}" if missing else "pdftoppm / pdftotext / pdfinfo 都在"), {}
 
     # ---------- 環境層 ----------
 
-    def environment(self, api_key: str, port: int):
+    def environment(self, api_key: str, port: int) -> None:
         @self.check("A-18", "soft", "VLM 端點可用")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             import urllib.error
             import urllib.request
             env = load_env(REPO)
@@ -332,14 +335,14 @@ class Checker:
                 return False, f"{host} 連不上：{e}", {}
 
         @self.check("A-19", "hard", "pipeline 目前 idle")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             d = self.o.pipeline_idle(api_key, port)
             busy = d.get("busy") or d.get("scanning") or d.get("destructive_busy")
             return (not busy), (f"busy={d.get('busy')} scanning={d.get('scanning')} "
                                 f"job={d.get('job_name')!r}"), d
 
         @self.check("A-25", "soft", "chunk_top_k 仍然控制回傳的片段數（kbapi 的節流靠它）")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             """kbapi 的 chunks 參數就是下傳成 chunk_top_k。它一旦失效，
             /kb/*/search 會靜靜地回到每次 55–60KB —— 不會報錯，只是把呼叫端的
             context 灌爆。所以寧可每次都真的打一次查詢來驗。
@@ -381,7 +384,7 @@ class Checker:
                    f"chunk_top_k=2 → {a} 個、=8 → {b} 個（母體 {n_proc} 份已索引）", got
 
         @self.check("A-26", "hard", "Postgres 與 LightRAG API 的文件母體一致")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             """用兩個獨立來源抓到探針連錯資料庫的情況。
 
             API 由目前的 LightRAG 容器回報文件狀態；SQL 則透過設定指定的
@@ -409,7 +412,7 @@ class Checker:
             ), data
 
         @self.check("A-22", "hard", "每張向量表都有向量索引")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             env = load_env(REPO)
             suffix = _vector_table_suffix(env.get("EMBEDDING_MODEL", ""),
                                           env.get("EMBEDDING_DIM", ""))
@@ -443,7 +446,7 @@ class Checker:
                 "建索引失敗只在啟動日誌留一行 ERROR，服務照樣 healthy"), {"tables": rows}
 
         @self.check("A-23", "hard", "綁模型的觀察仍對應現行模型")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             """模型換代時，綁模型的觀察會靜默失效 —— 規則還在，前提沒了。
 
             實測記錄的「eye_b 會看錯字元、eye_a 會切錯結構」這類觀察，換一個
@@ -469,7 +472,7 @@ class Checker:
             "A-21", "soft",
             f"MinerU token 到期日（低於 {MINERU_TOKEN_SOFT_FAIL_DAYS} 天升級警報）",
         )
-        def _():
+        def _() -> tuple[bool, str, dict]:
             import base64
             import time
             env = load_env(REPO)
@@ -489,7 +492,7 @@ class Checker:
                         }
 
         @self.check("A-27", "hard", "對外發佈的埠從宿主打得到（不是「容器在跑」）")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             env = load_env(REPO)
             addr = env.get("BIND_ADDR", "")
             if not addr:
@@ -504,7 +507,7 @@ class Checker:
                              f"打不到：{bad}（0 = 連不上，其餘是實際狀態碼）"), seen
 
         @self.check("A-28", "hard", "Infinity 載著 .env 指名的那兩個模型")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             env = load_env(REPO)
             addr = env.get("BIND_ADDR", "")
             port = int(env.get("INFINITY_PORT", 7997))
@@ -523,7 +526,7 @@ class Checker:
                                  f"缺 {missing}，實際載著 {loaded}"), {"loaded": loaded}
 
         @self.check("A-29", "soft", "外部推論端點的金鑰現在有效")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             env = load_env(REPO)
             out: dict[str, int] = {}
             for name, host_key, key_key, fallback_key in EXTERNAL_EYES:
@@ -543,7 +546,7 @@ class Checker:
                              f"不正常：{bad}（-1 沒設定／0 連不上／401 金鑰無效）"), out
 
         @self.check("A-30", "hard", "`.env` 與 `.env.example` 的鍵名一致")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             actual = REPO / ".env"
             example = REPO / ".env.example"
             if not actual.exists():
@@ -562,7 +565,7 @@ class Checker:
                             "only_in_env": only_live, "only_in_example": only_doc}
 
         @self.check("A-31", "hard", "容器實際吃到的 MinerU 選項與 `.env` 相符")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             env = load_env(REPO)
             # 不傳 env 給 oracle：要讀的正是**容器自己的環境**，那才是 LightRAG
             # 真的看到的值。傳進去就變成自己跟自己比，抓不到 compose 漏傳鍵。
@@ -577,11 +580,11 @@ class Checker:
 
     # ---------- 資料層（逐文件）----------
 
-    def document(self, raw_dir: Path):
+    def document(self, raw_dir: Path) -> None:
         name = raw_dir.name.removesuffix(".mineru_raw")
 
         @self.check("A-10", "hard", f"{name}：content_list.json 只在 critical_file")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             m = json.loads((raw_dir / "_manifest.json").read_text())
             in_files = [f["path"] for f in m.get("files", [])
                         if f["path"] == "content_list.json"]
@@ -594,7 +597,7 @@ class Checker:
                         "更新邏輯需要跟著改，否則快取會失效並靜默丟棄修補"), {}
 
         @self.check("A-11", "hard", f"{name}：options 簽章與現行設定相符")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             m = json.loads((raw_dir / "_manifest.json").read_text())
             cur = self.o.options_signature()
             ok = m.get("options_signature") == cur
@@ -604,7 +607,7 @@ class Checker:
                         f"vs 現行 {cur[7:19]}…）"), {}
 
         @self.check("A-13", "hard", f"{name}：來源 PDF 可用內容定址找到")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             m = json.loads((raw_dir / "_manifest.json").read_text())
             want = m["source_content_hash"]
             source_dir = DataPaths(DATA_ROOT).inputs_dir(self.ws)
@@ -619,7 +622,7 @@ class Checker:
                            "不得寫死路徑，來源 PDF 會被 archive_source 搬走"), {}
 
         @self.check("A-14", "hard", f"{name}：layout.json 頁序未位移")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             lay = json.loads((raw_dir / "layout.json").read_text())
             pi = lay["pdf_info"]
             bad = [k for k, p in enumerate(pi) if p.get("page_idx") != k]
@@ -631,7 +634,7 @@ class Checker:
                         "書眉每頁幾何相同，錯頁比對照樣會 IoU 命中"), {}
 
         @self.check("A-16", "hard", f"{name}：沒有未知的項目型別")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             items = json.loads((raw_dir / "content_list.json").read_text())
             types = {i.get("type") for i in items}
             unknown = types - KNOWN_TYPES
@@ -639,7 +642,7 @@ class Checker:
                                  + (f"；未知 {sorted(unknown)}" if unknown else "")), {}
 
         @self.check("A-20", "info", f"{name}：目前的量測基準")
-        def _():
+        def _() -> tuple[bool, str, dict]:
             items = json.loads((raw_dir / "content_list.json").read_text())
             tag = re.compile(r"<[^>]+>")
             tabs = [i for i in items if i.get("type") == "table"]
@@ -661,7 +664,7 @@ class Checker:
             return True, "、".join(f"{k} {v}" for k, v in d.items()), d
 
 
-def main():
+def main() -> NoReturn:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description="驗證 postprocess 依賴的假設")
     add_workspace_arg(ap, env)

@@ -22,6 +22,7 @@ import os
 import re
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -217,7 +218,8 @@ class ControlResult:
 
 
 def negative_control(cases: dict[str, dict], *, model: str = DEFAULT_MODEL,
-                     workers: int = 6, progress=None) -> ControlResult:
+                     workers: int = 6,
+                     progress: Callable[[], None] | None = None) -> ControlResult:
     """cases: {key: {"gt": 原文, "html": 轉錄, "caption": ...}}
 
     對每張表做 1 組正確配對 + (n-1) 組錯配。兩個方向都要量：
@@ -232,7 +234,7 @@ def negative_control(cases: dict[str, dict], *, model: str = DEFAULT_MODEL,
             if i != j:
                 jobs.append(("mismatch", i, j))
 
-    def run(job):
+    def run(job: tuple[str, str, str]) -> tuple[str, str, str, object]:
         kind, gt_k, html_k = job
         r = ask(cases[gt_k]["gt"], cases[html_k]["html"],
                 cases[gt_k].get("caption", ""), model=model, api_key=key)
