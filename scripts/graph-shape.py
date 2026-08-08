@@ -42,7 +42,12 @@ LABEL_RE = (r"^(" + "|".join(LABEL_PREFIXES) + r")[\s._\-#]*[0-9ivxIVX]+[a-z)]?\
 
 # 規則 1 要消滅的：型別是 person／organization 的節點。
 # 用型別而不是猜名字 —— 名字看起來像人名的判斷會誤傷「Helmholtz resonator」。
+#
+# ⚠ 型別**不在向量表**（那裡的 content 只有「名稱＋描述」），在
+# `lightrag_graph_nodes.properties->>'entity_type'`。第一版查錯表，回報
+# person=0 而實際是 709 —— 而 0 看起來像「這條規則沒必要做」。
 PERSON_TYPES = ("person", "organization")
+GRAPH_NODES = "lightrag_graph_nodes"
 
 
 def _sql_literal(value: str) -> str:
@@ -70,13 +75,13 @@ def measure(env: dict[str, str], workspace: str, table: str) -> dict:
         order by 1;""")
     label_names = [r[0] for r in labels]
 
-    # 型別存在 content 的 JSON 裡；用 ILIKE 找 "type": "person" 這種樣式
-    people = 0
-    for t in PERSON_TYPES:
-        rows = psql(env, f"""
-            select count(*) from {table}
-            where workspace={ws} and content ilike {_sql_literal('%"type": "' + t + '"%')};""")
-        people += int(rows[0][0])
+    # 型別在圖節點表的 properties JSONB 裡，不在向量表
+    type_rows = psql(env, f"""
+        select properties->>'entity_type', count(*)
+        from {GRAPH_NODES} where workspace={ws}
+        group by 1 order by 2 desc;""")
+    by_type = {r[0]: int(r[1]) for r in type_rows if len(r) == 2}
+    people = sum(by_type.get(t, 0) for t in PERSON_TYPES)
 
     # 只差在大小寫的成對節點（規則 3）
     dupes = psql(env, f"""
@@ -90,6 +95,7 @@ def measure(env: dict[str, str], workspace: str, table: str) -> dict:
         "label_nodes": len(label_names),
         "label_examples": label_names[:12],
         "person_org_nodes": people,
+        "by_type": by_type,
         "case_variant_groups": len(dupes),
         "case_variant_examples": [r[2] for r in dupes[:8]],
     }
@@ -129,6 +135,8 @@ def main() -> int:
         print(f"      例：{', '.join(result['label_examples'][:8])}")
     print(f"  person／organization {result['person_org_nodes']:>4}"
           f"　（規則 1 目標：大幅下降）")
+    top = sorted(result["by_type"].items(), key=lambda kv: -kv[1])[:6]
+    print(f"      型別分佈：{'、'.join(f'{k} {v}' for k, v in top)}")
     print(f"  只差大小寫的組　　{result['case_variant_groups']:>6}"
           f"　（規則 3 目標：0）")
     for ex in result["case_variant_examples"][:5]:
