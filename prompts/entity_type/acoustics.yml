@@ -62,6 +62,14 @@ entity_types_guidance: |
          Appendix A, Chapter 3, Reference 38, Ref 38.
          They say where something sits in a document, nothing more.
 
+         **Case does not matter.** Mid-sentence these appear lowercase —
+         "as shown in equation 22", "see fig. 3", "listed in table 2" — and
+         those are exactly the same thing as the capitalised forms. Measured
+         2026-08-08: after the first pass with this rule, every single
+         surviving position-marker entity was a lowercase one
+         (equation 1, equation 22, eq. 7, ...), because the examples above
+         were all capitalised and the lowercase forms read as different.
+
          Extract what the figure or equation is ABOUT instead. From
          "Fig. 3 shows the absorption coefficient of the coiled-up channel",
          extract "absorption coefficient" and "coiled-up channel" — not "Fig. 3".
