@@ -36,6 +36,7 @@ from pp.docctx import (  # noqa: E402
     page_size_spread,
     page_sizes_compatible,
 )
+from pp.extraction_profile import active_profile, profile_hash, read_record  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
@@ -582,6 +583,37 @@ class Checker:
             }
             return not diff, ("六項全部相符" if not diff else
                               f"不符：{diff}"), {"options": got}
+
+        @self.check("A-32", "soft", "圖譜是用現行的抽取規則建的")
+        def _() -> tuple[bool, str, dict]:
+            """改了抽取規則而沒有重抽 —— 要有人知道。
+
+            **為什麼是 soft**：規則比圖譜新不是壞掉，是「新舊文件會用不同規則」。
+            擋下部署沒有意義（規則本來就會演進），但沉默更糟：新進的文件用新規則、
+            舊的用舊規則，圖譜混著兩代而**沒有任何訊號**。
+
+            **為什麼要在這裡**：判準本來只有 CLI（`extraction-profile.py check`），
+            等級是「只在有人主動跑時才響」。接進這裡才會流進每日檢查、顯示在
+            審核台 —— 那是本專案唯一的警報管道。
+
+            判準與 CLI 共用 `pp/extraction_profile`，不各算一次。
+            """
+            paths = DataPaths(configured_data_root())
+            record = read_record(paths)
+            if record is None:
+                return False, ("沒有紀錄 —— 無從得知圖譜是用哪版規則抽的。"
+                               "重抽完成後跑 `extraction-profile.py stamp`"), {}
+            now = profile_hash(active_profile(self.o))
+            was = str(record.get("profile_hash"))
+            covered = len(record.get("documents", []))
+            if now == was:
+                return True, f"一致 {now}（{covered} 份文件）", {"hash": now}
+            return False, (
+                f"**抽取規則已變，圖譜還是舊規則抽的**："
+                f"圖譜建立時 {was}（{record.get('stamped_at')}，{covered} 份）／"
+                f"現在生效 {now}。要嘛重抽讓兩者一致，要嘛把規則改回去 —— "
+                f"不重抽的話，之後新進的文件會用不同規則而沒有訊號"
+            ), {"graph_hash": was, "active_hash": now, "documents": covered}
 
     # ---------- 資料層（逐文件）----------
 

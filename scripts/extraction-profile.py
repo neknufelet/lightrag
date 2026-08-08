@@ -23,7 +23,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -31,54 +30,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 判準本體在 `pp/extraction_profile`：這支是它的 CLI，`compat-check` 的 A-32
+# 是它的紅綠燈，**兩邊用同一份**，不各算一次。
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp.extraction_profile import (  # noqa: E402
+    active_profile,
+    profile_hash,
+    read_record,
+    record_path,
+)
 from pp.oracle import Oracle, OracleError, container_for  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
-RECORD_NAME = "extraction-profile.json"
-
-# 在容器裡問「現在生效的抽取指引是什麼」。刻意問解析後的結果而不是讀檔：
-# 檔案改了但容器沒重啟時，這兩者不一樣，而跑著的那份才是真的。
-_PROBE = (
-    "import json\n"
-    "from lightrag.addon_params import default_addon_params\n"
-    "from lightrag.prompt import resolve_entity_extraction_prompt_profile\n"
-    "a = default_addon_params()\n"
-    "p = resolve_entity_extraction_prompt_profile(a, True)\n"
-    "print(json.dumps({\n"
-    "    'guidance': p['entity_types_guidance'],\n"
-    "    'json_examples': p['entity_extraction_json_examples'],\n"
-    "    'file': a.get('entity_type_prompt_file') or '',\n"
-    "}))\n"
-)
-
-
-def active_profile(oracle: Oracle) -> dict:
-    """LightRAG 現在實際生效的抽取指引。"""
-    return oracle.py(_PROBE)
-
-
-def profile_hash(profile: dict) -> str:
-    """指引內容的雜湊。只算內容，不算檔名 —— 換個檔名但內容相同不該算變動。"""
-    payload = json.dumps(
-        {"guidance": profile["guidance"], "json_examples": profile["json_examples"]},
-        ensure_ascii=False, sort_keys=True)
-    return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
-
-
-def record_path(paths: DataPaths) -> Path:
-    return paths.records_dir / RECORD_NAME
-
-
-def read_record(paths: DataPaths) -> dict | None:
-    p = record_path(paths)
-    if not p.is_file():
-        return None
-    try:
-        return json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
 
 
 def indexed_docs(env: dict[str, str], workspace: str) -> list[str]:
