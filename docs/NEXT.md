@@ -21,26 +21,20 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 
 ---
 
-## 第 1 批：守門機制上線（9 條）
+## ⛔ 新守門抓到三個紅燈，要 PO 決定何時處置
 
-先做這批，後面每一批才有東西驗它。每條都要落在既有三個執行者之一
-（`pre-commit`／`daily-check.sh`／審核台 `:9710`），不要發明第四種。
+第 1 批的檢查一上線就抓到東西。都不緊急，但都要**在進料閒置時**做
+（放行中重啟會讓那篇落到 `failed`，而放行階段的 `failed` 是終點、要整份重解）。
 
-- ⬜ daily-check 加 Infinity 健康檢查　→ `:7997/health` 非 200 轉紅
-- ⬜ daily-check 加「dker 落後 origin」（audit 5）　→ `rev-list HEAD..origin/master` = 0
-- ⬜ `.env` 與 `.env.example` 的鍵名比對接進 daily-check（audit 13）
-  → 差異只剩 `INTAKE_SOURCES`（刻意留空）一個預期項，多一個就紅
-- ⬜ `latest.json` 加產生它的 commit（audit 11）　→ 過期的紅燈顯示成灰色
-- ⬜ `oracle.mineru_options()` 接成自動斷言（audit 第七組）　→ A 節六條各有呼叫端
-- ⬜ `ruff` 掛上 pre-commit　→ 藍桶 3–8 有五條被守住（`.pre-commit-config.yaml:72-77` 解除註解）
-- ⬜ 部署腳本加自我驗證（audit 4）　→ 行程啟動時間晚於 HEAD commit
-- ⬜ 服務健康判準改成「打得到端點」　→ 現有檢查抓不到「容器在跑但埠沒綁」
-- ⬜ 加檢查：外部端點的金鑰真的有效　→ 第二雙眼睛與 PP_EYE_C 各打一次 `/models` 回 200
+- ⬜ 重建 `lightrag-acoustics_v2` 與 `lightrag-postgres`
+  → `deploy-stack.py freshness` 回 0
 
-  2026-08-08 血淚：`PP_EYE_B_API_KEY` 缺席時 `pp/eyes.py:87` 會 fallback 沿用
-  `EMBEDDING_BINDING_API_KEY`，embedding 切本機後那把不再是 OpenAI 金鑰，於是第二
-  雙眼睛拿著錯的鑰匙、**要到下次進料才會炸**。金鑰已補上並驗過（打 OpenAI 回 200），
-  但**沒有任何東西在守下一次**。
+  兩者的設定與現在的 compose 不符（`docker compose up -d --dry-run` 獨立確認會
+  Recreate 這兩台）。指令：在 `/opt/stacks/lightrag` 跑 `docker compose up -d`。
+- ⬜ 重啟 `kbapi-acoustics_v2`　→ 同上
+
+  它掛著 `${REPO_DIR}/scripts`，而那些檔今天改過。Python 在行程啟動時就把模組
+  載完，所以它跑的是 18 小時前的碼。
 
 ## 第 2 批：文件對齊（2 條）
 
@@ -48,6 +42,11 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
   `hard-rules.md` 的 MAX_ASYNC 段、CLAUDE.md 的「dker GPU 壞掉」（audit 12–19、24）
   → grep 不到寫死的鍵數／容器數／篇數
 - ⬜ 加檢查：skill 有沒有照 ADR-0005 做　→ 跨 repo 的規則目前無執行者
+- ⬜ 清掉 139 處缺型別註解，然後把 `ANN` 加進 `ruff.toml`　→ `ruff check --select ANN` 為 0
+  （藍桶 3。純量的問題，可以分批清）
+- ⬜ 分出「哪些檔是 CLI 入口」，再對其餘檔啟用 `T20`　→ 非入口檔的 `print` 為 0
+  （藍桶 4。336 處裡絕大多數是 CLI 的正常輸出不是拿 print 當 log，
+  所以不能整包開——要先有「入口」的定義）
 
 **CLAUDE.md 已知寫錯的兩處**（2026-08-08 實測）：說「本專案容器全部移除」，實際
 `lightrag-acoustics_v2`、`lightrag-infinity`、`kbapi-acoustics_v2`、`lightrag-postgres`

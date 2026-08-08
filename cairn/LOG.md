@@ -3,6 +3,35 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-08（三）· 收尾第 1 批：守門機制 9 條全部上線
+
+- **五條新斷言進 compat-check**（A-27～A-31）。最有價值的是 **A-27**：既有的 API
+  斷言全走 `docker exec` 進容器打 localhost，那條路在「容器活著但埠沒綁」時**照樣
+  全綠**，而 skill、kbapi 呼叫端、瀏覽器都是從外面進來的。原則早就寫在
+  `cairn/testing-restart-policy.md:114`，只是一直沒有執行者。
+- **A-31 把 `oracle.mineru_options()` 接上**——那個方法定義了卻**零呼叫端**。
+  刻意不把 env 傳給 oracle：要讀的是容器**自己的**環境，那才抓得出 compose 漏傳鍵。
+- **部署新鮮度長進 `deploy-stack.py`**（audit 4 明說「不要再開一支」）。順帶發現
+  `deploy-stack.py verify` **從來沒有人呼叫過**（該檔檔頭自己寫著「執行者目前是弱的」）
+  ⇒ **寫好的檢查沒被呼叫等於沒寫**，這條要升上游。
+- **最貴的一課：我自己的第一版檢查會漏報。** freshness 起初用「容器啟動時間 vs
+  compose.yaml 最後 commit」當判準，在 dker 實跑後對照 compose 自己的
+  `config-hash`，發現**四台答錯兩台**——infinity 誤報成紅、**lightrag 誤報成綠**。
+  改用 compose 自己用來決定要不要重建的那個雜湊之後全部吻合，
+  `docker compose up -d --dry-run` 獨立驗證同一個答案。
+  ⇒ **時間戳只是代理指標。有精確判準時不要用代理指標**，尤其是會漏報的那種。
+- **每條新檢查都做了紅燈演練**：餵壞輸入證明會紅、餵好輸入證明會綠。
+  沒紅過的檢查不算驗過。
+- **ruff 上 pre-commit，碼庫清到零違規**。第一次 `--fix` 拔掉了 26 個
+  `# noqa: BLE001`——那標的是「這個 blind except 是刻意的」，是**意圖的記錄**不是
+  殘渣，整批退回改成不啟用 RUF100。5 個 `zip` 逐一判斷 strict 而不是套同一個答案。
+  清出一個真的 latent bug：`intake.py` 的 `Callable` 沒 import，靠
+  `from __future__ import annotations` 才沒炸，`get_type_hints()` 會。
+- **不啟用 ruff-format**（實測重排 55 檔）與 **E501**（342 處，中英混排的行寬本來
+  就不是一致標準）。⇒ **規則不是越多越好，判準是「抓到的東西是不是真的該修」。**
+- **上線當天就抓到三個紅燈**：`lightrag` 與 `postgres` 的設定與 compose 不符、
+  `kbapi` 跑著 18 小時前的 `scripts/`。已寫進 NEXT 待 PO 挑進料閒置時處置。
+
 ## 2026-08-08（三）· 收尾啟動：逐條驗過 NEXT，範本補回重建會掉的東西
 
 - **PO 決定「清空 NEXT.md」**，25 條依批次重排（守門 → 文件 → 抽取 → 秘密 → 剩下的坑
