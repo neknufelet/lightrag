@@ -552,10 +552,16 @@ def test_parsing_job_does_not_shadow_a_same_named_foreign_row(tmp_path: Path) ->
 # ── 重啟恢復：問索引的現實，不要假設失敗（PO 2026-08-04）──────────────
 
 
-def _restart_with_index(tmp_path: Path, status: str, rows: dict[str, str] | None = None):
-    """建一個在途的 job、落盤，然後用指定的索引現實重啟一個新 app。"""
+def _restart_with_index(tmp_path: Path, status: str, rows: dict[str, str] | None = None,
+                        stage_started_at: str | None = None):
+    """建一個在途的 job、落盤，然後用指定的索引現實重啟一個新 app。
+
+    `stage_started_at` 決定那件工作是「排隊中」還是「真的跑過」——重啟恢復
+    對這兩者的處置完全相反（重新排回 vs 判定失敗），所以測試要指得出來。
+    """
     app = _app(tmp_path)
     job = _job_in(app, "跑到一半.pdf", status)
+    job.stage_started_at = stage_started_at
     app.store.save(job)
 
     grouped: dict[str, list[dict[str, str]]] = {}
@@ -934,3 +940,69 @@ def test_the_batch_api_takes_every_candidate_at_once(tmp_path: Path) -> None:
 
     assert len(jobs) == 3
     assert {job.status for job in jobs} == {"parsing"}
+
+
+# ── 排隊中 ≠ 正在跑（PO 2026-08-08：「都在處理中也很怪」）──────────────
+
+
+def test_queued_jobs_are_not_shown_as_running(tmp_path: Path) -> None:
+    """排進佇列還沒輪到的，不得長得跟正在跑的一樣。
+
+    worker 循序跑，一次一件。舊版狀態是**排進佇列時**就設的，於是 21 件全部
+    寫著「解析中」、每一列都掛著一個一直在長的計時器 —— 卡住與排在後面
+    完全分不出來。
+    """
+    app = _app(tmp_path)
+
+    def _queued_job(name: str) -> Job:
+        # 內容要不一樣：收件匣用 sha256 擋重複，同內容不同檔名會被 409 退回
+        app.save_upload(name, PDF + name.encode())
+        candidate = next(c for c in app._candidates()[0] if c.filename == name)
+        job = Job.from_candidate(candidate)
+        job.status = "parsing"  # type: ignore[assignment]
+        job.workspace = app.workspace
+        app._jobs[job.job_id] = job
+        return job
+
+    a = _queued_job("排隊的.pdf")
+    b = _queued_job("在跑的.pdf")
+    b.stage_started_at = "2026-08-08T15:00:00+00:00"
+
+    rows = {str(r["filename"]): r for r in app.state()["sections"]["parsing"]}
+    assert rows["排隊的.pdf"]["queued"] is True
+    assert rows["在跑的.pdf"]["queued"] is False
+    assert a.stage_started_at is None
+
+    html = render_html(app.state())
+    assert "排隊中" in html, "排隊的那件沒有標示出來"
+    assert "正在跑" in html and "在跑的.pdf" in html, "沒有講現在跑的是哪一件"
+
+
+def test_restart_requeues_a_job_that_never_started(tmp_path: Path) -> None:
+    """重啟時還在排隊的：重新排回去，**不是判定失敗**。
+
+    舊版拿它去問 LightRAG，得到「沒這份」（本來就沒送過），然後標成 failed。
+    而 failed 沒有計畫可用，只能整個放回收件匣重來。批次解析上線後，一次
+    重啟會這樣殺掉整個佇列。
+    """
+    app, queued = _restart_with_index(tmp_path, "parsing", {"別人的.pdf": "processed"})
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+
+    assert job.status == "parsing", f"排隊中的被改成 {job.status}"
+    assert queued == [("parse", job.job_id)], "沒有重新排回佇列"
+
+
+def test_restart_still_fails_a_job_that_really_ran_and_vanished(tmp_path: Path) -> None:
+    """控制組：真的跑過、而索引裡沒有的，仍然要判失敗。
+
+    上面那條放寬的是「沒開始跑」，不是「跑過但不見了」。兩者混在一起的話，
+    真正的失敗會被無限重排。
+    """
+    app, queued = _restart_with_index(
+        tmp_path, "scanning", {"別人的.pdf": "processed"},
+        stage_started_at="2026-08-08T15:00:00+00:00")
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+
+    assert job.status == "failed", job.status
+    assert "找不到這份文件" in (job.error or "")
+    assert queued == []

@@ -224,6 +224,11 @@ class Job:
     parsed_source_path: str | None = None
     admitted_path: str | None = None
     error: str | None = None
+    # 這一階段**真的輪到了**的時刻。排進佇列時清成 None，worker 撿起來才填。
+    # worker 是循序的，所以同時間只有一件不是 None —— 沒有這個欄位的話
+    # 「卡住」與「排在後面」在畫面上長得一樣，重啟恢復也分不出來（見
+    # `_recover_active_jobs`）。
+    stage_started_at: str | None = None
 
     @classmethod
     def from_candidate(cls, candidate: Candidate) -> Job:
@@ -264,6 +269,9 @@ class Job:
             "updated_at": self.updated_at,
             "error": self.error,
             "log_tail": log_tail,
+            "stage_started_at": self.stage_started_at,
+            # 在佇列裡等、還沒輪到。worker 循序跑，所以絕大多數「在途」的其實是這種。
+            "queued": self.status in ACTIVE_STATUSES and self.stage_started_at is None,
         }
 
     def to_dict(self) -> dict[str, object]:
@@ -290,6 +298,7 @@ class Job:
             "parsed_source_path": self.parsed_source_path,
             "admitted_path": self.admitted_path,
             "error": self.error,
+            "stage_started_at": self.stage_started_at,
         }
 
     @classmethod
@@ -338,6 +347,9 @@ class Job:
             parsed_source_path=_optional_string(raw.get("parsed_source_path")),
             admitted_path=_optional_string(raw.get("admitted_path")),
             error=_optional_string(raw.get("error")),
+            # 舊紀錄沒有這個欄位 ⇒ None ⇒ 「還沒輪到」。對升級當下**還在佇列裡**
+            # 的工作，這正是我們要的判定：重新排回去，不要判成失敗。
+            stage_started_at=_optional_string(raw.get("stage_started_at")),
         )
 
 
@@ -936,6 +948,29 @@ class IntakeApp:
         if not active:
             return
 
+        # 還沒輪到就重啟的：**那不是失敗，是排隊。** 它們沒有跑過任何外部命令、
+        # 沒有產生任何檔案，重新排回佇列就好。拿它們去問 LightRAG 只會得到
+        # 「沒這份」，而下面那段把那個答案當成「真的失敗」——一次重啟就會殺掉
+        # 整批還在排隊的工作（2026-08-08：批次解析上線後佇列裡一度有 19 件）。
+        #
+        # 只救 parsing／repairing：那兩個是「排進佇列但還沒開始」唯一會停的狀態。
+        # admitted 之後的每一步都在 worker 裡面走，不可能沒開始。
+        requeued: set[str] = set()
+        for job in active:
+            if job.stage_started_at is not None or job.status not in {"parsing", "repairing"}:
+                continue
+            kind = "parse" if job.status == "parsing" else "admit"
+            self._queue.put((kind, job.job_id))
+            requeued.add(job.job_id)
+            message = f"服務重啟時這份還在排隊（沒有開始跑），原樣重新排回 {kind}。"
+            self.store.append_log(job.job_id, message)
+            LOGGER.info("job %s %s", job.job_id, message)
+        if requeued:
+            LOGGER.info("重啟恢復：%d 件排隊中的工作重新排回佇列", len(requeued))
+        active = [job for job in active if job.job_id not in requeued]
+        if not active:
+            return
+
         rows: dict[str, str] = {}
         error: str | None = None
         try:
@@ -1058,6 +1093,7 @@ class IntakeApp:
                 job = Job.from_candidate(candidate)
                 job.workspace = self.workspace
                 transition(job, "parsing")
+                job.stage_started_at = None          # 排進佇列，還沒輪到
                 self._jobs[job.job_id] = job
                 self.store.save(job)
                 self._queue.put(("parse", job.job_id))
@@ -1077,6 +1113,7 @@ class IntakeApp:
             # 以為又被擋了一次。
             job.error = None
             transition(job, "repairing")
+            job.stage_started_at = None              # 排進佇列，還沒輪到
             self.store.save(job)
             self._queue.put(("admit", job.job_id))
         return job
@@ -1138,6 +1175,7 @@ class IntakeApp:
                 kind, job_id = task
                 with self._lock:
                     self._running_job_id = job_id
+                self._mark_stage_started(job_id)
                 if kind == "parse":
                     self._run_parse(job_id)
                 elif kind == "admit":
@@ -1158,6 +1196,24 @@ class IntakeApp:
                 with self._lock:
                     self._running_job_id = None
                 self._queue.task_done()
+
+    def _mark_stage_started(self, job_id: str) -> None:
+        """這一件真的輪到了。
+
+        **「排隊中」與「正在跑」必須分得開。** worker 是循序的，一次只跑一件，
+        所以佇列裡二十件全部標成「解析中」時，只有一件是真的。不分開的話：
+
+          畫面  每一列都掛著一個一直在長的計時器 ⇒ 卡住與排在後面長得一樣
+          重啟  `_recover_active_jobs` 拿還沒跑的去問 LightRAG，得到「沒這份」，
+                然後判定為真的失敗 —— 一次重啟殺掉整批（2026-08-08 差點踩到，
+                當時佇列裡有 19 件）
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return
+            job.stage_started_at = _now_iso()
+            self.store.save(job)
 
     def _job_for_worker(self, job_id: str) -> Job:
         with self._lock:
@@ -1303,6 +1359,7 @@ class IntakeApp:
         """
         with self._lock:
             transition(job, "repairing")
+            job.stage_started_at = None              # 排進佇列，還沒輪到
             self.store.save(job)
             self._queue.put(("admit", job.job_id))
         LOGGER.info("job %s 計畫判定 clean，自動放行", job.job_id)
@@ -2124,6 +2181,42 @@ _BUSY_NOTE = {
 }
 
 
+def _render_now_running(jobs: Sequence[Mapping[str, object]]) -> str:
+    """**現在真的在跑的是哪一件**，還有多少在排隊。
+
+    worker 是循序的，一次一件。沒有這一列的話，畫面上二十件都寫著「處理中」，
+    而每一列的計時器都在長 —— 使用者無從得知是卡住了還是排在後面。
+    2026-08-08 放 21 篇進來時當場被 PO 抓到：「都在處理中也很怪」。
+    """
+    running = [job for job in jobs
+               if job.get("status") in _BUSY_STATUSES and not job.get("queued")]
+    queued = [job for job in jobs if job.get("queued")]
+    if not running and not queued:
+        return ""
+
+    if running:
+        job = running[0]
+        note = _busy_note(job.get("status"), job.get("stage_started_at"))
+        head = (f"▶ <b>正在跑</b>　{_esc(str(job.get('filename'))[:62])}"
+                f"　<span class='stamp'>{_esc(note)}</span>")
+    else:
+        head = "▶ <b>正在跑</b>　（沒有——佇列空了，或 worker 停了）"
+
+    waiting = ""
+    if queued:
+        parse_n = sum(1 for job in queued if job.get("status") == "parsing")
+        admit_n = len(queued) - parse_n
+        bits = []
+        if parse_n:
+            bits.append(f"解析 {parse_n}")
+        if admit_n:
+            bits.append(f"放行 {admit_n}")
+        waiting = (f"<div class='sub'><span>排隊中 {len(queued)} 件"
+                   f"（{'、'.join(bits)}）</span>"
+                   f"<span>一次跑一件，排隊的不會同時動</span></div>")
+    return f"<div class='banner'>{head}{waiting}</div>"
+
+
 def _busy_note(status: object, updated_at: object) -> str:
     """正在跑的工作要說「在做什麼、跑多久了」。
 
@@ -2237,15 +2330,19 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
     # 正在跑的要說出「在做什麼、跑多久了」。沒有這個，使用者只看得到
     # 檔案從收件匣消失，不知道它是在跑還是壞了。
     if status in _BUSY_STATUSES:
-        size_bits.append(f"<span>{_esc(_busy_note(status, job.get('updated_at')))}</span>")
+        # 計時器從**這一階段真的開始**算起，不是從排進佇列算起。
+        # 排隊中的完全不給計時器 —— 一個一直在長的數字就是「卡住」的樣子。
+        note = ("排隊中，還沒輪到" if job.get("queued")
+                else _busy_note(status, job.get("stage_started_at") or job.get("updated_at")))
+        size_bits.append(f"<span>{_esc(note)}</span>")
     error = job.get("error")
     err_html = ""
     # planned 也要顯示：放行被擋下來會把文件退回這一節並留下原因，不顯示的話
     # 使用者只看得到「按了沒反應」。
     if status in {"failed", "failed_parse", "planned"} and isinstance(error, str) and error:
         err_html = f"<span class='err'>⚠ {_esc(error)}</span>"
-    chip = (f"<span class='chip {_chip_class(status, decision)}'>"
-            f"{_esc(_status_label(status, decision))}</span>")
+    chip = (f"<span class='chip {'idle' if job.get('queued') else _chip_class(status, decision)}'>"
+            f"{_esc('排隊中' if job.get('queued') else _status_label(status, decision))}</span>")
     return (
         f"<div class='row{" current" if is_current else ""}'>"
         f"<a class='nm' href='?job={job_id}' title='{_esc(job.get("filename", ""))}'>"
@@ -2830,6 +2927,7 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
         + _render_convergence(
             state.get("convergence") if isinstance(state.get("convergence"), dict) else {},
             links)
+        + _render_now_running(jobs)
         + warn_html
         + "<div class='layout'>"
         + f"<div class='queue'>{queue}</div>"
