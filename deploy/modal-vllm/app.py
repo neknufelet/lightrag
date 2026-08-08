@@ -65,6 +65,11 @@ MAX_NUM_SEQS = 64
 app = modal.App("lightrag-vllm-qwen36")
 volume = modal.Volume.from_name("qwen36-fp8", create_if_missing=True)
 
+# torch.compile 與 CUDA graph 的結果。**不留住的話每次冷啟動都要重編。**
+# 2026-08-09 實測冷啟動 562 秒，其中 torch.compile 163 秒、CUDA graph 約 90 秒
+# ——那 250 秒是每次都在重做同一件事。
+compile_cache = modal.Volume.from_name("vllm-compile-cache", create_if_missing=True)
+
 
 download_image = modal.Image.debian_slim().pip_install("huggingface_hub[hf_transfer]")
 
@@ -86,13 +91,19 @@ def download() -> None:
     volume.commit()
 
 
-serve_image = modal.Image.from_registry(VLLM_IMAGE).entrypoint([])
+# ⚠ 兩個參數都不能省，各擋一個實測踩到的坑（2026-08-09）：
+#   add_python   Modal 認不出這個 image 裡的 Python，會回 ConflictError
+#                「unable to determine the version of Python」而**整個 app 建不起來**
+#                （連只用另一個 image 的 download 也一起卡住）。
+#   entrypoint([]) 官方 image 的 ENTRYPOINT 是 `vllm serve` 的包裝，會攔截
+#                Modal 要跑的 runtime。llama.cpp 那支也踩過同一個坑。
+serve_image = modal.Image.from_registry(VLLM_IMAGE, add_python="3.12").entrypoint([])
 
 
 @app.function(
     image=serve_image,
     gpu=GPU,
-    volumes={MODEL_DIR: volume},
+    volumes={MODEL_DIR: volume, "/root/.cache/vllm": compile_cache},
     secrets=[modal.Secret.from_name("vllm-api-key")],   # 提供 VLLM_API_KEY
     timeout=60 * 60 * 4,
     scaledown_window=300,
@@ -107,9 +118,18 @@ def serve() -> None:
     """
     command = [
         "vllm", "serve", MODEL_DIR,
+        # LightRAG 的 `LLM_MODEL` 認這個名字，兩邊必須一致
         "--served-model-name", SERVED_NAME,
         "--max-model-len", str(MAX_MODEL_LEN),
         "--max-num-seqs", str(MAX_NUM_SEQS),
+        # ⚠ **關掉思考模式。** 本機那支是 `--reasoning off`，vLLM 這邊完全不同機制：
+        # 走 chat template 的 kwarg。不關的話，2026-08-09 實測 300 個 token
+        # 全部花在「Here's a thinking process that leads to…」，正題一個字沒寫。
+        # LightRAG 不會在請求裡帶 chat_template_kwargs，所以**一定要設成伺服器預設**。
+        "--default-chat-template-kwargs", '{"enable_thinking": false}',
+        # 每次抽取都送同一份約 1,200 token 的規則提示詞，前綴快取才不會白算 3,000 遍。
+        # ⚠ 量它的時候題本要用沒跑過的（ADR-0002）：同題重跑會量到殘影不是效能。
+        "--enable-prefix-caching",
         # 留一成給啟動時的暫時配置，剩下都給 KV
         "--gpu-memory-utilization", "0.90",
         "--host", "0.0.0.0",

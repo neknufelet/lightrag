@@ -2484,9 +2484,15 @@ def _render_convergence(convergence: Mapping[str, object], links: Mapping[str, o
         "<h1>這批還在教我們東西嗎</h1>"
         f"<p>{_esc(verdict)}</p></div>"
         "<div class='stats'>"
-        f"<div><div class='k'>已處理</div><div class='v'>{n}</div></div>"
-        f"<div><div class='k'>沒見過的</div><div class='v'>{event_count}</div></div>"
-        f"<div><div class='k'>距上次</div><div class='v'>{_esc(distance_text)}</div></div>"
+        # ⚠ **三個數字數的不是同一種東西**，所以單位一定要寫出來。
+        # 2026-08-09 PO 當場說「數字沒對上」—— 並排的 18／1／17 看起來像三個
+        # 同類的量，實際上是「文件」「型態」「文件」。少了單位就是在誤導。
+        f"<div><div class='k'>已處理</div><div class='v'>{n}</div>"
+        "<div class='u'>份文件</div></div>"
+        f"<div><div class='k'>新型態</div><div class='v'>{event_count}</div>"
+        "<div class='u'>種（最近 20 筆內）</div></div>"
+        f"<div><div class='k'>距上次</div><div class='v'>{_esc(distance_text)}</div>"
+        "<div class='u'>份文件之前</div></div>"
         "</div>"
         "<div class='links'>"
         f"<a href='{lightrag}' target='_blank' rel='noopener'>知識庫 ↗</a>"
@@ -2652,6 +2658,9 @@ a:hover{text-decoration:underline}
   text-transform:uppercase;color:var(--ink-3)}
 .stats .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;
   letter-spacing:-.02em;font-family:var(--mono)}
+/* 單位。三個數字數的不是同一種東西（文件／型態／文件），沒有單位就會被
+   當成同類的量並排比較 —— 刻意做得比數字小但讀得到，不是裝飾。 */
+.stats .u{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-top:1px}
 .links{display:flex;gap:8px;flex:0 0 auto;align-items:center}
 .links a{font-family:var(--mono);font-size:12px;border:1px solid var(--line);
   border-radius:2px;padding:5px 10px;color:var(--ink-2)}
