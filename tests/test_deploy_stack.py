@@ -136,14 +136,27 @@ def test_mounted_code_is_keyed_by_service_not_container() -> None:
         "傳容器名應該查不到 —— 這張表的鍵是服務名"
 
 
-def test_compose_hashes_parse_service_and_digest() -> None:
-    """`docker compose config --hash` 的輸出是「服務名 空白 雜湊」逐行。
+def test_dry_run_output_is_parsed_into_stale_containers() -> None:
+    """`compose up -d --dry-run` 的輸出解析：只有 Recreate／Create 算漂移。
 
-    解析壞掉的話會回空 dict，而空 dict 會讓每個容器都被判成「compose 裡沒有
-    這個服務」—— 一次噴四條假紅燈。
+    **為什麼判準是問 compose 而不是自己算雜湊**（走過兩個錯的版本）：
+
+    1. 「容器啟動時間 vs compose.yaml 最後 commit」——時間戳只是代理指標，
+       四台答錯兩台，其中一個是**漏報**。
+    2. 「比對 config-hash 標籤與 `compose config --hash`」——看起來精確，但
+       `config --hash` **不把 env_file 的內容算進去**，而 `up` 會。2026-08-08
+       實測：四個服務裡只有 lightrag 有 `env_file: .env`，也只有它誤報。
+
+    ⇒ 自己重算一份「應該是什麼」永遠會跟真正的決策者漂移。
     """
     mod = _module()
-    sample = "infinity d2ba48a8\nkbapi e4164711\n"
+    sample = (
+        " Container lightrag-infinity Running \n"
+        " Container lightrag-acoustics_v2 Recreate \n"
+        " Container lightrag-acoustics_v2 Recreated \n"
+        " Container kbapi-acoustics_v2 Running \n"
+        " Container new-thing Create \n"
+    )
 
     class _P:
         returncode, stdout, stderr = 0, sample, ""
@@ -151,10 +164,33 @@ def test_compose_hashes_parse_service_and_digest() -> None:
     original = mod._run
     mod._run = lambda *a, **k: _P()
     try:
-        got = mod._compose_config_hashes(Path("/nonexistent"))
+        got = mod._containers_needing_recreate(Path("/nonexistent"))
     finally:
         mod._run = original
-    assert got == {"infinity": "d2ba48a8", "kbapi": "e4164711"}
+    assert got == ["lightrag-acoustics_v2", "new-thing"], got
+
+
+def test_recreated_and_starting_lines_do_not_count_as_drift() -> None:
+    """`Recreated`／`Starting` 是同一次動作的後續回報，不是另一台要動。
+
+    漏掉這個區分會讓一台漂移的容器被數成三台，而數字錯了就沒有人會相信這份報告。
+    """
+    mod = _module()
+    sample = (
+        " Container lightrag-postgres Recreated \n"
+        " Container 3f9ef5ffe58f_lightrag-postgres Starting \n"
+        " Container 3f9ef5ffe58f_lightrag-postgres Started \n"
+    )
+
+    class _P:
+        returncode, stdout, stderr = 0, sample, ""
+
+    original = mod._run
+    mod._run = lambda *a, **k: _P()
+    try:
+        assert mod._containers_needing_recreate(Path("/nonexistent")) == []
+    finally:
+        mod._run = original
 
 
 def test_last_commit_epoch_reads_real_history() -> None:

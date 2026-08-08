@@ -170,23 +170,36 @@ def _last_commit_epoch(paths: tuple[str, ...]) -> float | None:
     return float(value) if p.returncode == 0 and value else None
 
 
-def _compose_config_hashes(stack_dir: Path) -> dict[str, str]:
-    """compose **現在**會產生的每個服務設定雜湊：`{服務名: 雜湊}`。
+def _containers_needing_recreate(stack_dir: Path) -> list[str]:
+    """compose 自己認為需要重建的容器名。
 
-    ⚠ **必須在 stack 目錄算。** 從 repo 目錄算會得到不同的值（2026-08-08 實測
-    kbapi `6427b11…` vs `e416471…`），因為那份不是跑著的容器的來源——拿它比對
-    會四個服務全部誤報漂移。
+    **判準是問 compose 本人，不是自己算雜湊。** 走過兩個錯的版本才到這裡：
+
+    1. 「容器啟動時間 vs compose.yaml 最後 commit 時間」——時間戳只是代理指標，
+       compose 只在設定真的改變時才重建（改註解不會），四台答錯兩台，包含一個
+       **漏報**。
+    2. 「比對容器的 `com.docker.compose.config-hash` 標籤與 `compose config
+       --hash` 的輸出」——看起來精確，但 `config --hash` **不把 `env_file` 的
+       內容算進去**，而 `up` 會。2026-08-08 實測：四個服務裡只有 `lightrag` 有
+       `env_file: .env`，也只有它誤報不一致；它剛被 `up -d` 重建完，dry-run 說
+       `Running`，我的雜湊比對卻說要重建。
+
+    ⇒ 自己重算一份「應該是什麼」永遠會跟真正的決策者漂移。**要問就問做決定的那個。**
+
+    `--dry-run` 不會有副作用，輸出每行形如 ` Container <名字> <動作>`；
+    需要動的動作是 `Recreate` 或 `Create`，已經對的是 `Running` / `Started`。
     """
-    p = _run(["docker", "compose", "config", "--hash", "*"], cwd=stack_dir)
+    p = _run(["docker", "compose", "up", "-d", "--dry-run"], cwd=stack_dir, timeout=120)
     if p.returncode != 0:
-        raise StackError(f"docker compose config 失敗（{stack_dir}）："
+        raise StackError(f"docker compose up --dry-run 失敗（{stack_dir}）："
                          f"{p.stderr.strip()[:300]}")
-    out: dict[str, str] = {}
-    for line in p.stdout.splitlines():
+    stale: list[str] = []
+    for line in (p.stdout + p.stderr).splitlines():
         parts = line.split()
-        if len(parts) == 2:
-            out[parts[0]] = parts[1]
-    return out
+        # 形如 ["Container", "<名字>", "<動作>"]
+        if len(parts) >= 3 and parts[0] == "Container" and parts[2] in ("Recreate", "Create"):
+            stale.append(parts[1])
+    return sorted(set(stale))
 
 
 def _project_containers() -> list[dict[str, object]]:
@@ -201,15 +214,14 @@ def _project_containers() -> list[dict[str, object]]:
     if p.returncode != 0:
         raise StackError(f"docker ps 失敗：{p.stderr.strip()[:200]}")
     fmt = ('{{json .State.StartedAt}} '
-           '{{json (index .Config.Labels "com.docker.compose.service")}} '
-           '{{json (index .Config.Labels "com.docker.compose.config-hash")}}')
+           '{{json (index .Config.Labels "com.docker.compose.service")}}')
     out: list[dict[str, object]] = []
     for name in (n for n in p.stdout.split() if n):
         q = _run(["docker", "inspect", "-f", fmt, name])
         if q.returncode != 0:
             raise StackError(f"docker inspect {name} 失敗：{q.stderr.strip()[:200]}")
-        started, service, config_hash = (json.loads(x) for x in q.stdout.split(" ", 2))
-        out.append({"name": name, "service": service, "hash": config_hash,
+        started, service = (json.loads(x) for x in q.stdout.split(" ", 1))
+        out.append({"name": name, "service": service,
                     "started": _rfc3339_to_epoch(started)})
     return out
 
@@ -280,23 +292,15 @@ def cmd_freshness(args: argparse.Namespace) -> int:
         print("工作區　乾淨")
 
     # ── 3. 容器的設定與現在的 compose 一致 ──────────────────────
-    # 用 compose 自己算的設定雜湊，**不是時間戳**。
-    # 血淚 2026-08-08：第一版拿「容器啟動時間 vs compose.yaml 最後 commit 時間」
-    # 當判準，四個容器答錯兩個 —— infinity 誤報成紅（實際同步）、lightrag 誤報
-    # 成綠（實際已漂移）。**會漏報的檢查比沒有檢查更糟**：它會讓人相信已經看過了。
-    # 根因是時間戳只是代理指標，而 compose 只在設定真的改變時才重建容器；
-    # 改個註解不會重建，於是時間戳與事實脫節。
-    want = _compose_config_hashes(Path(args.stack_dir))
+    # 判準是**問 compose 本人**（`up -d --dry-run`），不是自己算一份雜湊。
+    # 詳細的兩次失敗記錄在 `_containers_needing_recreate` 的 docstring。
+    stale = _containers_needing_recreate(Path(args.stack_dir))
     containers = _project_containers()
     for c in sorted(containers, key=lambda x: str(x["name"])):
-        name, service = str(c["name"]), str(c["service"])
-        expected = want.get(service)
-        if expected is None:
-            problems.append(f"{name}：compose 裡沒有服務 {service!r} —— "
-                            "容器是舊定義留下的孤兒，或 compose 已改名")
-        elif expected != c["hash"]:
+        name = str(c["name"])
+        if name in stale:
             problems.append(f"{name} 的設定與現在的 compose 不符 —— "
-                            f"要 docker compose up -d {service} 重建")
+                            f"要 docker compose up -d {c['service']} 重建")
         else:
             print(f"{name}　設定與 compose 一致")
 
