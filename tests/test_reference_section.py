@@ -114,3 +114,39 @@ def test_ratio_flags_an_implausible_amount() -> None:
     items = [_head("References", 2)] + [_body("x" * 500) for _ in range(9)]
     p = rs.plan(items)
     assert p.suspicious, f"消掉 {p.ratio:.0%} 應該要標記"
+
+
+def test_mineru_sub_type_ref_text_is_also_caught() -> None:
+    """MinerU 自己標的 `sub_type: ref_text` 也要抓 —— 即使沒有 References 標題。
+
+    兩個訊號的失效方式不同：標題推斷在標題寫法沒見過時失效，`ref_text` 在
+    MinerU 沒分類時失效（實測 C Equivalent Networks 就是 0 項）。
+    兩個都失效才會漏，而不是任一個失效就漏。
+    """
+    items = [
+        _head("Body", 2),
+        _body("正文"),
+        {"type": "list", "sub_type": "ref_text", "page_idx": 3,
+         "list_items": ["1. A. Author, A paper, 2020.", "2. B. Author, 2021."]},
+    ]
+    p = rs.plan(items)
+    assert {m.index for m in p.mutes} == {2}
+    assert p.mutes[0].kind == "reference"
+
+
+def test_ratio_counts_list_items_not_just_text() -> None:
+    """比例要算 `list_items`，不能只算 `text`。
+
+    **血淚 2026-08-08**：第一版只數 `text`，而參考清單的型別是 `list`、內容在
+    `list_items`、`text` 是空的 —— 於是報出「消音 0.05%」，實際是 8–23%。
+    統計錯了就沒有人會相信這條規則。
+    """
+    items = [
+        _body("x" * 100),
+        {"type": "list", "sub_type": "ref_text", "page_idx": 1,
+         "list_items": ["y" * 400]},
+    ]
+    p = rs.plan(items)
+    assert p.body_chars_before == 500, "分母要含 list_items"
+    assert p.body_chars_after == 100
+    assert abs(p.ratio - 0.8) < 1e-9, p.ratio

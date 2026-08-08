@@ -27,12 +27,7 @@ sidecar 用 `content_list.json#/6` 這種**陣列索引**當 self_ref，刪掉�
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import dataclass
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-from mineru_common import BODY_TYPES  # noqa: E402
 
 # 參考清單的標題。實測六份文件的寫法：References / REFERENCES / Bibliography。
 REFERENCE_HEADING = re.compile(
@@ -87,6 +82,18 @@ class RefPlan:
                 + ("　⚠ 比例異常，請人工確認" if self.suspicious else ""))
 
 
+def item_chars(item: dict) -> int:
+    """一個項目的實際字數。
+
+    ⚠ **不能只看 `text`。** 參考清單的型別是 `list`，內容在 `list_items` 陣列裡，
+    `text` 是空的——2026-08-08 第一版就是只數 `text`，於是報出「消音 0.05%」
+    這種假數字（實際是 8–23%）。而且 `list` 不在 `BODY_TYPES` 裡，用型別過濾
+    會把整個參考清單排除在分母之外。**統計錯了，就沒有人會相信這條規則。**
+    """
+    return (len(item.get("text") or "")
+            + sum(len(x) for x in (item.get("list_items") or [])))
+
+
 def _kind(text: str) -> str | None:
     """這個標題是不是要消音的區段起點。不是就回 None。"""
     if REFERENCE_HEADING.match(text):
@@ -136,9 +143,20 @@ def plan(items: list[dict]) -> RefPlan:
                                  section=text, kind=kind))
         sections.append((i, text, kind, len(span)))
 
-    def body_chars(skip: set[int]) -> int:
-        return sum(len(it.get("text") or "")
-                   for k, it in enumerate(items)
-                   if it.get("type") in BODY_TYPES and k not in skip)
+    # 補強：MinerU 自己把參考清單標成 `sub_type: "ref_text"`。
+    #
+    # 2026-08-08 六份文件實測：標題推斷是 ref_text 的**超集**（每一項 ref_text
+    # 都已被涵蓋），所以這一段目前不會多抓到東西。留著是因為兩者的失效方式不同：
+    #   標題推斷  在標題寫法沒見過、或整份沒有 References 標題時失效
+    #   ref_text  在 MinerU 沒分類時失效（實測 C Equivalent Networks 就是 0 項）
+    # 兩個都失效才會漏，而不是任一個失效就漏。
+    for i, it in enumerate(items):
+        if it.get("sub_type") != "ref_text" or i in muted_idx:
+            continue
+        muted_idx.add(i)
+        mutes.append(RefMute(index=i, item_type=it.get("type", ""),
+                             page=it.get("page_idx"), text=it.get("text") or "",
+                             section="<MinerU sub_type=ref_text>", kind="reference"))
 
-    return RefPlan(mutes, sections, body_chars(set()), body_chars(muted_idx))
+    total = sum(item_chars(it) for it in items)
+    return RefPlan(mutes, sections, total, total - sum(item_chars(items[i]) for i in muted_idx))
