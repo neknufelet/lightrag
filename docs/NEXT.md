@@ -58,8 +58,10 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
   載完，所以它跑的是 18 小時前的碼。
 - ⬜ 更新 canary 基準　→ `postprocess.py canary --update`
 
-  基準還停在舊語料（18 份教科書章節），現在是 9 篇論文，所以每天會報「17 份消失、
-  3 份新增」。**與第 3 批的重進料綁在一起做**，否則要更新兩次。
+  基準還停在退役的舊語料（教科書 A–R 那組），所以每天報「17 份消失、3 份新增」。
+  **與第 3 批的重進料綁在一起做**，否則要更新兩次。
+  現在庫裡有幾份不寫死，用指令數：
+  `docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAc "select count(*) from lightrag_doc_status where workspace='acoustics_v2';"`
 
 ## 第 2 批：文件對齊（2 條）
 
@@ -87,7 +89,6 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
   → `entity-merge.py plan` 產候選 → `review --top 8` 產附原文的審查表 → LLM 看一輪 →
   PO 定案。判準已寫在 `entity-merge.py` docstring，`hard-rules.md` 加一行指過去
 - ⬜ 做完跑那 10 題　→ 中文題分數接近英文檔次
-- ⬜ 更新 canary 基準　→ `postprocess.py canary --update`（語料已定在現有 9 篇）
 
 ## 第 4 批：秘密與外部依賴（3 條）
 
@@ -130,7 +131,8 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 - **不改 workspace 名稱**（`acoustics_v2` → `acoustic`）。2026-08-08 裁決：功能上只是
   字串，但要動 `backup-cold.sh` 的容器名、`systemd-units.py` 的預設值、三個 skill 的
   8 處 URL、三個測試檔。波及面大、價值低。
-- **不擴到 20 篇**。2026-08-08 PO 槓掉，語料定在現有 9 篇。
+- **不擴到 20 篇**。2026-08-08 PO 槓掉，語料就是庫裡現有的那些（**份數不寫死**，
+  用上面那條 psql 指令量；2026-08-08 當下是 4 篇論文 ＋ `C Equivalent Networks.pdf`）。
 - **不上 Qwen3-Reranker**。已由 `BAAI/bge-reranker-v2-m3` 取代並上線（`8ebdc6b`），
   不是「等上游」而是不需要了。
 - **`.env` 不要用 `source` 讀**。`LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號後面
