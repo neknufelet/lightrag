@@ -37,6 +37,94 @@ DATA_ROOT = configured_data_root()
 POSTGRES_USER_DEFAULT = "deeptutor"
 MINERU_TOKEN_SOFT_FAIL_DAYS = 14
 
+# 對外發佈、必須**從宿主**打得到的服務：(顯示名, .env 的埠鍵, 預設埠)。
+#
+# 為什麼要從宿主打：既有的 API 斷言全都走 `docker exec` 進容器再打 localhost
+# （見 pp/oracle.py:352-361）。那條路在「容器活著但發佈的埠沒綁、或綁到別的
+# 位址」時**照樣全綠**，而 skill、kbapi 的呼叫端、瀏覽器全都是從外面進來的。
+# 判準必須是「打得到端點」不是「容器在跑」——原則寫在
+# cairn/testing-restart-policy.md:114，這裡是它的執行者。
+#
+# 審核台沒有埠鍵：INTAKE_PORT 於 2026-08-08 移除（全 repo 零讀取），
+# 現在唯一的來源是 intake.py 的 `--port` 預設值。
+PUBLISHED_SERVICES: tuple[tuple[str, str | None, int], ...] = (
+    ("LightRAG", "HOST_PORT", 9621),
+    ("kbapi", "KBAPI_PORT", 9700),
+    ("Infinity", "INFINITY_PORT", 7997),
+    ("審核台", None, 9710),
+)
+
+# 範本記載、但實機的 `.env` 可以省略的鍵 —— 省略時由 compose 或程式用**有記載的
+# 預設值**接手。這不是豁免清單，是一條有判準的規則：
+#
+#   省略會改變行為的鍵      → 兩邊都必須有（漏了就是重建會掉東西）
+#   省略等於「用記載的預設」 → 範本負責記載，實機可省
+#
+# 兩個方向的嚴重程度差很多，所以只放寬這一邊：範本漏寫實機有的鍵（`only_live`）
+# 永遠是紅燈，2026-08-08 就是那樣掉了 MAX_TOTAL_TOKENS 與四個 RERANK_*。
+ENV_KEYS_OPTIONAL_IN_LIVE: frozenset[str] = frozenset({
+    "INTAKE_SOURCES",   # 留空＝不掃描任何來源，intake.py:494 會明確警告而非誤報空
+    "INFINITY_PORT",    # compose 寫 ${INFINITY_PORT:-7997}
+})
+
+# `.env` 的鍵 → LightRAG `MinerUParserOptions.from_env()` 的欄位。
+# 比的是「檔案裡寫的」與「容器實際吃到的」，所以能抓出 compose 漏傳鍵。
+MINERU_ENV_TO_OPTION: tuple[tuple[str, str], ...] = (
+    ("MINERU_API_MODE", "api_mode"),
+    ("MINERU_MODEL_VERSION", "model_version"),
+    ("MINERU_LANGUAGE", "language"),
+    ("MINERU_ENABLE_TABLE", "enable_table"),
+    ("MINERU_ENABLE_FORMULA", "enable_formula"),
+    ("MINERU_IS_OCR", "is_ocr"),
+)
+
+# 外部推論端點：(顯示名, host 鍵, 金鑰鍵, 備援金鑰鍵)。
+# 備援那欄記的是程式裡真的存在的 fallback（pp/eyes.py:87），不是願望——
+# 2026-08-08 就是那條 fallback 在 embedding 換成本機之後安靜地失效。
+EXTERNAL_EYES: tuple[tuple[str, str, str, str | None], ...] = (
+    ("第二雙眼睛", "PP_EYE_B_HOST", "PP_EYE_B_API_KEY", "EMBEDDING_BINDING_API_KEY"),
+    ("第三隻眼睛", "PP_EYE_C_HOST", "PP_EYE_C_API_KEY", None),
+)
+
+
+def _env_key_names(path: Path) -> set[str]:
+    """抽出一份 env 檔的鍵名。
+
+    ⚠ 樣式必須容許鍵名含數字（`NEO4J_URI` 的 `4`）。用 `^[A-Z_]+=` 會少算，
+    2026-08-07 因此把 55 個鍵寫成 51 個並提交出去。
+    """
+    return {
+        line.split("=", 1)[0]
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", line)
+    }
+
+
+def _http_get(url: str, headers: dict[str, str] | None = None,
+              timeout: int = 10) -> tuple[int, bytes]:
+    """打一個 GET，回 `(狀態碼, 內容)`。連不上時狀態碼為 0、內容是錯誤字串。
+
+    刻意不丟例外：呼叫端要能區分「回了 401」與「根本連不上」，這兩者的處置
+    完全不同（前者是金鑰錯，後者是服務沒起來）。
+    """
+    import urllib.error
+    import urllib.request
+    req = urllib.request.Request(url, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+    except (urllib.error.URLError, OSError) as e:
+        return 0, str(e).encode()
+
+
+def _as_text(value: object) -> str:
+    """把 bool／str 正規化成可比較的小寫字串（env 只有字串，選項有 bool）。"""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value).strip().lower()
+
 
 def _sql_literal(value: str) -> str:
     """將 workspace 安全地寫成 SQL 字串字面值。"""
@@ -386,6 +474,93 @@ class Checker:
                             "soft_fail_below_days": MINERU_TOKEN_SOFT_FAIL_DAYS,
                             "expires_at": exp,
                         }
+
+        @self.check("A-27", "hard", "對外發佈的埠從宿主打得到（不是「容器在跑」）")
+        def _():
+            env = load_env(REPO)
+            addr = env.get("BIND_ADDR", "")
+            if not addr:
+                return False, "找不到 BIND_ADDR —— 無法判斷服務發佈到哪個位址", {}
+            seen: dict[str, int] = {}
+            for name, port_key, default_port in PUBLISHED_SERVICES:
+                port = int(env.get(port_key, default_port)) if port_key else default_port
+                code, _body = _http_get(f"http://{addr}:{port}/health", timeout=5)
+                seen[f"{name}:{port}"] = code
+            bad = {k: v for k, v in seen.items() if v != 200}
+            return not bad, (f"{addr} 上四個服務的 /health 全回 200" if not bad else
+                             f"打不到：{bad}（0 = 連不上，其餘是實際狀態碼）"), seen
+
+        @self.check("A-28", "hard", "Infinity 載著 .env 指名的那兩個模型")
+        def _():
+            env = load_env(REPO)
+            addr = env.get("BIND_ADDR", "")
+            port = int(env.get("INFINITY_PORT", 7997))
+            want = [m for m in (env.get("EMBEDDING_MODEL", ""),
+                                env.get("RERANK_MODEL", "")) if m]
+            if not addr or not want:
+                return False, "缺 BIND_ADDR 或 EMBEDDING_MODEL／RERANK_MODEL", {}
+            code, body = _http_get(f"http://{addr}:{port}/models", timeout=10)
+            if code != 200:
+                return False, f"/models 回 {code}（0 = 連不上）", {"status": code}
+            loaded = [m.get("id") for m in json.loads(body).get("data", [])]
+            missing = [m for m in want if m not in loaded]
+            # 「服務活著」與「載對模型」是兩件事：模型換錯了不會報錯，只會讓
+            # 向量表對不上、查詢安靜地退化。
+            return not missing, ("載著 " + ", ".join(want) if not missing else
+                                 f"缺 {missing}，實際載著 {loaded}"), {"loaded": loaded}
+
+        @self.check("A-29", "soft", "外部推論端點的金鑰現在有效")
+        def _():
+            env = load_env(REPO)
+            out: dict[str, int] = {}
+            for name, host_key, key_key, fallback_key in EXTERNAL_EYES:
+                host = env.get(host_key, "")
+                key = env.get(key_key, "") or (env.get(fallback_key, "") if fallback_key else "")
+                if not host or not key:
+                    out[name] = -1        # -1 = 沒設定，跟「打不到」要分得開
+                    continue
+                code, _body = _http_get(f"{host}/models",
+                                        {"Authorization": f"Bearer {key}"}, timeout=10)
+                out[name] = code
+            bad = {k: v for k, v in out.items() if v != 200}
+            # 為什麼要真的打一次：2026-08-08 第二雙眼睛的 fallback 沿用
+            # EMBEDDING_BINDING_API_KEY，embedding 換成本機後那把不再是 OpenAI
+            # 金鑰 —— 設定看起來完好、401 要到下次進料才浮出來。
+            return not bad, ("兩個端點都回 200" if not bad else
+                             f"不正常：{bad}（-1 沒設定／0 連不上／401 金鑰無效）"), out
+
+        @self.check("A-30", "hard", "`.env` 與 `.env.example` 的鍵名一致")
+        def _():
+            actual = REPO / ".env"
+            example = REPO / ".env.example"
+            if not actual.exists():
+                return False, f"找不到 {actual}", {}
+            live, doc = _env_key_names(actual), _env_key_names(example)
+            only_live = sorted(live - doc)
+            only_doc = sorted(doc - live - ENV_KEYS_OPTIONAL_IN_LIVE)
+            ok = not only_live and not only_doc
+            # only_live 是最貴的那一邊：範本沒寫的鍵，重建時就會消失。
+            # 2026-08-08 這樣掉過 MAX_TOTAL_TOKENS（查詢會謊報「找不到」）
+            # 與四個 RERANK_*。
+            return ok, ("只剩記載了預設值、實機可省的 "
+                        f"{sorted(ENV_KEYS_OPTIONAL_IN_LIVE)}" if ok else
+                        f"範本漏寫（重建會掉）：{only_live}／"
+                        f"範本寫了但實際沒有且沒記載預設：{only_doc}"), {
+                            "only_in_env": only_live, "only_in_example": only_doc}
+
+        @self.check("A-31", "hard", "容器實際吃到的 MinerU 選項與 `.env` 相符")
+        def _():
+            env = load_env(REPO)
+            # 不傳 env 給 oracle：要讀的正是**容器自己的環境**，那才是 LightRAG
+            # 真的看到的值。傳進去就變成自己跟自己比，抓不到 compose 漏傳鍵。
+            got = self.o.mineru_options()
+            diff = {
+                env_key: {"env 檔": env.get(env_key, "<沒有>"), "容器": got.get(field_)}
+                for env_key, field_ in MINERU_ENV_TO_OPTION
+                if _as_text(env.get(env_key, "")) != _as_text(got.get(field_))
+            }
+            return not diff, ("六項全部相符" if not diff else
+                              f"不符：{diff}"), {"options": got}
 
     # ---------- 資料層（逐文件）----------
 
