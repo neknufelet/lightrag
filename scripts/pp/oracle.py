@@ -78,7 +78,12 @@ _SECRET_HINTS: tuple[str, ...] = ("KEY", "PASSWORD", "TOKEN", "SECRET", "CREDENT
 
 
 def is_secret_key(name: str) -> bool:
-    """鍵名看起來像不像秘密。`.env.example` 開頭那六個都會命中。"""
+    """鍵名看起來像不像秘密。`.env.example` 開頭秘密表裡的每一個都會命中。
+
+    刻意會**多**命中：`MAX_TOTAL_TOKENS`、`RERANK_MAX_TOKENS_PER_DOC` 這種含
+    `TOKEN` 的普通鍵也回 True。那是上面選定的方向（寧可多遮），實務上無害——
+    `_redact()` 另有 `len(value) >= 6` 的護欄，短數值不會被塗掉。
+    """
     upper = name.upper()
     return any(hint in upper for hint in _SECRET_HINTS)
 

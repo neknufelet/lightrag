@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -30,10 +31,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from pp.oracle import Oracle, OracleError, _redact, is_secret_key  # noqa: E402
 
-# `.env.example` 開頭那份秘密清單，逐字。新增秘密鍵時這裡要跟著加。
+# `.env.example` 開頭那份秘密清單，逐字。刻意手抄而不是從檔案讀 —— 這是獨立的
+# 第二份判準，自動推導出來的清單無法抓出「`is_secret_key` 本身漏判」。
+# 漂移由 test_env_example_has_no_unlisted_secret_key 守住（見下）。
 KNOWN_SECRET_KEYS = (
     "LIGHTRAG_API_KEY", "POSTGRES_PASSWORD", "LLM_BINDING_API_KEY",
-    "EMBEDDING_BINDING_API_KEY", "MINERU_API_TOKEN", "PP_EYE_C_API_KEY",
+    "EMBEDDING_BINDING_API_KEY", "RERANK_BINDING_API_KEY", "MINERU_API_TOKEN",
+    "PP_EYE_B_API_KEY", "PP_EYE_C_API_KEY",
 )
 
 SECRET = "s3cr3t-value-do-not-leak"
@@ -41,9 +45,41 @@ ENV = {"WORKSPACE": "ws_x", "LIGHTRAG_API_KEY": SECRET, "POSTGRES_PASSWORD": SEC
 
 
 def test_every_known_secret_key_is_recognised() -> None:
-    """六個已知的秘密鍵都要被認出來。漏一個就是安靜地洩漏那一個。"""
+    """每個已知的秘密鍵都要被認出來。漏一個就是安靜地洩漏那一個。"""
     missed = [k for k in KNOWN_SECRET_KEYS if not is_secret_key(k)]
     assert not missed, f"這些鍵沒被當成秘密：{missed}"
+
+
+def test_secret_table_matches_known_secret_keys() -> None:
+    """`.env.example` 開頭那張「哪些是秘密、去哪裡拿」的表要與上面的清單一致。
+
+    **為什麼需要這支**：那張表是重建時唯一的秘密來源說明。2026-08-08 切成本機
+    Infinity 時新增了 `RERANK_BINDING_API_KEY`，表裡沒有它——重建的人於是不知道
+    那把金鑰也要重新產生。
+
+    這**不是外洩**：`is_secret_key()` 用樣式比對，含 `KEY` 就會被遮蔽，漏列不影響
+    遮蔽。壞的是**重建說明少一條**，而那要到重建當下才會發現。
+    """
+    text = (ROOT / ".env.example").read_text(encoding="utf-8")
+    listed = set(re.findall(r"^#\s+([A-Z][A-Z0-9_]*)\s+\|", text, re.MULTILINE))
+    assert listed == set(KNOWN_SECRET_KEYS), (
+        f"表裡多出來：{sorted(listed - set(KNOWN_SECRET_KEYS))}／"
+        f"表裡漏掉：{sorted(set(KNOWN_SECRET_KEYS) - listed)}")
+
+
+def test_known_secret_keys_all_exist_in_env_example() -> None:
+    """清單上的每個鍵都要真的存在於 `.env.example`。
+
+    否則會出現反向漂移：鍵已經退役（像 2026-08-07 的四個 `NEO4J_*`），清單和
+    秘密表卻還留著，重建時去產生一把沒有人要的金鑰。
+    """
+    keys = {
+        line.split("=", 1)[0]
+        for line in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", line)
+    }
+    missing = [k for k in KNOWN_SECRET_KEYS if k not in keys]
+    assert not missing, f"清單上有鍵在 `.env.example` 裡不存在：{missing}"
 
 
 def test_ordinary_keys_are_not_over_redacted() -> None:
