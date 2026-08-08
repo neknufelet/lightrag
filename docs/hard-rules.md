@@ -142,9 +142,24 @@ python3 scripts/postprocess.py canary --update   # 認可為新基準
 「真正要提升吞吐得在伺服器端開 `--parallel N`，開了之後 `MAX_ASYNC` 才有意義往上調」。
 換機器或換人接手時看那個檔就夠。
 
-**⚠ 2026-08-03 實測到的三方不一致**：伺服器已經開了 `--parallel 4`（`n_slots = 4`），
-`.env.example` 寫 `MAX_ASYNC=4`，但 **dker 的 live `.env` 仍是 `MAX_ASYNC=2`**——
-也就是 4 個 slot 開著卻只餵 2 路。這是 `SPEEDUP` 線要量的第一件事，別直接改。
+**⚠ 這一組是三方的，任何一方改了都要重看另外兩方**：伺服器的 `--parallel`、
+`.env.example` 的 `MAX_ASYNC`、dker live `.env` 的 `MAX_ASYNC`。
+2026-08-03 曾經三方不一致（伺服器 4 個 slot，live `.env` 只餵 2 路）；
+**2026-08-08 覆驗已經對齊**，但**沒有任何東西在守它**，所以下次還是會漂。
+
+不要在這裡寫下當前值——寫死的數字會過期。要看現況就跑：
+
+```bash
+grep -E '^MAX_ASYNC=' .env.example
+ssh florian-dker "grep -E '^MAX_ASYNC=' /opt/stacks/lightrag/.env"
+docker logs llama-qwen36-moe 2>&1 | grep -m1 n_slots     # 伺服器實際開幾路
+```
+
+⚠ **還有第四方：`MAX_TOTAL_TOKENS`。** 每個 slot 的 context ＝ `-c` ÷ `--parallel`，
+而查詢預算必須留在那個上限之內。2026-08-08 就是這條沒人守：查詢組出約 33k 的 prompt
+撞上每 slot 的 32,768，LLM 回 400，而 LightRAG 把它翻譯成
+`No relevant context found for the query.`——**知識庫有料卻對使用者說查無資料，
+而且沒有任何紅燈。**
 
 **升級的步驟：**
 

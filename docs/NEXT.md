@@ -138,3 +138,10 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 - **`.env` 不要用 `source` 讀**。`LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號後面
   當指令（實測 dker：`*:legacy-R: command not found`）。取值用
   `grep -E '^KEY=' … | cut -d= -f2-`，只要鍵名用 `cut -d= -f1`。
+- **llama 的金鑰不換、也不從命令列移走。** 2026-08-08 PO 裁決：「不擔心，本地端而且
+  只有我用」。事實記在這裡以免下次重新爭一輪：`llama-qwen36-moe` 把 `--api-key <值>`
+  放在容器的 `Cmd` 上，所以 `docker inspect` 與 `ps aux` 都看得到；當天我用
+  `docker inspect --format '{{join .Config.Cmd " "}}'` 就把它印進了對話紀錄。
+  形狀與 `oracle.py` 當初被修掉的 `-e KEY=VALUE` 相同（值走 argv 而非檔案），
+  但**風險面不同**：那台在 Tailscale 內、單人使用，暴露面只有 PO 自己的裝置。
+  ⇒ 判準不是「有沒有洩漏路徑」，是**誰在那條路徑上**。

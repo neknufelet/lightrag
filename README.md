@@ -2,11 +2,24 @@
 
 聲學知識庫：[LightRAG](https://github.com/HKUDS/LightRAG) 部署 ＋ MinerU 解析後處理。
 
-## 現在的狀態：清空了，重建中
+## 現在的狀態：重建完成，跑著並在服務
 
-**2026-08-07 把跑著的東西全部移除**（容器、索引、解析快取），只留下不可再生的
-人工裁決。主線是重建到 LightRAG v1.5.6 並拿掉 Neo4j——新版的 PostgreSQL
-可以同時當四種儲存後端。
+2026-08-07 把跑著的東西全部移除（容器、索引、解析快取），只留下不可再生的人工裁決；
+**2026-08-08 重建完成**，LightRAG v1.5.6 ＋ PostgreSQL 同時當四種儲存後端（Neo4j 已
+拿掉），embedding 與 rerank 都跑 dker 本機的 Infinity。
+
+**本節刻意不寫份數、容器數、節點數**——那些每週都在變，而寫死的版本每次都撐不過
+一週。要知道現況就跑（都在 dker）：
+
+```bash
+python3 scripts/compat-check.py            # 57 條契約與環境斷言，0 全過／2 有硬失敗
+python3 scripts/deploy-stack.py freshness  # 跑著的是不是最新的碼
+docker ps --filter label=com.docker.compose.project=lightrag
+docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAc \
+  "select count(*) from lightrag_doc_status where workspace='acoustics_v2';"
+```
+
+紅綠燈平常不必自己跑：`daily-check.sh` 每天跑一次，結果顯示在審核台 `:9710`。
 
 - 為什麼重建而不是逐條修：[docs/decisions/0004](docs/decisions/0004-rebuild-instead-of-patching.md)
 - 新環境必須保持什麼樣子：[docs/rebuild-checklist.md](docs/rebuild-checklist.md)

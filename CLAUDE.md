@@ -17,7 +17,8 @@ tag `archive/pre-rebuild-20260807`。
 |---|---|
 | repo | `~/ghq/github.com/neknufelet/lightrag` ← **所有編輯與 commit 在這裡** |
 | 上位規範 | `~/ghq/github.com/neknufelet/standards`（**只有這台有**） |
-| 抽取用 LLM | 容器 `llama-qwen36-moe` :8080，2× RTX 3060，`--parallel 4`。它自己的 `.env` 在 `deploy/llama-qwen36-moe/.env`（一個鍵 `LLAMA_API_KEY`） |
+| 抽取用 LLM | 容器 `llama-qwen36-moe` :8080，2× RTX 3060。它自己的 `.env` 在 `deploy/llama-qwen36-moe/.env`（一個鍵 `LLAMA_API_KEY`，**與 LightRAG `.env` 的 `LLM_BINDING_API_KEY` 是同一把**）。⚠ **金鑰在容器的命令列上**，`docker inspect` 與 `ps aux` 都看得到——2026-08-08 因此外洩一次，處置見 NEXT 第 4 批 |
+| 併發參數 | 不寫死。要知道就問伺服器：啟動 log 的 `n_slots` 與 `n_ctx_slot`（`docker logs llama-qwen36-moe \| grep n_slots`）。⚠ **`MAX_TOTAL_TOKENS` 與它是乘除關係**：每 slot 上限 ＝ `-c` ÷ `--parallel`，改了併發就要重算查詢預算，否則知識庫會對使用者謊報「找不到」 |
 | worker CLI | `codex`、`opencode`（**只有這台有**） |
 | git hook | pre-commit 擋 commit 格式（`<type>(<scope>): <subject>`） |
 | **沒有** | LightRAG 的 `.env`、跑 LightRAG 的 docker |
@@ -26,12 +27,12 @@ tag `archive/pre-rebuild-20260807`。
 
 | | |
 |---|---|
-| repo | 同路徑，**唯讀，只 `git pull`** |
-| LightRAG 的 `.env` | **只在這台，而且 2026-08-07 起在 `/opt/stacks/lightrag/.env`，不在 repo 裡**（刪 repo 不再連帶弄丟秘密）。**54 個鍵、6 個是秘密**，清單在 `.env.example` 開頭。⚠ 數鍵用 `^[A-Za-z_][A-Za-z0-9_]*=`；用 `^[A-Z_]+=` 會漏掉含數字的鍵名（`NEO4J` 的 `4`），2026-08-07 因此少算 4 個並寫錯進 commit |
-| 資料根 | `/data/lightrag` — **現在只剩 `records` 183 檔、`checks` 32 檔** |
-| 本專案容器 | **全部移除**（2026-08-07） |
+| repo | 同路徑，**唯讀，只 `git pull`**。repo 裡的 `.env` 是指向下一列的 symlink |
+| LightRAG 的 `.env` | **只在這台**，2026-08-07 起在 `/opt/stacks/lightrag/.env`（刪 repo 不再連帶弄丟秘密）。哪些是秘密、去哪裡拿，看 `.env.example` 開頭那張表；`compat-check` 的 A-30 守著兩邊鍵名一致。⚠ 數鍵用 `^[A-Za-z_][A-Za-z0-9_]*=`；用 `^[A-Z_]+=` 會漏掉含數字的鍵名（`NEO4J` 的 `4`），2026-08-07 因此少算 4 個並寫錯進 commit。⚠ **不要 `source` 它**：`LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號後面當指令 |
+| 資料根 | `/data/lightrag` — `records` 與 `checks` 兩個目錄。**份數不寫死**，要知道就 `ls … \| wc -l` |
+| 本專案容器 | 由 Dockge 管，`docker ps --filter label=com.docker.compose.project=lightrag` 列得出來。**要判斷健康看「打得到端點」不是「容器在跑」**（compat-check A-27） |
 | 別人的容器 | dockge、backrest、roonserver、zotero-pdf2zh、samba、nginx、hbbs/hbbr、vibevoice — **不要碰** |
-| 壞的東西 | `nvidia-smi` 是 driver/library mismatch，要在這台用 GPU 會踩到 |
+| GPU | 一張 RTX 2070 8GB，`nvidia-smi` 正常。**本機 embedding 與 rerank（Infinity）就跑在它上面** |
 
 **`/data/rag` 已廢除**（見 ADR-0003），不得再寫入任何東西。
 
@@ -39,10 +40,13 @@ tag `archive/pre-rebuild-20260807`。
 
 | 誰 | 做什麼 | 注意 |
 |---|---|---|
-| OpenAI | embedding（`text-embedding-3-large` @3072）＋第二雙眼睛（`gpt-5.6-luna`） | 每次重建約 US$6 |
-| MinerU 官方 API | PDF 解析 | **token 2026-09-04 到期** |
+| OpenAI | **只剩**第二雙眼睛（`gpt-5.6-luna`）。embedding 2026-08-08 已改本機 BGE-M3，重建不再花 API 費用 | 金鑰是 `PP_EYE_B_API_KEY`，**必須單獨設**——舊的 fallback 沿用 embedding 那把，換本機之後就斷了 |
+| MinerU 官方 API | PDF 解析 | **token 2026-09-04 到期**，`compat-check` A-21 會在剩 14 天內轉警報 |
 | OpenRouter | 第三隻眼，只在三方皆異時呼叫 | 必須釘住 provider，否則同一模型 ID 會被路由到不同供應商 |
 | backrest | dker，備份 → rclone 到 Google Drive | rag 相關的兩個排程 PO 已說要關，**還沒關** |
+
+**這張表裡刻意沒有數字。** 鍵數、檔數、容器數、費用都會變，寫死的那一版每次都撐不過
+一週——2026-08-07 到 08 之間這幾格全部錯過一輪。要數就跑指令，指令不會過期。
 
 **為什麼要兩台**：coder 上沒有 LightRAG 的 `.env` 也沒有它的 docker，所以「我在 coder
 上驗過了」在物理上做不到。凡是關於跑著的系統的陳述，一律附 dker 的實跑輸出。
