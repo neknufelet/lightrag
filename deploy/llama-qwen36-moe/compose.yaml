@@ -69,9 +69,31 @@ services:
       - -ts
       - "0.94,1.06"                   # 兩張卡的權重比；GPU0 要多留一點給別的東西
       - -c
-      - "131072"                      # 總脈絡；÷ --parallel 4 ⇒ 每 slot 32768（實測 log 相符）
+      - "131072"                      # 總脈絡；÷ --parallel ⇒ 每 slot 的 context。
+                                      # 實際值不要在這裡寫死，看啟動 log 的 n_ctx_slot：
+                                      #   docker logs llama-qwen36-moe | grep -m1 n_slots
       - --parallel
-      - "4"                           # **4 個 slot**。文件曾寫「單 slot」，錯了。
+      - "2"                           # **2 個 slot**，每 slot 65536。文件曾寫「單 slot」，錯了。
+                                      #
+                                      # 2026-08-08 從 4 降到 2。**這不是省資源，是拿吞吐換
+                                      # 每次查詢的 context 預算**：每 slot 從 32768 變 65536，
+                                      # MAX_TOTAL_TOKENS 因此能從 25000 拉到 50000，原文段數
+                                      # 得以餵滿 CHUNK_TOP_K 的 20（實測 3000/4000 的圖譜上限
+                                      # 下，25000 只餵得到 9–16 段）。
+                                      # 代價（2026-08-03 實測，數字在 .env.example 的併發表）：
+                                      # 吞吐 107.5 → 84.0 tok/s（−22%），但**單次查詢延遲反而
+                                      # 變好**：p50 60 → 32 秒。
+                                      # ⚠ 量它的工具 llm-bench.py 已於 7a0414b 刪除，所以那組
+                                      #   數字**沒有辦法用現行設定重跑**，是 --parallel 4 時代的
+                                      #   歷史值。要重量得先把工具救回來（見 docs/NEXT.md）。
+                                      # 單人使用時總吞吐只在批次重抽時才有意義。
+                                      #
+                                      # ⚠ **改這個就一定要改另外兩個**（三者是乘除關係，
+                                      #   沒有任何東西在守）：
+                                      #     .env 的 MAX_ASYNC      → 必須 ≤ slot 數，否則排隊到逾時
+                                      #     .env 的 MAX_TOTAL_TOKENS → 必須 ≤ 每 slot context 減答案空間
+                                      #   見 docs/hard-rules.md 的 MAX_ASYNC 段。
+                                      #
                                       # 這一項與 SPEEDUP-1 的 MTP 直接衝突：
                                       # MTP 會強制 n_parallel=1（未在本 build 親驗）。
       - -fa
