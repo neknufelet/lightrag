@@ -21,19 +21,7 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 
 ---
 
-## ⛔ 卡住，要 PO 動手才能解
-
-- ⬜ **在 dker 的 `.env` 設 `PP_EYE_B_API_KEY`**（需要 OpenAI 金鑰，我拿不到）
-  → `curl -H "Authorization: Bearer $PP_EYE_B_API_KEY" https://api.openai.com/v1/models` 回 200
-
-  後處理的第二雙眼睛現在是**斷的**。`pp/eyes.py:87` 原本 fallback 沿用
-  `EMBEDDING_BINDING_API_KEY`，而 embedding 2026-08-08 切成本機 BGE-M3 之後那把
-  已經不是 OpenAI 金鑰。實測同一把金鑰打 OpenAI 回 **401**、打 `:7997` 回 **200**。
-  **下次進料跑後處理才會炸**，現在沒有任何紅燈。
-
----
-
-## 第 1 批：守門機制上線（8 條）
+## 第 1 批：守門機制上線（9 條）
 
 先做這批，後面每一批才有東西驗它。每條都要落在既有三個執行者之一
 （`pre-commit`／`daily-check.sh`／審核台 `:9710`），不要發明第四種。
@@ -41,12 +29,18 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 - ⬜ daily-check 加 Infinity 健康檢查　→ `:7997/health` 非 200 轉紅
 - ⬜ daily-check 加「dker 落後 origin」（audit 5）　→ `rev-list HEAD..origin/master` = 0
 - ⬜ `.env` 與 `.env.example` 的鍵名比對接進 daily-check（audit 13）
-  → 差異只剩 `INTAKE_SOURCES`、`PP_EYE_B_API_KEY` 兩個預期項，多一個就紅
+  → 差異只剩 `INTAKE_SOURCES`（刻意留空）一個預期項，多一個就紅
 - ⬜ `latest.json` 加產生它的 commit（audit 11）　→ 過期的紅燈顯示成灰色
 - ⬜ `oracle.mineru_options()` 接成自動斷言（audit 第七組）　→ A 節六條各有呼叫端
 - ⬜ `ruff` 掛上 pre-commit　→ 藍桶 3–8 有五條被守住（`.pre-commit-config.yaml:72-77` 解除註解）
 - ⬜ 部署腳本加自我驗證（audit 4）　→ 行程啟動時間晚於 HEAD commit
 - ⬜ 服務健康判準改成「打得到端點」　→ 現有檢查抓不到「容器在跑但埠沒綁」
+- ⬜ 加檢查：外部端點的金鑰真的有效　→ 第二雙眼睛與 PP_EYE_C 各打一次 `/models` 回 200
+
+  2026-08-08 血淚：`PP_EYE_B_API_KEY` 缺席時 `pp/eyes.py:87` 會 fallback 沿用
+  `EMBEDDING_BINDING_API_KEY`，embedding 切本機後那把不再是 OpenAI 金鑰，於是第二
+  雙眼睛拿著錯的鑰匙、**要到下次進料才會炸**。金鑰已補上並驗過（打 OpenAI 回 200），
+  但**沒有任何東西在守下一次**。
 
 ## 第 2 批：文件對齊（2 條）
 

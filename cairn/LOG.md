@@ -29,7 +29,14 @@
   秘密清單補上 `RERANK_BINDING_API_KEY`、`PP_EYE_B_API_KEY`，加兩支測試守住那張表。
 - 驗證：128 passed / 1 skipped ＋ `test_gates.py` 6 案例。鍵名 diff 的「`.env` 有而
   範本沒有」已降到 **0**。dker 從落後 1 個 commit 追到 `45753b5`、落後 0。
-- **仍卡著**：`PP_EYE_B_API_KEY` 要 PO 用 OpenAI 金鑰補進 dker 的 `.env`，我拿不到。
+- **`PP_EYE_B_API_KEY` 已由 PO 補上並驗過**（164 字，打 OpenAI `/models` 回 200）。
+  但**沒有東西在守下一次**——已開新待辦：外部端點的金鑰有效性進 daily-check。
+- **查清楚 `ENABLE_LLM_CACHE=false` 是什麼**（PO 問）：它管**查詢**的答案與關鍵字，
+  跟管進料抽取的 `ENABLE_LLM_CACHE_FOR_EXTRACT` 是兩件事，上游預設都是 True。
+  關鍵在 `operate.py:4317-4333`——答案快取的 key 由問題、查詢參數、關鍵字、模型身分
+  算出來，**沒有一項代表「庫裡有什麼」**。⇒ 進了新論文或重抽圖譜之後，同一個問題
+  會回舊答案，而且「重抽有沒有變好」會量不出來。維持 false，理由補進 `.env.example`。
+  順帶查到：這個 false 是初始部署 `678930e` 就設的，**沒有留下任何理由**。
 
 ## 2026-08-08（三）· 四篇進庫、查詢溢位修好、本地 embedding/rerank 定案
 
