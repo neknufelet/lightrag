@@ -67,7 +67,13 @@ services:
 
     volumes:
       # 執行期資料放 /data 的獨立 NVMe，不進 repo
-      - ${DATA_ROOT:-/data/lightrag}/rag_storage:/app/data/rag_storage
+      #
+      # ⚠ **同一台跑第二個 workspace 時，這個必須分開。** 裡面是 scan_spool
+      #   （掃描佇列），兩個實例共用會讓一邊撿到另一邊的掃描工作 —— 而且不會
+      #   報錯，只會是「文件進到錯的庫」。用 RAG_STORAGE_DIR 覆寫即可；
+      #   預設維持原路徑，所以既有的 stack 不受影響。
+      #   （inputs 不必特別處理：容器會在其下建 inputs/<workspace>，天然分開。）
+      - ${RAG_STORAGE_DIR:-${DATA_ROOT:-/data/lightrag}/rag_storage}:/app/data/rag_storage
       # inputs 必須可寫 —— LightRAG 啟動時會在其下建立 ${WORKSPACE} 子目錄。
       # 宿主因此保留 inputs/<workspace> 這一層；檔案經 WebUI／API 上傳，或見 README
       # 的批次匯入。只掛 inputs 根層，才能讓 LightRAG 建出它實際會掃的子目錄。
