@@ -3,6 +3,34 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-08（三）· 收尾啟動：逐條驗過 NEXT，範本補回重建會掉的東西
+
+- **PO 決定「清空 NEXT.md」**，25 條依批次重排（守門 → 文件 → 抽取 → 秘密 → 剩下的坑
+  → 上游 → **備份最後**）。槓掉「擴到 20 篇」，語料定在現有 9 篇。
+- **逐條驗過之後：NEXT 上幾乎一件都沒做**，清單沒有「已做卻還掛著」的問題。真正的
+  不一致是另外四種——Qwen3 那條已被 bge 取代該刪、MinerU 到期其實已有 `compat-check`
+  A-21 守著、CLAUDE.md 說「容器全部移除」但實際四個在跑、`.env` 鍵數三個文件三個數字
+  （54／57／實際 60）。
+- **audit 的工單清單漏了一條沒進 NEXT**：實體碎片化（`Helmholtz Resonator` 22 邊 vs
+  `Helmholtz Resonators` 15 邊，連 `entity_type` 都判成 artifact／concept）。工具
+  `entity-merge.py` 早就寫好了。⇒ **「開了工單」與「進了待辦」是兩件事，中間沒有人守。**
+- **`.env.example` 照著重建會把一整天的成果退回去**：缺 `MAX_TOTAL_TOKENS`（那個
+  「有料卻說查無資料」的修正）、缺 `LIGHTRAG_DB_ROOT`（冷備份的來源）、缺四個
+  `RERANK_*`；而且 Embedding 段還寫著 OpenAI 3-large@3072、`RERANK_BINDING=null`。
+  ⇒ **範本不是文件，是重建時真的會被執行的東西**，它過期等於系統會被還原成舊版。
+- **發現一條安靜斷掉的路**：`pp/eyes.py:87` 的第二雙眼睛 fallback 沿用
+  `EMBEDDING_BINDING_API_KEY`，前提是「embedding 用的就是 OpenAI 金鑰」。embedding
+  切本機後前提消失。實測同一把金鑰打 OpenAI **401**、打 `:7997` **200**。
+  **改 A 讓 B 失效，而 B 要到下次進料才炸。** 這條要升上游。
+- **`.env` 不能 `source`**：`LIGHTRAG_PARSER` 的值含 `;`（實測 `*:legacy-R: command
+  not found`）。CLAUDE.md 現行的秘密處理建議正好是「在部署機上 source」——那條建議
+  在這份 `.env` 上是壞的。
+- 移除兩組沒人讀的鍵（`INTAKE_PORT`、`MATHPIX_*`，grep 零命中），理由保留成註解。
+  秘密清單補上 `RERANK_BINDING_API_KEY`、`PP_EYE_B_API_KEY`，加兩支測試守住那張表。
+- 驗證：128 passed / 1 skipped ＋ `test_gates.py` 6 案例。鍵名 diff 的「`.env` 有而
+  範本沒有」已降到 **0**。dker 從落後 1 個 commit 追到 `45753b5`、落後 0。
+- **仍卡著**：`PP_EYE_B_API_KEY` 要 PO 用 OpenAI 金鑰補進 dker 的 `.env`，我拿不到。
+
 ## 2026-08-08（三）· 四篇進庫、查詢溢位修好、本地 embedding/rerank 定案
 
 - **四篇論文放行進庫**（2019/2020/2024/2025，走審核台，一篇沒卡）。
