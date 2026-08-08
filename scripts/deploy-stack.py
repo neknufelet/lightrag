@@ -58,19 +58,19 @@ UPSTREAM_REF = "origin/master"
 # workspace（`kbapi-acoustics_v2`），寫死就會在改 workspace 時安靜地少檢查一台。
 COMPOSE_PROJECT = "lightrag"
 
-# 改動哪些路徑之後，容器要重啟才會生效。
+# 掛進容器的 repo 路徑，**以 compose 的服務名為鍵**（不是容器名——容器名含
+# workspace，會隨改名而變；服務名不會）。
 #
-# 依據是 compose.yaml 的掛載，不是猜的：**只有 kbapi 掛了
-# `${REPO_DIR}/scripts:/app/scripts:ro`**，其餘三個跑 baked image ＋ 資料目錄。
-# 所以 `scripts/` 改了跟 lightrag／postgres／infinity 無關。
+# 依據是 compose.yaml 的掛載，不是猜的：只有 kbapi 掛了
+# `${REPO_DIR}/scripts:/app/scripts:ro`（compose.yaml:132），其餘服務跑 baked
+# image ＋ 資料目錄，改 `scripts/` 跟它們無關。
 #
-# 為什麼要分開：拿 HEAD 當基準的話，一個純文件 commit 就會讓四個容器全部轉紅。
-# 「一個預期中、沒人打算修的紅燈，會訓練人開始無視所有紅燈」——這條寫在
-# systemd-units.py:63，這裡是同一個道理。
-DEPLOY_PATHS_DEFAULT: tuple[str, ...] = ("compose.yaml",)
-DEPLOY_PATHS_BY_PREFIX: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("kbapi-", ("compose.yaml", "scripts")),
-)
+# 為什麼這一類要單獨處理：compose 的設定雜湊看不出**被掛進去的檔案內容變了**
+# —— 掛載宣告一個字都沒改，但裡面的 .py 已經是新的，而 Python 在行程啟動時就
+# 把模組載完了。這是唯一只能靠時間戳判斷的一類。
+MOUNTED_CODE_BY_SERVICE: dict[str, tuple[str, ...]] = {
+    "kbapi": ("scripts",),
+}
 
 
 class StackError(RuntimeError):
@@ -128,10 +128,11 @@ def cmd_verify(args: argparse.Namespace) -> int:
     return 2
 
 
-def _run(argv: list[str], timeout: int = 60) -> subprocess.CompletedProcess[str]:
+def _run(argv: list[str], timeout: int = 60,
+         cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     """跑一個外部指令。不丟例外——呼叫端要能分辨「指令失敗」與「答案是壞的」。"""
-    return subprocess.run(argv, capture_output=True, text=True,
-                          timeout=timeout, check=False)
+    return subprocess.run(argv, capture_output=True, text=True, timeout=timeout,
+                          check=False, cwd=str(cwd) if cwd else None)
 
 
 def _git(*args: str, timeout: int = 60) -> subprocess.CompletedProcess[str]:
@@ -148,11 +149,9 @@ def _rfc3339_to_epoch(value: str) -> float:
     return datetime.fromisoformat(text).timestamp()
 
 
-def _deploy_paths_for(container: str) -> tuple[str, ...]:
-    for prefix, paths in DEPLOY_PATHS_BY_PREFIX:
-        if container.startswith(prefix):
-            return paths
-    return DEPLOY_PATHS_DEFAULT
+def _mounted_code_for(service: str) -> tuple[str, ...]:
+    """這個服務掛了哪些 repo 路徑進去。沒掛就回空。"""
+    return MOUNTED_CODE_BY_SERVICE.get(service, ())
 
 
 def _last_commit_epoch(paths: tuple[str, ...]) -> float | None:
@@ -162,20 +161,47 @@ def _last_commit_epoch(paths: tuple[str, ...]) -> float | None:
     return float(value) if p.returncode == 0 and value else None
 
 
-def _project_containers() -> list[tuple[str, float]]:
-    """本專案跑著的容器與各自的啟動時間。"""
+def _compose_config_hashes(stack_dir: Path) -> dict[str, str]:
+    """compose **現在**會產生的每個服務設定雜湊：`{服務名: 雜湊}`。
+
+    ⚠ **必須在 stack 目錄算。** 從 repo 目錄算會得到不同的值（2026-08-08 實測
+    kbapi `6427b11…` vs `e416471…`），因為那份不是跑著的容器的來源——拿它比對
+    會四個服務全部誤報漂移。
+    """
+    p = _run(["docker", "compose", "config", "--hash", "*"], cwd=stack_dir)
+    if p.returncode != 0:
+        raise StackError(f"docker compose config 失敗（{stack_dir}）："
+                         f"{p.stderr.strip()[:300]}")
+    out: dict[str, str] = {}
+    for line in p.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            out[parts[0]] = parts[1]
+    return out
+
+
+def _project_containers() -> list[dict[str, object]]:
+    """本專案跑著的容器：名字、compose 服務名、設定雜湊、啟動時間。
+
+    用 compose 的 project 標籤列，**不寫死名字** —— 名字含 workspace，寫死就會
+    在改 workspace 時安靜地少檢查一台。
+    """
     p = _run(["docker", "ps", "--filter",
               f"label=com.docker.compose.project={COMPOSE_PROJECT}",
               "--format", "{{.Names}}"])
     if p.returncode != 0:
         raise StackError(f"docker ps 失敗：{p.stderr.strip()[:200]}")
-    names = [n for n in p.stdout.split() if n]
-    out: list[tuple[str, float]] = []
-    for name in names:
-        q = _run(["docker", "inspect", "-f", "{{json .State.StartedAt}}", name])
+    fmt = ('{{json .State.StartedAt}} '
+           '{{json (index .Config.Labels "com.docker.compose.service")}} '
+           '{{json (index .Config.Labels "com.docker.compose.config-hash")}}')
+    out: list[dict[str, object]] = []
+    for name in (n for n in p.stdout.split() if n):
+        q = _run(["docker", "inspect", "-f", fmt, name])
         if q.returncode != 0:
             raise StackError(f"docker inspect {name} 失敗：{q.stderr.strip()[:200]}")
-        out.append((name, _rfc3339_to_epoch(json.loads(q.stdout))))
+        started, service, config_hash = (json.loads(x) for x in q.stdout.split(" ", 2))
+        out.append({"name": name, "service": service, "hash": config_hash,
+                    "started": _rfc3339_to_epoch(started)})
     return out
 
 
@@ -207,22 +233,46 @@ def cmd_freshness(args: argparse.Namespace) -> int:
     else:
         print("工作區　乾淨")
 
-    # ── 3. 容器比它該跑的碼新 ────────────────────────────────────
-    for name, started in sorted(_project_containers()):
-        paths = _deploy_paths_for(name)
+    # ── 3. 容器的設定與現在的 compose 一致 ──────────────────────
+    # 用 compose 自己算的設定雜湊，**不是時間戳**。
+    # 血淚 2026-08-08：第一版拿「容器啟動時間 vs compose.yaml 最後 commit 時間」
+    # 當判準，四個容器答錯兩個 —— infinity 誤報成紅（實際同步）、lightrag 誤報
+    # 成綠（實際已漂移）。**會漏報的檢查比沒有檢查更糟**：它會讓人相信已經看過了。
+    # 根因是時間戳只是代理指標，而 compose 只在設定真的改變時才重建容器；
+    # 改個註解不會重建，於是時間戳與事實脫節。
+    want = _compose_config_hashes(Path(args.stack_dir))
+    containers = _project_containers()
+    for c in sorted(containers, key=lambda x: str(x["name"])):
+        name, service = str(c["name"]), str(c["service"])
+        expected = want.get(service)
+        if expected is None:
+            problems.append(f"{name}：compose 裡沒有服務 {service!r} —— "
+                            "容器是舊定義留下的孤兒，或 compose 已改名")
+        elif expected != c["hash"]:
+            problems.append(f"{name} 的設定與現在的 compose 不符 —— "
+                            f"要 docker compose up -d {service} 重建")
+        else:
+            print(f"{name}　設定與 compose 一致")
+
+    # ── 4. 掛進去的碼有沒有比容器新 ──────────────────────────────
+    # 這一類**只能**靠時間戳：掛載宣告沒變，所以設定雜湊也不會變，但裡面的 .py
+    # 已經換了，而 Python 在行程啟動時就把模組載完了。
+    for c in sorted(containers, key=lambda x: str(x["name"])):
+        paths = _mounted_code_for(str(c["service"]))
+        if not paths:
+            continue
+        name, started = str(c["name"]), float(c["started"])
         commit_at = _last_commit_epoch(paths)
         if commit_at is None:
             problems.append(f"{name}：查不到 {list(paths)} 的最後 commit")
-            continue
-        lag_h = (commit_at - started) / 3600
-        if started < commit_at:
+        elif started < commit_at:
             problems.append(
-                f"{name} 啟動於 {datetime.fromtimestamp(started):%m-%d %H:%M}，"
-                f"但 {list(paths)} 的最後 commit 是 "
-                f"{datetime.fromtimestamp(commit_at):%m-%d %H:%M}（晚 {lag_h:.1f} 小時）"
-                " —— 檔案更新了，跑著的還是舊的，要重啟")
+                f"{name} 掛著 {list(paths)}，但那些檔在 "
+                f"{datetime.fromtimestamp(commit_at):%m-%d %H:%M} 改過，"
+                f"而它啟動於 {datetime.fromtimestamp(started):%m-%d %H:%M}"
+                f"（晚 {(commit_at - started) / 3600:.1f} 小時）—— 跑的是舊碼，要重啟")
         else:
-            print(f"{name}　啟動晚於 {list(paths)} 的最後 commit")
+            print(f"{name}　掛著的 {list(paths)} 沒有比它新")
 
     if problems:
         print()

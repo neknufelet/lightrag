@@ -112,25 +112,49 @@ def test_second_precision_timestamp_is_parsed() -> None:
     assert mod._rfc3339_to_epoch("2026-08-08T09:15:12Z") > 0
 
 
-def test_only_kbapi_cares_about_scripts() -> None:
-    """`scripts/` 只掛進 kbapi，其餘三個跑 baked image。
+def test_only_kbapi_mounts_repo_code() -> None:
+    """`scripts/` 只掛進 kbapi，其餘服務跑 baked image。
 
-    **為什麼這條重要**：拿 HEAD 當基準的話，一個純文件 commit 就會讓四個容器
-    全部轉紅。「一個預期中、沒人打算修的紅燈，會訓練人開始無視所有紅燈」
-    （systemd-units.py:63）。依據是 compose.yaml 的掛載，不是猜的。
+    這張表決定「哪些容器要用時間戳判斷」。多列一個服務，就會為它製造一條
+    永遠紅的假警報；少列一個，它跑舊碼時沒有人會知道。
+    依據是 compose.yaml:132 的掛載，不是猜的。
     """
     mod = _module()
-    assert "scripts" in mod._deploy_paths_for("kbapi-acoustics_v2")
-    for name in ("lightrag-acoustics_v2", "lightrag-postgres", "lightrag-infinity"):
-        assert "scripts" not in mod._deploy_paths_for(name), name
-        assert "compose.yaml" in mod._deploy_paths_for(name), name
+    assert mod._mounted_code_for("kbapi") == ("scripts",)
+    for service in ("lightrag", "postgres", "infinity"):
+        assert mod._mounted_code_for(service) == (), service
 
 
-def test_deploy_paths_survive_a_workspace_rename() -> None:
-    """判斷用前綴不用完整名字 —— 容器名含 workspace，改名不該讓檢查失效。"""
+def test_mounted_code_is_keyed_by_service_not_container() -> None:
+    """用服務名當鍵，不用容器名。
+
+    容器名含 workspace（`kbapi-acoustics_v2`），改 workspace 就會對不上；
+    compose 的服務名不會變。
+    """
     mod = _module()
-    assert mod._deploy_paths_for("kbapi-whatever_new") == \
-        mod._deploy_paths_for("kbapi-acoustics_v2")
+    assert mod._mounted_code_for("kbapi-acoustics_v2") == (), \
+        "傳容器名應該查不到 —— 這張表的鍵是服務名"
+
+
+def test_compose_hashes_parse_service_and_digest() -> None:
+    """`docker compose config --hash` 的輸出是「服務名 空白 雜湊」逐行。
+
+    解析壞掉的話會回空 dict，而空 dict 會讓每個容器都被判成「compose 裡沒有
+    這個服務」—— 一次噴四條假紅燈。
+    """
+    mod = _module()
+    sample = "infinity d2ba48a8\nkbapi e4164711\n"
+
+    class _P:
+        returncode, stdout, stderr = 0, sample, ""
+
+    original = mod._run
+    mod._run = lambda *a, **k: _P()
+    try:
+        got = mod._compose_config_hashes(Path("/nonexistent"))
+    finally:
+        mod._run = original
+    assert got == {"infinity": "d2ba48a8", "kbapi": "e4164711"}
 
 
 def test_last_commit_epoch_reads_real_history() -> None:
