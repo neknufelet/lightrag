@@ -264,11 +264,8 @@ services:
     #   —— 那會直接 OOM，而且錯誤訊息不會告訴你是順序寫反。
     command: >
       v2
-      --model-id Qwen/Qwen3-Reranker-4B
       --model-id BAAI/bge-reranker-v2-m3
-      --dtype int8
       --dtype float16
-      --batch-size 4
       --batch-size 8
       --port 7997
       --device cuda
