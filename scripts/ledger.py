@@ -306,7 +306,7 @@ def cmd_summary(a) -> int:
               f"合計 {hidden_docs * len(GATES)} 格）")
     if tally["fail"]:
         bad = [f"{doc.removesuffix('.pdf')}：" +
-               "、".join(g for g, s in zip(GATES, st) if s == "fail")
+               "、".join(g for g, s in zip(GATES, st, strict=False) if s == "fail")
                for doc, st in rows if "fail" in st]
         print("fail 的文件不得進下一段：\n  " + "\n  ".join(bad))
     return 1 if tally["fail"] else 0

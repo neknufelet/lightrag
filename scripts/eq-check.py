@@ -116,13 +116,13 @@ def main() -> int:
     consensus = mineru_bad = majority = threeway = errs = 0
     tiebroken = tiebreak_err = 0
     rows = []
-    for k, (dens, ctx, idx, it, bbox) in enumerate(sample, 1):
+    for k, (_dens, ctx, idx, it, bbox) in enumerate(sample, 1):
         crops = out_root / ctx.doc_name / "crops"
         try:
             c = pdfcrop.crop_region(ctx.source_pdf, int(it["page_idx"]), bbox,
                                     crops, f"eq{idx}", *ctx.page_size,
                                     pad=pdfcrop.EQ_PAD_X, pad_y=pdfcrop.EQ_PAD_Y)
-        except pdfcrop.CropError as e:
+        except pdfcrop.CropError:
             errs += 1
             continue
         cache = out_root / ctx.doc_name / "cache"

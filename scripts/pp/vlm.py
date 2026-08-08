@@ -187,8 +187,8 @@ def judge(html: str, raw: str, finish_reason: str, gt_text: str,
     m.update(gt_alpha=len(gt_set), gt_num=len(gt_nums))
     if len(gt_set) < MIN_ALPHA_GT:
         return Verdict(ok=False, unverified=True,
-                       failed=[f"V12 英文詞分母不足（{len(gt_set)} < {MIN_ALPHA_GT}）"]
-                              + failed, metrics=m)
+                       failed=[f"V12 英文詞分母不足（{len(gt_set)} < {MIN_ALPHA_GT}）",
+                               *failed], metrics=m)
 
     # V5：alpha 召回。
     #

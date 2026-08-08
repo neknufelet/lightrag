@@ -66,7 +66,7 @@ def _merge_query_literals() -> dict[str, object]:
         if isinstance(node, ast.FunctionDef) and node.name == "entities_for":
             for call in ast.walk(node):
                 if isinstance(call, ast.Call) and len(call.args) >= 3 and isinstance(call.args[2], ast.Dict):
-                    return {key.value: value.value for key, value in zip(call.args[2].keys, call.args[2].values)
+                    return {key.value: value.value for key, value in zip(call.args[2].keys, call.args[2].values, strict=True)
                             if isinstance(key, ast.Constant) and isinstance(value, ast.Constant)}
     raise AssertionError("找不到 entity-merge.py Rag.entities_for 的請求 body")
 

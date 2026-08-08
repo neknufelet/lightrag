@@ -176,9 +176,7 @@ def compare(key: str, html_a: str, html_b: str) -> TableCheck:
     sm = SequenceMatcher(None, sa, sb, autojunk=False)
     pairs: list[tuple[int, int]] = []
     for op, i1, i2, j1, j2 in sm.get_opcodes():
-        if op == "equal":
-            pairs += [(i1 + d, j1 + d) for d in range(i2 - i1)]
-        elif op == "replace" and (i2 - i1) == (j2 - j1):
+        if op == "equal" or (op == "replace" and (i2 - i1) == (j2 - j1)):
             pairs += [(i1 + d, j1 + d) for d in range(i2 - i1)]
 
     if not pairs:
@@ -194,7 +192,9 @@ def compare(key: str, html_a: str, html_b: str) -> TableCheck:
         if len(ra) != len(rb):
             chk.structural = f"第 {i+1} 列欄數不同（A {len(ra)}、B {len(rb)}）"
             return chk
-        for c, (ca, cb) in enumerate(zip(ra, rb)):
+        # 上面剛擋掉欄數不同的情況，到這裡長度必然相同 —— 用 strict 讓
+        # 「那個保證哪天被改壞」變成當場的例外，而不是安靜地少比幾欄。
+        for c, (ca, cb) in enumerate(zip(ra, rb, strict=True)):
             ta, tb = tokens(ca), tokens(cb)
             if not ta and not tb:
                 continue                      # 兩邊都空，不算一格

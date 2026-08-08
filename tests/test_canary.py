@@ -23,7 +23,6 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "postprocess.py"
 

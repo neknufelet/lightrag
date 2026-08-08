@@ -10,8 +10,8 @@ import sys
 import urllib.error
 import urllib.request
 from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
@@ -56,7 +56,7 @@ class _ReadOnlyRag:
                 return json.loads(response.read() or "{}")
         except urllib.error.HTTPError as exc:
             raise QueryFailure("http", f"HTTP {exc.code}") from exc
-        except (TimeoutError, socket.timeout) as exc:
+        except TimeoutError as exc:
             raise QueryFailure("timeout", str(exc) or type(exc).__name__) from exc
         except urllib.error.URLError as exc:
             category = "timeout" if isinstance(exc.reason, socket.timeout) else "network"

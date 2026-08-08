@@ -1,8 +1,8 @@
 # .pre-commit-config.yaml — 標準模板 (STANDARDS v2026.05.01) ＋ 本專案自訂
 #
 # P7 啟用節奏（勿改變此順序）：
-#   Phase 1 (現在): 只啟用 commit-msg → 強制 Conventional Commits 格式
-#   Phase 2 (視情況): 解除 ruff 註解 → 加 Python 格式化
+#   Phase 1 (2026-08-07 起): commit-msg → 強制 Conventional Commits 格式
+#   Phase 2 (2026-08-08 起): ruff 的 **linter**（formatter 刻意不開，理由見下）
 #   Phase 3 (視情況): 解除 gitleaks 註解 → 加 secret 掃描
 #
 # 安裝（兩種 hook type 都要，缺一個那半邊就靜靜不跑）:
@@ -67,15 +67,26 @@ repos:
         always_run: true
 
   # ============================================================
-  # Phase 2: Python 格式化 (解除註解後啟用)
+  # Phase 2: ruff（2026-08-08 啟用 linter；**不啟用 formatter**）
   # ============================================================
-  # - repo: https://github.com/astral-sh/ruff-pre-commit
-  #   rev: v0.11.10
-  #   hooks:
-  #     - id: ruff
-  #       args: [--fix, --quiet]
-  #     - id: ruff-format
-  #       args: [--quiet]
+  #
+  # 規則集與每一條的取捨理由在 `ruff.toml`。摘要：關掉把中文標點當歧義 Unicode
+  # 的 RUF001-003（1119 個純雜訊）、關掉 E501（342 個，中英混排的行寬本來就不是
+  # 一致的標準）、保留 `# noqa`（其中 26 個標的是「這個 blind except 是刻意的」，
+  # 那是意圖不是殘渣）。啟用當下已把碼庫清到零違規。
+  #
+  # **刻意不加 `--fix`。** 讓它擋下來、由人決定怎麼改。自動修會在 commit 當下
+  # 改動暫存區以外的內容，而本專案的規矩是「只顯式 staging」。
+  #
+  # **刻意不啟用 ruff-format。** 實測會重排 55 個檔，而本碼庫有多處靠對齊傳達
+  # 資訊（parse-check.py 的 severity() 是一張五行判準表，對齊就是它的可讀性）。
+  # 格式化器看不出那個意圖，只會看到「奇怪的空白」。
+  #
+  # 速度不是問題：ruff 跑完整包約幾十毫秒，遠低於上面那支 pytest。
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.2
+    hooks:
+      - id: ruff-check
 
   # ============================================================
   # Phase 3: Secret 掃描 (解除註解後啟用，需先設定 .gitleaks.toml)

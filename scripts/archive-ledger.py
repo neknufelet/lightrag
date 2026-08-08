@@ -61,7 +61,7 @@ def indexed_documents(env: Mapping[str, str], workspace: str) -> set[str]:
         "-d", env.get("POSTGRES_DATABASE", "lightrag"),
         "-tAqX", "-c", _indexed_query(workspace),
     ]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=120)
+    result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
     if result.returncode != 0:
         raise ArchiveError(f"psql 失敗（{container}）：{result.stderr.strip()[:400]}")
     try:

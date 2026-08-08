@@ -270,7 +270,8 @@ class Checker:
         problems: list[str] = []
         if len(up_rules) != 9 or len(snap_rules) != 9:
             problems.append(f"條數異常：上游 {len(up_rules)} 條、snapshot {len(snap_rules)} 條")
-        elif diff := [i + 1 for i, (x, y) in enumerate(zip(up_rules, snap_rules)) if x != y]:
+        elif diff := [i + 1 for i, (x, y) in
+                     enumerate(zip(up_rules, snap_rules, strict=True)) if x != y]:
             problems.append(f"第 {'、'.join(map(str, diff))} 條文字與上游不同")
         if c_ver != b_ver:
             problems.append(f"baseline_version 上游 {b_ver}、snapshot {c_ver}")

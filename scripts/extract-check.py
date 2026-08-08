@@ -74,7 +74,7 @@ def psql(sql: str, env: dict) -> list[dict]:
     cmd = ["docker", "exec", postgres_container(env), "psql",
            "-U", env.get("POSTGRES_USER", "deeptutor"),
            "-d", env.get("POSTGRES_DATABASE", "lightrag"), "-tAqX", "-c", wrapped]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300, check=False)
     if r.returncode != 0:
         sys.exit(f"psql 失敗：{r.stderr.strip()[:300]}")
     return json.loads(r.stdout.strip() or "[]")

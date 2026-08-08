@@ -6,10 +6,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Mapping
-
+from typing import Final
 
 DEFAULT_DATA_ROOT: Final[Path] = Path("/data/lightrag")
 CONTAINER_DATA_ROOT: Final[Path] = Path("/app/data")

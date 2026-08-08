@@ -68,7 +68,7 @@ def _require_tools() -> None:
 
 
 def _run(argv: list[str], timeout: int = 120) -> str:
-    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
     if p.returncode != 0:
         raise CropError(f"{argv[0]} exit {p.returncode}: {p.stderr.strip()[:300]}")
     return p.stdout

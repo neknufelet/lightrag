@@ -131,7 +131,7 @@ class ApplyResult:
     items_before: int = 0
     items_after: int = 0
     valid_after: bool | None = None
-    latex: "latex_fix.LatexPlan | None" = None
+    latex: latex_fix.LatexPlan | None = None
     notes: list[str] = field(default_factory=list)
 
     def line(self) -> str:

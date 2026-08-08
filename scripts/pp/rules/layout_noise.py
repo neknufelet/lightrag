@@ -138,9 +138,7 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
         # （2016 論文的單次 OCR 殘骸）推論出「aside_text 只出現一次」。
         # 另一份 ASEE 論文用 aside_text 放每頁的 'Page 24.417.N' 頁邊頁尾，
         # 15 頁全都是，重複規則明明有效。同一個型別在不同期刊是不同東西。
-        if n >= thr:
-            mutes.append(m)
-        elif it["type"] == "aside_text" and is_gibberish(key):
+        if n >= thr or (it["type"] == "aside_text" and is_gibberish(key)):
             mutes.append(m)
         else:
             held.append(m)

@@ -25,7 +25,6 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from pp.oracle import force_reparse_is_on  # noqa: E402
 
-
 # 「關著」的四種寫法，含大小寫與前後空白。這些必須放行，否則正常工作被擋死。
 OFF_VALUES = ("", "0", "false", "no", "  ", "FALSE", " No ", "\tfalse\n")
 # 「開著」以及**不認得的值**。不認得一律當開著 —— 猜錯的代價是靜默毀掉解析成果。

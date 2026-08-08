@@ -27,16 +27,16 @@ import time
 import urllib.parse
 import urllib.request
 import uuid
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Literal, Mapping, Protocol, Sequence
+from typing import Literal, Protocol
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import load_env  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
-
 
 REPO = Path(__file__).resolve().parent.parent
 LOGGER = logging.getLogger("intake")
@@ -96,7 +96,7 @@ class StateError(IntakeError):
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _is_within(path: Path, root: Path) -> bool:
@@ -220,7 +220,7 @@ class Job:
     error: str | None = None
 
     @classmethod
-    def from_candidate(cls, candidate: Candidate) -> "Job":
+    def from_candidate(cls, candidate: Candidate) -> Job:
         now = _now_iso()
         return cls(
             job_id=uuid.uuid4().hex,
@@ -287,7 +287,7 @@ class Job:
         }
 
     @classmethod
-    def from_dict(cls, raw: object) -> "Job":
+    def from_dict(cls, raw: object) -> Job:
         if not isinstance(raw, dict):
             raise ValueError("job state 不是 JSON object")
         status = _string_field(raw, "status")
@@ -523,7 +523,7 @@ class CandidateScanner:
                     warnings.append(warning)
                     continue
                 candidate_id = hashlib.sha256(
-                    f"{resolved}\x00{digest}".encode("utf-8")
+                    f"{resolved}\x00{digest}".encode()
                 ).hexdigest()[:32]
                 if candidate_id in used_ids or digest in known:
                     continue
@@ -1963,8 +1963,8 @@ def _busy_note(status: object, updated_at: object) -> str:
     except ValueError:
         return note
     if started.tzinfo is None:
-        started = started.replace(tzinfo=timezone.utc)
-    seconds = int((datetime.now(timezone.utc) - started).total_seconds())
+        started = started.replace(tzinfo=UTC)
+    seconds = int((datetime.now(UTC) - started).total_seconds())
     if seconds < 0:
         return note
     if seconds < 60:

@@ -33,9 +33,9 @@ import collections
 import json
 import re
 import shutil
-import time
-import sys
 import subprocess
+import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -208,7 +208,7 @@ def as_json(p: dict) -> dict:
 
 
 def cmd_check(a, env) -> int:
-    from pp import eyes                                    # 只有 check 需要，延後載入
+    from pp import eyes  # 只有 check 需要，延後載入
 
     paths = _paths()
     out_root = paths.crops_dir
@@ -558,7 +558,8 @@ def _rollback_batch(
 
 def cmd_apply(a: argparse.Namespace, env: dict[str, str],
               bundles: list[Path] | None = None) -> int:
-    from pp import apply as ap_mod, eyes
+    from pp import apply as ap_mod
+    from pp import eyes
     from pp.oracle import Oracle, container_for, force_reparse_is_on
 
     paths = _paths()
@@ -717,7 +718,7 @@ def cmd_reindex(a, env) -> int:
             shutil.move(str(src), str(dst))
             moved += 1
     print(f"\n把 {moved} 份 PDF 從 work/parsed/ 搬回 inputs/{a.workspace}/")
-    print(f"刪除索引記錄…（保留 PDF 與 LLM 快取）")
+    print("刪除索引記錄…（保留 PDF 與 LLM 快取）")
     print(" ", json.dumps(api("/documents/delete_document", "DELETE",
                               {"doc_ids": ids, "delete_file": False,
                                "delete_llm_cache": False}), ensure_ascii=False)[:200])

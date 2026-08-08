@@ -140,7 +140,7 @@ def postgres_document_count(env: dict[str, str], workspace: str) -> int:
         ["docker", "exec", container, "psql", "-U",
          env.get("POSTGRES_USER", POSTGRES_USER_DEFAULT), "-d",
          env.get("POSTGRES_DATABASE", "lightrag"), "-tAqX", "-c", sql],
-        capture_output=True, text=True, timeout=30)
+        capture_output=True, text=True, timeout=30, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"psql 失敗（{container}）：{result.stderr.strip()[:300]}")
     value = result.stdout.strip()
@@ -415,7 +415,7 @@ class Checker:
                 ["docker", "exec", postgres_container(env), "psql", "-U",
                  env.get("POSTGRES_USER", POSTGRES_USER_DEFAULT), "-d",
                  env.get("POSTGRES_DATABASE", "lightrag"), "-tAF|", "-c", sql],
-                capture_output=True, text=True, timeout=30)
+                capture_output=True, text=True, timeout=30, check=False)
             if p.returncode != 0:
                 return False, f"psql 失敗：{p.stderr.strip()[:300]}", {}
             rows = [ln.split("|") for ln in p.stdout.strip().splitlines() if "|" in ln]

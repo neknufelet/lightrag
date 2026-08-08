@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -20,7 +19,6 @@ from intake import (  # noqa: E402
     DataPaths,
     IntakeApp,
     IntakeError,
-    IntakeRunner,
     Job,
     OperationResult,
     PlanEvaluation,
@@ -487,7 +485,7 @@ def _with_index(app: IntakeApp, rows: list[dict[str, str]]) -> IntakeApp:
 
 
 def _job_in(app: IntakeApp, filename: str, status: str) -> Job:
-    saved = app.save_upload(filename, PDF)
+    app.save_upload(filename, PDF)
     candidate = next(item for item in app._candidates()[0] if item.filename == filename)
     job = Job.from_candidate(candidate)
     job.status = status  # type: ignore[assignment]

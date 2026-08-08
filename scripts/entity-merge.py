@@ -101,7 +101,8 @@ def tier(group: list[str]) -> str:
         return "C"
     ref = ts[0]
     for other in ts[1:]:
-        for a, b in zip(ref, other):
+        # 長度不同是設計：比共同前綴，短的先停就是要的行為。
+        for a, b in zip(ref, other, strict=False):
             if a == b:
                 continue
             if a.lower() != b.lower() or len(a) < 3 or not a.isalpha():
@@ -170,8 +171,8 @@ def cmd_plan(a, env) -> int:
     print(f"實體 {len(labels)} 個")
 
     groups: dict[str, list[str]] = collections.defaultdict(list)
-    for l in labels:
-        groups[group_key(l)].append(l)
+    for label in labels:
+        groups[group_key(label)].append(label)
     dups = {k: sorted(v) for k, v in groups.items() if len(v) > 1}
     by_tier = collections.Counter(tier(v) for v in dups.values())
     extra = sum(len(v) - 1 for v in dups.values())
@@ -226,7 +227,7 @@ def cmd_plan(a, env) -> int:
           f"（{sum(cost.values())/max(slots,1):.1%}）")
     print(f"真的被檢索到的重複組 {len(ranked)}／{len(dups)}；"
           f"另外 {len(silent)} 組從未出現在結果裡 —— 那些合併了也不會改善什麼")
-    print(f"\n── 值得處理的（按浪費格位排序，前 20）──")
+    print("\n── 值得處理的（按浪費格位排序，前 20）──")
     for r in ranked[:20]:
         print(f"  {r['wasted_slots']:2d} 格  [{r['tier']}]  保留 {r['suggest_keep']!r}")
         print(f"          {r['members']}")
@@ -292,7 +293,7 @@ def variant_patterns(name: str) -> list[tuple[str, re.Pattern]]:
     # 中間插不進 `_{\mathrm{`，永遠對不到原文的 $Z_{Mi}$ —— 實測就是這樣。
     # 黏著長度封在 12 以內，否則兩個字母可以隔半個 chunk 相認。
     chars = [c for c in "".join(toks(name)) if c.strip()]
-    loose = f"(?:[\\s_^{{}}$()\\\\]|\\\\[a-zA-Z]+){{0,12}}"
+    loose = "(?:[\\s_^{}$()\\\\]|\\\\[a-zA-Z]+){0,12}"
     out.append(("延伸形式（原文比這個名字長）",
                 re.compile(loose.join(map(re.escape, chars)), re.I)))
     return out
@@ -316,7 +317,7 @@ class Pg:
             ["docker", "exec", "-i", "-e", f"PGPASSWORD={self.env.get('POSTGRES_PASSWORD','')}",
              self.c, "psql", "-U", self.env.get("POSTGRES_USER", ""),
              "-d", self.env.get("POSTGRES_DATABASE", ""), "-At", "-c", sql],
-            capture_output=True, text=True, timeout=120)
+            capture_output=True, text=True, timeout=120, check=False)
         res = {}
         for blk in out.stdout.split("\x02"):
             if "\x01" in blk:

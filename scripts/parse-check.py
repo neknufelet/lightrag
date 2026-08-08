@@ -13,7 +13,12 @@ MinerU 的原始輸出會快取在 work/parsed/<檔名>.pdf.mineru_raw/，
 
 有文件被判定 ERROR 時 exit 1，方便接在自動化後面擋下去。
 """
-import argparse, collections, json, os, re, sys, time
+import argparse
+import collections
+import json
+import os
+import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -21,7 +26,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # 這支腳本曾經自己複製 MANGLED，結果 mineru_common 修好了誤判、這裡還在用舊
 # 規則，同一份資料兩個答案 —— 正是 mineru_common 檔頭警告的漂移。
 from mineru_common import (  # noqa: E402
-    LEAK, MANGLED, MATH, TAG, is_mangled, load_env, strip_math, table_text,
+    LEAK,
+    MANGLED,
+    is_mangled,
+    load_env,
+    strip_math,
+    table_text,
 )
 from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 

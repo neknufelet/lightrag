@@ -233,7 +233,7 @@ def content_words(content_list: Path) -> tuple[collections.Counter, int]:
 def pdf_words(pdf: Path) -> collections.Counter:
     """pdftotext 的文字層。-q 吞掉字型警告，那些會混進 stdout 之外但很吵。"""
     p = subprocess.run(["pdftotext", "-q", str(pdf), "-"],
-                       capture_output=True, text=True, timeout=300)
+                       capture_output=True, text=True, timeout=300, check=False)
     if p.returncode != 0:
         raise RuntimeError(f"pdftotext exit {p.returncode}: {p.stderr.strip()[:200]}")
     return words(p.stdout)
@@ -352,7 +352,7 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
         for r in results:
             if r.get("error") or not r.get("top"):
                 continue
-            if not show_top == "all" and r["rate"] <= threshold:
+            if show_top != "all" and r["rate"] <= threshold:
                 continue
             print(f"\n=== {r['doc']}　漏詞率 {r['rate']*100:.1f}% ===")
             print("  漏最多的詞：" + "、".join(f"{w}({n})" for w, n in r["top"]))

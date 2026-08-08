@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 # content_list.json 的項目型別。出現沒見過的 = 版面型態超出規則涵蓋範圍。
 KNOWN_TYPES = {

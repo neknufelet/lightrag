@@ -125,19 +125,19 @@ class Oracle:
         if env:
             fd, env_file = tempfile.mkstemp(prefix="oracle-env-", suffix=".env")
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                os.chmod(env_file, 0o600)
+                Path(env_file).chmod(0o600)
                 for k, v in env.items():
                     # 含換行的值會破壞 env-file 格式，而且我們的鍵不該有換行。
                     # 靜靜跳過會讓設定「少一個鍵」且無訊號，所以直接拒絕。
                     if "\n" in v:
-                        os.unlink(env_file)
+                        Path(env_file).unlink()
                         raise OracleError(f"環境變數 {k} 的值含換行，無法用 --env-file 傳遞")
                     fh.write(f"{k}={v}\n")
             cmd += ["--env-file", env_file]
 
         cmd += [self.container, *argv]
         try:
-            p = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout, check=False)
         except subprocess.TimeoutExpired as e:
             raise OracleError(_redact(f"逾時 {self.timeout}s：{shlex.join(cmd)}", env)) from e
         except FileNotFoundError as e:

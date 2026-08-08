@@ -27,7 +27,6 @@ doc_id，會自己寫 manifest。**不重新實作任何契約** —— 呼叫�
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
