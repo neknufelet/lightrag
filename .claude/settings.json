@@ -1,0 +1,25 @@
+{
+  "$comment": [
+    "指令守衛：在 Bash 指令執行之前擋下已知會出事的形狀。",
+    "規則與理由在 scripts/guard-command.py，測試在 tests/test_guard_command.py。",
+    "",
+    "為什麼需要它：pre-commit 守的是「提交的碼」，但 2026-08-08 的兩類事故",
+    "（秘密進輸出 3 次、離開碼抓錯地方 2 次）全部發生在臨時打的指令裡，",
+    "那些指令從來不會進版控。守門要往前移到執行之前。",
+    "",
+    "退出碼 2 = 擋下，訊息寫 stderr。守衛讀不到輸入時一律放行 —— 它不該把工作卡死。"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/guard-command.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
