@@ -50,6 +50,18 @@
 - 結論沉澱在 **`cairn/retrieval-tuning.md`**（六條結論、六條教訓，含 chunk 砍半的並排實測）與
   **`cairn/secrets-handling.md`**（秘密外洩兩次的檢討：位置控制全做對了也擋不住，
   「先取出再遮蔽」的設計本身就是錯的）。
+- **embedding 也切成本地 BGE-M3，而且只花 45 秒**。關鍵是 chunk 沒動 ⇒ 抽取快取
+  （452 筆）全部命中，207 個 chunk 的抽取在 45 秒內走完，只有向量真的重算。
+  對照實驗組改了 `CHUNK_P_SIZE` 所以快取全落空、抽了兩小時。
+  ⇒ **「換 embedding 很貴」是錯的印象，貴的是動 chunk 大小與提示詞。**
+  切換前後：chunk 207／207，節點 3,072→3,137，邊 4,289→4,423（走快取所以實體
+  相同，2% 的差異來自合併順序）。切換前有 pg_dump 142 MB，舊的 OpenAI 向量表
+  保留著當退路。
+- **實驗組整個清掉**：`acoustic` workspace 的 13 張表、第二個 stack、
+  `/opt/stacks/lightrag-acoustic/.env`（秘密副本回到只有一份）、`:9622`。
+- **決定不改 workspace 名稱**：`_v2` 難看但功能上只是字串，而改它要動
+  `backup-cold.sh` 的容器名、`systemd-units.py` 的預設值、三個 skill 的 8 處 URL、
+  三個測試檔。波及面大、價值低。
 - 完整體檢（26 條問題、PO 兩輪批註、逐條回覆）在 **`docs/audit-20260808.md`**。
 
 ## 2026-08-08（三）· 警報管道定案並上線，四篇新論文進來

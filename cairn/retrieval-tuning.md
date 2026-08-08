@@ -145,6 +145,16 @@ Successfully reranked: 20 chunks from 73 original chunks   ← mix，候選 73�
 「Should not be disabled」），快取的鍵是 chunk 內容。**所以「換 embedding 很貴」
 是錯的印象——貴的是動 chunk 與提示詞。**
 
+**2026-08-08 實測證實**：正式庫換成 BGE-M3，chunk 完全沒動，**45 秒內走完
+207 個 chunk 的抽取**（快取 452 筆全命中），只有向量真的重算。同一天實驗組因為
+改了 `CHUNK_P_SIZE` 而快取全落空，抽了兩小時。**兩者差 160 倍。**
+
+換的步驟（不改名的版本）：`pg_dump` 備份 → 改 `.env` 三個值
+（`EMBEDDING_BINDING_HOST` **不加 `/v1`**、`EMBEDDING_MODEL`、`EMBEDDING_DIM`）
+→ `up -d --force-recreate` → PDF 從 `library/` 放回 `inputs/<ws>/`
+→ 刪文件（**`delete_llm_cache` 保持預設 `False`**）→ `/documents/scan`。
+舊的向量表不會被刪（表名含模型與維度），要退回去只要把 `.env` 改回來再重算一次。
+
 `CHUNK_P_SIZE` 2000→1000 的實測代價：chunk 從 207 個變成 **405** 個（+96%），而
 **每個 chunk 都要跑一次 LLM 抽取**，所以以後每次進料的抽取成本接近翻倍。
 
