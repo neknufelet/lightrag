@@ -48,3 +48,45 @@ def test_data_and_container_paths_cover_new_layout() -> None:
         Path("/app/data/inputs") / workspace / "__parsed__" /
         f"{document}.mineru_raw"
     )
+
+
+# ── 頁面尺寸容差（2026-08-08 加入）──────────────────────────────────────
+
+
+def test_one_point_rounding_is_within_tolerance() -> None:
+    """同一張 A4 的捨入差不得擋下整份文件。
+
+    **實測案例**：2017 那篇 22 頁裡前 14 頁 594×842、後 8 頁 595×842，差 1 點。
+    舊判準是「所有頁必須完全相同」，於是那篇從 2026-08-08 起天天紅燈，
+    而 bbox 換算的實際誤差是 0.2%。
+    """
+    from pp.docctx import page_sizes_compatible
+    assert page_sizes_compatible([(594.0, 842.0)] * 14 + [(595.0, 842.0)] * 8)
+
+
+def test_a4_mixed_with_a3_is_still_refused() -> None:
+    """真正要擋的是這個 —— 尺寸真的不同時 bbox 換算會錯，而且錯得很安靜。"""
+    from pp.docctx import page_sizes_compatible
+    assert not page_sizes_compatible([(595.0, 842.0), (842.0, 1191.0)])
+
+
+def test_a4_mixed_with_letter_is_still_refused() -> None:
+    """A4 與 Letter 差 17×50 點，遠超容差 —— 容差不能大到把這種放過去。"""
+    from pp.docctx import page_sizes_compatible
+    assert not page_sizes_compatible([(595.0, 842.0), (612.0, 792.0)])
+
+
+def test_page_size_uses_the_majority_not_the_first_page() -> None:
+    """回傳最常見的尺寸，不是第一頁的 —— 那讓換算誤差最小。"""
+    import json
+    import pathlib
+    import tempfile
+
+    from pp.docctx import DocContext
+    with tempfile.TemporaryDirectory() as d:
+        raw = pathlib.Path(d) / "x.mineru_raw"
+        raw.mkdir()
+        pages = ([{"page_idx": i, "page_size": [595, 842]} for i in range(3)]
+                 + [{"page_idx": i + 3, "page_size": [594, 842]} for i in range(14)])
+        (raw / "layout.json").write_text(json.dumps({"pdf_info": pages}), encoding="utf-8")
+        assert DocContext(raw).page_size == (594.0, 842.0), "14 頁那組才是多數"

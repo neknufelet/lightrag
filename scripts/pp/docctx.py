@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -18,6 +19,36 @@ from mineru_common import KNOWN_TYPES, read_json  # noqa: E402
 
 class DocContextError(RuntimeError):
     pass
+
+
+# 頁面尺寸容差，單位是 PDF 點。**判準只有這一份**，`compat-check` 的 A-14 從這裡
+# import ——兩處各寫一份同義判準，只要有人改一邊就會靜靜地不一致（同 oracle.py
+# 的 `force_reparse_is_on`）。
+#
+# 為什麼是 2 點：原本的判準是「所有頁尺寸必須完全相同」，而 2017 那篇 22 頁裡
+# 前 14 頁是 594×842、後 8 頁是 595×842 —— **差 1 點**，是同一張 A4 的捨入差，
+# bbox 換算的誤差 0.2%，實務上無害。但它讓那篇文件從 2026-08-08 起天天紅燈。
+#
+# 容差不能再放大：真正要擋的是「A4 混 A3」那種（595×842 vs 842×1191，差好幾百點）
+# 與「A4 混 Letter」（差 17×50 點）。2 點乾淨地把「同一張紙的捨入」與「真的不同
+# 尺寸」分開，而且**不是為了讓某一篇過關而挑的數字**——挑 1 點也能過，挑 2 點是
+# 為了容納下一份可能差 2 點的文件而不必再改一次。
+PAGE_SIZE_TOLERANCE_PT = 2.0
+
+
+def page_size_spread(sizes: list[tuple[float, float]]) -> tuple[float, float]:
+    """一份文件裡各頁尺寸的最大差距 `(寬的差, 高的差)`。空清單回 (0, 0)。"""
+    if not sizes:
+        return (0.0, 0.0)
+    widths = [float(w) for w, _ in sizes]
+    heights = [float(h) for _, h in sizes]
+    return (max(widths) - min(widths), max(heights) - min(heights))
+
+
+def page_sizes_compatible(sizes: list[tuple[float, float]]) -> bool:
+    """各頁尺寸是否落在容差內 —— 也就是 bbox 換算可不可以只用一組尺寸。"""
+    dw, dh = page_size_spread(sizes)
+    return dw <= PAGE_SIZE_TOLERANCE_PT and dh <= PAGE_SIZE_TOLERANCE_PT
 
 
 @dataclass
@@ -55,13 +86,25 @@ class DocContext:
 
     @cached_property
     def page_size(self) -> tuple[float, float]:
-        """PDF 點座標的頁面尺寸。要求所有頁一致 —— 尺寸混雜時 bbox 換算會錯，
-        而且錯得很安靜（裁出來的圖看起來像張表，只是位置不對）。"""
-        sizes = {tuple(p.get("page_size") or ()) for p in self.layout["pdf_info"]}
-        if len(sizes) != 1:
-            raise DocContextError(f"{self.doc_name}：頁面尺寸不一致 {sizes}")
-        w, h = sizes.pop()
-        return float(w), float(h)
+        """PDF 點座標的頁面尺寸。
+
+        尺寸**混雜**時 bbox 換算會錯，而且錯得很安靜（裁出來的圖看起來像張表，
+        只是位置不對）—— 所以要擋。但判準是「落在 `PAGE_SIZE_TOLERANCE_PT` 之內」
+        而不是「完全相同」：同一份 PDF 的各頁常有 1 點的捨入差，那不影響換算。
+
+        回傳**最常見的那組尺寸**，不是第一頁的。一份 22 頁的文件若 14 頁是
+        594×842、8 頁是 595×842，用多數那組會讓換算誤差最小。
+        """
+        raw = [tuple(p.get("page_size") or ()) for p in self.layout["pdf_info"]]
+        sizes = [(float(w), float(h)) for w, h in raw if len((w, h)) == 2]
+        if not sizes:
+            raise DocContextError(f"{self.doc_name}：layout.json 沒有 page_size")
+        if not page_sizes_compatible(sizes):
+            dw, dh = page_size_spread(sizes)
+            raise DocContextError(
+                f"{self.doc_name}：頁面尺寸不一致 {sorted(set(sizes))}"
+                f"（寬差 {dw:g}、高差 {dh:g} 點，容差 {PAGE_SIZE_TOLERANCE_PT:g}）")
+        return Counter(sizes).most_common(1)[0][0]
 
     @cached_property
     def n_pages(self) -> int:

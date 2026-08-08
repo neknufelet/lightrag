@@ -31,6 +31,11 @@ from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
+from pp.docctx import (  # noqa: E402
+    PAGE_SIZE_TOLERANCE_PT,
+    page_size_spread,
+    page_sizes_compatible,
+)
 from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
@@ -626,12 +631,22 @@ class Checker:
             lay = json.loads((raw_dir / "layout.json").read_text())
             pi = lay["pdf_info"]
             bad = [k for k, p in enumerate(pi) if p.get("page_idx") != k]
-            sizes = {tuple(p.get("page_size") or []) for p in pi}
-            ok = not bad and len(sizes) == 1
-            return ok, (f"{len(pi)} 頁，page_size {sizes.pop() if len(sizes)==1 else sizes}"
+            # 尺寸判準從 pp/docctx.py import，**不在這裡再寫一份**。兩處同義判準
+            # 只要有人改一邊就會靜靜地不一致——那會變成「檢查說可以、解析卻被擋下」。
+            sizes = [(float(w), float(h))
+                     for w, h in (tuple(p.get("page_size") or ()) for p in pi)
+                     if len((w, h)) == 2]
+            size_ok = page_sizes_compatible(sizes)
+            ok = not bad and size_ok
+            dw, dh = page_size_spread(sizes)
+            return ok, (f"{len(pi)} 頁，page_size {sorted(set(sizes))}"
+                        f"（寬差 {dw:g}、高差 {dh:g} 點，容差 {PAGE_SIZE_TOLERANCE_PT:g}）"
                         if ok else
-                        f"錯位頁 {bad[:5]} 或頁面尺寸不一致 {sizes} —— "
-                        "書眉每頁幾何相同，錯頁比對照樣會 IoU 命中"), {}
+                        f"錯位頁 {bad[:5]}"
+                        + ("" if size_ok else
+                           f"／頁面尺寸差距超出容差：{sorted(set(sizes))}"
+                           f"（寬差 {dw:g}、高差 {dh:g}，容差 {PAGE_SIZE_TOLERANCE_PT:g}）")
+                        + " —— 書眉每頁幾何相同，錯頁比對照樣會 IoU 命中"), {}
 
         @self.check("A-16", "hard", f"{name}：沒有未知的項目型別")
         def _() -> tuple[bool, str, dict]:
