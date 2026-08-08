@@ -21,20 +21,45 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 
 ---
 
-## ⛔ 新守門抓到三個紅燈，要 PO 決定何時處置
+## 🚨 先修這個，否則下一次重建會讓 LightRAG 連不上資料庫
 
-第 1 批的檢查一上線就抓到東西。都不緊急，但都要**在進料閒置時**做
-（放行中重啟會讓那篇落到 `failed`，而放行階段的 `failed` 是終點、要整份重解）。
+- ⬜ 把 dker `.env` 的 `POSTGRES_USER` 改回 `deeptutor`
+  → `docker exec lightrag-postgres psql -U "$(grep -E '^POSTGRES_USER=' /opt/stacks/lightrag/.env | cut -d= -f2-)" -d lightrag -tAc 'select 1'` 回 `1`
+
+  **現況（2026-08-08 實測）**：`.env` 寫 `POSTGRES_USER=neknufelet`，但資料庫裡
+  **只有 `deeptutor` 一個 role**（`select rolname from pg_roles where rolcanlogin`
+  只回 deeptutor）。Postgres 只在**第一次建空庫**時依 `POSTGRES_USER` 建 role，
+  之後改 `.env` 不會補建。
+
+  **為什麼現在還活著**：跑著的 `lightrag-acoustics_v2` 是 16:15 啟動的，身上帶的
+  是舊值 `deeptutor`；`.env` 是 17:58 才改的。**系統能運作純粹因為容器還沒被重建。**
+
+  ⚠ **在改回來之前，不要跑 `docker compose up -d`。** 那會讓 LightRAG 拿
+  `neknufelet` 去連一個沒有這個帳號的資料庫。
+
+  為什麼是改 `.env` 而不是在資料庫建帳號：資料與權限都屬於 `deeptutor`，而 `.env`
+  那一行只是字串。**動難改的那一邊去遷就好改的那一邊，方向是錯的。**
+
+  這條也是 `compat-check` 的 A-22 與 A-26 現在紅燈的原因（它們照 `.env` 的帳號連）。
+
+## ⛔ 新守門抓到的其餘紅燈，要 PO 決定何時處置
+
+都要**在進料閒置時**做（放行中重啟會讓那篇落到 `failed`，而放行階段的 `failed`
+是終點、要整份重解）。**而且要在上面那條修好之後**。
 
 - ⬜ 重建 `lightrag-acoustics_v2` 與 `lightrag-postgres`
   → `deploy-stack.py freshness` 回 0
 
   兩者的設定與現在的 compose 不符（`docker compose up -d --dry-run` 獨立確認會
-  Recreate 這兩台）。指令：在 `/opt/stacks/lightrag` 跑 `docker compose up -d`。
+  Recreate 這兩台）。
 - ⬜ 重啟 `kbapi-acoustics_v2`　→ 同上
 
   它掛著 `${REPO_DIR}/scripts`，而那些檔今天改過。Python 在行程啟動時就把模組
   載完，所以它跑的是 18 小時前的碼。
+- ⬜ 更新 canary 基準　→ `postprocess.py canary --update`
+
+  基準還停在舊語料（18 份教科書章節），現在是 9 篇論文，所以每天會報「17 份消失、
+  3 份新增」。**與第 3 批的重進料綁在一起做**，否則要更新兩次。
 
 ## 第 2 批：文件對齊（2 條）
 

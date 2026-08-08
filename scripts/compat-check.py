@@ -126,6 +126,20 @@ def _as_text(value: object) -> str:
     return str(value).strip().lower()
 
 
+def _vector_table_suffix(model: str, dim: str) -> str:
+    """向量表名的後綴：LightRAG 用「模型名＋維度」命名，非英數一律換成底線。
+
+    ⚠ **要換掉的不只是 `-`。** 舊版只 `replace("-", "_")`，那在模型叫
+    `text-embedding-3-large` 的時代剛好可用；2026-08-08 換成 HuggingFace 的
+    `BAAI/bge-m3` 之後，斜線沒被換掉 —— 推導出 `baai/bge_m3_1024d`，而實際表名是
+    `lightrag_vdb_chunks_baai_bge_m3_1024d`，於是 A-22 報「找不到向量表」。
+
+    那是**假紅燈，而且是 hard**（會擋動工），還被同時期的 psql 錯誤蓋住沒人發現。
+    ⇒ 從資料推導名字時，要照著產生它的那一方的規則走，不要只處理眼前看得到的字元。
+    """
+    return re.sub(r"[^0-9a-z]+", "_", f"{model}_{dim}d".lower())
+
+
 def _sql_literal(value: str) -> str:
     """將 workspace 安全地寫成 SQL 字串字面值。"""
     return "'" + value.replace("'", "''") + "'"
@@ -397,9 +411,8 @@ class Checker:
         @self.check("A-22", "hard", "每張向量表都有向量索引")
         def _():
             env = load_env(REPO)
-            model = env.get("EMBEDDING_MODEL", "").replace("-", "_")
-            dim = env.get("EMBEDDING_DIM", "")
-            suffix = f"{model}_{dim}d".lower()
+            suffix = _vector_table_suffix(env.get("EMBEDDING_MODEL", ""),
+                                          env.get("EMBEDDING_DIM", ""))
             sql = (
                 "select t.relname, count(i.indexrelid) filter ("
                 "  where am.amname in ('hnsw','ivfflat','vchordrq')) "

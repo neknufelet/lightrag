@@ -123,3 +123,34 @@ def test_published_services_port_keys_exist_in_example() -> None:
     doc = mod._env_key_names(ROOT / ".env.example")
     missing = sorted(k for _, k, _ in mod.PUBLISHED_SERVICES if k and k not in doc)
     assert not missing, f"埠鍵在 .env.example 不存在：{missing}"
+
+
+def test_vector_table_suffix_handles_slash_in_model_id() -> None:
+    """HuggingFace 的模型 ID 含斜線，推導表名時必須換掉。
+
+    **血淚 2026-08-08**：舊版只 `replace("-", "_")`，在 `text-embedding-3-large`
+    的時代剛好可用；換成 `BAAI/bge-m3` 之後推導出 `baai/bge_m3_1024d`，而實際表名
+    是 `lightrag_vdb_chunks_baai_bge_m3_1024d` ⇒ A-22 報「找不到向量表」。
+    那是**假紅燈而且是 hard**（會擋動工），還被同時期的 psql 錯誤蓋住沒人發現。
+    """
+    mod = _module()
+    assert mod._vector_table_suffix("BAAI/bge-m3", "1024") == "baai_bge_m3_1024d"
+
+
+def test_vector_table_suffix_still_handles_the_old_openai_name() -> None:
+    """舊模型的表還在庫裡（保留當退路），推導不能因為修新的而漏掉舊的。"""
+    mod = _module()
+    assert mod._vector_table_suffix("text-embedding-3-large", "3072") == \
+        "text_embedding_3_large_3072d"
+
+
+def test_vector_table_suffix_matches_real_table_names() -> None:
+    """對照 2026-08-08 在 dker 實際查到的六張表名，推導的後綴要真的是它們的結尾。"""
+    mod = _module()
+    real = [
+        "lightrag_vdb_chunks_baai_bge_m3_1024d",
+        "lightrag_vdb_entity_baai_bge_m3_1024d",
+        "lightrag_vdb_relation_baai_bge_m3_1024d",
+    ]
+    suffix = mod._vector_table_suffix("BAAI/bge-m3", "1024")
+    assert all(name.endswith(suffix) for name in real), suffix
