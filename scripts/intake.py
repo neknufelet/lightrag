@@ -1282,6 +1282,31 @@ class IntakeApp:
                 }
                 self.events.append(event)
                 self.store.append_log(job.job_id, f"教學事件：{reason}：{detail}")
+        if evaluation.accepted:
+            self._auto_admit(job)
+
+    def _auto_admit(self, job: Job) -> None:
+        """機械計畫判定 clean 的自動放行（PO 裁決 2026-08-08 `4eacaea`）。
+
+        看計畫那一關要抓的是 novel／未知型別／數字可疑，而 `clean` 就是
+        「這三樣都沒有」。**在已判乾淨的計畫前面放人工關卡攔不到任何東西**
+        —— PO 本來就無法判讀機械計畫。`novel` 照樣停在「等你看」。
+
+        **不加 LLM 複查**（同一個裁決）：機械規則是確定性、位置錨定的，加模型
+        會把可重現的東西變成不可重現；真正需要模型判斷的地方（表格轉錄、
+        方程式）已經有兩雙眼睛＋第三隻眼。
+
+        **只在解析剛跑完時觸發一次。** 放行被擋下來會退回 `planned`
+        （`_defer_to_review`），那時候不再自動重按 —— 擋的原因（收件區被別的
+        流程佔著）可能還在，自動重試會變成迴圈。那一次要人按，或走
+        `submit_retry`。
+        """
+        with self._lock:
+            transition(job, "repairing")
+            self.store.save(job)
+            self._queue.put(("admit", job.job_id))
+        LOGGER.info("job %s 計畫判定 clean，自動放行", job.job_id)
+        self.store.append_log(job.job_id, "計畫判定 clean，自動放行（裁決 4eacaea）")
 
     def _inputs_pdf_paths(self) -> list[Path]:
         inputs = self.paths.inputs_dir(self.workspace)

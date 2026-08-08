@@ -149,12 +149,10 @@ def test_parse_review_keeps_inputs_empty_and_admit_order(tmp_path: Path) -> None
         candidate = app.state()["sections"]["selection"][0]
         assert isinstance(candidate, dict)
         job = app.submit_parse([str(candidate["candidate_id"])])[0]
-        planned = _wait_for(app, job.job_id, "planned")
-        assert planned["decision"] == "clean"
-        assert list(paths.inputs_dir("test").glob("*.pdf")) == []
-
-        app.submit_admit(job.job_id)
-        _wait_for(app, job.job_id, "indexed")
+        # clean 的計畫自動放行（裁決 4eacaea），所以這裡不按放行也會走完。
+        # 「放行前 inputs 必須是空的」那條不變式由 FakeRunner.apply 當場斷言。
+        indexed = _wait_for(app, job.job_id, "indexed")
+        assert indexed["decision"] == "clean"
         assert runner.calls == ["parse", "plan", "apply", "scan", "wait"]
         assert list(paths.inputs_dir("test").glob("*.pdf")) == []
         state_path = paths.intake_job_dir(job.job_id) / "job.json"
@@ -820,3 +818,72 @@ def test_reset_keeps_a_parse_that_passed_review(tmp_path: Path) -> None:
 
     assert app.paths.parsed_bundle_dir("自己的.pdf").is_dir(), (
         "重置把通過審查的解析成果刪了，下一輪要重付一次 MinerU")
+
+
+# ── 自動放行：clean 的不需要人確認（PO 裁決 2026-08-08 `4eacaea`）────────
+
+
+def test_a_clean_plan_admits_itself(tmp_path: Path) -> None:
+    """機械計畫判定 clean 的，不必等人按放行。
+
+    看計畫那一關要抓 novel／未知型別／數字可疑，clean 就是這三樣都沒有。
+    在已判乾淨的計畫前面放人工關卡攔不到任何東西，只會讓文件停在那裡。
+    """
+    source_parent = _source(tmp_path)
+    data_root = tmp_path / "data"
+    runner = FakeRunner(data_root)
+    app = IntakeApp(DataPaths(data_root), "test", [source_parent], runner=runner)
+    app.start()
+    try:
+        candidate = app.state()["sections"]["selection"][0]
+        assert isinstance(candidate, dict)
+        job = app.submit_parse([str(candidate["candidate_id"])])[0]
+        _wait_for(app, job.job_id, "indexed")
+        assert runner.calls == ["parse", "plan", "apply", "scan", "wait"]
+    finally:
+        app.stop()
+
+
+def test_a_novel_plan_still_waits_for_a_human(tmp_path: Path) -> None:
+    """`novel` 照樣停下來 —— 自動放行只放乾淨的那些。
+
+    這是自動放行的控制組：如果它變成「什麼都自動放」，這支會紅。
+    """
+    source_parent = _source(tmp_path)
+    data_root = tmp_path / "data"
+    runner = FakeRunner(data_root, {
+        "paper.pdf": PlanEvaluation(False, ("未知型別 sidebar_note",), ("細節",), {
+            "failed": ["paper：未知的項目型別 ['sidebar_note']"],
+        }),
+    })
+    app = IntakeApp(DataPaths(data_root), "test", [source_parent], runner=runner)
+    app.start()
+    try:
+        candidate = app.state()["sections"]["selection"][0]
+        assert isinstance(candidate, dict)
+        job = app.submit_parse([str(candidate["candidate_id"])])[0]
+        planned = _wait_for(app, job.job_id, "planned")
+        assert planned["decision"] == "novel"
+        time.sleep(0.2)
+        assert runner.calls == ["parse", "plan"], "novel 的計畫被自動放行了"
+        assert app._jobs[job.job_id].status == "planned"
+    finally:
+        app.stop()
+
+
+def test_a_deferred_admit_does_not_retry_itself(tmp_path: Path) -> None:
+    """被擋下來退回「等你看」之後**不得自動重按**。
+
+    擋的原因（收件區被別的流程佔著）不會因為重按而消失，自動重試會變成
+    迴圈：退回 → 自動放行 → 又被擋 → 退回 …… 一路刷爆 log。
+    """
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "自己的.pdf")
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+    (inputs / "別的流程在用.pdf").write_bytes(PDF)
+
+    app._run_admit(job.job_id)
+
+    assert job.status == "planned"
+    assert app._queue.empty(), "退回之後又把自己排進佇列了 —— 這會變成迴圈"
