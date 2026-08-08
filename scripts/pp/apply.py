@@ -340,7 +340,11 @@ def apply_doc(
             if k not in done_txt:
                 preview[int(k)][text_field(preview[int(k)])] = txt
         r.latex = latex_fix.plan(preview)
-        r.muted = len(noise.mutes)
+        # 兩條消音規則都要算進去。**漏掉一條的後果是 dry-run 報 0、--commit 卻改了
+        # 東西** —— 2026-08-08 實測：參考文獻消音接進管線後，`plan` 說 19 項而
+        # `apply`（乾跑）說 0 項，因為這一行只數了 noise。
+        # 乾跑的數字若跟實際寫入不一致，乾跑就失去意義。
+        r.muted = len(noise.mutes) + len(refs.mutes)
         r.tables = len(write_tbl)
         for k in write_tbl:
             r.notes += add_notes.get(k, [])
