@@ -115,25 +115,52 @@ def test_second_precision_timestamp_is_parsed() -> None:
 def test_only_kbapi_mounts_repo_code() -> None:
     """`scripts/` 只掛進 kbapi，其餘服務跑 baked image。
 
-    這張表決定「哪些容器要用時間戳判斷」。多列一個服務，就會為它製造一條
-    永遠紅的假警報；少列一個，它跑舊碼時沒有人會知道。
-    依據是 compose.yaml:132 的掛載，不是猜的。
+    依據是 compose.yaml:132 的掛載，不是猜的。多列一個服務就是為它製造一條永遠
+    紅的假警報；少列一個，它跑舊碼時沒有人會知道。
     """
     mod = _module()
-    assert mod._mounted_code_for("kbapi") == ("scripts",)
+    assert mod._mounted_code_for("kbapi"), "kbapi 掛了 scripts/，必須被檢查"
     for service in ("lightrag", "postgres", "infinity"):
         assert mod._mounted_code_for(service) == (), service
 
 
-def test_mounted_code_is_keyed_by_service_not_container() -> None:
-    """用服務名當鍵，不用容器名。
+def test_import_closure_is_narrower_than_the_whole_scripts_dir() -> None:
+    """要看的是**服務真的會載入的檔**，不是整個 `scripts/`。
 
-    容器名含 workspace（`kbapi-acoustics_v2`），改 workspace 就會對不上；
-    compose 的服務名不會變。
+    **為什麼**：拿整個 scripts/ 當基準的話，改一支 kbapi 根本不 import 的腳本
+    （compat-check、deploy-stack…）也會把它判成跑舊碼。每天都紅、而且每次都不必
+    理，正是訓練人無視紅燈的形狀。
     """
     mod = _module()
-    assert mod._mounted_code_for("kbapi-acoustics_v2") == (), \
-        "傳容器名應該查不到 —— 這張表的鍵是服務名"
+    closure = mod._mounted_code_for("kbapi")
+    assert "scripts/kbapi.py" in closure, "自己一定要在裡面"
+    assert "scripts/mineru_common.py" in closure, "它 import 的本地模組要跟進去"
+    assert "scripts/compat-check.py" not in closure, (
+        "kbapi 不 import compat-check —— 跟進去就會製造假紅燈")
+    assert "scripts/deploy-stack.py" not in closure
+
+
+def test_import_closure_follows_packages_and_stops_at_third_party() -> None:
+    """跟到 `scripts/` 底下的模組就停，不追標準庫與第三方。
+
+    追下去會把整個 site-packages 拖進來，而那些東西變動也不是靠重啟服務解決的。
+    """
+    mod = _module()
+    closure = mod._local_import_closure("scripts/intake.py")
+    assert "scripts/pp/paths.py" in closure, "套件內的模組要跟得到"
+    assert not [p for p in closure if not p.startswith("scripts/")], closure
+
+
+def test_every_long_running_unit_has_a_registered_entry_point() -> None:
+    """常駐服務一定要登記進入點，否則它跑舊碼沒有人會知道。
+
+    這條守的是「新增一個常駐服務卻忘了登記」——那種漏會安靜地少檢查一個服務，
+    而 freshness 仍然全綠。
+    """
+    mod = _module()
+    missing = [u for u in mod._long_running_units()
+               if u not in mod.SYSTEMD_ENTRY_POINTS]
+    assert not missing, f"這些常駐單元沒登記進入點：{missing}"
 
 
 def test_dry_run_output_is_parsed_into_stale_containers() -> None:

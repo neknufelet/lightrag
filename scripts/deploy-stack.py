@@ -35,6 +35,7 @@ healthy、端點會回應、測試也過——**跑舊碼完全沒有外顯症�
 from __future__ import annotations
 
 import argparse
+import ast
 import difflib
 import hashlib
 import json
@@ -68,8 +69,18 @@ COMPOSE_PROJECT = "lightrag"
 # 為什麼這一類要單獨處理：compose 的設定雜湊看不出**被掛進去的檔案內容變了**
 # —— 掛載宣告一個字都沒改，但裡面的 .py 已經是新的，而 Python 在行程啟動時就
 # 把模組載完了。這是唯一只能靠時間戳判斷的一類。
-MOUNTED_CODE_BY_SERVICE: dict[str, tuple[str, ...]] = {
-    "kbapi": ("scripts",),
+MOUNTED_CODE_BY_SERVICE: dict[str, str] = {
+    "kbapi": "scripts/kbapi.py",
+}
+
+# 常駐 systemd 服務的進入點。與上面一樣，值是**進入點的檔案**而不是「整個
+# scripts/」——實際要看的路徑由 `_local_import_closure()` 從它算出來。
+#
+# 為什麼不用「整個 scripts/」：那會讓「動了任何一支腳本」都把這兩個服務判成舊的，
+# 即使改的是它們根本不載入的檔（compat-check、deploy-stack…）。每天都紅、而且
+# 每次都不必理，正是訓練人無視紅燈的形狀。
+SYSTEMD_ENTRY_POINTS: dict[str, str] = {
+    "lightrag-intake.service": "scripts/intake.py",
 }
 
 # systemd 單元檔在哪。**不是每個跑 repo 程式碼的東西都是容器** —— 審核台 :9710
@@ -79,7 +90,6 @@ MOUNTED_CODE_BY_SERVICE: dict[str, tuple[str, ...]] = {
 # 判準：`Type=simple`（常駐）會把程式碼留在記憶體裡，所以會變舊；
 #       `Type=oneshot` 每次執行都重新讀檔，永遠是最新的，不必檢查。
 SYSTEMD_DIR = REPO / "deploy" / "systemd"
-SYSTEMD_CODE_PATHS: tuple[str, ...] = ("scripts",)
 
 
 class StackError(RuntimeError):
@@ -158,9 +168,46 @@ def _rfc3339_to_epoch(value: str) -> float:
     return datetime.fromisoformat(text).timestamp()
 
 
+def _local_import_closure(entry: str) -> tuple[str, ...]:
+    """從進入點算出它實際會載入的本地檔案（含自己），回 repo 相對路徑。
+
+    **為什麼要算而不是列**：手維護的清單會漂。今天 `intake.py` 只 import
+    `mineru_common` 與 `pp.paths`，明天多 import 一個而沒人更新清單，那個檔改了
+    就不會有人知道服務該重啟。
+
+    只跟到 `scripts/` 底下的模組；標準庫與第三方不算——它們變動不是靠重啟服務
+    解決的，而且跟進去會把整個 site-packages 拖進來。
+    """
+    root = REPO / "scripts"
+    seen: set[Path] = set()
+    queue = [REPO / entry]
+    while queue:
+        path = queue.pop()
+        if path in seen or not path.is_file():
+            continue
+        seen.add(path)
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError:
+            continue
+        names: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names += [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names.append(node.module)
+        for name in names:
+            rel = Path(*name.split("."))
+            for candidate in (root / rel.with_suffix(".py"), root / rel / "__init__.py"):
+                if candidate.is_file():
+                    queue.append(candidate)
+    return tuple(sorted(str(p.relative_to(REPO)) for p in seen))
+
+
 def _mounted_code_for(service: str) -> tuple[str, ...]:
-    """這個服務掛了哪些 repo 路徑進去。沒掛就回空。"""
-    return MOUNTED_CODE_BY_SERVICE.get(service, ())
+    """這個服務掛進去的程式碼實際包含哪些檔。沒掛程式碼就回空。"""
+    entry = MOUNTED_CODE_BY_SERVICE.get(service)
+    return _local_import_closure(entry) if entry else ()
 
 
 def _last_commit_epoch(paths: tuple[str, ...]) -> float | None:
@@ -329,22 +376,28 @@ def cmd_freshness(args: argparse.Namespace) -> int:
     # service（刻意不在 compose 裡，見 compose.yaml:150）。第一版 freshness 只看
     # compose 容器，於是它跑著 7 小時前的 intake.py 而沒有任何人知道——
     # 症狀是審核台顯示的檢查結果少了 commit 欄位，而那個欄位當天才加上。
-    commit_at = _last_commit_epoch(SYSTEMD_CODE_PATHS)
     for unit in _long_running_units():
+        entry = SYSTEMD_ENTRY_POINTS.get(unit)
+        if not entry:
+            problems.append(f"{unit} 是常駐服務但沒登記進入點 —— "
+                            "SYSTEMD_ENTRY_POINTS 要補一行，否則它跑舊碼沒人知道")
+            continue
+        paths = _local_import_closure(entry)
         started = _unit_start_epoch(unit)
+        commit_at = _last_commit_epoch(paths)
         if started is None:
             problems.append(f"{unit}：常駐服務但沒在跑（或問不到 MainPID）")
         elif commit_at is None:
-            problems.append(f"{unit}：查不到 {list(SYSTEMD_CODE_PATHS)} 的最後 commit")
+            problems.append(f"{unit}：查不到 {list(paths)} 的最後 commit")
         elif started < commit_at:
             problems.append(
                 f"{unit} 啟動於 {datetime.fromtimestamp(started):%m-%d %H:%M}，"
-                f"但 {list(SYSTEMD_CODE_PATHS)} 的最後 commit 是 "
-                f"{datetime.fromtimestamp(commit_at):%m-%d %H:%M}"
+                f"但它載入的 {len(paths)} 個檔最後在 "
+                f"{datetime.fromtimestamp(commit_at):%m-%d %H:%M} 改過"
                 f"（晚 {(commit_at - started) / 3600:.1f} 小時）—— 跑的是舊碼，"
                 f"要 systemctl restart {unit}")
         else:
-            print(f"{unit}　啟動晚於它跑的碼")
+            print(f"{unit}　啟動晚於它載入的 {len(paths)} 個檔")
 
     if problems:
         print()
