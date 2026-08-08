@@ -133,7 +133,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--query", action="append", help="要量的問題，可重複；不給就用內建題組")
     ap.add_argument("--mode", default="mix", help="檢索模式（預設 mix）")
-    ap.add_argument("--base", default="http://localhost:9621", help="LightRAG 位址")
+    ap.add_argument("--base", default="",
+                    help="LightRAG 位址（預設由 .env 的 BIND_ADDR 與 HOST_PORT 組出來）")
     ap.add_argument("--timeout", type=int, default=180)
     ap.add_argument("--container", default="",
                     help="數 token 用的容器（預設由 .env 的 WORKSPACE 推導）")
@@ -143,6 +144,9 @@ def main() -> int:
     # 讀 .env 放在 parse_args 之後：coder 上刻意沒有 .env，但 `--help` 應該還是
     # 要能看（一支 --help 會掛掉的工具，下一個人只會放棄用它）。
     env = load_env(REPO)
+    # **不要寫死 localhost。** 服務綁在 BIND_ADDR（dker 上是 Tailscale 位址），
+    # 寫死 localhost 會連不上——`.env.example` 那條「腳本一律從這裡讀」就是為此。
+    base = a.base or f"http://{env.get('BIND_ADDR', '127.0.0.1')}:{env.get('HOST_PORT', '9621')}"
     queries = a.query or list(DEFAULT_QUERIES)
     api_key = env.get("LIGHTRAG_API_KEY", "")
     if not api_key:
@@ -150,7 +154,7 @@ def main() -> int:
         return 2
 
     container = a.container or container_for(env_workspace())
-    records = [measure(q, a.mode, a.base, api_key, a.timeout, container)
+    records = [measure(q, a.mode, base, api_key, a.timeout, container)
                for q in queries]
 
     if a.json:
