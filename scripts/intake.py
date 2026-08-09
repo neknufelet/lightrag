@@ -2440,11 +2440,18 @@ def _render_section(key: str, title: str, rows: Sequence[Mapping[str, object]],
     body = "".join(renderer(row) for row in rows)
     body = prefix + body if body else "<div class='empty'>沒有</div>"
     attr = " open" if open_default else ""
+    # **收起來的時候也要看得出「其中幾件只是在排隊」。**
+    # worker 是循序的（一次一件），所以「處理中 15」在畫面上長得像 15 件都在動，
+    # 實際上可能一件都還沒輪到 —— 逐列雖然標了「排隊中」，但那要展開才看得到，
+    # 而收合狀態下「沒印出來」跟「沒這回事」長得一樣（鐵則 6）。
+    queued = sum(1 for r in rows if r.get("queued"))
+    qhtml = (f"<span class='count idle' title='序列 worker 一次只跑一件'>"
+             f"排隊 {queued}</span>" if queued else "")
     return (
         f"<details data-sec='{_esc(key)}'{attr}>"
         f"<summary><span class='caret'>▶</span>"
         f"<span class='sec-name'>{_esc(title)}</span>"
-        f"<span class='count'>{len(rows)}</span></summary>"
+        f"{qhtml}<span class='count'>{len(rows)}</span></summary>"
         f"<div class='sec-body'>{body}</div></details>"
     )
 
@@ -2822,6 +2829,32 @@ document.querySelectorAll('details[data-sec]').forEach(d => {
   });
 });
 
+/* 記住捲到哪裡。**進料期間畫面每幾秒就 reload 一次**，不存的話你往下看到一半
+   就被彈回最上面 —— 份數越多越嚴重，而這正是進料期間唯一會一直看的畫面。
+   要存兩種：整頁的捲動位置，以及**每一節自己的**（.sec-body 有 max-height
+   ＋ overflow-y，387 份的收件匣是在節內捲的，只存 window.scrollY 沒有用）。 */
+const SCROLL = 'intake.scroll';
+const bodies = () => document.querySelectorAll('details[data-sec] > .sec-body');
+function saveScroll() {
+  const pos = {_w: window.scrollY};
+  bodies().forEach(el => {
+    if (el.scrollTop) pos[el.parentElement.dataset.sec] = el.scrollTop;
+  });
+  sessionStorage.setItem(SCROLL, JSON.stringify(pos));
+}
+(function restoreScroll() {
+  let pos = {};
+  try { pos = JSON.parse(sessionStorage.getItem(SCROLL) || '{}'); } catch (_) { return; }
+  if (pos._w) window.scrollTo(0, pos._w);
+  bodies().forEach(el => {
+    const v = pos[el.parentElement.dataset.sec];
+    if (v) el.scrollTop = v;
+  });
+})();
+/* beforeunload 涵蓋手動重整與按連結；輪詢那條在 reload 前也會自己叫一次 ——
+   兩條路都要，因為 beforeunload 在某些情況下不保證跑完。 */
+window.addEventListener('beforeunload', saveScroll);
+
 /* 上傳：拖到頁面任何地方都收 */
 const veil = document.getElementById('veil');
 const uplog = document.getElementById('uplog');
@@ -2870,7 +2903,7 @@ if (document.body.dataset.running === '1') {
       const sig = [s.health && s.health.running ? 1 : 0,
                    ...['selection','parsing','review','in_progress','completed','failed']
                      .map(k => (sec[k] || []).length)].join('.');
-      if (sig !== seen) location.reload();
+      if (sig !== seen) { saveScroll(); location.reload(); }
     } catch (_) { /* 網路瞬斷不該把畫面弄壞，下一輪再試 */ }
   }, 3000);
 }"""
@@ -2948,12 +2981,16 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     # 預設只展開「等你看」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。
     #
-    # **順序不是文件的流程順序，是「你要多常看它」的順序**（PO 2026-08-09 指定
-    # 把「處理中」提到第二）。原本由上而下排的是一份文件實際會走的路
-    #（收件匣 → 解析 → 等你看 → 處理 → 進知識庫），讀起來順，但代價是
-    # 「現在正在跑什麼」被推到畫面中段 —— 而那是進料期間最常要瞄的一節。
-    # 現在的順序：
-    #   收件匣 → 處理中 → 解析中 → 等你看 →（卡住的）→ 進知識庫 → 已跳過 → 失敗
+    # **由上而下就是一份文件實際會走的路**，不要改成別的排法：
+    #   收件匣 → 解析中 → 等你看 →（卡住的）→ 處理中 → 進知識庫 → 已跳過 → 失敗
+    #
+    # ⚠ 2026-08-09 試過把「處理中」提到第二（在「解析中」之前），當天就退回來 ——
+    # 解析完的文件看起來像憑空消失。**流程上的下一站排在上一站前面，眼睛追不到。**
+    # 「哪一節最常看」不是好的排序依據，「東西往哪裡去」才是。
+    #
+    # 註：「等你看」常態下是空的，因為計畫判定 `clean` 會**自動放行**
+    #（裁決 4eacaea）—— 它是例外路徑，不是每份文件都會停的一站。真有東西時
+    # `open_default=True` 會自己展開。
     job_row = lambda row: _render_job_row(row, selected_job_id)  # noqa: E731
     # 三節可能同時裝著本站的 job 與別人送的列（見 state() 的分節規則），
     # 用同一個 renderer 分辨：有 job_id 就是本站的。
@@ -2962,12 +2999,12 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     queue = (
         _render_section("selection", "收件匣", selection, _render_candidate_row,
                         prefix=_render_parse_all(selection))
-        + _render_section("in_progress", "處理中", in_progress, any_row,
-                          open_default=bool(in_progress))
         + _render_section("parsing", "解析中", parsing, job_row,
                           open_default=bool(parsing))
         + _render_section("review", "等你看", review, job_row, open_default=True)
         + _render_pending_groups(state.get("pending_by_reason"))
+        + _render_section("in_progress", "處理中", in_progress, any_row,
+                          open_default=bool(in_progress))
         + _render_section("completed", "已進知識庫", completed, any_row)
         + _render_section("skipped", "已跳過", skipped, job_row,
                           open_default=bool(skipped))
