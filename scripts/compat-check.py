@@ -35,8 +35,8 @@ from mineru_common import add_workspace_arg, load_env, postgres_container  # noq
 from pp import eyes  # noqa: E402
 from pp.docctx import (  # noqa: E402
     PAGE_SIZE_TOLERANCE_PT,
+    effective_page_sizes,
     page_size_spread,
-    page_sizes_compatible,
 )
 from pp.extraction_profile import active_profile, profile_hash, read_record  # noqa: E402
 from pp.graph_labels import CERTAIN_RE  # noqa: E402
@@ -830,7 +830,10 @@ class Checker:
             sizes = [(float(w), float(h))
                      for w, h in (tuple(p.get("page_size") or ()) for p in pi)
                      if len((w, h)) == 2]
-            size_ok = page_sizes_compatible(sizes)
+            # 判準與解析時同一份（含封面頁例外）—— 例外只加一邊的話，
+            # 同一份文件會「解析放行、檢查說不行」，而且是索引完了才被判失敗。
+            # 2026-08-09 實測踩到：3 份封面頁不同的文件走到這裡才 hard FAIL。
+            size_ok = effective_page_sizes(sizes) is not None
             ok = not bad and size_ok
             dw, dh = page_size_spread(sizes)
             return ok, (f"{len(pi)} 頁，page_size {sorted(set(sizes))}"

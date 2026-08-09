@@ -71,3 +71,20 @@ def test_a_figure_on_the_cover_page_does_not_block(tmp_path: Path) -> None:
     items = [{"type": "image", "page_idx": 0}, {"type": "text", "page_idx": 0}]
     ctx = DocContext(_bundle(tmp_path, [(595.0, 793.0), *[A4] * 3], items))
     assert ctx.page_size == A4
+
+
+def test_the_contract_check_uses_the_same_judgement() -> None:
+    """`compat-check` 的 A-14 與解析時要用**同一份**判準。
+
+    2026-08-09 犯過：封面頁例外只加在 `DocContext.page_size` 裡，A-14 還用舊的
+    `page_sizes_compatible` —— 於是同一份文件「解析放行、契約檢查說不行」，
+    而且是**文件索引完了才被判失敗**（intake 在放行後跑 compat-check）。
+    A-14 的註解本來就寫著「判準從 pp/docctx.py import，不在這裡再寫一份」，
+    抄本沒有出現 —— 漂掉的是**例外只加了一邊**。
+
+    讀原始碼而不是 import：`compat-check.py` 載入時會讀 `.env`，coder 上沒有。
+    """
+    src = (ROOT / "scripts" / "compat-check.py").read_text(encoding="utf-8")
+    assert "effective_page_sizes" in src, "A-14 沒有用共用判準"
+    assert "size_ok = page_sizes_compatible(" not in src, (
+        "A-14 還在用不含封面頁例外的舊判準 —— 會跟解析時不一致")

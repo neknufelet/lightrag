@@ -51,6 +51,35 @@ def page_sizes_compatible(sizes: list[tuple[float, float]]) -> bool:
     return dw <= PAGE_SIZE_TOLERANCE_PT and dh <= PAGE_SIZE_TOLERANCE_PT
 
 
+def effective_page_sizes(
+        sizes: list[tuple[float, float]]) -> list[tuple[float, float]] | None:
+    """真正拿來換算 bbox 的那組頁面尺寸；判不出來時回 `None`。
+
+        全部一致                → 原樣回
+        只有第 0 頁不同、內頁一致 → 回**內頁**那組（封面頁例外）
+        內文頁之間就不一致        → `None`，那是真的混排
+
+    **封面頁例外**：出版社常在論文前面蓋一張自己產生的封面，紙張跟內頁不一樣。
+    2026-08-09 進料 30 份遇到 3 份，形狀完全一致（595×793/595×841、612×809/612×792、
+    595×842/612×809）。這不是放寬容差 —— 2 點的容差是刻意的，要擋的是**內文頁之間**
+    混排，那種會讓 bbox 換算安靜地錯。
+
+    ⚠ **判準只能有一份。** `DocContext.page_size`（解析時擋）與 `compat-check`
+    的 A-14（契約檢查）都用這個函式。2026-08-09 犯過一次：例外只加在
+    `DocContext` 裡，A-14 還用舊判準，於是同一份文件「解析放行、檢查說不行」，
+    文件索引完了才被判失敗。A-14 的註解本來就寫著「不在這裡再寫一份」——
+    抄本沒有出現，漂掉的是**例外只加了一邊**。
+    """
+    if not sizes:
+        return None
+    if page_sizes_compatible(sizes):
+        return sizes
+    body = sizes[1:]
+    if len(sizes) > 1 and page_sizes_compatible(body):
+        return body
+    return None
+
+
 @dataclass
 class DocContext:
     raw_dir: Path
@@ -99,38 +128,31 @@ class DocContext:
         sizes = [(float(w), float(h)) for w, h in raw if len((w, h)) == 2]
         if not sizes:
             raise DocContextError(f"{self.doc_name}：layout.json 沒有 page_size")
-        if page_sizes_compatible(sizes):
-            return Counter(sizes).most_common(1)[0][0]
+        # 判準在模組層的 `effective_page_sizes()`（含封面頁例外）——
+        # `compat-check` 的 A-14 用同一個，**不各寫一份**。
+        body = effective_page_sizes(sizes)
+        if body is None:
+            dw, dh = page_size_spread(sizes)
+            raise DocContextError(
+                f"{self.doc_name}：頁面尺寸不一致 {sorted(set(sizes))}"
+                f"（寬差 {dw:g}、高差 {dh:g} 點，容差 {PAGE_SIZE_TOLERANCE_PT:g}）")
 
-        # ── 封面頁例外 ────────────────────────────────────────────────
-        # 出版社常在論文前面蓋一張自己產生的封面，紙張跟內頁不一樣。
-        # 2026-08-09 進料 30 份遇到 3 份，形狀完全一致：**只有第 0 頁不同、
-        # 內頁彼此一致**（595×793/595×841、612×809/612×792、595×842/612×809）。
-        #
-        # 這不是放寬容差 —— 容差 2 點是刻意的，要擋的是 A4 混 Letter 那種
-        # **內文頁之間**混排。這裡加的是一個**有訊號的例外**：分界剛好在第 0 頁。
-        #
-        # ⚠ 但仍然要擋一種情況：第 0 頁上有表格。裁圖是拿 `page_size`（＝內頁尺寸）
-        # 換算 bbox 的，封面頁的表格會被用錯的尺寸裁 —— 裁出來看起來還是像一張表，
-        # 只是位置不對，而那正是這道檢查存在的理由（安靜地錯）。
-        # ⚠ 已知限制：`eq-check.py` 會裁方程式，它對封面頁上的方程式同樣會錯。
-        # 封面頁通常沒有方程式，而 eq-check 是診斷工具不在主流程上，所以不擋 ——
-        # 但真的遇到時症狀會是「那一條裁圖對不上」。
-        body = sizes[1:]
-        if len(sizes) > 1 and page_sizes_compatible(body):
+        if body is not sizes:
+            # 封面頁與內頁不同。**還要再擋一種**：第 0 頁上有表格。裁圖是拿
+            # 內頁尺寸換算 bbox 的，封面頁的表格會被用錯的尺寸裁 —— 裁出來看
+            # 起來還是像一張表，只是位置不對，而那正是這道檢查存在的理由。
+            # ⚠ 已知限制：`eq-check.py` 對封面頁上的方程式同樣會錯。封面頁通常
+            # 沒有方程式，而它是診斷工具不在主流程上，所以不擋。
+            # ⚠ 這一條**刻意只在這裡**：A-14 是契約檢查（尺寸能不能用），
+            # 「有沒有東西要裁」是 preflight 的事，兩者的問題不同。
             cover_tables = [i for i, it in enumerate(self.items)
                             if it.get("page_idx") == 0 and it.get("type") == "table"]
-            if not cover_tables:
-                return Counter(body).most_common(1)[0][0]
-            raise DocContextError(
-                f"{self.doc_name}：封面頁尺寸與內頁不同（{sizes[0]} vs {body[0]}），"
-                f"而第 0 頁上有 {len(cover_tables)} 張表格 {cover_tables[:5]} —— "
-                "裁圖會用內頁尺寸換算封面頁的 bbox，裁出來的位置是錯的")
-
-        dw, dh = page_size_spread(sizes)
-        raise DocContextError(
-            f"{self.doc_name}：頁面尺寸不一致 {sorted(set(sizes))}"
-            f"（寬差 {dw:g}、高差 {dh:g} 點，容差 {PAGE_SIZE_TOLERANCE_PT:g}）")
+            if cover_tables:
+                raise DocContextError(
+                    f"{self.doc_name}：封面頁尺寸與內頁不同（{sizes[0]} vs {body[0]}），"
+                    f"而第 0 頁上有 {len(cover_tables)} 張表格 {cover_tables[:5]} —— "
+                    "裁圖會用內頁尺寸換算封面頁的 bbox，裁出來的位置是錯的")
+        return Counter(body).most_common(1)[0][0]
 
     @cached_property
     def n_pages(self) -> int:
