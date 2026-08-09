@@ -1179,14 +1179,42 @@ class IntakeApp:
                 jobs.append(job)
         return jobs
 
-    def submit_admit(self, job_id: str) -> Job:
+    def submit_admit(self, job_id: str, *, acknowledged: Sequence[str] | None = None) -> Job:
+        """放行。`acknowledged` 是**人在畫面上看到並確認過的那幾條理由**。
+
         # 不再擋「忙碌中」：放行佇列自己就是單條工人，排進去就是排隊。
         # 舊守衛會讓「多份一起放行」做不到 —— 第一件排進去之後，後面每一件都被
         # 自己排出來的佇列擋掉（2026-08-09 重啟後 17 件卡在「等你看」就是這樣）。
+
+        **`novel` 也要放得出去。** 在此之前只有 `clean` 能放行，於是「等你看」
+        把東西攔下來給人看、**看完卻沒有任何動作可以做** —— 那一節只出不進，
+        文件就永遠卡在那裡。2026-08-09 兩份論文因為「封面頁高度與內頁不同」
+        被標 novel，量過確認無害，但按不下去。
+
+        **不是跳過檢查，是承認看過。** 放行之後 `apply` 自己那套守衛照跑
+        （preflight、消音比例、bundle 認可），真的壞掉還是會擋在那裡。
+
+        **必須逐條對上，不能只送一個 `override=true`。** 送清單的用意是：
+        畫面上列了三條而人只看了兩條時，第三條不會被一個籠統的旗標帶過去。
+        理由變了（重新解析、規則改了）也會對不上而拒絕 —— 那時候該重看一次。
+        """
         job = self._get_job(job_id)
         with self._lock:
-            if job.status != "planned" or job.decision != "clean":
-                raise IntakeError("只有機械計畫通過的待審核文件可以放行", 409)
+            if job.status != "planned":
+                raise IntakeError("只有待審核的文件可以放行", 409)
+            if job.decision != "clean":
+                seen = list(acknowledged or [])
+                pending = list(job.reasons or [])
+                if sorted(seen) != sorted(pending):
+                    raise IntakeError(
+                        "這份有沒見過的狀況，要逐條確認過才能放行。"
+                        f"目前的理由：{pending or '（無）'}；你確認的：{seen or '（無）'}"
+                        "　—— 對不上通常表示理由變了（重新解析過、或規則改了），請重看一次",
+                        409)
+                LOGGER.warning("job %s 人工放行（已確認 %d 條沒見過的狀況）：%s",
+                               job_id, len(pending), "；".join(pending))
+                self.store.append_log(
+                    job_id, "人工放行：已逐條確認 " + "；".join(pending))
             job.workspace = self.workspace
             # 上一次退回的原因不要留到這一次 —— 舊訊息掛在畫面上會讓人
             # 以為又被擋了一次。
@@ -2679,7 +2707,13 @@ def _render_plan(job: Mapping[str, object] | None) -> str:
         acts = (f"<button class='go' data-act='admit' data-id='{job_id}'>放行 · 修補並索引</button>"
                 f"<button data-act='return' data-id='{job_id}'>跳過</button>")
     elif status == "planned":
-        acts = f"<button data-act='return' data-id='{job_id}'>跳過並保留理由</button>"
+        # **看完要有動作可以做。** 在此之前這裡只有「跳過」，於是被攔下來的文件
+        # 只出不進，永遠卡在「等你看」。按鈕帶著它**畫面上列出來的那幾條理由**
+        # 送回去，後端逐條比對 —— 對不上（重新解析過、規則改了）就拒絕並要人重看。
+        ack = html.escape(json.dumps(list(reasons), ensure_ascii=False), quote=True)
+        acts = (f"<button class='go' data-act='admit' data-id='{job_id}' data-ack=\"{ack}\">"
+                f"我看過這 {len(reasons)} 條了 · 放行</button>"
+                f"<button data-act='return' data-id='{job_id}'>跳過並保留理由</button>")
     elif status in {"failed", "failed_parse"}:
         acts = f"<button data-act='reset' data-id='{job_id}'>重置為候選</button>"
     else:
@@ -2910,7 +2944,18 @@ document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
   const a = b.dataset.act;
   if (a === 'parse')  return post('/api/parse',  {candidate_id: b.dataset.id});
   if (a === 'parse-all') return post('/api/parse', {candidate_ids: b.dataset.id.split(',')});
-  if (a === 'admit')  return post('/api/admit',  {job_id: b.dataset.id});
+  if (a === 'admit') {
+    /* `data-ack` 只在「有沒見過的狀況」那顆按鈕上。把畫面上列的理由原文送回去，
+       後端逐條比對 —— 送一個籠統的 override 會讓「列了三條只看兩條」通過。 */
+    let ack = null;
+    if (b.dataset.ack) {
+      try { ack = JSON.parse(b.dataset.ack); } catch (_) { ack = null; }
+      if (!ack || !confirm('這份有 ' + ack.length + ' 條沒見過的狀況：\n\n· '
+                           + ack.join('\n· ') + '\n\n確認看過並放行？')) return;
+    }
+    return post('/api/admit', ack ? {job_id: b.dataset.id, acknowledged: ack}
+                                  : {job_id: b.dataset.id});
+  }
   if (a === 'return') return post('/api/return', {job_id: b.dataset.id});
   if (a === 'retry')  return post('/api/retry',  {job_id: b.dataset.id});
   if (a === 'reset')  return post('/api/reset',  {job_id: b.dataset.id});
@@ -3241,7 +3286,13 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                 if not isinstance(job_id, str):
                     raise IntakeError("需要 job_id", 400)
                 if parsed.path == "/api/admit":
-                    job = app.submit_admit(job_id)
+                    # `acknowledged` 是畫面上那幾條理由的原文。只有 novel 需要它，
+                    # clean 的送不送都一樣（`submit_admit` 只在 novel 時比對）。
+                    ack = payload.get("acknowledged")
+                    if ack is not None and not (
+                            isinstance(ack, list) and all(isinstance(x, str) for x in ack)):
+                        raise IntakeError("acknowledged 必須是字串陣列", 400)
+                    job = app.submit_admit(job_id, acknowledged=ack)
                     self._json({"job": app._public_job(job)}, 202)
                     return
                 if parsed.path == "/api/return":

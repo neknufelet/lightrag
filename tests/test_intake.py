@@ -162,7 +162,7 @@ def test_parse_review_keeps_inputs_empty_and_admit_order(tmp_path: Path) -> None
         app.stop()
 
 
-def test_pending_confirmation_is_grouped_by_reason_and_has_no_admit_button(tmp_path: Path) -> None:
+def test_pending_confirmation_is_grouped_by_reason_and_needs_acknowledgement(tmp_path: Path) -> None:
     source_parent = _source(tmp_path, ("a.pdf", "b.pdf"))
     data_root = tmp_path / "data"
     evaluations = {
@@ -201,11 +201,20 @@ def test_pending_confirmation_is_grouped_by_reason_and_has_no_admit_button(tmp_p
         assert "未知型別 sidebar_note" in html
         assert "a.pdf" in html and "b.pdf" in html
 
-        # ⚠ 這是安全斷言：待確認的文件**不得**出現放行按鈕。
-        # not-in 形式必須有控制組——否則按鈕屬性一改名，這行會從「守住安全」
-        # 默默變成「永遠說沒事」，找的是一個已經不存在的字串。鐵則 7 那一族。
-        assert "data-act=" in html, "data-act 不存在，下面的 not-in 斷言會假通過"
-        assert "data-act='admit'" not in html
+        # ⚠ 安全斷言（2026-08-09 改版）。
+        #
+        # 舊版釘的是「待確認的文件**不得**出現放行按鈕」。那條被實務推翻：
+        # 「等你看」把東西攔下來給人看，看完卻沒有動作可以做，於是那一節只出不進
+        # —— 兩份論文因為「封面頁高度與內頁不同」卡在那裡，量過確認無害卻按不下去。
+        #
+        # 新的不變式不是「不能放行」，是**「不能不看就放行」**：按鈕必須帶著畫面上
+        # 列出來的每一條理由，後端逐條比對。只送一個籠統的 override 會讓
+        # 「列了三條只看兩條」通過。
+        assert "data-act=" in html, "data-act 不存在，下面的斷言會假通過"
+        assert "data-act='admit'" in html, "待確認的文件沒有放行的路 —— 那一節會只出不進"
+        assert "data-ack=" in html, "放行按鈕沒有帶理由 —— 等於不看就放行"
+        assert "未知型別 sidebar_note" in html.split("data-ack=")[1][:400], (
+            "按鈕帶的理由跟畫面列的對不上")
     finally:
         app.stop()
 
@@ -1204,3 +1213,58 @@ def test_staging_blocks_foreign_pdfs_but_not_my_own_concurrent_ones(tmp_path: Pa
     assert "繞過後處理" in reason, "擋下來的理由不見了 —— 那句話才是這道門的意義"
     assert "我的甲.pdf" not in reason and "我的乙.pdf" not in reason, (
         "把自己正在放行的檔一起列成問題了")
+
+
+def test_a_novel_plan_needs_every_reason_acknowledged(tmp_path: Path) -> None:
+    """`novel` 放得出去，**但要逐條確認**。
+
+    2026-08-09 改版：在此之前只有 `clean` 能放行，於是「等你看」把東西攔下來給人看、
+    看完卻沒有任何動作可以做，那一節只出不進（兩份論文因「封面頁高度與內頁不同」
+    卡在那裡）。現在可以放行，但擋的東西換成「不能**不看**就放行」。
+
+    **為什麼是逐條比對而不是一個 override 旗標**：畫面上列三條而人只看了兩條時，
+    籠統的旗標會把第三條一起帶過去。理由變了（重新解析、規則改了）也會對不上 ——
+    那時候本來就該重看一次。
+    """
+    app = _app(tmp_path)
+    app.save_upload("novel.pdf", PDF + b"novel")
+    candidate = next(c for c in app._candidates()[0] if c.filename == "novel.pdf")
+    job = Job.from_candidate(candidate)
+    job.workspace = app.workspace
+    job.status = "planned"                        # type: ignore[assignment]
+    job.decision = "novel"                        # type: ignore[assignment]
+    job.reasons = ["頁面尺寸不一致", "未知型別 sidebar_note"]
+    app._jobs[job.job_id] = job
+
+    # 什麼都不確認 → 擋
+    with pytest.raises(IntakeError) as e1:
+        app.submit_admit(job.job_id)
+    assert e1.value.status_code == 409
+
+    # 只確認一條（畫面列了兩條）→ 擋。這一條就是「籠統旗標」擋不到的那種
+    with pytest.raises(IntakeError):
+        app.submit_admit(job.job_id, acknowledged=["頁面尺寸不一致"])
+
+    # 確認到不存在的理由 → 擋（理由變了要重看）
+    with pytest.raises(IntakeError):
+        app.submit_admit(job.job_id, acknowledged=["頁面尺寸不一致", "別的理由"])
+
+    # 逐條對上 → 放行，而且要留下痕跡
+    out = app.submit_admit(job.job_id, acknowledged=list(reversed(job.reasons)))
+    assert out.status == "repairing"
+    log = "\n".join(app.store.read_log(job.job_id)) if hasattr(app.store, "read_log") else ""
+    if log:
+        assert "人工放行" in log, "人工放行沒有留下紀錄"
+
+
+def test_a_clean_plan_still_admits_without_ceremony(tmp_path: Path) -> None:
+    """乾淨的計畫不該被新規矩拖慢 —— 它本來就是自動放行的那一條路。"""
+    app = _app(tmp_path)
+    app.save_upload("clean.pdf", PDF + b"clean")
+    candidate = next(c for c in app._candidates()[0] if c.filename == "clean.pdf")
+    job = Job.from_candidate(candidate)
+    job.workspace = app.workspace
+    job.status = "planned"                        # type: ignore[assignment]
+    job.decision = "clean"                        # type: ignore[assignment]
+    app._jobs[job.job_id] = job
+    assert app.submit_admit(job.job_id).status == "repairing"
