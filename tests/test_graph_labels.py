@@ -37,6 +37,11 @@ CERTAIN_NAMES = [
     "table i",
     # ↓ 報告的字首清單沒有 `reference`，也是本輪補上的
     "reference 1",
+    # ↓ 小數點分節（教科書章節的編號方式）。第一版漏掉，清完 39 個之後才在
+    #   向量表裡撈到 —— 12 個 `equation X.Y` 還活著。
+    "equation 3.3", "equation 8.36", "equation 1.19",
+    # ↓ 字母範圍。同一批漏網。
+    "figure 5b-d", "figure 5e-g",
 ]
 
 # ── 待裁定那 27 個的代表：PO 2026-08-09 裁決先不刪 ─────────────────────────
@@ -64,6 +69,13 @@ INNOCENT_NAMES = [
     "Figure of Merit",
     "Transfer Matrix Method",
     "Sound Absorption Coefficient",
+    # ↓ 這三個是圖譜裡真實存在的節點，而且是**最危險的一組**：字首 `reference`
+    #   在確定可刪清單裡，後面接的字又以 `i` 開頭 —— 而 `i` 是羅馬數字。
+    #   樣式一旦寫鬆（例如尾巴允許後面還有東西），它們會被當成位置標記刪掉，
+    #   而 `reference impedance` 是聲學的真概念。
+    "reference impedance z0",
+    "reference impedance z 0",
+    "reference impedance Z_i",
 ]
 
 
@@ -92,6 +104,21 @@ def test_roman_numerals_are_covered() -> None:
     assert classify("table i") == "certain"
     assert classify("table iv") == "certain"
     assert classify("section III") == "certain"
+
+
+def test_decimal_and_range_numbering_are_covered() -> None:
+    """編號的四種寫法要全部涵蓋，缺一種就漏掉一整族。
+
+    2026-08-09 實測：第一版只合併了「羅馬數字」那一半，清掉 39 個之後圖譜裡
+    還活著 12 個 `equation X.Y`（教科書章節的編號）與 2 個 `figure 5b-d`。
+    **少的那一種不會有錯誤訊息，只會安靜地留在圖譜裡。**
+    """
+    assert classify("equation 3.3") == "certain"      # 小數點分節
+    assert classify("equation 8.36") == "certain"
+    assert classify("figure 5b-d") == "certain"       # 字母範圍
+    assert classify("equation 8a") == "certain"       # 單一字母
+    assert classify("table i") == "certain"           # 羅馬數字
+    assert classify("table 16") == "certain"          # 純數字
 
 
 def test_buckets_do_not_overlap() -> None:

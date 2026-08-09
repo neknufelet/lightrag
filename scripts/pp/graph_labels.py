@@ -51,10 +51,19 @@ SUSPECT_PREFIXES: Final[tuple[str, ...]] = (
     "phase", "panel", "scheme", "configuration", "config",
 )
 
-# 編號的尾巴。**羅馬數字必須包含**：正式庫裡有 `table i`、`mode ii`、`part III`，
-# 報告提的 `[\d.]+` 抓不到它們。這一段沿用 `graph-shape.py` 原本就在用的寫法，
-# 所以兩組字首的總和與舊的量測結果可以直接對照。
-_TAIL: Final[str] = r"[\s._\-#]*[0-9ivxIVX]+[a-z)]?\s*$"
+# 編號的尾巴。三種寫法都要涵蓋，缺一個就會漏掉一整族：
+#
+#   阿拉伯數字   `equation 22`、`table 16`
+#   小數點分節   `equation 3.3`、`equation 8.36`  ← 教科書章節的編號方式
+#   字母／範圍   `equation 8a`、`figure 4f`、`figure 5b-d`
+#   羅馬數字     `table i`、`part III`
+#
+# **這四種是分兩次補齊的，過程記在這裡免得下次又來一輪。** 報告第八節提的
+# `[\d.]+[a-z]?` 有小數點但沒有羅馬數字；`graph-shape.py` 原本的
+# `[0-9ivxIVX]+[a-z)]?` 有羅馬數字但沒有小數點。2026-08-09 第一版只合併了後者，
+# 清完 39 個之後在向量表裡撈到 `equation 3.3`、`figure 5b-d` 還在 —— 少了小數點
+# 與字母範圍那兩種。擴充後對正式庫實跑，多抓 14 個、**新增的待裁定 0 個**。
+_TAIL: Final[str] = r"[\s._\-#]*([0-9]+(\.[0-9]+)*([a-z](-[a-z])?)?|[ivxIVX]+)[)]?\s*$"
 
 Bucket = Literal["certain", "suspect"]
 
