@@ -228,3 +228,46 @@ def test_the_partition_constant_is_shared_not_copied() -> None:
         "reference_section 沒有引用共用常數 —— 型別清單被抄了一份，會漂")
     assert '"header", "footer"' not in src, (
         "reference_section 裡出現了抄過來的型別清單，改用 layout_noise.OWNED_TYPES")
+
+
+def test_an_appendix_stops_the_section_even_without_a_heading_level() -> None:
+    """附錄是正文，致謝／參考清單不可以延伸進去 —— **就算解析器沒把它標成標題**。
+
+    2026-08-09 實測（2024 Broadband sound absorbers via quality-factor modulation）：
+    `Appendix A. The impedance model…` 這一行 MinerU 沒有給 `text_level`，於是
+    「消到下一個同級標題為止」跨過它，`Acknowledgments` 一路吃到參考文獻，把整個
+    附錄 A（正文 3 項、公式 4 條、圖 3 張）當成致謝消掉。**沒有錯誤訊息**，
+    只有比例守衛（35.1%）攔下來。
+
+    ⚠ 前綴比對不是整行比對：附錄標題後面通常還跟著篇名。
+    """
+    items = [
+        {"type": "text", "text": "正文", "page_idx": 0},
+        {"type": "text", "text": "Acknowledgments", "text_level": 2, "page_idx": 8},
+        {"type": "text", "text": "This work is supported by NSFC…", "page_idx": 8},
+        # ↓ 沒有 text_level，長度也不只 "Appendix A"
+        {"type": "text",
+         "text": "Appendix A. The impedance model of the two-resonator absorber",
+         "page_idx": 8},
+        {"type": "text", "text": "The transfer matrix method is used to…", "page_idx": 8},
+        {"type": "equation", "text": "$$ T_{pp} = … $$", "page_idx": 9},
+        {"type": "text", "text": "References", "text_level": 2, "page_idx": 10},
+        {"type": "list", "list_items": ["[1] D.-Y. Maa, Potential of microperforated panel"],
+         "sub_type": "ref_text", "page_idx": 10},
+    ]
+    got = {m.index for m in rs.plan(items).mutes}
+    assert 3 not in got and 4 not in got and 5 not in got, (
+        f"附錄被消掉了：{sorted(got)} —— 那是正文、公式與圖")
+    assert got == {1, 2, 6, 7}, f"該消的沒消或多消：{sorted(got)}"
+
+
+def test_supplementary_information_is_also_a_hard_boundary() -> None:
+    """補充材料同理。2017 那篇靠 `text_level` 擋住過，但不能只靠那個。"""
+    items = [
+        {"type": "text", "text": "References", "text_level": 2, "page_idx": 5},
+        {"type": "list", "list_items": ["[1] …"], "sub_type": "ref_text", "page_idx": 5},
+        {"type": "text", "text": "Supplementary Information for this paper", "page_idx": 6},
+        {"type": "text", "text": "整份補充材料的真內容", "page_idx": 6},
+    ]
+    got = {m.index for m in rs.plan(items).mutes}
+    assert got == {0, 1}, f"補充材料被吃掉了：{sorted(got)}"

@@ -42,6 +42,23 @@ ACKNOWLEDGEMENT_HEADING = re.compile(
     r"^\s*#*\s*(acknowledge?ments?|funding|author\s+contributions?|"
     r"conflicts?\s+of\s+interest|declaration\s+of\s+competing\s+interest)\s*$", re.I)
 
+# **正文重新開始的硬邊界，與標題層級無關。**
+#
+# 2026-08-09 實測（2024 Broadband sound absorbers via quality-factor modulation）：
+# `Appendix A. The impedance model of the two-resonator absorber…` 這一行 MinerU
+# **沒有標成標題**（沒有 `text_level`），於是「消到下一個同級或更高級的標題為止」
+# 直接跨過它 —— `Acknowledgments` 區段一路吃到參考文獻，把整個附錄 A
+# （正文 3 項、公式 4 條、圖 3 張）當成致謝消掉，**而且不會有錯誤訊息**。
+# 只有比例守衛（35.1%）攔下了它。
+#
+# 附錄**依定義就是正文**，致謝與參考清單不可能延伸進去。所以判準不能只靠
+# 「MinerU 有沒有把它標成標題」—— 那是解析器的判斷，會漏。
+#
+# ⚠ 前綴比對，不是整行比對：附錄標題後面通常還跟著篇名
+#（上面那行就是），用 `$` 收尾會配不到。
+BODY_RESUMES = re.compile(
+    r"^\s*#*\s*(appendix|supplementary\s+(information|material))\b", re.I)
+
 # 消音佔比超過此值就標記待查。與 layout_noise 同一個機制：誤消真內容不會報錯，
 # 只能靠比例異常察覺。參考文獻在論文裡常佔 10–15%，所以門檻比版面雜訊寬。
 SUSPICIOUS_RATIO = 0.30
@@ -131,6 +148,11 @@ def plan(items: list[dict]) -> RefPlan:
         for j in range(i + 1, len(items)):
             lvl_j = items[j].get("text_level")
             if lvl_j and lvl_j <= level:
+                end = j
+                break
+            # 附錄／補充材料是正文，區段到此為止 —— 就算解析器沒把它標成標題。
+            # 見 `BODY_RESUMES` 的說明（附錄被當致謝消掉的實例）。
+            if BODY_RESUMES.match((items[j].get("text") or "").strip()):
                 end = j
                 break
 
