@@ -35,6 +35,15 @@ _DIGITS = re.compile(r"\d+")
 def template_key(text: str) -> str:
     return _DIGITS.sub("#", text.strip())
 
+# **這條規則的地盤。** 三條消音規則靠型別分工，撞在一起時 `_pp_original_text`
+# 會被寫兩次而還原只還原得回一次（`pp/apply.py` 有執行者，撞到就整份拒絕）。
+#
+# 分工原本只寫在 `apply.py` 的註解裡 —— 也就是**沒有執行者**，於是漂了：
+# `reference_section` 圈整個參考區段時把那幾頁的頁首頁尾一起圈走，
+# 2026-08-09 這批 22 篇有 8 篇因此被擋（36%）。現在它 import 這個常數來排除，
+# 兩邊讀同一份，不各寫一份。
+OWNED_TYPES: tuple[str, ...] = ("header", "footer", "aside_text")
+
 # 重複幾次以上才算書眉。書眉會在每頁重現，真正的章節標題只出現一次。
 # 實測 C Equivalent Networks 的 111 個 header 只有 4 種文字：
 # 'Equivalent Networks'×67、'C'×34、'd'×9、''×1 —— 全部遠高於門檻。
@@ -114,7 +123,7 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
     """
     thr = head_threshold(n_pages)
     targets = [(i, it) for i, it in enumerate(items)
-               if it.get("type") in ("header", "footer", "aside_text")]
+               if it.get("type") in OWNED_TYPES]
     counts = collections.Counter((it.get("text") or "").strip() for _, it in targets)
     # 樣板計數：抹掉數字後再數一次。頁碼型頁尾只有這樣才數得到。
     tcounts = collections.Counter(template_key(it.get("text") or "") for _, it in targets)

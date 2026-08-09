@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from pp.rules import layout_noise  # noqa: E402
 from pp.rules import reference_section as rs  # noqa: E402
 
 
@@ -190,3 +191,40 @@ def test_apply_is_idempotent_on_already_muted_items() -> None:
     rs.apply_to_items(items, rs.plan(items))      # 第二次
     rs.revert_items(items)
     assert items[0]["list_items"] == ["1. A. Author, 2020."], "原文必須完好"
+
+
+def test_reference_section_does_not_claim_layout_noise_types() -> None:
+    """參考區段不得認領 header／footer／aside_text —— 那是 `layout_noise` 的地盤。
+
+    **這條是踩出來的。** 分工原本只寫在 `pp/apply.py` 的註解裡（＝沒有執行者），
+    於是漂了：參考文獻在最後幾頁，整段圈下去會連那幾頁的書眉與頁尾 DOI 一起圈走。
+    兩條規則同時消音時 `_pp_original_text` 會被寫兩次（第二次存的是空字串），
+    還原只還原得回一項 —— apply 因此**整份拒絕**。2026-08-09 進料 22 篇有 8 篇
+    卡在這裡（36%），而衝突的項目 100% 是 header/footer。
+
+    排除不會少消東西：那些項目仍由 `layout_noise` 消掉，只是不再被兩條同時認領。
+    """
+    items = [
+        {"type": "text", "text": "正文", "page_idx": 0},
+        {"type": "text", "text": "References", "text_level": 2, "page_idx": 8},
+        {"type": "text", "text": "[1] Y. Xiao, et al.", "page_idx": 8},
+        # 參考清單那幾頁的書眉與頁尾 —— 落在區段範圍內，但不歸這條規則管
+        {"type": "header", "text": "New J. Phys. 16 (2014) 033026", "page_idx": 8},
+        {"type": "footer", "text": "doi:10.1088/1367-2630", "page_idx": 8},
+        {"type": "aside_text", "text": "IOP Publishing", "page_idx": 8},
+        {"type": "text", "text": "[2] J Z Song, et al.", "page_idx": 9},
+    ]
+    plan = rs.plan(items)
+    got = {m.index for m in plan.mutes}
+    assert got == {1, 2, 6}, f"消到了不該碰的型別：{sorted(got)}"
+    for m in plan.mutes:
+        assert m.item_type not in layout_noise.OWNED_TYPES, m
+
+
+def test_the_partition_constant_is_shared_not_copied() -> None:
+    """兩邊要讀同一份常數。各寫一份的話，改了一邊而另一邊沒改不會有任何訊號。"""
+    src = Path(rs.__file__).read_text(encoding="utf-8")
+    assert "layout_noise.OWNED_TYPES" in src, (
+        "reference_section 沒有引用共用常數 —— 型別清單被抄了一份，會漂")
+    assert '"header", "footer"' not in src, (
+        "reference_section 裡出現了抄過來的型別清單，改用 layout_noise.OWNED_TYPES")

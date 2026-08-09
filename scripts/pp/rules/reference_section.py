@@ -29,6 +29,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from pp.rules import layout_noise
+
 # 參考清單的標題。實測六份文件的寫法：References / REFERENCES / Bibliography。
 REFERENCE_HEADING = re.compile(
     r"^\s*#*\s*(references?|bibliography|works\s+cited|literature\s+cited)\s*$", re.I)
@@ -135,6 +137,17 @@ def plan(items: list[dict]) -> RefPlan:
         span = list(range(i, end))
         for j in span:
             if j in muted_idx:
+                continue
+            # **不碰 header／footer／aside_text —— 那是 `layout_noise` 的地盤。**
+            # 參考文獻在最後幾頁，整段圈下去會連那幾頁的書眉與頁尾 DOI 一起圈走，
+            # 而它們每頁重現、本來就會被書眉規則消掉。兩條同時消音時
+            # `_pp_original_text` 會被寫兩次（第二次存的是空字串），還原只還原得回
+            # 一項 —— `pp/apply.py` 因此整份拒絕。2026-08-09 這批 22 篇有 8 篇
+            # 卡在這裡（36%），而衝突的項目**全部**是 header/footer。
+            #
+            # 排除不會少消東西：這些項目仍然由 `layout_noise` 消掉，只是不再被
+            # 兩條規則同時認領。
+            if items[j].get("type") in layout_noise.OWNED_TYPES:
                 continue
             muted_idx.add(j)
             mutes.append(RefMute(index=j, item_type=items[j].get("type", ""),
