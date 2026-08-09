@@ -906,10 +906,25 @@ class IntakeApp:
         self.environment = dict(environment or {})
         self.repo = repo
         self._lock = threading.RLock()
-        self._queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
+        # **兩條佇列，不是一條。** 解析是打 mineru.net 的雲端 API（純等網路，
+        # 各自寫各自的 bundle），可以併行；放行會把 PDF 放進 `inputs/<workspace>`
+        # 這個**共用暫存區**，而放行前要求那裡是純淨空目錄（`_inputs_blocked_reason`）
+        # —— 那是一次一份的不變式，併行會互相踩。
+        #
+        # ⚠ **不要合成一條再用鎖擋放行**：那樣 6 個工人會全部卡在鎖上，連解析都
+        # 做不了（head-of-line blocking），比循序還慢。
+        self._parse_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
+        self._admit_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
         self._stop = threading.Event()
-        self._worker: threading.Thread | None = None
-        self._running_job_id: str | None = None
+        self._workers: list[threading.Thread] = []
+        # 同時「真的在跑」的 job。循序時代這裡是單一個 job_id ——
+        # 併行之後必須是集合，否則第二個工人一起跑會把第一個的紀錄蓋掉，
+        # 而畫面上「排隊中／正在跑」正是靠它分辨的。
+        self._running: set[str] = set()
+        # 解析併行數。mineru.net 的限制是 300 次/分鐘、每天 2,000 頁享最高優先，
+        # 併發本身沒有寫上限 —— 所以擋住的從來不是它，是我們自己。
+        # 對齊 `MAX_PARALLEL_INSERT=6`（LightRAG 同時處理幾份文件）。
+        self.parse_workers = max(1, int(self.environment.get("INTAKE_PARSE_WORKERS", "6")))
         self.store = JobStore(paths)
         self.events = EventStore(paths)
         self._jobs: dict[str, Job] = {job.job_id: job for job in self.store.load()}
@@ -975,7 +990,7 @@ class IntakeApp:
             if job.status not in {"parsing", "repairing"}:
                 continue
             kind = "parse" if job.status == "parsing" else "admit"
-            self._queue.put((kind, job.job_id))
+            self._queue_for(kind).put((kind, job.job_id))
             requeued.add(job.job_id)
             where = "還在排隊" if job.stage_started_at is None else "跑到一半"
             message = (f"服務重啟時這份{where}，而且還沒碰過索引，"
@@ -1023,7 +1038,7 @@ class IntakeApp:
                 job.error = None
                 message = (f"服務重啟時 LightRAG 仍在處理這份（{reality}），"
                            "重新掛回等待，不重跑抽取。")
-                self._queue.put(("resume", job.job_id))
+                self._admit_queue.put(("resume", job.job_id))
             else:
                 job.status = "failed"
                 message = ("服務重啟時工作仍在執行，而且索引裡找不到這份文件"
@@ -1034,31 +1049,47 @@ class IntakeApp:
 
     def start(self) -> None:
         with self._lock:
-            if self._worker is not None and self._worker.is_alive():
+            if any(w.is_alive() for w in self._workers):
                 return
             self._stop.clear()
-            self._worker = threading.Thread(
-                target=self._worker_loop,
-                name="intake-worker",
-                daemon=True,
-            )
-            self._worker.start()
+            self._workers = []
+            for i in range(self.parse_workers):
+                self._workers.append(threading.Thread(
+                    target=self._worker_loop, args=(self._parse_queue,),
+                    name=f"intake-parse-{i}", daemon=True))
+            # 放行只有一條 —— `inputs/<workspace>` 是共用暫存區，見 __init__ 的說明。
+            self._workers.append(threading.Thread(
+                target=self._worker_loop, args=(self._admit_queue,),
+                name="intake-admit", daemon=True))
+            for w in self._workers:
+                w.start()
+        LOGGER.info("worker 啟動：解析 %d 條、放行 1 條", self.parse_workers)
 
     def stop(self) -> None:
         with self._lock:
-            worker = self._worker
-            if worker is None:
+            workers = list(self._workers)
+            if not workers:
                 return
             self._stop.set()
-            self._queue.put(None)
-        worker.join(timeout=5)
-        if worker.is_alive():
-            LOGGER.warning("intake worker 尚未停止；目前工作仍可能在外部命令內執行")
+            for _ in range(self.parse_workers):
+                self._parse_queue.put(None)
+            self._admit_queue.put(None)
+        for w in workers:
+            w.join(timeout=5)
+        alive = [w.name for w in workers if w.is_alive()]
+        if alive:
+            LOGGER.warning("intake worker 尚未停止：%s；目前工作仍可能在外部命令內執行",
+                           ", ".join(alive))
         with self._lock:
-            self._worker = None
+            self._workers = []
+
+    def _queue_for(self, kind: str) -> queue.Queue[tuple[str, str] | None]:
+        """哪一條佇列。**只有解析可以併行**，其餘（放行／退回／續跑）都碰共用暫存區。"""
+        return self._parse_queue if kind == "parse" else self._admit_queue
 
     def _busy(self) -> bool:
-        return self._running_job_id is not None or not self._queue.empty()
+        return (bool(self._running)
+                or not self._parse_queue.empty() or not self._admit_queue.empty())
 
     def _jobs_snapshot(self) -> list[Job]:
         with self._lock:
@@ -1113,7 +1144,7 @@ class IntakeApp:
                 job.stage_started_at = None          # 排進佇列，還沒輪到
                 self._jobs[job.job_id] = job
                 self.store.save(job)
-                self._queue.put(("parse", job.job_id))
+                self._parse_queue.put(("parse", job.job_id))
                 jobs.append(job)
         return jobs
 
@@ -1132,7 +1163,7 @@ class IntakeApp:
             transition(job, "repairing")
             job.stage_started_at = None              # 排進佇列，還沒輪到
             self.store.save(job)
-            self._queue.put(("admit", job.job_id))
+            self._admit_queue.put(("admit", job.job_id))
         return job
 
     def submit_return(self, job_id: str) -> Job:
@@ -1144,7 +1175,7 @@ class IntakeApp:
             if job.status != "planned":
                 raise IntakeError("只有待審核文件可以退回", 409)
             job.workspace = self.workspace
-            self._queue.put(("return", job.job_id))
+            self._admit_queue.put(("return", job.job_id))
         return job
 
     def submit_retry(self, job_id: str) -> Job:
@@ -1183,15 +1214,15 @@ class IntakeApp:
         self.store.append_log(job_id, "重試：計畫仍有效，解析成果保留，撥回待審核")
         return job
 
-    def _worker_loop(self) -> None:
+    def _worker_loop(self, q: queue.Queue[tuple[str, str] | None]) -> None:
         while True:
-            task = self._queue.get()
+            task = q.get()
             try:
                 if task is None:
                     return
                 kind, job_id = task
                 with self._lock:
-                    self._running_job_id = job_id
+                    self._running.add(job_id)
                 self._mark_stage_started(job_id)
                 if kind == "parse":
                     self._run_parse(job_id)
@@ -1210,9 +1241,10 @@ class IntakeApp:
                         task[1], f"worker 例外：{type(exc).__name__}: {exc}", exception=exc,
                     )
             finally:
-                with self._lock:
-                    self._running_job_id = None
-                self._queue.task_done()
+                if task is not None:
+                    with self._lock:
+                        self._running.discard(task[1])
+                q.task_done()
 
     def _mark_stage_started(self, job_id: str) -> None:
         """這一件真的輪到了。
@@ -1378,7 +1410,7 @@ class IntakeApp:
             transition(job, "repairing")
             job.stage_started_at = None              # 排進佇列，還沒輪到
             self.store.save(job)
-            self._queue.put(("admit", job.job_id))
+            self._admit_queue.put(("admit", job.job_id))
         LOGGER.info("job %s 計畫判定 clean，自動放行", job.job_id)
         self.store.append_log(job.job_id, "計畫判定 clean，自動放行（裁決 4eacaea）")
 
@@ -1898,8 +1930,8 @@ class IntakeApp:
 
     def health(self) -> dict[str, object]:
         with self._lock:
-            worker_alive = self._worker is not None and self._worker.is_alive()
-            running = self._running_job_id is not None
+            worker_alive = any(w.is_alive() for w in self._workers)
+            running = bool(self._running)
             jobs = list(self._jobs.values())
         pending = [job for job in jobs if job.status not in TERMINAL_STATUSES]
         oldest = None
@@ -2389,7 +2421,8 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
     chip = (f"<span class='chip {'idle' if job.get('queued') else _chip_class(status, decision)}'>"
             f"{_esc('排隊中' if job.get('queued') else _status_label(status, decision))}</span>")
     return (
-        f"<div class='row{" current" if is_current else ""}'>"
+        f"<div class='row{" current" if is_current else ""}' "
+        f"data-q='{1 if job.get('queued') else 0}'>"
         f"<a class='nm' href='?job={job_id}' title='{_esc(job.get("filename", ""))}'>"
         f"{_esc(job.get('filename', ''))}</a>"
         f"<span style='display:flex;gap:6px;align-items:center'>{chip}{action}</span>"
@@ -2444,14 +2477,25 @@ def _render_section(key: str, title: str, rows: Sequence[Mapping[str, object]],
     # worker 是循序的（一次一件），所以「處理中 15」在畫面上長得像 15 件都在動，
     # 實際上可能一件都還沒輪到 —— 逐列雖然標了「排隊中」，但那要展開才看得到，
     # 而收合狀態下「沒印出來」跟「沒這回事」長得一樣（鐵則 6）。
+    #
+    # 混著跑與排隊時給三個小框（跑／排隊／總數），**而且可以按**：按下去只留那一種。
+    # 沒有排隊的節（已進知識庫、失敗…）只給總數 —— 在那裡印「跑 0 排隊 0」是雜訊。
     queued = sum(1 for r in rows if r.get("queued"))
-    qhtml = (f"<span class='count idle' title='序列 worker 一次只跑一件'>"
-             f"排隊 {queued}</span>" if queued else "")
+    if queued:
+        counts = (
+            f"<span class='count f' data-f='run' "
+            f"title='真的在跑（worker 一次一件）'>跑 {len(rows) - queued}</span>"
+            f"<span class='count f' data-f='queue' "
+            f"title='排隊中，還沒輪到'>排隊 {queued}</span>"
+            f"<span class='count f on' data-f='all' title='全部'>{len(rows)}</span>"
+        )
+    else:
+        counts = f"<span class='count'>{len(rows)}</span>"
     return (
         f"<details data-sec='{_esc(key)}'{attr}>"
         f"<summary><span class='caret'>▶</span>"
         f"<span class='sec-name'>{_esc(title)}</span>"
-        f"{qhtml}<span class='count'>{len(rows)}</span></summary>"
+        f"{counts}</summary>"
         f"<div class='sec-body'>{body}</div></details>"
     )
 
@@ -2706,6 +2750,10 @@ details[open] .caret{transform:rotate(90deg)}
 .count{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;
   color:var(--ink-2);background:var(--panel);border:1px solid var(--line-soft);
   border-radius:2px;padding:1px 7px}
+/* 可以按的計數框（跑／排隊／全部）。按下去只留那一種。 */
+.count.f{cursor:pointer;user-select:none}
+.count.f:hover{border-color:var(--ink-3)}
+.count.f.on{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .sec-body{max-height:16.5rem;overflow-y:auto;overscroll-behavior:contain}
 
 /* ── 佇列的列 ─────────────────────────────────────── */
@@ -2826,6 +2874,22 @@ document.querySelectorAll('details[data-sec]').forEach(d => {
     const now = [...document.querySelectorAll('details[data-sec]')]
       .filter(x => x.open).map(x => x.dataset.sec);
     sessionStorage.setItem(OPEN, JSON.stringify(now));
+  });
+});
+
+/* 標題上那三個框可以按：只看「在跑的」／「排隊的」／全部。
+   框在 <summary> 裡，所以要吃掉事件 —— 不然按一下會順便把整節收起來。 */
+document.querySelectorAll('details[data-sec] .count.f').forEach(b => {
+  b.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    const d = b.closest('details');
+    d.open = true;
+    d.querySelectorAll('.count.f').forEach(x => x.classList.toggle('on', x === b));
+    const want = b.dataset.f;
+    d.querySelectorAll('.sec-body > .row').forEach(r => {
+      const queued = r.dataset.q === '1';
+      r.style.display = (want === 'all' || (want === 'queue') === queued) ? '' : 'none';
+    });
   });
 });
 

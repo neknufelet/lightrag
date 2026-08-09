@@ -579,7 +579,10 @@ def _restart_with_index(tmp_path: Path, status: str, rows: dict[str, str] | None
 
     def patched(self) -> None:
         self.client = _Client()          # type: ignore[assignment]
-        self._queue.put = lambda item: seen.append(item)  # type: ignore[method-assign]
+        # 兩條佇列都要攔（解析一條、放行一條）—— 只攔一條的話，
+        # 「重啟把哪幾件排回去」會漏掉另一條那半，測試看起來過了其實沒驗到。
+        self._parse_queue.put = lambda item: seen.append(item)  # type: ignore[method-assign]
+        self._admit_queue.put = lambda item: seen.append(item)  # type: ignore[method-assign]
         original(self)
 
     IntakeApp._recover_active_jobs = patched      # type: ignore[method-assign]
@@ -892,7 +895,8 @@ def test_a_deferred_admit_does_not_retry_itself(tmp_path: Path) -> None:
     app._run_admit(job.job_id)
 
     assert job.status == "planned"
-    assert app._queue.empty(), "退回之後又把自己排進佇列了 —— 這會變成迴圈"
+    assert app._parse_queue.empty() and app._admit_queue.empty(), (
+        "退回之後又把自己排進佇列了 —— 這會變成迴圈")
 
 
 def test_the_inbox_offers_one_button_for_the_whole_batch(tmp_path: Path) -> None:
@@ -1123,3 +1127,33 @@ def test_restart_requeues_an_admit_that_had_not_touched_the_index(tmp_path: Path
 
     assert job.status == "repairing"
     assert queued == [("admit", job.job_id)]
+
+
+def test_parse_runs_wide_but_admit_stays_single_file(tmp_path: Path) -> None:
+    """解析併行、放行單條 —— 兩條佇列不能混。
+
+    **為什麼不是一條佇列加一把鎖**：那樣 6 個工人會全部卡在放行的鎖上，
+    連解析都做不了（head-of-line blocking），比循序還慢。
+
+    **為什麼放行不能併行**：`inputs/<workspace>` 是共用暫存區，放行前要求它是
+    純淨空目錄（`_inputs_blocked_reason`）—— 那是一次一份的不變式。
+    """
+    app = _app(tmp_path)
+    assert app.parse_workers >= 1
+    app.start()
+    try:
+        names = [w.name for w in app._workers if w.is_alive()]
+    finally:
+        app.stop()
+    parse = [n for n in names if n.startswith("intake-parse-")]
+    admit = [n for n in names if n == "intake-admit"]
+    assert len(parse) == app.parse_workers, f"解析工人數不對：{names}"
+    assert len(admit) == 1, f"放行必須剛好一條，不然共用暫存區會互相踩：{names}"
+
+
+def test_each_kind_goes_to_the_right_queue(tmp_path: Path) -> None:
+    """路由寫錯的話症狀是「放行偷偷併行了」，而那不會報錯，只會偶爾毀資料。"""
+    app = _app(tmp_path)
+    assert app._queue_for("parse") is app._parse_queue
+    for kind in ("admit", "return", "resume"):
+        assert app._queue_for(kind) is app._admit_queue, kind
