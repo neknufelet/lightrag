@@ -1129,14 +1129,14 @@ def test_restart_requeues_an_admit_that_had_not_touched_the_index(tmp_path: Path
     assert queued == [("admit", job.job_id)]
 
 
-def test_parse_runs_wide_but_admit_stays_single_file(tmp_path: Path) -> None:
-    """解析併行、放行單條 —— 兩條佇列不能混。
+def test_parse_and_admit_each_run_wide_on_their_own_queue(tmp_path: Path) -> None:
+    """兩邊各自併行，而且**分開兩條佇列**。
 
-    **為什麼不是一條佇列加一把鎖**：那樣 6 個工人會全部卡在放行的鎖上，
-    連解析都做不了（head-of-line blocking），比循序還慢。
+    **為什麼不合成一條**：一條佇列時前面塞滿其中一種就會餓死另一種
+    （head-of-line blocking），而解析與放行的耗時差一個量級。
 
-    **為什麼放行不能併行**：`inputs/<workspace>` 是共用暫存區，放行前要求它是
-    純淨空目錄（`_inputs_blocked_reason`）—— 那是一次一份的不變式。
+    節流的理由也不同：解析看 mineru.net（併發沒上限），
+    放行看 LightRAG 的 `MAX_PARALLEL_INSERT`。
     """
     app = _app(tmp_path)
     assert app.parse_workers >= 1
@@ -1146,9 +1146,10 @@ def test_parse_runs_wide_but_admit_stays_single_file(tmp_path: Path) -> None:
     finally:
         app.stop()
     parse = [n for n in names if n.startswith("intake-parse-")]
-    admit = [n for n in names if n == "intake-admit"]
+    admit = [n for n in names if n.startswith("intake-admit-")]
     assert len(parse) == app.parse_workers, f"解析工人數不對：{names}"
-    assert len(admit) == 1, f"放行必須剛好一條，不然共用暫存區會互相踩：{names}"
+    assert len(admit) == app.admit_workers, (
+        f"放行工人數不對（要對齊 LightRAG 的 MAX_PARALLEL_INSERT）：{names}")
 
 
 def test_each_kind_goes_to_the_right_queue(tmp_path: Path) -> None:
@@ -1157,3 +1158,49 @@ def test_each_kind_goes_to_the_right_queue(tmp_path: Path) -> None:
     assert app._queue_for("parse") is app._parse_queue
     for kind in ("admit", "return", "resume"):
         assert app._queue_for(kind) is app._admit_queue, kind
+
+
+def test_staging_blocks_foreign_pdfs_but_not_my_own_concurrent_ones(tmp_path: Path) -> None:
+    """收件區的判準：擋「別人的」，不擋「我自己正在放行的那幾份」。
+
+    2026-08-09 從「目錄必須空」放寬成這樣，才有辦法同時放行多份。
+    **擋的東西不能跟著放寬**：外來的 PDF 會被 LightRAG 一起索引而繞過後處理
+    （表格修補、LaTeX 修正、雜訊消音全都不會發生，索引起來卻看起來完全正常）。
+
+    順便釘住「走完就不算我的」：`indexed` 的那份如果還被當成自己人，殘留就永遠
+    擋不出來 —— 而當天實測過殘留一份會讓 17 件全部退回「等你看」。
+    """
+    app = _app(tmp_path)
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+
+    def _staged(name: str, status: str) -> Job:
+        app.save_upload(name, PDF + name.encode())
+        candidate = next(c for c in app._candidates()[0] if c.filename == name)
+        job = Job.from_candidate(candidate)
+        job.workspace = app.workspace
+        job.status = status                       # type: ignore[assignment]
+        job.admitted_path = str(inputs / name)
+        app._jobs[job.job_id] = job
+        (inputs / name).write_bytes(PDF)
+        return job
+
+    _staged("我的甲.pdf", "scanning")
+    _staged("我的乙.pdf", "extracting")
+    assert app._inputs_blocked_reason() is None, "自己正在放行的幾份把自己擋住了"
+
+    # 走完的那份不再算「我的」—— 它的檔案應該已經清掉，還在就是殘留
+    done = _staged("走完的.pdf", "indexed")
+    reason = app._inputs_blocked_reason()
+    assert reason is not None and "走完的.pdf" in reason, (
+        f"indexed 的殘留沒被當成外來檔：{reason}")
+    (inputs / "走完的.pdf").unlink()
+    del app._jobs[done.job_id]
+
+    # 真正的外來檔照樣要擋
+    (inputs / "別人放的.pdf").write_bytes(PDF)
+    reason = app._inputs_blocked_reason()
+    assert reason is not None and "別人放的.pdf" in reason, reason
+    assert "繞過後處理" in reason, "擋下來的理由不見了 —— 那句話才是這道門的意義"
+    assert "我的甲.pdf" not in reason and "我的乙.pdf" not in reason, (
+        "把自己正在放行的檔一起列成問題了")

@@ -732,6 +732,9 @@ class SubprocessRunner:
         self.command_timeout = _positive_float(environment.get("INTAKE_COMMAND_TIMEOUT"), 3600.0)
         self.poll_seconds = _positive_float(environment.get("INTAKE_POLL_SECONDS"), 5.0)
         self.index_timeout = _positive_float(environment.get("INTAKE_INDEX_TIMEOUT"), 86400.0)
+        # 等 LightRAG 願意收下這次 scan 的上限。併行放行時 `pipeline_busy` 是常態，
+        # 不是異常 —— 但也不能無限等，卡住要看得出來。
+        self.scan_timeout = _positive_float(environment.get("INTAKE_SCAN_TIMEOUT"), 1800.0)
         self.client = LightRAGClient(environment)
 
     def _run(self, command: list[str], timeout: float) -> OperationResult:
@@ -797,15 +800,30 @@ class SubprocessRunner:
         return self._run(command, self.command_timeout)
 
     def scan(self, job: Job, admitted_pdf: Path) -> OperationResult:
+        """請 LightRAG 掃描收件區。**pipeline 忙的時候要等，不能當失敗。**
+
+        併行放行之後 `pipeline_busy` 是常態而不是異常 —— 別人的 scan 正在跑。
+        而且**不能就這樣往下走**：LightRAG 不會自己再掃一次，被跳過的那次等於
+        我的檔沒有被登記，`wait_indexed` 只會等到逾時，錯誤訊息還會指向「索引逾時」
+        而不是真正的原因。所以重試到它真的收下為止。
+        """
         del admitted_pdf
-        try:
-            payload = self.client.request("/documents/scan", "POST")
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            return OperationResult(False, "", f"scan 失敗：{type(exc).__name__}: {exc}")
-        output = json.dumps(payload, ensure_ascii=False)
-        if _contains_value(payload, "scanning_skipped_pipeline_busy"):
-            return OperationResult(False, output, "scan 沒有排程：pipeline_busy")
-        return OperationResult(True, output, payload=payload)
+        deadline = time.monotonic() + self.scan_timeout
+        last = ""
+        while True:
+            try:
+                payload = self.client.request("/documents/scan", "POST")
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                return OperationResult(False, "", f"scan 失敗：{type(exc).__name__}: {exc}")
+            output = json.dumps(payload, ensure_ascii=False)
+            if not _contains_value(payload, "scanning_skipped_pipeline_busy"):
+                return OperationResult(True, output, payload=payload)
+            last = output
+            if time.monotonic() >= deadline:
+                return OperationResult(
+                    False, last,
+                    f"scan 一直沒有排程：pipeline 連續忙碌超過 {self.scan_timeout:.0f} 秒")
+            time.sleep(self.poll_seconds)
 
     def wait_indexed(self, job: Job) -> OperationResult:
         deadline = time.monotonic() + self.index_timeout
@@ -906,13 +924,14 @@ class IntakeApp:
         self.environment = dict(environment or {})
         self.repo = repo
         self._lock = threading.RLock()
-        # **兩條佇列，不是一條。** 解析是打 mineru.net 的雲端 API（純等網路，
-        # 各自寫各自的 bundle），可以併行；放行會把 PDF 放進 `inputs/<workspace>`
-        # 這個**共用暫存區**，而放行前要求那裡是純淨空目錄（`_inputs_blocked_reason`）
-        # —— 那是一次一份的不變式，併行會互相踩。
+        # **兩條佇列，不是一條。** 兩邊的節流理由不同：
+        #   解析  打 mineru.net 的雲端 API，純等網路 —— 限制是對方的（每天 2,000 頁
+        #         享最高優先，併發沒有上限）
+        #   放行  跑 apply、複製進暫存區、請 LightRAG 掃描並等它索引完 —— 限制是
+        #         LightRAG 的 `MAX_PARALLEL_INSERT`
         #
-        # ⚠ **不要合成一條再用鎖擋放行**：那樣 6 個工人會全部卡在鎖上，連解析都
-        # 做不了（head-of-line blocking），比循序還慢。
+        # ⚠ **不要合成一條**：一條佇列時，前面塞滿其中一種就會餓死另一種
+        #（head-of-line blocking），而兩種的耗時差一個量級。
         self._parse_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
         self._admit_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
         self._stop = threading.Event()
@@ -923,8 +942,10 @@ class IntakeApp:
         self._running: set[str] = set()
         # 解析併行數。mineru.net 的限制是 300 次/分鐘、每天 2,000 頁享最高優先，
         # 併發本身沒有寫上限 —— 所以擋住的從來不是它，是我們自己。
-        # 對齊 `MAX_PARALLEL_INSERT=6`（LightRAG 同時處理幾份文件）。
         self.parse_workers = max(1, int(self.environment.get("INTAKE_PARSE_WORKERS", "6")))
+        # 放行併行數。**對齊 LightRAG 的 `MAX_PARALLEL_INSERT`**（實機 6）——
+        # 開得比它多沒有意義，多出來的只會排在 LightRAG 內部等。
+        self.admit_workers = max(1, int(self.environment.get("INTAKE_ADMIT_WORKERS", "6")))
         self.store = JobStore(paths)
         self.events = EventStore(paths)
         self._jobs: dict[str, Job] = {job.job_id: job for job in self.store.load()}
@@ -1057,13 +1078,14 @@ class IntakeApp:
                 self._workers.append(threading.Thread(
                     target=self._worker_loop, args=(self._parse_queue,),
                     name=f"intake-parse-{i}", daemon=True))
-            # 放行只有一條 —— `inputs/<workspace>` 是共用暫存區，見 __init__ 的說明。
-            self._workers.append(threading.Thread(
-                target=self._worker_loop, args=(self._admit_queue,),
-                name="intake-admit", daemon=True))
+            for i in range(self.admit_workers):
+                self._workers.append(threading.Thread(
+                    target=self._worker_loop, args=(self._admit_queue,),
+                    name=f"intake-admit-{i}", daemon=True))
             for w in self._workers:
                 w.start()
-        LOGGER.info("worker 啟動：解析 %d 條、放行 1 條", self.parse_workers)
+        LOGGER.info("worker 啟動：解析 %d 條、放行 %d 條",
+                    self.parse_workers, self.admit_workers)
 
     def stop(self) -> None:
         with self._lock:
@@ -1073,7 +1095,8 @@ class IntakeApp:
             self._stop.set()
             for _ in range(self.parse_workers):
                 self._parse_queue.put(None)
-            self._admit_queue.put(None)
+            for _ in range(self.admit_workers):
+                self._admit_queue.put(None)
         for w in workers:
             w.join(timeout=5)
         alive = [w.name for w in workers if w.is_alive()]
@@ -1084,7 +1107,7 @@ class IntakeApp:
             self._workers = []
 
     def _queue_for(self, kind: str) -> queue.Queue[tuple[str, str] | None]:
-        """哪一條佇列。**只有解析可以併行**，其餘（放行／退回／續跑）都碰共用暫存區。"""
+        """哪一條佇列。兩邊的節流理由不同，見 `__init__`。"""
         return self._parse_queue if kind == "parse" else self._admit_queue
 
     def _busy(self) -> bool:
@@ -1418,8 +1441,31 @@ class IntakeApp:
         inputs = self.paths.inputs_dir(self.workspace)
         return sorted(path for path in inputs.glob("*.pdf") if path.is_file())
 
+    def _my_staged_names(self) -> set[str]:
+        """目前**由本服務**放在 `inputs/<ws>` 的檔名。
+
+        併行放行的關鍵：判準從「目錄必須空」換成「不得有我不認識的檔」之後，
+        要有辦法說出「我認識哪些」。認的是**還在放行途中**的那幾件 ——
+        `admitted`/`scanning`/`extracting` 之間，檔案確實躺在暫存區裡；
+        走完（`indexed`）或失敗都會把自己那份清掉（`_cleanup_admitted`／
+        `_release_inputs`），所以不該再被算成「我的」。
+        """
+        with self._lock:
+            return {Path(job.admitted_path).name
+                    for job in self._jobs.values()
+                    if job.admitted_path
+                    and job.status in {"admitted", "scanning", "extracting"}}
+
     def _inputs_blocked_reason(self) -> str | None:
-        """放行前 `inputs/<ws>` 不得有任何 PDF。擋得住就回原因，乾淨就回 None。
+        """放行前 `inputs/<ws>` 不得有**別人的** PDF。擋得住就回原因，乾淨就回 None。
+
+        **2026-08-09 從「必須空」放寬成「不得有我不認識的檔」。** 舊判準是保守的
+        簡單做法：目錄空 ⇒ 被索引的只有我剛放進去那份。代價是放行只能一次一份，
+        而 `MAX_PARALLEL_INSERT=6` 完全用不到；而且一份殘留就會擋住所有人
+        （當天實測：重啟留下一份，17 件全部退回「等你看」）。
+
+        **擋的東西沒有變**：外來的 PDF 會被 LightRAG 一起索引而**繞過後處理**。
+        我自己放的那幾份都經過 `apply`，一起被掃到正是要的。
 
         **為什麼擋**：放行時 LightRAG 會掃描整個 `inputs/<ws>`，多出來的檔會被
         一起索引，**而且繞過後處理** —— 表格修補、LaTeX 修正、雜訊消音全都不會
@@ -1437,7 +1483,8 @@ class IntakeApp:
         四篇一放行全部撞到這裡；當天稍晚重抽拿 inputs 當暫存區，2017 放行撞上，
         被判 failed 而它自己 decision=clean、reasons=[]。）
         """
-        existing = self._inputs_pdf_paths()
+        mine = self._my_staged_names()
+        existing = [p for p in self._inputs_pdf_paths() if p.name not in mine]
         if not existing:
             return None
         names = ", ".join(path.name for path in existing)
