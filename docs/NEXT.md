@@ -133,6 +133,48 @@ PP_EYE_A_API_KEY      OpenRouter      眼睛 A 換成 qwen/qwen3-vl-32b-instruct
   那是設計。照 [hard-rules](hard-rules.md) 重跑 `postprocess.py check`、
   重新看圖判定、更新 `tests/model-observations.json` 才會回綠。
 
+## 🔴 十二道閘門寫了，只有三道在跑（2026-08-09 發現）
+
+**「寫好的檢查沒被呼叫等於沒寫」的現成案例，而且在生產路徑上。**
+那條通則本身還在第 6 批等著升上游 —— 這是它的證據。
+
+`pp/vlm.py:155` 的 `judge()` 定義了十二道，**整包搜尋零個呼叫點**。
+實際在守的是 `postprocess.py:503` 的 `gate_table_html`，只有三道。
+
+| | 在跑 | 擋什麼 |
+|---|---|---|
+| V1／V2 | ❌ | **截斷**（`finish_reason != "stop"`、輸出沒有 `</table>` 收尾） |
+| V3 | ✅ | 數學被換成圖片（`<img>`） |
+| V4 | ✅ | prompt 洩漏 |
+| V5 | ❌ | alpha 召回 |
+| V6 | ❌ | 數值 precision —— 輸出裡每個數字都該在原文找得到，擋幻覺與抄錯欄 |
+| V7 | ❌ | 順序 |
+| V8 | ❌ | 負向控制（補「拿別張表也能通過」的洞） |
+| V9 | ❌ | caption |
+| V10 | ❌ | 列數對帳 |
+| V11 | ❌ | 覆蓋率（只記錄不擋） |
+| V12 | ❌ | 分母下限 —— 純數字／純符號表在空集合上召回率恆為 1.0，真空通過 |
+| 單一完整 table | ✅ | `gate_table_html` 自己那道 |
+
+⚠ **當初就知道有兩條路。** `gate_table_html` 的註解寫著「`vlm.py` 的 V3/V4 本來就
+防這個，但 apply 走的是別條路」—— 於是在 apply 這側重寫了三道，另外九道就留在
+原地沒人叫。
+
+- ⬜ 決定九道裡哪幾道要接回來　→ 決定寫進 `docs/decisions/`
+
+  **不是搬程式碼就好。** `judge()` 需要 `gt_text`、`neighbour_gts`、`caption`、
+  `layout_rows`，而現在的路徑（`eyes.look()` → `gate_table_html`）一個都沒在傳。
+  接回去等於重新設計那一段。
+  ⚠ 而且現在**驗不了**：全語料只剩 1 張可修補表格（canary 基準的 repairable 合計
+  ＝ 1），改了也看不出效果。要先有更多帶表格的文件進來。
+
+- ⬜ 至少先把 V1／V2 接上　→ 截斷的轉錄不該靜靜通過
+
+  這兩道只需要 `finish_reason` 與輸出字串本身，**不需要那四個缺的參數**。
+  2026-08-09 查證：`vlm.transcribe` 有正確回傳 `finish_reason`，`eyes._store`
+  也有存進快取（實測 21 筆全是 `'stop'`），但 `eyes.look()` 只回 `(html, 錯誤)`
+  把它丟掉了 —— **存了、寫了檢查，就是沒接起來。**
+
 ## 🔴 正式庫的查詢是不可重現的（2026-08-09 發現）
 
 **同一個問題問兩次，使用者可能拿到不同的答案，而沒有任何訊號。**
