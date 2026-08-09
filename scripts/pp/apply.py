@@ -249,6 +249,7 @@ def apply_doc(
     curated_idx: set[str] | None = None,
     oracle: Oracle | None = None,
     commit: bool = False,
+    acknowledged_ratio: bool = False,
 ) -> ApplyResult:
     """verified_tables: {content_list 索引(字串): 已通過交叉比對的 table HTML}
     verified_text:   {content_list 索引(字串): 人工裁定過的 text}
@@ -270,24 +271,35 @@ def apply_doc(
     items = json.loads(ctx.content_list_path.read_text())
     r.items_before = len(items)
 
+    # `acknowledged_ratio`：**人已經看過消音清單並確認過**（審核台的確認按鈕，
+    # 逐條比對理由才放得出來）。三道比例守衛防的是「規則圈太大、吃到正文」——
+    # 那是自動流程判斷不了的事，所以由人看一輪。看過之後再擋一次沒有意義：
+    # 文件會卡在「已確認但過不去」，而那正是 2026-08-09 三份綜述論文的狀態。
+    #
+    # ⚠ 只鬆綁**比例**這三道。preflight、bundle 認可、項目數不變、寫完重驗
+    # 那些一律照跑 —— 它們驗的是「有沒有壞掉」，不是「要不要這樣做」。
+    def _ratio_guard(where: str, ratio: float) -> None:
+        message = f"{ctx.doc_name}：{where} {ratio:.1%} 超標"
+        if not acknowledged_ratio:
+            raise ApplyError(message + "，拒絕自動套用")
+        r.notes.append(f"⚠ {message}，但人已確認過，照做")
+
     noise = layout_noise.plan(items, ctx.n_pages)
     if noise.suspicious:
-        raise ApplyError(f"{ctx.doc_name}：消音比例 {noise.ratio:.1%} 超標，拒絕自動套用")
+        _ratio_guard("消音比例", noise.ratio)
 
     # 參考文獻／致謝區段。與版面雜訊分開算，因為訊號與門檻都不同：
     # 版面雜訊靠「每頁重複」、佔比 1–6%；參考清單靠「章節區段」、佔比 8–23%。
     # 合在一起算會讓參考清單把版面雜訊的門檻撐爆，兩條規則互相遮蔽。
     refs = reference_section.plan(items)
     if refs.suspicious:
-        raise ApplyError(
-            f"{ctx.doc_name}：參考文獻區段消音比例 {refs.ratio:.1%} 超標，拒絕自動套用")
+        _ratio_guard("參考文獻區段消音比例", refs.ratio)
 
     # 標題頁的作者／單位／出版資訊。門檻比另外兩條緊得多（8%）：標題頁在論文裡
     # 佔比本來就很小，超過就表示圈錯範圍 —— 而圈錯範圍的代價是消掉摘要或正文。
     title = title_block.plan(items)
     if title.suspicious:
-        raise ApplyError(
-            f"{ctx.doc_name}：標題頁消音比例 {title.ratio:.1%} 超標，拒絕自動套用")
+        _ratio_guard("標題頁消音比例", title.ratio)
 
     tables = empty_table.plan(items, *ctx.page_size)
     want = verified_tables or {}

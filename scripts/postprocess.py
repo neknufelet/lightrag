@@ -213,6 +213,28 @@ def as_json(p: dict) -> dict:
             "ratio": round(noise.ratio, 4),
             "suspicious": noise.suspicious,
         },
+        # **三條消音規則都要出現在計畫裡。**
+        #
+        # 在此之前只有 `noise` 在這裡，而 `apply` 對三條都有比例守衛 —— 於是
+        # 「計畫說乾淨、動手才被擋」。2026-08-09 進料 30 份，3 份綜述論文因為
+        # 參考文獻佔 31–49% 被 apply 拒絕，而計畫階段一路綠燈、還自動放行了。
+        # 這與這個碼庫記過的「dry-run 說 0、--commit 卻改了東西」同一族：
+        # **乾跑報的東西若少於實際會擋的東西，乾跑就失去意義。**
+        "refs": {
+            "mute": [{"index": m.index, "page": m.page, "kind": m.kind,
+                      "section": m.section} for m in p["refs"].mutes],
+            "body_chars_before": p["refs"].body_chars_before,
+            "body_chars_after": p["refs"].body_chars_after,
+            "ratio": round(p["refs"].ratio, 4),
+            "suspicious": p["refs"].suspicious,
+        },
+        "title": {
+            "mute": [{"index": m.index, "page": m.page} for m in p["title"].mutes],
+            "held": [{"index": m.index, "page": m.page} for m in p["title"].held],
+            "fired": p["title"].fired,
+            "ratio": round(p["title"].ratio, 4),
+            "suspicious": p["title"].suspicious,
+        },
         "tables": {
             "total": tables.total,
             "repair": [{"index": t.index, "page": t.page, "class": t.klass.value,
@@ -670,6 +692,7 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
             n_auto = len(verified)
             verified.update(cur_tbl)          # 人工裁定優先於自動採用
             res = ap_mod.apply_doc(raw, workspace=a.workspace, source_dir=source_dir,
+                                   acknowledged_ratio=a.acknowledged_ratio,
                                    out_root=out_root, verified_tables=verified,
                                    verified_text=cur_txt, curated_idx=set(cur_tbl),
                                    oracle=o, commit=a.commit)
@@ -878,6 +901,12 @@ def main():
     ap2.add_argument("--commit", action="store_true", help="真的寫檔（預設只算不寫）")
     ap2.add_argument("--no-tables", action="store_true", help="只做消音，不碰表格")
     ap2.add_argument("--workers", type=int, default=3)
+    # 三道**比例**守衛（版面雜訊／參考文獻／標題頁）防的是「規則圈太大、吃到正文」，
+    # 那是自動流程判斷不了的事 —— 所以由人看一輪消音清單。看過之後再擋一次沒有意義：
+    # 文件會卡在「已確認但過不去」。審核台的確認按鈕（逐條比對理由）會帶這個旗標。
+    # ⚠ 只鬆綁比例那三道；preflight、bundle 認可、項目數不變照跑。
+    ap2.add_argument("--acknowledged-ratio", action="store_true",
+                     help="人已看過消音清單並確認：比例超標不再擋（其餘守衛照跑）")
 
     ri = sub.add_parser("reindex", help="刪索引記錄並重新掃描，讓修補生效")
     ri.add_argument("--no-wait", action="store_true",

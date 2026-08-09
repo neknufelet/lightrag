@@ -688,6 +688,20 @@ def evaluate_plan_payload(payload: object, expected_doc: str) -> PlanEvaluation:
     if numeric:
         reasons.append("數字異常")
         details.extend(numeric)
+    # 三條消音規則的比例守衛都要在**計畫階段**講出來。少講的那兩條會變成
+    # 「計畫說乾淨、動手才被擋」—— 2026-08-09 三份綜述論文就是這樣掉的
+    # （參考文獻佔 31–49%，`apply` 拒絕，而計畫已經自動放行了）。
+    # 講出來之後它們會停在「等你看」，走跟其他 novel 一樣的確認流程。
+    for key, label in (("refs", "參考文獻消音比例"), ("title", "標題頁消音比例")):
+        block = _as_mapping(plan.get(key))
+        if block.get("suspicious"):
+            ratio = block.get("ratio")
+            pct = f"{float(ratio) * 100:.1f}%" if isinstance(ratio, (int, float)) else "?"
+            reasons.append(f"{label}異常（{pct}）")
+            details.append(
+                f"{label} {pct}，超過自動套用的門檻。"
+                "綜述論文的參考文獻本來就可能佔三到五成 —— 看過消音清單確認"
+                "沒有吃到正文就可以放行")
     return PlanEvaluation(not reasons, tuple(reasons), tuple(details), plan)
 
 
@@ -832,6 +846,11 @@ class SubprocessRunner:
             self.python, str(self.repo / "scripts" / "postprocess.py"),
             "apply", "--workspace", job_workspace(job), "--doc", job.filename, "--commit",
         ]
+        # `decision != "clean"` 的 job 只有一條路走得到這裡：**人在審核台逐條確認過**
+        #（`submit_admit` 會比對理由，對不上就拒絕）。所以到這裡就是「看過了」，
+        # 比例守衛不該再擋一次 —— 再擋的話文件會卡在「已確認但過不去」。
+        if job.decision != "clean":
+            command.append("--acknowledged-ratio")
         return self._run(command, self.command_timeout)
 
     def scan(self, job: Job, admitted_pdf: Path) -> OperationResult:
