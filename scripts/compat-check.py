@@ -80,6 +80,8 @@ ENV_KEYS_OPTIONAL_IN_LIVE: frozenset[str] = frozenset({
     "PP_EYE_A_HOST",
     "PP_EYE_A_API_KEY",
     "PP_EYE_A_MODEL",
+    "PP_EYE_A_PROVIDER",
+    "PP_EYE_A_MAX_OUT",
 })
 
 # `.env` 的鍵 → LightRAG `MinerUParserOptions.from_env()` 的欄位。

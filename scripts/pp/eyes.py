@@ -94,7 +94,13 @@ def eyes_from_env(env: dict) -> tuple[Eye, Eye]:
     a = Eye("qwen",
             env.get("PP_EYE_A_HOST") or env.get("LLM_BINDING_HOST", "http://localhost:8080/v1"),
             env.get("PP_EYE_A_API_KEY") or env.get("LLM_BINDING_API_KEY", ""),
-            env.get("PP_EYE_A_MODEL") or env.get("LLM_MODEL", "qwen3.6-35b-a3b"))
+            env.get("PP_EYE_A_MODEL") or env.get("LLM_MODEL", "qwen3.6-35b-a3b"),
+            max_out=int(env.get("PP_EYE_A_MAX_OUT", "3072")),
+            # 走 OpenRouter 時**一定要釘**：同一個模型 ID 會被路由到不同供應商，
+            # 輸出行為因此會變，而交叉驗證的前提是「模型固定」。不釘的話兩次
+            # 呼叫可能來自不同部署，比對出來的差異分不清是模型錯還是換了後端。
+            # 指向本機時留空即可（只有一個部署，沒有路由問題）。
+            provider=(env.get("PP_EYE_A_PROVIDER") or "").strip())
     b = Eye("luna",
             env.get("PP_EYE_B_HOST", "https://api.openai.com/v1"),
             # 預設沿用 embedding 那把 OpenAI 金鑰，不另外散一份出去

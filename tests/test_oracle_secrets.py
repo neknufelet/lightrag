@@ -37,6 +37,9 @@ from pp.oracle import Oracle, OracleError, _redact, is_secret_key  # noqa: E402
 KNOWN_SECRET_KEYS = (
     "LIGHTRAG_API_KEY", "POSTGRES_PASSWORD", "LLM_BINDING_API_KEY",
     "EMBEDDING_BINDING_API_KEY", "RERANK_BINDING_API_KEY", "MINERU_API_TOKEN",
+    # 眼睛 A 2026-08-09 從抽取 LLM 拆出來，指向 OpenRouter 之後自己有一把金鑰。
+    # 在那之前它沿用 LLM_BINDING_API_KEY，所以清單上沒有這一條。
+    "PP_EYE_A_API_KEY",
     "PP_EYE_B_API_KEY", "PP_EYE_C_API_KEY",
 )
 

@@ -88,6 +88,28 @@ def test_empty_new_key_falls_back_instead_of_blanking() -> None:
     assert a.host == LEGACY_ENV["LLM_BINDING_HOST"]
 
 
+def test_provider_is_pinned_when_set() -> None:
+    """走 OpenRouter 時供應商要釘得住。
+
+    不釘的話同一個模型 ID 會被路由到不同部署，兩次呼叫的輸出行為就不一樣 ——
+    而交叉驗證的前提是「模型固定」，那時比對出來的差異分不清是模型錯還是換了後端。
+    """
+    env = dict(LEGACY_ENV) | {
+        "PP_EYE_A_HOST": "https://openrouter.ai/api/v1",
+        "PP_EYE_A_MODEL": "qwen/qwen3-vl-32b-instruct",
+        "PP_EYE_A_PROVIDER": "Alibaba",
+    }
+    a, _ = eyes.eyes_from_env(env)
+    assert a.provider == "Alibaba"
+    assert a.family == "qwen"
+
+
+def test_provider_defaults_to_empty_for_local() -> None:
+    """指向本機時留空 —— 只有一個部署，沒有路由問題。"""
+    a, _ = eyes.eyes_from_env(dict(LEGACY_ENV))
+    assert a.provider == ""
+
+
 def test_family_guard_still_fires_after_the_split() -> None:
     """拆分不能把守門拆掉。眼睛 A 換成 openai 家族時仍要擋下來。"""
     env = dict(LEGACY_ENV) | {"PP_EYE_A_MODEL": "gpt-4o"}
