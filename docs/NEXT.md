@@ -115,6 +115,24 @@ PP_DATA_ROOT=/data/lightrag-trial \
 
   2026-08-09 拆分時刻意沒加 —— 沒有用到的旋鈕沒辦法驗證。
 
+## 🔑 實機 `.env` 還沒填（PO 自己來，2026-08-09）
+
+範本與程式碼都改好了，**實機 `/opt/stacks/lightrag/.env` 等 PO 填兩把新金鑰**：
+
+```
+LLM_BINDING_API_KEY   DeepSeek        抽取換成 deepseek-v4-flash
+PP_EYE_A_API_KEY      OpenRouter      眼睛 A 換成 qwen/qwen3-vl-32b-instruct
+```
+
+其餘該填什麼、為什麼是那個值，`.env.example` 的兩節寫著。**在填完之前抽取是斷的**
+（`LLM_BINDING_HOST` 若已指向 DeepSeek 而金鑰是舊的），但**查詢不受影響** ——
+自帶關鍵詞的路徑 0 次 LLM 呼叫。
+
+- ⬜ 填完之後跑 `compat-check`　→ A-23 會 hard FAIL（眼睛 A 換了模型）
+
+  那是設計。照 [hard-rules](hard-rules.md) 重跑 `postprocess.py check`、
+  重新看圖判定、更新 `tests/model-observations.json` 才會回綠。
+
 ## 🔴 正式庫的查詢是不可重現的（2026-08-09 發現）
 
 **同一個問題問兩次，使用者可能拿到不同的答案，而沒有任何訊號。**
