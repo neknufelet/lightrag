@@ -26,6 +26,7 @@ from __future__ import annotations
 import difflib
 import hashlib
 import json
+import os
 import shutil
 import sys
 import time
@@ -48,6 +49,38 @@ from pp.rules import (  # noqa: E402
 
 class ApplyError(RuntimeError):
     pass
+
+
+def write_json_atomic(path: Path, payload: object) -> None:
+    """把 JSON 寫進 `path`，**中間態不可觀測**。
+
+    `Path.write_text` 是「先把檔案清空再寫進去」。清空到寫完之間有一個窗口，
+    這時候讀到的是**空檔或半個檔** —— 而 `content_list.json` 正是 LightRAG
+    掃描時會讀的東西，讀壞了不會有錯誤訊息，只會是一份內容不對的索引。
+
+    做法：寫進**同一個目錄**的暫存檔 → fsync → `Path.replace` 改名蓋過去。
+    同一個檔案系統上的改名是原子的，所以讀的人在任何一瞬間看到的要嘛是完整的
+    舊檔、要嘛是完整的新檔。不需要鎖、不需要輪詢、不需要事後檢查。
+
+    ⚠ 暫存檔一定要放同一個目錄：跨檔案系統的改名不是原子的
+    （會退化成複製＋刪除，窗口又回來了）。
+    ⚠ `fsync` 是為了斷電：沒有它，改名可能先落地而內容還在快取裡，
+    重開機後會看到一個「名字對、內容空」的檔。
+
+    這件事**跟併行無關也該做** —— 單條寫入時窗口比較小，但不是零。
+    """
+    tmp = path.with_name(f".{path.name}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(json.dumps(payload, ensure_ascii=False, indent=1))
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(path)
+    except BaseException:
+        # 失敗時不要留下半個暫存檔給下一次的人猜。刪不掉就算了 ——
+        # 這裡已經在錯誤路徑上，再丟一個例外只會把真正的死因蓋掉。
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 # 顶層 manifest 的 pass marker：內容沒有任何改動時，仍能記住這份 bundle 已經完整
@@ -452,7 +485,7 @@ def apply_doc(
     if len(items) != r.items_before:
         raise ApplyError(f"項目數改變了（{r.items_before} → {len(items)}），這不該發生")
 
-    ctx.content_list_path.write_text(json.dumps(items, ensure_ascii=False, indent=1))
+    write_json_atomic(ctx.content_list_path, items)
     r.items_after = len(items)
 
     # ── 更新 manifest，否則快取失效、下次 /scan 會重抓覆蓋掉修補 ──
@@ -464,7 +497,7 @@ def apply_doc(
     cf["size"] = ctx.content_list_path.stat().st_size
     cf["sha256"] = _sha256(ctx.content_list_path)
     man["critical_file"] = cf
-    ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
+    write_json_atomic(ctx.manifest_path, man)
 
     # ── 寫完必須再問一次 ──
     ctx2 = DocContext(raw_dir, source_dir=source_dir)
@@ -476,7 +509,7 @@ def apply_doc(
             "version": POSTPROCESS_PASS_VERSION,
             "completed_at": stamp,
         }
-        ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
+        write_json_atomic(ctx.manifest_path, man)
     return r
 
 
@@ -563,14 +596,14 @@ def revert_doc(
         it.pop("_pp_repaired_at", None)
         r.tables += 1
 
-    ctx.content_list_path.write_text(json.dumps(items, ensure_ascii=False, indent=1))
+    write_json_atomic(ctx.content_list_path, items)
     r.items_after = len(items)
 
     man = json.loads(ctx.manifest_path.read_text())
     man["critical_file"]["size"] = ctx.content_list_path.stat().st_size
     man["critical_file"]["sha256"] = _sha256(ctx.content_list_path)
     man.pop(POSTPROCESS_PASS_KEY, None)
-    ctx.manifest_path.write_text(json.dumps(man, ensure_ascii=False, indent=1))
+    write_json_atomic(ctx.manifest_path, man)
 
     r.valid_after = bundle_valid(DocContext(raw_dir, source_dir=source_dir), o,
                                  workspace=workspace)
