@@ -115,6 +115,45 @@ PP_DATA_ROOT=/data/lightrag-trial \
 
   2026-08-09 拆分時刻意沒加 —— 沒有用到的旋鈕沒辦法驗證。
 
+## 🔑 DeepSeek 試驗要收攤（2026-08-09 起，**有金鑰在裡面**）
+
+dker 上四個試驗 stack 與一把 DeepSeek 金鑰。**PO 說金鑰會連同容器一起移除**，
+在那之前它活著。收攤要做四件，缺一不可：
+
+```
+docker compose down    /opt/stacks/lightrag-ds{,02,06,06b}
+刪目錄                 /opt/stacks/lightrag-ds{,02,06,06b}      ← .env 裡有金鑰
+刪 workspace 資料      acoustics_ds / _ds02 / _ds06 / _ds06b（Postgres，共用實例）
+刪試驗資料根           /data/lightrag-trial/{rag_storage_ds*,inputs/acoustics_ds*,prompts-noparen}
+```
+
+⚠ **金鑰還有第三個落點：當天那段對話。** 那份不在這台機器上，PO 自理。
+
+- ⬜ 決定要不要用 DeepSeek　→ 決定寫進 `docs/decisions/`
+  可行性已驗完（見 [LOG](../cairn/LOG.md)）：速度、併發、品質、成本都量過。
+  **還沒量的是檢索品質** —— 關係數比 llama.cpp 少約 30%，而 LightRAG 靠關係
+  走圖譜。那要跑那 10 題才知道。
+
+## 規則 2b 是唯一還有調整空間的（2026-08-09）
+
+四條抽取規則裡，1 與 2a 現在都有不依賴模型的補救（標題頁消音、`graph-clean.py`），
+規則 3 被遵守得很好（大小寫變體 1）。**只有 2b 沒有任何確定性工具能補** ——
+`graph-clean` 只會刪或不刪，不會改名，而那些裸標籤正是裁決「先不刪」的那一族。
+
+- ⬜ 比較組必須含教科書章節　→ 否則規則 2b 驗不到
+
+  2026-08-09 量到：`Region I`／`Zone II`／`Part 1` 這種標籤**只出現在教科書**，
+  四個配置在三篇論文上全是 0。加了 `C Equivalent Networks` 才量得出 DeepSeek
+  的 2b 遵守度是 2／8（做對的長這樣：`chamber (region II)`）。
+
+- ⬜ 驗證「縮寫外溢」假設　→ 改規則後帶括號的縮寫變體有沒有變少
+
+  假設：DeepSeek 自創 `(MPP)`／`(HR)`／`(GA)` 可能是規則 2b「把標籤放進括號」
+  外溢成「把縮寫放進括號」。llama.cpp 與 vLLM 都不做這件事，DeepSeek 兩件都做。
+  ⚠ 改規則會讓現有六列不能比、`compat-check` A-32 會紅，所以改要當成「開新基準」。
+  試驗用的規則副本放 `/data/lightrag-trial/prompts-noparen`，**不動 repo 的
+  `prompts/`** —— 那份唯讀掛進所有 stack 包含正式庫。
+
 ## 審核台顯示假狀態（2026-08-08 重抽時抓到，同日修掉 `837b78f`）
 
 分節改成一律問知識庫，「已處理」直接等於「已進知識庫」那一節的長度。
