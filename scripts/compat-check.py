@@ -31,6 +31,7 @@ from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
+from pp import eyes  # noqa: E402
 from pp.docctx import (  # noqa: E402
     PAGE_SIZE_TOLERANCE_PT,
     page_size_spread,
@@ -333,21 +334,39 @@ class Checker:
     # ---------- 環境層 ----------
 
     def environment(self, api_key: str, port: int) -> None:
-        @self.check("A-18", "soft", "VLM 端點可用")
+        @self.check("A-18", "soft", "看圖那隻眼睛的端點可用")
         def _() -> tuple[bool, str, dict]:
+            """**檢查眼睛 A 的端點，不是抽取 LLM 的。**
+
+            2026-08-09 之前這兩者是同一個（眼睛 A 直接讀 `LLM_BINDING_*`），
+            所以查哪一個都一樣。拆開之後就不一樣了 —— 抽取指向 DeepSeek
+            （`judge.py` 實測它不吃 image_url），而看圖的那隻在別的地方。
+            繼續查 `LLM_BINDING_HOST` 的話，這條斷言會變成「檢查一個不看圖的
+            服務通不通」，綠燈代表不了任何事。
+            """
             import urllib.error
             import urllib.request
             env = load_env(REPO)
-            host = env.get("LLM_BINDING_HOST", "")
+            eye_a, _ = eyes.eyes_from_env(env)
+            host = eye_a.host
             if not host:
-                return False, "找不到 LLM_BINDING_HOST", {}
+                return False, "眼睛 A 沒有 host（PP_EYE_A_HOST 與 LLM_BINDING_HOST 都空）", {}
+            req = urllib.request.Request(
+                f"{host}/models",
+                headers={"Authorization": f"Bearer {eye_a.api_key}"} if eye_a.api_key else {})
             try:
-                r = urllib.request.urlopen(f"{host}/models", timeout=10)
-                models = json.loads(r.read()).get("data", [])
-                names = [m.get("id") for m in models][:3]
-                return True, f"{host} 可用，模型 {names}", {"models": names}
+                with urllib.request.urlopen(req, timeout=10) as r:  # noqa: S310
+                    models = json.loads(r.read()).get("data", [])
             except (urllib.error.URLError, OSError) as e:
-                return False, f"{host} 連不上：{e}", {}
+                return False, f"{host} 連不上：{e}（眼睛 A ＝ {eye_a.model}）", {}
+            names = [m.get("id") for m in models]
+            # 端點通不等於那個模型在。OpenRouter 會列出幾百個模型，本機 llama.cpp
+            # 只列一個 —— 兩邊都要能判斷「我要用的那個在不在」。
+            present = eye_a.model in names
+            return present, (
+                f"{host} 可用，眼睛 A ＝ {eye_a.model}"
+                + ("" if present else f"　⚠ 這個模型不在端點的清單裡（{len(names)} 個）")
+            ), {"host": host, "model": eye_a.model, "listed": len(names)}
 
         @self.check("A-19", "hard", "pipeline 目前 idle")
         def _() -> tuple[bool, str, dict]:
