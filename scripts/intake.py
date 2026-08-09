@@ -43,6 +43,18 @@ LOGGER = logging.getLogger("intake")
 JOB_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 PDF_NAME_RE = re.compile(r"^[^/\\\x00]+\.pdf$", re.IGNORECASE)
 MAX_BODY_BYTES = 1024 * 1024
+
+# 「這份解析成果被重置過」的記號，放在 bundle 目錄裡。
+#
+# 重置刻意**保留**解析成果（MinerU 要錢也要時間，下一輪可以直接用）。但收件匣靠
+# sha256 擋重複，而它讀的來源之一就是 bundle 裡 manifest 的 `source_content_hash`
+# —— 於是保留下來的成果會把自己的 PDF 判成「已經有了」，**文件重置之後就再也
+# 送不回來**。2026-08-09 實測踩到兩次，只能手動刪解析成果繞過。
+#
+# 用檔案而不是 manifest 的欄位：manifest 是 LightRAG 讀的契約檔，多塞我們的鍵
+# 等於在別人的資料結構上長東西。點開頭的檔案 LightRAG 不看（同 `is_bundle_valid`
+# 只驗 critical_file）。
+RESET_MARKER = ".intake-reset"
 MAX_PAGES = 100_000
 MAX_ITEMS = 1_000_000
 MAX_PAGE_POINTS = 10_000.0
@@ -494,6 +506,10 @@ class CandidateScanner:
                 except OSError as exc:
                     LOGGER.warning("無法計算既有檔案 sha：%s：%s", pdf, exc)
         for manifest in self.paths.parsed_dir.glob("*.mineru_raw/_manifest.json"):
+            # 被重置過的解析成果不算「已經有了」—— 它現在沒有 job，而它的 PDF
+            # 正在收件匣等著被重新挑。見 `_remove_reset_artifacts` 的說明。
+            if (manifest.parent / RESET_MARKER).exists():
+                continue
             try:
                 raw = _read_json(manifest)
                 if isinstance(raw, dict):
@@ -1685,6 +1701,15 @@ class IntakeApp:
 
         raw = self.paths.parsed_bundle_dir(job.filename)
         if job.plan is not None:
+            if raw.is_dir():
+                # **留記號，否則這份文件再也送不回來。**
+                # 保留 bundle 是為了下一輪不必再付 MinerU，但收件匣的重複判定會讀
+                # bundle 裡 manifest 的 `source_content_hash` —— 於是那份成果反過來
+                # 把自己的 PDF 判成「已經有了」，重置之後它永遠不會出現在選片區。
+                # 2026-08-09 實測踩到兩次，只能手動刪解析成果繞過。
+                # 記號讓 `_known_hashes` 跳過它；等它重新有 job 之後，重複判定
+                # 改由 job 的雜湊接手（`used_hashes`），所以記號留著也無害。
+                (raw / RESET_MARKER).write_text(_now_iso(), encoding="utf-8")
             return raw.is_dir()
         if raw.exists():
             if raw.parent.resolve() != parsed_root.resolve() or not raw.is_dir():

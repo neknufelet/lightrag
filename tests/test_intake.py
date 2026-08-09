@@ -1268,3 +1268,60 @@ def test_a_clean_plan_still_admits_without_ceremony(tmp_path: Path) -> None:
     job.decision = "clean"                        # type: ignore[assignment]
     app._jobs[job.job_id] = job
     assert app.submit_admit(job.job_id).status == "repairing"
+
+
+def test_a_reset_document_can_be_picked_again(tmp_path: Path) -> None:
+    """重置之後那份 PDF 要能再被挑到 —— **這是 2026-08-09 踩到的真 bug。**
+
+    重置刻意保留解析成果（MinerU 要錢），但收件匣的重複判定會讀 bundle 裡
+    manifest 的 `source_content_hash`，於是保留下來的成果把自己的 PDF 判成
+    「已經有了」，文件重置之後永遠不會再出現在選片區。當天只能手動刪解析成果繞過。
+
+    這條測試同時釘住兩件事：重置後挑得到，而且**解析成果沒有被刪掉**
+    （刪了就是白花一次 MinerU 的錢）。
+    """
+    from intake import RESET_MARKER
+
+    app = _app(tmp_path)
+    app.save_upload("重置測試.pdf", PDF + b"reset-case")
+    candidate = next(c for c in app._candidates()[0] if c.filename == "重置測試.pdf")
+    job = Job.from_candidate(candidate)
+    job.workspace = app.workspace
+    job.status = "failed"                          # type: ignore[assignment]
+    job.decision = "clean"                         # type: ignore[assignment]
+    job.plan = _plan(job.filename)                 # 走過審查 → 解析成果要留著
+    app._jobs[job.job_id] = job
+
+    # 解析成果：bundle 帶著 manifest，manifest 記著來源雜湊（就是它擋住自己）
+    raw = app.paths.parsed_bundle_dir(job.filename)
+    raw.mkdir(parents=True, exist_ok=True)
+    (raw / "content_list.json").write_text("[]", encoding="utf-8")
+    (raw / "_manifest.json").write_text(
+        json.dumps({"source_content_hash": job.source_sha256}), encoding="utf-8")
+
+    assert not any(c.filename == "重置測試.pdf" for c in app._candidates()[0]), (
+        "前提不成立：還沒重置就已經挑得到，那這條測試驗不到東西")
+
+    app.submit_reset(job.job_id)
+
+    assert raw.is_dir(), "解析成果被刪了 —— 下一輪要重付一次 MinerU"
+    assert (raw / RESET_MARKER).exists(), "沒有留下重置記號"
+    names = [c.filename for c in app._candidates()[0]]
+    assert "重置測試.pdf" in names, f"重置之後挑不到，那份文件等於消失了：{names}"
+
+
+def test_an_untouched_bundle_still_blocks_duplicates(tmp_path: Path) -> None:
+    """**沒有被重置的解析成果照樣要擋。** 不然同一份文件會進去兩次，
+    知識庫裡有兩套 chunk 與兩套實體，檢索互相稀釋而且不報錯。
+
+    這是上面那條的控制組 —— 少了它，「跳過記號」寫成「全部跳過」也會通過。
+    """
+    app = _app(tmp_path)
+    app.save_upload("沒重置.pdf", PDF + b"kept")
+    candidate = next(c for c in app._candidates()[0] if c.filename == "沒重置.pdf")
+    raw = app.paths.parsed_bundle_dir("沒重置.pdf")
+    raw.mkdir(parents=True, exist_ok=True)
+    (raw / "_manifest.json").write_text(
+        json.dumps({"source_content_hash": candidate.sha256}), encoding="utf-8")
+    assert not any(c.filename == "沒重置.pdf" for c in app._candidates()[0]), (
+        "沒有重置記號的解析成果沒擋住 —— 同一份會進去兩次")
