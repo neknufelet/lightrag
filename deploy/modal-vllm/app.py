@@ -40,8 +40,22 @@ import subprocess
 
 import modal
 
-MODEL_NAME = "Qwen/Qwen3.6-35B-A3B-FP8"
-MODEL_DIR = "/models/qwen3.6-35b-a3b-fp8"
+# 要試哪個量化就改這裡。**量化方式會改變抽取結果**，換了就要重測，
+# 所以每一種用自己的 Volume，不要混在一起。
+#
+# 2026-08-09 實測（同溫度 0.2、同三篇論文）：
+#   本機 llama.cpp + UD-IQ4_XS   泛用標籤 0、人/機構 36   ← 目前最好
+#   vLLM + FP8                   泛用標籤 7、人/機構 47   ← 退步
+#
+# 猜測是「均勻量化 vs 選擇性保精度」：UD-IQ4_XS 會挑重要張量保高精度，
+# FP8 一視同仁。AWQ 是 activation-aware，同一個思路 —— 換上來就是在驗這個猜測。
+QUANT = "awq"                            # fp8 | awq
+_MODELS = {
+    "fp8": ("Qwen/Qwen3.6-35B-A3B-FP8", "qwen36-fp8"),          # 約 35 GB
+    "awq": ("cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit", "qwen36-awq"),  # 約 20 GB
+}
+MODEL_NAME, VOLUME_NAME = _MODELS[QUANT]
+MODEL_DIR = f"/models/qwen3.6-35b-a3b-{QUANT}"
 SERVED_NAME = "qwen3.6-35b-a3b"          # LightRAG 的 LLM_MODEL 對這個名字
 
 # ⚠ **這個 tag 是會動的。** 第一次跑成功之後要換成 digest ——
@@ -56,14 +70,19 @@ GPU = "H100"
 #   查詢       MAX_TOTAL_TOKENS = 50,000
 # llama.cpp 那邊被迫二選一（總脈絡 ÷ 槽數），vLLM 的 PagedAttention 是動態分配，
 # 所以可以同時滿足兩者 —— 這是換過來最實際的好處之一。
-MAX_MODEL_LEN = 65536
+# 2026-08-09 實測：16 個並行的抽取請求只用掉 7.9% 的 KV（45.93 GiB ≈ 81 萬 token）。
+# **`max_model_len` 是單一請求的上限，不是預留** —— 這是 vLLM 與 llama.cpp 最本質的
+# 差別（後者 `-c ÷ --parallel` 是零和，槽數與脈絡只能二選一）。所以開到 128k
+# 不會少掉任何併發，只是允許更長的單一請求。實際併發由請求多長決定：
+#   抽取 4k／請求  → 約 200 個   查詢 50k／請求 → 約 16 個   131k／請求 → 約 6 個
+MAX_MODEL_LEN = 131072
 
 # 併發上限。vLLM 是連續批次，這只是天花板不是預先切好的槽。
 # **實際該設多少要量**：8／16／32／64 各跑一次，吞吐不再上升的那一點。
 MAX_NUM_SEQS = 64
 
 app = modal.App("lightrag-vllm-qwen36")
-volume = modal.Volume.from_name("qwen36-fp8", create_if_missing=True)
+volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
 
 # torch.compile 與 CUDA graph 的結果。**不留住的話每次冷啟動都要重編。**
 # 2026-08-09 實測冷啟動 562 秒，其中 torch.compile 163 秒、CUDA graph 約 90 秒
