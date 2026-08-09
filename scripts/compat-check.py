@@ -351,6 +351,13 @@ class Checker:
             host = eye_a.host
             if not host:
                 return False, "眼睛 A 沒有 host（PP_EYE_A_HOST 與 LLM_BINDING_HOST 都空）", {}
+            # ⚠ **佔位金鑰要當成沒設定。** OpenRouter 的 `/models` 是公開端點，
+            #   拿 `TODO-…` 去打照樣回 200 —— 端點通、模型也在清單上，於是這條
+            #   斷言會變綠，而真正要用的時候是 401。2026-08-09 實測踩到：
+            #   填了佔位就轉綠，那種綠燈比紅燈危險。
+            if not eye_a.api_key or eye_a.api_key.startswith(("TODO", "changeme", "貼在")):
+                return False, (f"眼睛 A 的金鑰還是佔位值（{host}，{eye_a.model}）"
+                               " —— 端點可能打得通，但真的呼叫會 401"), {}
             req = urllib.request.Request(
                 f"{host}/models",
                 headers={"Authorization": f"Bearer {eye_a.api_key}"} if eye_a.api_key else {})
@@ -486,6 +493,12 @@ class Checker:
             實測記錄的「eye_b 會看錯字元、eye_a 會切錯結構」這類觀察，換一個
             模型就可能完全相反。這條斷言不判斷觀察對不對，只確認**它是對現在
             這組模型量的**。不一致就 FAIL，逼人重新量測。
+
+            ⚠ **eye_a 要從 `eyes_from_env` 拿，不要直接讀 `LLM_MODEL`。**
+            2026-08-09 之前兩者是同一個，讀哪個都對；拆開之後 `LLM_MODEL` 是
+            抽取用的（DeepSeek，不看圖），而觀察記的是**看圖那隻**的行為。
+            繼續讀 `LLM_MODEL` 的話，這條會拿抽取模型去比對看圖的觀察 ——
+            比錯對象，而紅綠燈看起來都很正常。
             """
             f = REPO / "tests" / "model-observations.json"
             if not f.is_file():
@@ -493,8 +506,8 @@ class Checker:
             rec = json.loads(f.read_text())
             want_a, want_b = rec.get("eye_a"), rec.get("eye_b")
             env = load_env(REPO)
-            got_a = env.get("LLM_MODEL")
-            got_b = env.get("PP_EYE_B_MODEL", "gpt-5.6-luna")
+            eye_a, eye_b = eyes.eyes_from_env(env)
+            got_a, got_b = eye_a.model, eye_b.model
             ok = (want_a == got_a) and (want_b == got_b)
             msg = (f"量測於 {rec.get('measured_on')}：{want_a} + {want_b}"
                    if ok else
