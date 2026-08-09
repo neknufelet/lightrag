@@ -47,12 +47,12 @@ import subprocess
 import sys
 import time
 import unicodedata
-import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
+from pp.ragapi import Rag  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
@@ -119,50 +119,9 @@ def canonical(group: list[str]) -> str:
     return sorted(group, key=lambda s: (-len(SEP.findall(s)), -len(s), s))[0]
 
 
-class Rag:
-    def __init__(self, env: dict):
-        self.host = f"http://{env.get('BIND_ADDR', '100.87.88.7')}:{env.get('HOST_PORT', '9621')}"
-        self.key = env.get("LIGHTRAG_API_KEY", "")
-
-    def _req(self, path: str, method="GET", body=None, timeout=240):
-        r = urllib.request.Request(
-            self.host + path, method=method,
-            data=json.dumps(body).encode() if body is not None else None,
-            headers={"X-API-Key": self.key, "Content-Type": "application/json"})
-        with urllib.request.urlopen(r, timeout=timeout) as resp:
-            return json.loads(resp.read() or "{}")
-
-    def labels(self) -> list[str]:
-        return self._req("/graph/label/list")
-
-    def popular(self, n: int) -> list[str]:
-        return self._req(f"/graph/label/popular?limit={n}")
-
-    # 這個值同時是「回傳上限」與「靜默截斷點」。原本設 60，實測
-    # Acoustic Pressure 有 69 條邊，備份只存到 59 條而且不報錯 —— 備份少存邊
-    # 這種事，發現的時機通常是「要回復的時候」。呼叫端必須自己比對回傳筆數。
-    SUBGRAPH_CAP = 1000
-
-    def subgraph(self, label: str) -> dict:
-        import urllib.parse
-        return self._req(f"/graphs?label={urllib.parse.quote(label)}"
-                         f"&max_depth=1&max_nodes={self.SUBGRAPH_CAP}", timeout=180)
-
-    def merge(self, sources: list[str], target: str) -> dict:
-        return self._req("/graph/entities/merge", "POST",
-                         {"entities_to_change": sources,
-                          "entity_to_change_into": target}, timeout=300)
-
-    def pipeline_idle(self) -> bool:
-        return not self._req("/health").get("pipeline_busy")
-
-    def entities_for(self, query: str, top_k: int) -> list[str]:
-        # chunk_top_k=1：我們只要實體清單，不需要原文。設 0 會被當成「不限制」，
-        # 所以給 1 —— 少搬幾十 KB 的 chunk 過來。
-        d = self._req("/query/data", "POST",
-                      {"query": query, "mode": "mix", "only_need_context": True,
-                       "top_k": top_k, "chunk_top_k": 1}).get("data") or {}
-        return [e.get("entity_name") for e in (d.get("entities") or []) if e.get("entity_name")]
+# `Rag` 2026-08-09 搬到 `pp/ragapi.py`（見檔頭說明）。行為逐字不變，只補了型別註解
+# 與 `delete_entity` / `entity_exists`。搬出去是因為 `graph-clean.py` 也要動圖譜 ——
+# 兩支各寫一份 `_req`，逾時、標頭、錯誤處理就會各自漂走。
 
 
 def cmd_plan(a, env) -> int:

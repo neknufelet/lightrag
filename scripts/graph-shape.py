@@ -28,17 +28,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
+from pp.graph_labels import ALL_RE, classify  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 
 # 規則 2a 要消滅的那些：常見名詞 ＋ 編號／字母／羅馬數字。
-# 字首清單是 2026-08-08 從圖譜**實際撈出來的**，不是憑印象列的。
-LABEL_PREFIXES = ("fig", "figure", "table", "tab", "eq", "equation", "formula",
-                  "section", "sec", "appendix", "chapter", "scheme", "panel",
-                  "case", "sample", "step", "model", "type", "region", "zone",
-                  "mode", "phase", "part", "stage", "item", "note", "example",
-                  "reference", "ref", "configuration", "config")
-LABEL_RE = (r"^(" + "|".join(LABEL_PREFIXES) + r")[\s._\-#]*[0-9ivxIVX]+[a-z)]?\s*$")
+# 字首清單是 2026-08-08 從圖譜**實際撈出來的**，不是憑印象列的；2026-08-09 移到
+# `pp/graph_labels.py` 並分成「確定可刪」與「只報不刪」兩組 —— 因為 `graph-clean.py`
+# 要照同一份清單刪。量測與清除各留一份的話，清完之後兩邊會報出不同的殘留數，
+# 而那個分岔沒有任何東西會發現。
+LABEL_RE = ALL_RE
 
 # 規則 1 要消滅的：型別是 person／organization 的節點。
 # 用型別而不是猜名字 —— 名字看起來像人名的判斷會誤傷「Helmholtz resonator」。
@@ -74,6 +73,11 @@ def measure(env: dict[str, str], workspace: str, table: str) -> dict:
         where workspace={ws} and entity_name ~* {_sql_literal(LABEL_RE)}
         order by 1;""")
     label_names = [r[0] for r in labels]
+    # 分兩組回報。**總數仍然是規則 2a 的指標**，但「確定可刪」是 graph-clean.py
+    # 會動的那一組，兩個數字要分開看：清完之後總數不會回 0，會停在 suspect 那組，
+    # 而那不是規則失敗，是 PO 2026-08-09 裁決先不動。
+    certain = [n for n in label_names if classify(n) == "certain"]
+    suspect = [n for n in label_names if classify(n) == "suspect"]
 
     # 型別在圖節點表的 properties JSONB 裡，不在向量表
     type_rows = psql(env, f"""
@@ -94,6 +98,10 @@ def measure(env: dict[str, str], workspace: str, table: str) -> dict:
         "nodes": nodes,
         "label_nodes": len(label_names),
         "label_examples": label_names[:12],
+        "label_certain": len(certain),
+        "label_certain_names": certain,
+        "label_suspect": len(suspect),
+        "label_suspect_names": suspect,
         "person_org_nodes": people,
         "by_type": by_type,
         "case_variant_groups": len(dupes),
@@ -131,8 +139,21 @@ def main() -> int:
     print(f"  節點總數　　　　　{result['nodes']:>6,}")
     print(f"  泛用標籤節點　　　{result['label_nodes']:>6}"
           f"　（規則 2a 目標：0）")
-    if result["label_examples"]:
-        print(f"      例：{', '.join(result['label_examples'][:8])}")
+    # 分兩行報。合成一個數字的話，「graph-clean 能處理的」與「等 PO 裁定的」
+    # 看起來一樣，於是每次看到殘留都要重查一次才知道該不該行動。
+    certain, suspect = result["label_certain_names"], result["label_suspect_names"]
+    print(f"      確定可刪　　　{result['label_certain']:>6}"
+          f"　（graph-clean.py apply 會刪這些）")
+    if certain:
+        shown = certain[:8]
+        print(f"          例：{', '.join(shown)}"
+              + (f"　… 另 {len(certain) - len(shown)} 項未列出" if len(certain) > len(shown) else ""))
+    print(f"      待裁定　　　　{result['label_suspect']:>6}"
+          f"　（region／zone／mode 那族，PO 2026-08-09 裁決先不動）")
+    if suspect:
+        shown = suspect[:8]
+        print(f"          例：{', '.join(shown)}"
+              + (f"　… 另 {len(suspect) - len(shown)} 項未列出" if len(suspect) > len(shown) else ""))
     print(f"  person／organization {result['person_org_nodes']:>4}"
           f"　（規則 1 目標：大幅下降）")
     top = sorted(result["by_type"].items(), key=lambda kv: -kv[1])[:6]

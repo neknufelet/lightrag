@@ -60,19 +60,25 @@ class _Response:
         return json.dumps(self.payload).encode()
 
 
+# `Rag` 2026-08-09 從 `entity-merge.py` 搬到 `pp/ragapi.py`（`graph-clean.py` 也要用）。
+# 這支測試釘的是「查詢參數的單一來源」，所以跟著搬 —— 留在舊路徑的話它會一直紅，
+# 而一直紅的測試遲早會被人 skip 掉。
+RAGAPI = ROOT / "scripts" / "pp" / "ragapi.py"
+
+
 def _merge_query_literals() -> dict[str, object]:
-    tree = ast.parse((ROOT / "scripts" / "entity-merge.py").read_text(encoding="utf-8"))
+    tree = ast.parse(RAGAPI.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "entities_for":
             for call in ast.walk(node):
                 if isinstance(call, ast.Call) and len(call.args) >= 3 and isinstance(call.args[2], ast.Dict):
                     return {key.value: value.value for key, value in zip(call.args[2].keys, call.args[2].values, strict=True)
                             if isinstance(key, ast.Constant) and isinstance(value, ast.Constant)}
-    raise AssertionError("找不到 entity-merge.py Rag.entities_for 的請求 body")
+    raise AssertionError(f"找不到 {RAGAPI.name} Rag.entities_for 的請求 body")
 
 
-def test_query_contract_is_read_from_entity_merge_source(monkeypatch: pytest.MonkeyPatch) -> None:
-    """三個靜態參數必須從 entity-merge.py 原始碼釘住，不能自行猜。"""
+def test_query_contract_is_read_from_ragapi_source(monkeypatch: pytest.MonkeyPatch) -> None:
+    """三個靜態參數必須從 `pp/ragapi.py` 原始碼釘住，不能自行猜。"""
     module, seen = _module(), {}
     literals = _merge_query_literals()
 

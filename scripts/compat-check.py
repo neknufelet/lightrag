@@ -37,6 +37,7 @@ from pp.docctx import (  # noqa: E402
     page_sizes_compatible,
 )
 from pp.extraction_profile import active_profile, profile_hash, read_record  # noqa: E402
+from pp.graph_labels import CERTAIN_RE  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
@@ -614,6 +615,52 @@ class Checker:
                 f"現在生效 {now}。要嘛重抽讓兩者一致，要嘛把規則改回去 —— "
                 f"不重抽的話，之後新進的文件會用不同規則而沒有訊號"
             ), {"graph_hash": was, "active_hash": now, "documents": covered}
+
+        @self.check("A-33", "soft", "圖譜裡沒有確定該刪的位置標記節點")
+        def _() -> tuple[bool, str, dict]:
+            """`equation 22`、`table i`、`reference 1` 這種節點還在圖譜裡 —— 要有人知道。
+
+            **為什麼不能只靠提示詞**：規則 2a 寫在抽取提示詞裡，2026-08-08、08-09
+            實測三次都沒守住，而且**守不住的程度隨後端而變**（受控比對：同樣的規則與
+            解析成果，llama.cpp 與 vLLM 抽出來的人名機構是 35 對 49）。提示詞是請求，
+            不是保證 —— 換模型、換量化、換溫度都會改變它的遵守度。
+
+            **所以這是耐久規則，不綁模型**：位置標記長什麼樣子是文件的性質，本機
+            llama.cpp 或雲端 vLLM 抽的都一樣要清、一樣要響。判準放在
+            `pp/graph_labels.py`，`graph-shape.py`（量）與 `graph-clean.py`（刪）
+            共用同一份，不各算一次。
+
+            **為什麼是 soft**：殘留不表示系統壞了，表示「該跑清除了」。擋下部署沒有
+            意義，但沉默的話這些節點會一直佔著檢索預算 —— 而只有人主動跑
+            `graph-shape.py` 才看得到，那不算探針（鐵則第 6 條）。
+
+            **只數 certain 那一組。** suspect（`region II`／`zone IV`／`mode ii`）
+            由 PO 2026-08-09 裁決先不動，把它算進來會讓這條斷言永遠是紅的，
+            而永遠紅的警報等於沒有警報。
+            """
+            env = load_env(REPO)
+            # 用圖節點表而不是向量表：`graph-clean.py` 動的是圖譜，警報要跟它同源。
+            # （2026-08-09 實測兩張表的命中數相同，都是 66。）
+            sql = ("select count(*) from lightrag_graph_nodes where workspace = "
+                   f"{_sql_literal(self.ws)} and id ~* {_sql_literal(CERTAIN_RE)};")
+            p = subprocess.run(
+                ["docker", "exec", postgres_container(env), "psql", "-U",
+                 env.get("POSTGRES_USER", POSTGRES_USER_DEFAULT), "-d",
+                 env.get("POSTGRES_DATABASE", "lightrag"), "-tAF|", "-c", sql],
+                capture_output=True, text=True, timeout=30, check=False)
+            if p.returncode != 0:
+                return False, f"psql 失敗：{p.stderr.strip()[:300]}", {}
+            out = p.stdout.strip()
+            if not out.isdigit():
+                return False, f"psql 回傳看不懂：{out[:120]!r}", {}
+            n = int(out)
+            if n == 0:
+                return True, f"0 個（workspace={self.ws!r}）", {"certain": 0}
+            return False, (
+                f"**{n} 個位置標記節點還在圖譜裡**（workspace={self.ws!r}）。"
+                f"它們佔著檢索預算又回答不了任何問題。"
+                f"跑 `graph-clean.py plan` 看清單、`graph-clean.py apply` 清掉"
+            ), {"certain": n, "workspace": self.ws}
 
     # ---------- 資料層（逐文件）----------
 
