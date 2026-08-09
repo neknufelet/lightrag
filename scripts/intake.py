@@ -943,9 +943,17 @@ class IntakeApp:
         # 解析併行數。mineru.net 的限制是 300 次/分鐘、每天 2,000 頁享最高優先，
         # 併發本身沒有寫上限 —— 所以擋住的從來不是它，是我們自己。
         self.parse_workers = max(1, int(self.environment.get("INTAKE_PARSE_WORKERS", "6")))
-        # 放行併行數。**對齊 LightRAG 的 `MAX_PARALLEL_INSERT`**（實機 6）——
-        # 開得比它多沒有意義，多出來的只會排在 LightRAG 內部等。
-        self.admit_workers = max(1, int(self.environment.get("INTAKE_ADMIT_WORKERS", "6")))
+        # 放行併行數。**預設 1，而且這是實測結果不是保守。**
+        #
+        # 2026-08-09 開到 6 實跑：同時 5 件確實在動，但 `pp/apply.py` 有一道
+        # 「pipeline 忙碌中，拒絕改檔（掃描會跟我們搶同一份檔案）」—— 而併行時
+        # 總有人在掃，於是其他人的 apply 全被擋掉。加鎖也救不了：pipeline 幾乎
+        # 永遠是忙的，apply 會餓死。
+        #
+        # **要真的併行，得把 apply 挪到「解析剛跑完」那一刻**（那時沒人在掃），
+        # 放行就只剩「複製 → 掃描 → 等索引」，那三步併行沒有衝突。
+        # 那是一次重構，不是調一個數字 —— 在那之前這裡維持 1。
+        self.admit_workers = max(1, int(self.environment.get("INTAKE_ADMIT_WORKERS", "1")))
         self.store = JobStore(paths)
         self.events = EventStore(paths)
         self._jobs: dict[str, Job] = {job.job_id: job for job in self.store.load()}
