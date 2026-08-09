@@ -88,13 +88,27 @@ canary 基準已補回 27 份且全綠。
 底下是 `parsed` 與 `crops` 的完整複本，跑的時候帶 `PP_DATA_ROOT=/data/lightrag-trial`。
 驗證與數字在 [LOG](../cairn/LOG.md)。**要換眼睛還缺下面這條。**
 
-- ⬜ `postprocess.py`／`eq-check.py` 加 `--env-file`
-  → 帶了讀指定的檔，不帶時行為與現在逐位元相同
+✅ **`--env-file` 已上線**（2026-08-09）。疊加不取代，異動清單一定印且分
+「覆寫／新增」。trial 用法：
 
-  現在兩支都是 `env = load_env(REPO)`，而 repo 的 `.env` 是指向正式那份的
-  symlink，所以眼睛設定沒辦法在不碰正式設定的情況下換掉。
-  **不要學 `intake.py` 做 `env.update(os.environ)`** —— shell 裡剛好有同名變數
-  就會靜靜覆寫，而 `LLM_MODEL`、`HOST_PORT` 這種名字很容易撞。
+```bash
+PP_DATA_ROOT=/data/lightrag-trial \
+  python3 scripts/postprocess.py --env-file /data/lightrag-trial/trial.env check --doc X
+```
+
+- ⬜ 眼睛 A 沿用抽取模型時要出一聲　→ 換抽取模型而忘了設 `PP_EYE_A_*` 時看得到
+
+  **拆分不會自動保護你。** fallback 保留舊行為是「今天什麼都不會變」的必要條件，
+  所以沒設 `PP_EYE_A_*` 時眼睛 A 仍然跟著 `LLM_MODEL` 走。2026-08-09 反向對照：
+
+  ```
+  有指定眼睛 A    文字=deepseek-v4-flash  眼睛A=qwen3.6-35b-a3b     看得見圖=True
+  沒指定眼睛 A    文字=deepseek-v4-flash  眼睛A=deepseek-v4-flash   看得見圖=False
+  ```
+
+  建議做法是**印一行提示**（「眼睛 A 沿用抽取模型 X」），不要做成硬性擋下 ——
+  「哪些模型看得見圖」是綁模型的觀察，照 [hard-rules](hard-rules.md) 不得寫成
+  流程中的自動裁決規則，換代後它會變成錯的而且錯得很安靜。
 
 - ⬜ 眼睛 A 要指向 OpenRouter 的話，補 `PP_EYE_A_PROVIDER`
   → 同 `PP_EYE_C_PROVIDER` 的理由：同一個模型 ID 會被路由到不同供應商
