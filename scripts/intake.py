@@ -1121,8 +1121,8 @@ class IntakeApp:
         if len(set(ids)) != len(ids):
             raise IntakeError("candidate_id 不得重複", 400)
         with self._lock:
-            if self._busy():
-                raise IntakeError("已有序列工作進行中，請等待狀態更新", 409)
+            # 不再擋「忙碌中」：解析佇列有 6 條工人，排隊就是正確行為。
+            # 舊守衛是循序時代的產物，留著會讓「全部解析」在第二次點下去就 409。
             existing_candidates = {job.candidate_id for job in self._jobs.values()}
         candidates = self._candidate_map()
         missing = [value for value in ids if value not in candidates]
@@ -1149,9 +1149,9 @@ class IntakeApp:
         return jobs
 
     def submit_admit(self, job_id: str) -> Job:
-        with self._lock:
-            if self._busy():
-                raise IntakeError("已有序列工作進行中，請等待狀態更新", 409)
+        # 不再擋「忙碌中」：放行佇列自己就是單條工人，排進去就是排隊。
+        # 舊守衛會讓「多份一起放行」做不到 —— 第一件排進去之後，後面每一件都被
+        # 自己排出來的佇列擋掉（2026-08-09 重啟後 17 件卡在「等你看」就是這樣）。
         job = self._get_job(job_id)
         with self._lock:
             if job.status != "planned" or job.decision != "clean":
