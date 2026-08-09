@@ -735,6 +735,9 @@ class SubprocessRunner:
         # 等 LightRAG 願意收下這次 scan 的上限。併行放行時 `pipeline_busy` 是常態，
         # 不是異常 —— 但也不能無限等，卡住要看得出來。
         self.scan_timeout = _positive_float(environment.get("INTAKE_SCAN_TIMEOUT"), 1800.0)
+        # 修補前等 pipeline 閒置的上限。抽取一份可能要幾分鐘，而 scan 一次可能
+        # 撿走好幾份，所以這個要比 scan_timeout 寬。
+        self.idle_timeout = _positive_float(environment.get("INTAKE_IDLE_TIMEOUT"), 7200.0)
         self.client = LightRAGClient(environment)
 
     def _run(self, command: list[str], timeout: float) -> OperationResult:
@@ -792,7 +795,39 @@ class SubprocessRunner:
             ), evaluation.plan)
         return evaluation
 
+    def _wait_pipeline_idle(self) -> str | None:
+        """等 LightRAG 把手上的東西做完。等不到就回原因。
+
+        **不重疊，而不是撞上去再失敗。**「修補」是改稿子、「抽取」是把稿子讀進去，
+        兩者不能同時 —— 讀到一半被改，讀進去的就是半舊半新，所以
+        `pp/apply.py` 直接拒絕（`pipeline 忙碌中，拒絕改檔`）。
+
+        問題是舊做法**沒有等**：一份剛送去抽取，下一份的修補立刻動手，於是撞上去
+        然後整份判失敗。2026-08-09 進料 30 份，**11 份是這樣掉的**（而且解析成果
+        都還在，純粹是時機問題）。
+
+        ⚠ `wait_indexed` 回來不代表 pipeline 就閒了：`scan` 是掃**整個目錄**，
+        一次可能撿走好幾份，所以「我這份 processed 了」跟「它全部做完了」是兩件事。
+        這就是為什麼即使放行只有一條也照樣會撞。
+        """
+        deadline = time.monotonic() + self.idle_timeout
+        while True:
+            try:
+                payload = self.client.request("/health", timeout=20)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                return f"問不到 pipeline 狀態：{type(exc).__name__}: {exc}"
+            if not payload.get("pipeline_busy"):
+                return None
+            if time.monotonic() >= deadline:
+                return (f"等 pipeline 閒置超過 {self.idle_timeout:.0f} 秒仍在忙 —— "
+                        "抽取可能卡住了，查 LightRAG 的 log")
+            time.sleep(self.poll_seconds)
+
     def apply(self, job: Job) -> OperationResult:
+        # 先等再改。理由見 `_wait_pipeline_idle`。
+        blocked = self._wait_pipeline_idle()
+        if blocked is not None:
+            return OperationResult(False, "", blocked)
         command = [
             self.python, str(self.repo / "scripts" / "postprocess.py"),
             "apply", "--workspace", job_workspace(job), "--doc", job.filename, "--commit",
