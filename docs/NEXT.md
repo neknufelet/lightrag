@@ -79,6 +79,33 @@ canary 基準已補回 27 份且全綠。
   期刊推薦區塊（KI-015）、以及 `Helmholtz`／`Cremer`／`Maa`／`Mechel`
   這些**本來就該留著**的聲學史人物。
 
+## 眼睛與文字已拆開，下一步是隔離的測試環境（2026-08-09）
+
+`PP_EYE_A_*` 上線，不設時 fallback 回 `LLM_BINDING_*`，實機驗過行為不變。
+拆分的目的是讓「換抽取模型」與「換看圖的模型」不再互相牽連。
+
+- ⬜ 建 trial 資料根，讓後處理可以在不碰正式設定的前提下換眼睛
+  → 用現有設定在 trial 跑 `postprocess.py check`，數字要與正式**完全相同**
+
+  做法：`cp -r /data/lightrag/work/{parsed,crops}` 到 `/data/lightrag-trial/work/`
+  （334 MB，磁碟餘 208 GB），跑的時候帶 `PP_DATA_ROOT=/data/lightrag-trial`。
+  **crops 要一起複製**：轉錄快取的鍵是 `{png_sha}.{eye}.{model}.json`，
+  複製過去之後眼睛 B／C 的既有結果照樣命中，只有換掉的那隻會 miss。
+  ⚠ 對照組那一步不能省。沒有它就分不清差異是模型造成的還是隔離本身弄出來的。
+
+- ⬜ `postprocess.py`／`eq-check.py` 加 `--env-file`
+  → 帶了讀指定的檔，不帶時行為與現在逐位元相同
+
+  現在兩支都是 `env = load_env(REPO)`，而 repo 的 `.env` 是指向正式那份的
+  symlink，所以眼睛設定沒辦法在不碰正式設定的情況下換掉。
+  **不要學 `intake.py` 做 `env.update(os.environ)`** —— shell 裡剛好有同名變數
+  就會靜靜覆寫，而 `LLM_MODEL`、`HOST_PORT` 這種名字很容易撞。
+
+- ⬜ 眼睛 A 要指向 OpenRouter 的話，補 `PP_EYE_A_PROVIDER`
+  → 同 `PP_EYE_C_PROVIDER` 的理由：同一個模型 ID 會被路由到不同供應商
+
+  2026-08-09 拆分時刻意沒加 —— 沒有用到的旋鈕沒辦法驗證。
+
 ## 審核台顯示假狀態（2026-08-08 重抽時抓到，同日修掉 `837b78f`）
 
 分節改成一律問知識庫，「已處理」直接等於「已進知識庫」那一節的長度。
