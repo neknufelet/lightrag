@@ -114,6 +114,8 @@ def main() -> int:
               + (f"，釘住 {eye_c.provider}" if eye_c.provider else
                  "　⚠ 未釘 provider，OpenRouter 可能路由到不同部署"))
     # 方程式的 prompt 跟表格不同（沒有列結構，而且要特別交代羅馬數字）
+    # ⚠ 換了 PROMPT 就要換 `look(closing=…)`：輸出形狀變了，截斷偵測的 V2
+    #（「以 </table> 收尾」）對裸 LaTeX 不成立，不關掉會把每一條都判成截斷。
     eyes.vlm.PROMPT = PROMPT_EQ
 
     sample = pick(a.workspace, a.n, a.doc)
@@ -132,8 +134,10 @@ def main() -> int:
             errs += 1
             continue
         cache = out_root / ctx.doc_name / "cache"
-        ha, ea = eyes.look(eye_a, c.png, cache)
-        hb, eb = eyes.look(eye_b, c.png, cache)
+        # closing=None：只跑 V1（finish_reason）。方程式的輸出是裸 LaTeX，
+        # 沒有收尾標記可以檢查 —— 見上面換 PROMPT 那裡的說明。
+        ha, ea = eyes.look(eye_a, c.png, cache, closing=None)
+        hb, eb = eyes.look(eye_b, c.png, cache, closing=None)
         if ea or eb:
             errs += 1
             continue
@@ -157,7 +161,7 @@ def main() -> int:
         else:
             # 三方皆異 —— 這時候第四票才有價值
             if eye_c:
-                hc, ec = eyes.look(eye_c, c.png, cache)
+                hc, ec = eyes.look(eye_c, c.png, cache, closing=None)
                 if ec:
                     tiebreak_err += 1
                 else:

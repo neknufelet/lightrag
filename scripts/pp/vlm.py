@@ -152,18 +152,40 @@ def extract_html(raw: str) -> str:
     return m.group(0) if m else raw.strip()
 
 
+def truncation_failures(raw: str, finish_reason: str,
+                        closing: str | None = "</table>") -> list[str]:
+    """V1／V2：截斷偵測。**`judge()` 與 `eyes.look()` 共用這一份實作。**
+
+    為什麼獨立成一個函式：十二道閘門寫好之後**整包零呼叫點**（2026-08-09 查到），
+    實際在守的是 apply 那側重寫的三道。V1／V2 只需要 `finish_reason` 與輸出字串
+    本身，不需要另外九道缺的 `gt_text`／`neighbour_gts`／`caption`／`layout_rows`，
+    所以先接這兩道。**接的方式是讓兩邊叫同一個函式，不是把程式碼抄過去** ——
+    抄過去就是再造一條「寫了沒人叫」的路，而那正是這個坑本身的成因。
+
+    兩道抓的不是同一件事，缺一不可：
+      V1 問伺服器「你講完了嗎」，但快取沿用時這個欄位可能不存在；
+      V2 看輸出自己的形狀，伺服器沒回 `finish_reason` 時它還在。
+
+    `closing` 是輸出該有的收尾字串，**隨 `PROMPT` 一起變**：表格轉錄是 `</table>`，
+    而 `eq-check.py` 把 `PROMPT` 換成方程式版之後輸出是裸 LaTeX，沒有任何收尾標記
+    —— 對它要傳 `None`，只跑 V1。**兩者是同一個旋鈕的兩端，改 `PROMPT` 就要想到
+    這裡**，否則方程式檢查會每一條都被判成截斷。
+    """
+    out: list[str] = []
+    if finish_reason and finish_reason != "stop":
+        out.append(f"V1 finish_reason={finish_reason}")
+    if closing and not raw.rstrip().rstrip("`").rstrip().lower().endswith(closing.lower()):
+        out.append(f"V2 輸出未以 {closing} 結尾")
+    return out
+
+
 def judge(html: str, raw: str, finish_reason: str, gt_text: str,
           neighbour_gts: list[str], caption: str,
           layout_rows: int | None = None) -> Verdict:
     """十二道閘門。任何 hard 失敗即不採用；分母不足則標 unverified 交人工。"""
-    failed: list[str] = []
+    # V1 / V2：截斷。與 `eyes.look()` 走同一份實作，見 `truncation_failures`。
+    failed: list[str] = truncation_failures(raw, finish_reason)
     m: dict = {}
-
-    # V1 / V2：截斷
-    if finish_reason and finish_reason != "stop":
-        failed.append(f"V1 finish_reason={finish_reason}")
-    if not raw.rstrip().rstrip("`").rstrip().lower().endswith("</table>"):
-        failed.append("V2 輸出未以 </table> 結尾")
 
     # V3：數學被換成圖片
     if "<img" in html.lower():

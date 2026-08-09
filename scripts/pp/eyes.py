@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -23,6 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from pp import crosscheck, pdfcrop, vlm  # noqa: E402
 from pp.docctx import DocContext  # noqa: E402
 from pp.rules import empty_table  # noqa: E402
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -37,6 +40,9 @@ class Eye:
     # 交叉驗證的前提是「模型固定」，所以必須釘住 —— 不釘的話，兩次呼叫
     # 可能來自不同部署，比對出來的差異分不清是模型錯還是換了後端。
     provider: str = ""
+    # `max_out` 是哪個環境變數設的。**只給錯誤訊息用**：轉錄被截斷時要能直接
+    # 說出「調哪一個鍵」，而 `name`（qwen／luna／eye_c）對不上 A／B／C。
+    max_out_key: str = ""
 
     @property
     def family(self) -> str:
@@ -71,7 +77,8 @@ def eye_c_from_env(env: dict) -> Eye | None:
                key, model,
                reasoning=env.get("PP_EYE_C_REASONING", "false").lower() == "true",
                max_out=int(env.get("PP_EYE_C_MAX_OUT", "3072")),
-               provider=(env.get("PP_EYE_C_PROVIDER") or "").strip())
+               provider=(env.get("PP_EYE_C_PROVIDER") or "").strip(),
+               max_out_key="PP_EYE_C_MAX_OUT")
 
 
 def eyes_from_env(env: dict) -> tuple[Eye, Eye]:
@@ -100,14 +107,16 @@ def eyes_from_env(env: dict) -> tuple[Eye, Eye]:
             # 輸出行為因此會變，而交叉驗證的前提是「模型固定」。不釘的話兩次
             # 呼叫可能來自不同部署，比對出來的差異分不清是模型錯還是換了後端。
             # 指向本機時留空即可（只有一個部署，沒有路由問題）。
-            provider=(env.get("PP_EYE_A_PROVIDER") or "").strip())
+            provider=(env.get("PP_EYE_A_PROVIDER") or "").strip(),
+            max_out_key="PP_EYE_A_MAX_OUT")
     b = Eye("luna",
             env.get("PP_EYE_B_HOST", "https://api.openai.com/v1"),
             # 預設沿用 embedding 那把 OpenAI 金鑰，不另外散一份出去
             env.get("PP_EYE_B_API_KEY") or env.get("EMBEDDING_BINDING_API_KEY", ""),
             env.get("PP_EYE_B_MODEL", "gpt-5.6-luna"),
             reasoning=env.get("PP_EYE_B_REASONING", "true").lower() == "true",
-            max_out=int(env.get("PP_EYE_B_MAX_OUT", "6000")))
+            max_out=int(env.get("PP_EYE_B_MAX_OUT", "6000")),
+            max_out_key="PP_EYE_B_MAX_OUT")
     if a.model == b.model:
         raise RuntimeError("兩雙眼睛不能是同一個模型 —— 錯誤會相關，交叉驗證失去意義")
     if a.family == b.family:
@@ -131,26 +140,75 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()[:16]
 
 
-def _cached(cache: Path, eye: Eye, png_sha: str) -> str | None:
-    f = cache / f"{png_sha}.{eye.name}.{eye.model.replace('/', '_')}.json"
+def _cache_file(cache: Path, eye: Eye, png_sha: str) -> Path:
+    """快取檔路徑。**檔名規則是契約**：改了等於既有快取全部 miss、重新付一次錢
+    （`tests/test_eye_a_split.py` 用一個舊檔名釘住這件事）。"""
+    return cache / f"{png_sha}.{eye.name}.{eye.model.replace('/', '_')}.json"
+
+
+def _cached(cache: Path, eye: Eye, png_sha: str) -> dict | None:
+    """回傳整包快取內容，**不只 `html`** —— 截斷檢查要 `raw` 與 `finish_reason`。
+
+    以前這裡只挑 `["html"]` 出來，於是 `vlm.transcribe` 正確回報、`_store` 也正確
+    存下的 `finish_reason` 在快取這條路上被丟掉，V1 無從判斷。存了、寫了檢查，
+    就是沒接起來 —— 這一行就是那個斷點。
+    """
+    f = _cache_file(cache, eye, png_sha)
     if f.is_file():
-        return json.loads(f.read_text())["html"]
+        return json.loads(f.read_text())
     return None
 
 
 def _store(cache: Path, eye: Eye, png_sha: str, html: str, raw: str, fin: str) -> None:
     cache.mkdir(parents=True, exist_ok=True)
-    f = cache / f"{png_sha}.{eye.name}.{eye.model.replace('/', '_')}.json"
-    f.write_text(json.dumps({"model": eye.model, "html": html, "raw": raw,
-                             "finish_reason": fin}, ensure_ascii=False, indent=1))
+    _cache_file(cache, eye, png_sha).write_text(
+        json.dumps({"model": eye.model, "html": html, "raw": raw,
+                    "finish_reason": fin}, ensure_ascii=False, indent=1))
 
 
-def look(eye: Eye, png: Path, cache: Path) -> tuple[str, str | None]:
-    """回傳 (html, 錯誤訊息)。失敗不拋例外 —— 一張表看不了不該中斷整份文件。"""
+def _truncation_error(eye: Eye, f: Path, raw: str | None, fin: str | None,
+                      closing: str | None) -> str | None:
+    """跑 V1／V2（`vlm.truncation_failures`）。沒有截斷跡象時回 None。
+
+    **缺欄位不算截斷。** `_store` 一定會寫 `raw` 與 `finish_reason`，走到這一支
+    代表快取檔來自沒見過的格式或別的東西寫的 —— 那是「驗不了」不是「壞了」，
+    當成壞了會無端重付一輪轉錄費。但要出聲（鐵則 6：探針要在沒人問的時候會響），
+    否則「沒檢查」跟「檢查通過」在畫面上長得一樣。
+    """
+    if raw is None or fin is None:
+        LOGGER.warning("%s 缺 raw／finish_reason，截斷檢查（V1／V2）驗不了", f)
+        return None
+    bad = vlm.truncation_failures(raw, fin, closing)
+    if not bad:
+        return None
+    key = eye.max_out_key or "該眼睛的 PP_EYE_*_MAX_OUT"
+    return (f"{eye.name}: 轉錄被截斷（{'、'.join(bad)}）—— 不採用。"
+            f"原始輸出留在 {f}；若是額度不足，調高 {key}（現值 {eye.max_out}）之後"
+            "**必須把那個檔刪掉**才會重打 —— 快取的鍵是「裁圖 sha ＋ 眼睛 ＋ 模型」，"
+            "不含 max_out，所以調大不會自動失效。")
+
+
+def look(eye: Eye, png: Path, cache: Path, *,
+         closing: str | None = "</table>") -> tuple[str, str | None]:
+    """回傳 (html, 錯誤訊息)。失敗不拋例外 —— 一張表看不了不該中斷整份文件。
+
+    **截斷的轉錄算失敗**（V1／V2，見 `vlm.truncation_failures`）。真正會靜靜通過
+    的形狀是「模型把一張表拆成兩塊、寫到第二塊被切斷」：`extract_html` 的非貪婪
+    正則只取第一個完整的 `<table>`，於是半張表會被當成整張表採用，而
+    `gate_table_html` 看到的是一個結構完整的表，放行。
+
+    **快取命中那條路也要驗。** 以前 `_cached` 只回 html，舊快取裡的截斷永遠不會
+    被發現；而轉錄是會被長期沿用的（快取以裁圖 sha 為鍵）。
+
+    `closing` 隨 `vlm.PROMPT` 一起變 —— 轉錄表格時是 `</table>`，`eq-check.py`
+    換成方程式 prompt 之後輸出是裸 LaTeX，要傳 `None`（只跑 V1）。
+    """
     sha = _sha(png)
+    f = _cache_file(cache, eye, sha)
     hit = _cached(cache, eye, sha)
     if hit is not None:
-        return hit, None
+        err = _truncation_error(eye, f, hit.get("raw"), hit.get("finish_reason"), closing)
+        return ("", err) if err else (hit["html"], None)
     try:
         raw, fin = vlm.transcribe(png, eye.host, eye.api_key, eye.model,
                                   reasoning=eye.reasoning, max_out=eye.max_out,
@@ -161,8 +219,12 @@ def look(eye: Eye, png: Path, cache: Path) -> tuple[str, str | None]:
         return "", (f"{eye.name}: 回傳空內容（finish_reason={fin}）—— "
                     "推理模型的額度可能不足，調高 PP_EYE_B_MAX_OUT")
     html = vlm.extract_html(raw)
+    # **先存再驗**（PO 2026-08-09 定案）：被截斷的原始輸出也要留在磁碟上 ——
+    # 可以 diff、可以重看、restic 會備份，而且下次重跑直接從快取判失敗，
+    # 不對同一張圖重複付費。代價是調大 max_out 之後要手動刪檔，錯誤訊息會講。
     _store(cache, eye, sha, html, raw, fin)
-    return html, None
+    err = _truncation_error(eye, f, raw, fin, closing)
+    return ("", err) if err else (html, None)
 
 
 @dataclass
