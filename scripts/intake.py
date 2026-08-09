@@ -3001,7 +3001,10 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
                         prefix=_render_parse_all(selection))
         + _render_section("parsing", "解析中", parsing, job_row,
                           open_default=bool(parsing))
-        + _render_section("review", "等你看", review, job_row, open_default=True)
+        # 有東西才展開。原本是無條件 `True`，理由是「這節唯一需要你動腦」——
+        # 但計畫判定 clean 會自動放行（裁決 4eacaea），所以常態下它是空的，
+        # 於是畫面上永遠張著一節寫著「沒有」的區塊，佔版面又什麼都沒說。
+        + _render_section("review", "等你看", review, job_row, open_default=bool(review))
         + _render_pending_groups(state.get("pending_by_reason"))
         + _render_section("in_progress", "處理中", in_progress, any_row,
                           open_default=bool(in_progress))
