@@ -84,14 +84,9 @@ canary 基準已補回 27 份且全綠。
 `PP_EYE_A_*` 上線，不設時 fallback 回 `LLM_BINDING_*`，實機驗過行為不變。
 拆分的目的是讓「換抽取模型」與「換看圖的模型」不再互相牽連。
 
-- ⬜ 建 trial 資料根，讓後處理可以在不碰正式設定的前提下換眼睛
-  → 用現有設定在 trial 跑 `postprocess.py check`，數字要與正式**完全相同**
-
-  做法：`cp -r /data/lightrag/work/{parsed,crops}` 到 `/data/lightrag-trial/work/`
-  （334 MB，磁碟餘 208 GB），跑的時候帶 `PP_DATA_ROOT=/data/lightrag-trial`。
-  **crops 要一起複製**：轉錄快取的鍵是 `{png_sha}.{eye}.{model}.json`，
-  複製過去之後眼睛 B／C 的既有結果照樣命中，只有換掉的那隻會 miss。
-  ⚠ 對照組那一步不能省。沒有它就分不清差異是模型造成的還是隔離本身弄出來的。
+✅ **trial 資料根已建好並驗過隔離**（2026-08-09）。`/data/lightrag-trial/work/`
+底下是 `parsed` 與 `crops` 的完整複本，跑的時候帶 `PP_DATA_ROOT=/data/lightrag-trial`。
+驗證與數字在 [LOG](../cairn/LOG.md)。**要換眼睛還缺下面這條。**
 
 - ⬜ `postprocess.py`／`eq-check.py` 加 `--env-file`
   → 帶了讀指定的檔，不帶時行為與現在逐位元相同
