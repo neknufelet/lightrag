@@ -76,7 +76,10 @@ class FakeRunner:
     def scan(self, job: Job, admitted_pdf: Path) -> OperationResult:
         self.calls.append("scan")
         assert admitted_pdf.is_file()
-        assert list(admitted_pdf.parent.glob("*.pdf")) == [admitted_pdf]
+        # ⚠ 這裡原本斷言「暫存區只有這一份」。那條**已經作廢**：分組之後一批會
+        # 一起躺在暫存區，掃一次全部收下（正式庫實測 `Processing 5 document(s)`）。
+        # 改成「這一份必須在裡面」—— 掃描是掃整個目錄，漏掉自己才是真的錯。
+        assert admitted_pdf in list(admitted_pdf.parent.glob("*.pdf"))
         return OperationResult(True, "fake scan")
 
     def wait_indexed(self, job: Job) -> OperationResult:
@@ -88,6 +91,65 @@ class ExplodingParseRunner(FakeRunner):
     def parse(self, job: Job, source_pdf: Path) -> OperationResult:
         super().parse(job, source_pdf)
         raise RuntimeError("測試用解析失敗")
+
+
+class BatchWatchingRunner(FakeRunner):
+    """在「它該壞的那一刻」記帳：改稿的當下，有沒有別人正在被抽取。
+
+    `pp/apply.py` 是在改檔案、LightRAG 是在讀同一份檔案，兩者同時發生時讀進去的
+    是半舊半新，所以那支直接拒絕（`pipeline 忙碌中，拒絕改檔`）。**只看設定對不對
+    看不出這件事** —— 要在真的跑起來的時候量。
+
+    `max_extracting` 是控制組：沒有它的話，「把放行改成一次一件」也會讓
+    `overlaps` 是空的，而那正是我們要離開的狀態。
+    """
+
+    def __init__(self, data_root: Path) -> None:
+        super().__init__(data_root)
+        self.app: IntakeApp | None = None
+        self.overlaps: list[str] = []
+        self.max_extracting = 0
+
+    def _others_in_flight(self, job_id: str) -> list[str]:
+        assert self.app is not None, "測試忘了把 app 掛上來"
+        return sorted(j.filename for j in self.app._jobs.values()
+                      if j.job_id != job_id
+                      and j.status in {"admitted", "scanning", "extracting"})
+
+    def apply(self, job: Job) -> OperationResult:
+        clash = self._others_in_flight(job.job_id)
+        if clash:
+            self.overlaps.append(f"改 {job.filename} 的時候，{clash} 正在被抽取")
+        return super().apply(job)
+
+    def wait_indexed(self, job: Job) -> OperationResult:
+        assert self.app is not None
+        extracting = [j for j in self.app._jobs.values() if j.status == "extracting"]
+        self.max_extracting = max(self.max_extracting, len(extracting))
+        return super().wait_indexed(job)
+
+
+def _batch_app(tmp_path: Path, names: tuple[str, ...]) -> tuple[IntakeApp, BatchWatchingRunner]:
+    source_parent = _source(tmp_path, names)
+    data_root = tmp_path / "data"
+    runner = BatchWatchingRunner(data_root)
+    app = IntakeApp(DataPaths(data_root), "test", [source_parent], runner=runner,
+                    environment={"INTAKE_ROUND_POLL_SECONDS": "0.02"})
+    runner.app = app
+    return app, runner
+
+
+def _wait_all(app: IntakeApp, job_ids: list[str], status: str, timeout: float = 20.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        current = {str(j.get("job_id")): str(j.get("status"))
+                   for j in app.state()["jobs"] if isinstance(j, dict)}
+        if all(current.get(job_id) == status for job_id in job_ids):
+            return
+        time.sleep(0.02)
+    current = {str(j.get("job_id")): str(j.get("status"))
+               for j in app.state()["jobs"] if isinstance(j, dict)}
+    raise AssertionError(f"這些沒有到 {status}：{current}")
 
 
 def _source(tmp_path: Path, names: tuple[str, ...] = ("paper.pdf",)) -> Path:
@@ -129,12 +191,25 @@ def test_state_machine_rejects_reversed_or_skipped_transitions(tmp_path: Path) -
     transition(job, "parsing")
     transition(job, "planned")
     transition(job, "repairing")
+    transition(job, "repaired")
     transition(job, "admitted")
     transition(job, "scanning")
     transition(job, "extracting")
     transition(job, "indexed")
     with pytest.raises(IntakeError):
         transition(job, "planned")
+
+    # **`repaired` 不能被跳過。** 稿子改好與還沒改在這條路上長得一樣（都還沒碰
+    # 索引），差別只在 `content_list.json` 動過沒 —— 而重跑一次 apply 會把
+    # MinerU 的原文換成上一輪的修補結果，還原路徑看起來還在，還原出來的卻不是原文。
+    # 少了這一格，重啟之後就分不出來了。
+    fresh = Job.from_candidate(candidate)
+    fresh.workspace = "test"
+    transition(fresh, "parsing")
+    transition(fresh, "planned")
+    transition(fresh, "repairing")
+    with pytest.raises(IntakeError):
+        transition(fresh, "admitted")
     assert paths.inputs_dir("test").name == "test"
 
 
@@ -647,6 +722,18 @@ def test_restart_does_not_guess_when_lightrag_is_unreachable(tmp_path: Path) -> 
 # ── 分節以知識庫為準：畫面不得與資料庫各說各話（PO 2026-08-08）──────────
 
 
+def _admit_one(app: IntakeApp, job_id: str) -> None:
+    """把一份從「等改稿」推到底，走的是協調者走的那兩段。
+
+    分組之後沒有「一份自己走完全程」的函式了（舊的 `_run_admit` 已刪）——
+    留著它會是第二條路，而同一件事兩條路正是本專案踩過五次的形狀。
+    這裡就是協調者的一輪，只是那一批剛好只有一份。
+    """
+    app._run_repair(job_id)
+    if app._jobs[job_id].status == "repaired":
+        app._extract_batch([job_id])
+
+
 def _ready_to_admit(app: IntakeApp, filename: str) -> Job:
     """做出一份「審查通過、解析成果齊全」、狀態停在 repairing 的 job。"""
     app.save_upload(filename, PDF)
@@ -782,7 +869,7 @@ def test_busy_inputs_sends_the_job_back_to_review_not_to_failed(tmp_path: Path) 
     inputs.mkdir(parents=True, exist_ok=True)
     (inputs / "別的流程在用.pdf").write_bytes(PDF)
 
-    app._run_admit(job.job_id)
+    _admit_one(app, job.job_id)
 
     assert job.status == "planned", "「現在不方便」被記成「這份文件壞了」"
     assert "這次沒有放行" in (job.error or "")
@@ -901,7 +988,7 @@ def test_a_deferred_admit_does_not_retry_itself(tmp_path: Path) -> None:
     inputs.mkdir(parents=True, exist_ok=True)
     (inputs / "別的流程在用.pdf").write_bytes(PDF)
 
-    app._run_admit(job.job_id)
+    _admit_one(app, job.job_id)
 
     assert job.status == "planned"
     assert app._parse_queue.empty() and app._admit_queue.empty(), (
@@ -1099,7 +1186,7 @@ def test_a_failed_admission_releases_the_inputs_staging_area(tmp_path: Path) -> 
     app.runner = _FailingIndexRunner(app.paths.root)   # type: ignore[assignment]
     job = _ready_to_admit(app, "自己的.pdf")
 
-    app._run_admit(job.job_id)
+    _admit_one(app, job.job_id)
 
     assert job.status == "failed"
     leftover = list(app.paths.inputs_dir(app.workspace).glob("*.pdf"))
@@ -1128,6 +1215,11 @@ def test_restart_requeues_an_admit_that_had_not_touched_the_index(tmp_path: Path
     """repairing 也一樣：那一步還沒把檔案複製進 inputs。
 
     判準是 OWNED_STATUSES（有沒有碰過索引），不是「有沒有開始跑」。
+
+    ⚠ **分組之後改稿不再自己排隊**：協調者每一輪自己去撿等著改稿的那些
+    （`_waiting_for_repair`），因為開工時機要由它決定 —— 它得先確認沒有人在抽取。
+    所以這裡驗的從「有沒有排進佇列」換成「有沒有被協調者看見」，
+    **意圖沒有變：還沒碰過索引的不得判死**。
     """
     app, queued = _restart_with_index(
         tmp_path, "repairing", {"別人的.pdf": "processed"},
@@ -1135,30 +1227,58 @@ def test_restart_requeues_an_admit_that_had_not_touched_the_index(tmp_path: Path
     job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
 
     assert job.status == "repairing"
-    assert queued == [("admit", job.job_id)]
+    assert queued == [], "改稿又自己排隊了 —— 開工時機該由協調者決定"
+    assert job.job_id in app._waiting_for_repair(), (
+        "重啟後這份沒被協調者看見，會永遠停在那裡")
 
 
-def test_parse_and_admit_each_run_wide_on_their_own_queue(tmp_path: Path) -> None:
+def test_restart_does_not_reapply_a_document_whose_draft_was_already_fixed(
+    tmp_path: Path,
+) -> None:
+    """`repaired` 重啟後**不得重跑 apply**，直接等下一次抽取時段。
+
+    重跑會把 MinerU 的原文換成上一輪的修補結果（`pp/apply.py` 的
+    `_pp_original_*` 只記第一次），還原路徑看起來還在，還原出來的卻不是原文。
+    這正是 `repaired` 必須是一個落地狀態、不能只存在記憶體裡的理由。
+    """
+    app, queued = _restart_with_index(
+        tmp_path, "repaired", {"別人的.pdf": "processed"},
+        stage_started_at="2026-08-08T15:00:00+00:00")
+    job = next(j for j in app._jobs.values() if j.filename == "跑到一半.pdf")
+
+    assert job.status == "repaired", "改好的稿子被重啟判掉了"
+    assert queued == []
+    assert job.job_id not in app._waiting_for_repair(), "改好的又被排去改一次"
+    assert job.job_id in app._already_repaired(), "改好的沒被排進下一次抽取"
+
+
+def test_parse_and_repair_each_run_wide_on_their_own_queue(tmp_path: Path) -> None:
     """兩邊各自併行，而且**分開兩條佇列**。
 
     **為什麼不合成一條**：一條佇列時前面塞滿其中一種就會餓死另一種
-    （head-of-line blocking），而解析與放行的耗時差一個量級。
+    （head-of-line blocking），而解析與改稿的耗時差一個量級。
 
-    節流的理由也不同：解析看 mineru.net（併發沒上限），
-    放行看 LightRAG 的 `MAX_PARALLEL_INSERT`。
+    節流的理由也不同：解析看 mineru.net（併發沒上限），改稿看
+    OpenRouter／OpenAI 的速率（兩雙眼睛都在雲端）。
+
+    ⚠ **`admit_workers` 已經沒有了**：一批一起送去讀之後，「同時幾份在跑」由
+    LightRAG 的 `MAX_PARALLEL_INSERT` 決定，本站沒有對應的旋鈕。取而代之的是
+    一條協調執行緒 —— 改稿與抽取的互斥就是它跑出來的。
     """
     app = _app(tmp_path)
     assert app.parse_workers >= 1
+    assert not hasattr(app, "admit_workers"), "廢除的旋鈕又長回來了"
     app.start()
     try:
         names = [w.name for w in app._workers if w.is_alive()]
     finally:
         app.stop()
     parse = [n for n in names if n.startswith("intake-parse-")]
-    admit = [n for n in names if n.startswith("intake-admit-")]
+    repair = [n for n in names if n.startswith("intake-repair-")]
     assert len(parse) == app.parse_workers, f"解析工人數不對：{names}"
-    assert len(admit) == app.admit_workers, (
-        f"放行工人數不對（要對齊 LightRAG 的 MAX_PARALLEL_INSERT）：{names}")
+    assert len(repair) == app.repair_workers, f"改稿工人數不對：{names}"
+    assert "intake-coordinator" in names, (
+        f"沒有協調執行緒 —— 改稿與抽取的互斥就是靠它，少了它兩件事會撞在一起：{names}")
 
 
 def test_each_kind_goes_to_the_right_queue(tmp_path: Path) -> None:
@@ -1213,6 +1333,50 @@ def test_staging_blocks_foreign_pdfs_but_not_my_own_concurrent_ones(tmp_path: Pa
     assert "繞過後處理" in reason, "擋下來的理由不見了 —— 那句話才是這道門的意義"
     assert "我的甲.pdf" not in reason and "我的乙.pdf" not in reason, (
         "把自己正在放行的檔一起列成問題了")
+
+
+def test_a_batch_is_repaired_before_anyone_is_extracted(tmp_path: Path) -> None:
+    """**併行，而且不重疊。** 兩件事要同時成立，只釘一件會被錯的做法騙過去。
+
+    只釘「不重疊」→ 把放行改回一次一件就過了，而那正是現在的樣子。
+    只釘「有併行」→ 把併行數調大就過了，而那是 2026-08-09 實測掛掉 3 篇的做法。
+
+    卡住的是 `pp/apply.py` 的 `pipeline 忙碌中，拒絕改檔`：改稿在改檔案、抽取在讀
+    同一份檔案。分段之後兩者天然錯開 —— 不是靠等、靠重試，是結構上碰不到。
+    """
+    app, runner = _batch_app(tmp_path, ("甲.pdf", "乙.pdf", "丙.pdf", "丁.pdf"))
+    app.start()
+    try:
+        ids = [str(c["candidate_id"]) for c in app.state()["sections"]["selection"]
+               if isinstance(c, dict)]
+        jobs = app.submit_parse(ids)
+        _wait_all(app, [j.job_id for j in jobs], "indexed")
+
+        assert runner.overlaps == [], "改稿撞上別人的抽取：\n" + "\n".join(runner.overlaps)
+        assert runner.max_extracting > 1, (
+            f"從頭到尾只有 {runner.max_extracting} 份在抽取 —— 根本沒有併行，"
+            "光是不重疊的話一次一件就做得到")
+    finally:
+        app.stop()
+
+
+def test_a_whole_batch_only_asks_lightrag_to_scan_once(tmp_path: Path) -> None:
+    """一批只掃一次。
+
+    `scan` 掃的是**整個目錄**，第一次就把這一批全部撿走了。每份各掃一次的話，
+    後面每一次都只是在重試「pipeline 忙碌中」，而重試會一路撞到逾時。
+    """
+    app, runner = _batch_app(tmp_path, ("甲.pdf", "乙.pdf", "丙.pdf"))
+    app.start()
+    try:
+        ids = [str(c["candidate_id"]) for c in app.state()["sections"]["selection"]
+               if isinstance(c, dict)]
+        jobs = app.submit_parse(ids)
+        _wait_all(app, [j.job_id for j in jobs], "indexed")
+        assert runner.calls.count("scan") == 1, (
+            f"三份掃了 {runner.calls.count('scan')} 次")
+    finally:
+        app.stop()
 
 
 def test_a_leftover_in_the_staging_area_shows_up_before_it_blocks_anyone(

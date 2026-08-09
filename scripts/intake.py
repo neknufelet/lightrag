@@ -11,6 +11,7 @@ LightRAG 抽取仍由既有腳本／HTTP 端點執行。審核中的 PDF 放在 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import html
 import json
@@ -60,14 +61,27 @@ MAX_ITEMS = 1_000_000
 MAX_PAGE_POINTS = 10_000.0
 
 JobStatus = Literal[
-    "candidate", "parsing", "planned", "failed_parse", "repairing", "admitted",
-    "scanning", "extracting", "indexed", "returned", "failed",
+    "candidate", "parsing", "planned", "failed_parse", "repairing", "repaired",
+    "admitted", "scanning", "extracting", "indexed", "returned", "failed",
 ]
 
 TERMINAL_STATUSES: frozenset[str] = frozenset({"indexed", "returned", "failed_parse", "failed"})
 ACTIVE_STATUSES: frozenset[str] = frozenset({
-    "parsing", "repairing", "admitted", "scanning", "extracting",
+    "parsing", "repairing", "repaired", "admitted", "scanning", "extracting",
 })
+
+# 「這一份正在被 LightRAG 讀」。閘門就是看它：只要非空，改稿一律不准動手。
+#
+# **判準是狀態不是「協調者有沒有在跑抽取」**：重啟時掛回來的那些
+#（`_run_resume`）也在抽取，而它們不是協調者送出去的。看狀態才涵蓋得到。
+EXTRACTING_STATUSES: frozenset[str] = frozenset({"admitted", "scanning", "extracting"})
+
+# 畫面上「處理中」那一節涵蓋的狀態 ＝ 改稿的兩格 ＋ 抽取的三格。
+#
+# **只有這一份清單。** 在此之前同一組狀態在四個地方各列舉一次（分節、忙碌判定、
+# 計時器、每列的狀態燈），加一格就要記得四個地方都改 —— 而漏掉一個不會報錯，
+# 只會讓某一份文件在畫面上憑空消失。
+IN_PROGRESS_STATUSES: frozenset[str] = frozenset({"repairing", "repaired"}) | EXTRACTING_STATUSES
 
 # 「索引裡那一列是本站負責的」——從 admitted 起算，因為那一步才把檔案複製進
 # inputs，在那之前索引裡不可能有本站造成的列。
@@ -86,7 +100,12 @@ TRANSITIONS: dict[str, frozenset[str]] = {
     "planned": frozenset({"repairing", "returned", "failed"}),
     # repairing → planned：收件區被別的流程佔著時退回「等你看」。那是時機問題
     # 不是文件問題，不該走 failed（見 _defer_to_review）。
-    "repairing": frozenset({"admitted", "planned", "failed"}),
+    "repairing": frozenset({"repaired", "planned", "failed"}),
+    # repaired ＝ 稿子改好了、還沒送去讀。**必須是一個真的狀態，不能只存在記憶體裡。**
+    # 服務重啟後要分得出「這份改過沒」——重跑一次 apply 會把 MinerU 的原文換成
+    # 上一輪的修補結果（`pp/apply.py` 的 `_pp_original_*` 只記第一次）。
+    # 還原路徑看起來還在，還原出來的卻已經不是原文了。
+    "repaired": frozenset({"admitted", "planned", "failed"}),
     "admitted": frozenset({"scanning", "failed"}),
     "scanning": frozenset({"extracting", "failed"}),
     "extracting": frozenset({"indexed", "failed"}),
@@ -994,36 +1013,44 @@ class IntakeApp:
         self.environment = dict(environment or {})
         self.repo = repo
         self._lock = threading.RLock()
-        # **兩條佇列，不是一條。** 兩邊的節流理由不同：
+        # **三條佇列，不是一條。** 每條的節流理由不同：
         #   解析  打 mineru.net 的雲端 API，純等網路 —— 限制是對方的（每天 2,000 頁
-        #         享最高優先，併發沒有上限）
-        #   放行  跑 apply、複製進暫存區、請 LightRAG 掃描並等它索引完 —— 限制是
-        #         LightRAG 的 `MAX_PARALLEL_INSERT`
+        #         享最高優先，併發沒有上限）。**不受階段閘門管**，隨時可跑
+        #   改稿  跑 apply（含兩雙眼睛看表格）—— 限制是 OpenRouter／OpenAI 的速率。
+        #         **只在改稿時段被餵工作**，見 `_coordinator_loop`
+        #   雜項  退回與重啟後接回。單條就夠，它們不是批次的一部分
         #
         # ⚠ **不要合成一條**：一條佇列時，前面塞滿其中一種就會餓死另一種
-        #（head-of-line blocking），而兩種的耗時差一個量級。
+        #（head-of-line blocking），而各種的耗時差一個量級。
         self._parse_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
+        self._repair_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
         self._admit_queue: queue.Queue[tuple[str, str] | None] = queue.Queue()
         self._stop = threading.Event()
         self._workers: list[threading.Thread] = []
         # 同時「真的在跑」的 job。循序時代這裡是單一個 job_id ——
         # 併行之後必須是集合，否則第二個工人一起跑會把第一個的紀錄蓋掉，
         # 而畫面上「排隊中／正在跑」正是靠它分辨的。
-        self._running: set[str] = set()
+        # job_id → 這個工人在做哪一種活。**值不是裝飾用的**：協調者要能問
+        # 「還有人在解析嗎」，而光看狀態有一個縫 —— 一份文件從 `parsing` 落成
+        # `planned` 到自動放行改成 `repairing` 之間，它兩邊都不算，閘門會誤以為
+        # 這一批解析完了而提早開跑（實測：三份被切成兩批送）。
+        self._running: dict[str, str] = {}
         # 解析併行數。mineru.net 的限制是 300 次/分鐘、每天 2,000 頁享最高優先，
         # 併發本身沒有寫上限 —— 所以擋住的從來不是它，是我們自己。
         self.parse_workers = max(1, int(self.environment.get("INTAKE_PARSE_WORKERS", "6")))
-        # 放行併行數。**預設 1，而且這是實測結果不是保守。**
+        # 改稿併行數。限制是 OpenRouter／OpenAI 的速率，不是本機 —— 眼睛 A 與
+        # 眼睛 B 都在雲端（抽取 2026-08-09 起走 DeepSeek，本機那顆 llama 停了）。
+        # ⚠ 每一次 apply 內部自己還會開 `--workers`（預設 3）條去看表格，
+        # 所以實際打出去的併發是這個數字的三倍。**還沒量過**，撞到再調。
+        self.repair_workers = max(1, int(self.environment.get("INTAKE_REPAIR_WORKERS", "6")))
+        # ⚠ **`INTAKE_ADMIT_WORKERS` 已廢除**（藍桶第 2 條：不得無聲消失）。
+        # 一批一起送去讀之後，「同時幾份在跑」由 LightRAG 的 `MAX_PARALLEL_INSERT`
+        # 決定，本站這一側沒有對應的旋鈕了。舊值設了也不會有作用。
         #
-        # 2026-08-09 開到 6 實跑：同時 5 件確實在動，但 `pp/apply.py` 有一道
-        # 「pipeline 忙碌中，拒絕改檔（掃描會跟我們搶同一份檔案）」—— 而併行時
-        # 總有人在掃，於是其他人的 apply 全被擋掉。加鎖也救不了：pipeline 幾乎
-        # 永遠是忙的，apply 會餓死。
-        #
-        # **要真的併行，得把 apply 挪到「解析剛跑完」那一刻**（那時沒人在掃），
-        # 放行就只剩「複製 → 掃描 → 等索引」，那三步併行沒有衝突。
-        # 那是一次重構，不是調一個數字 —— 在那之前這裡維持 1。
-        self.admit_workers = max(1, int(self.environment.get("INTAKE_ADMIT_WORKERS", "1")))
+        # 協調者閒著時多久看一次有沒有活。**不是抽取的輪詢間隔**（那個是
+        # `INTAKE_POLL_SECONDS`），只是「這一輪可以開始了嗎」的心跳。
+        self.round_poll_seconds = _positive_float(
+            self.environment.get("INTAKE_ROUND_POLL_SECONDS"), 2.0)
         self.store = JobStore(paths)
         self.events = EventStore(paths)
         self._jobs: dict[str, Job] = {job.job_id: job for job in self.store.load()}
@@ -1086,10 +1113,17 @@ class IntakeApp:
         # （parse-only 有有效 bundle 就跳過，apply 也可重跑，兩者都不會重複收費）。
         requeued: set[str] = set()
         for job in active:
-            if job.status not in {"parsing", "repairing"}:
+            if job.status not in {"parsing", "repairing", "repaired"}:
                 continue
-            kind = "parse" if job.status == "parsing" else "admit"
-            self._queue_for(kind).put((kind, job.job_id))
+            if job.status == "parsing":
+                self._parse_queue.put(("parse", job.job_id))
+                kind = "parse"
+            else:
+                # 改稿到一半（`repairing`）或改好還沒送（`repaired`）都不排隊 ——
+                # 協調者每一輪自己會撿。**`repaired` 尤其不能重跑 apply**：
+                # 重跑會把 MinerU 的原文換成上一輪的修補結果。
+                job.stage_started_at = None
+                kind = "改稿時段"
             requeued.add(job.job_id)
             where = "還在排隊" if job.stage_started_at is None else "跑到一半"
             message = (f"服務重啟時這份{where}，而且還沒碰過索引，"
@@ -1156,14 +1190,19 @@ class IntakeApp:
                 self._workers.append(threading.Thread(
                     target=self._worker_loop, args=(self._parse_queue,),
                     name=f"intake-parse-{i}", daemon=True))
-            for i in range(self.admit_workers):
+            for i in range(self.repair_workers):
                 self._workers.append(threading.Thread(
-                    target=self._worker_loop, args=(self._admit_queue,),
-                    name=f"intake-admit-{i}", daemon=True))
+                    target=self._worker_loop, args=(self._repair_queue,),
+                    name=f"intake-repair-{i}", daemon=True))
+            self._workers.append(threading.Thread(
+                target=self._worker_loop, args=(self._admit_queue,),
+                name="intake-misc", daemon=True))
+            self._workers.append(threading.Thread(
+                target=self._coordinator_loop, name="intake-coordinator", daemon=True))
             for w in self._workers:
                 w.start()
-        LOGGER.info("worker 啟動：解析 %d 條、放行 %d 條",
-                    self.parse_workers, self.admit_workers)
+        LOGGER.info("worker 啟動：解析 %d 條、改稿 %d 條、雜項 1 條、協調 1 條",
+                    self.parse_workers, self.repair_workers)
 
     def stop(self) -> None:
         with self._lock:
@@ -1173,8 +1212,9 @@ class IntakeApp:
             self._stop.set()
             for _ in range(self.parse_workers):
                 self._parse_queue.put(None)
-            for _ in range(self.admit_workers):
-                self._admit_queue.put(None)
+            for _ in range(self.repair_workers):
+                self._repair_queue.put(None)
+            self._admit_queue.put(None)
         for w in workers:
             w.join(timeout=5)
         alive = [w.name for w in workers if w.is_alive()]
@@ -1185,16 +1225,119 @@ class IntakeApp:
             self._workers = []
 
     def _queue_for(self, kind: str) -> queue.Queue[tuple[str, str] | None]:
-        """哪一條佇列。兩邊的節流理由不同，見 `__init__`。"""
-        return self._parse_queue if kind == "parse" else self._admit_queue
+        """哪一條佇列。各自的節流理由不同，見 `__init__`。"""
+        if kind == "parse":
+            return self._parse_queue
+        if kind == "repair":
+            return self._repair_queue
+        return self._admit_queue
 
     def _busy(self) -> bool:
         return (bool(self._running)
-                or not self._parse_queue.empty() or not self._admit_queue.empty())
+                or not self._parse_queue.empty()
+                or not self._repair_queue.empty()
+                or not self._admit_queue.empty())
 
     def _jobs_snapshot(self) -> list[Job]:
         with self._lock:
             return list(self._jobs.values())
+
+    # ── 階段閘門 ────────────────────────────────────────────────────────────
+    #
+    # **互斥不靠鎖，靠「兩個時段在同一個迴圈裡先後發生」。** 協調者只有一條，
+    # 所以「改稿時沒有人在抽取」是由控制流保證的，不需要證明某個鎖寫得對。
+    #
+    # 一輪：等 → 改稿時段（全部改完）→ 抽取時段（一起送、一起等）→ 回到等。
+
+    def _waiting_for_repair(self) -> list[str]:
+        """等著改稿的：已放行、還沒輪到、也還沒在跑。"""
+        with self._lock:
+            return [job.job_id for job in self._jobs.values()
+                    if job.status == "repairing" and job.job_id not in self._running]
+
+    def _extracting_now(self) -> list[str]:
+        with self._lock:
+            return [job.job_id for job in self._jobs.values()
+                    if job.status in EXTRACTING_STATUSES]
+
+    def _parsing_now(self) -> bool:
+        """這一批還在解析嗎。PO 的裁決是「一批 mineru 完，一批開始抽」。
+
+        ⚠ **三個條件缺一不可**，而第三個是實測補上的：一份文件從 `parsing` 落成
+        `planned`、再到自動放行改成 `repairing`，中間有一小段兩邊都不算的空窗。
+        只看佇列與狀態的話，閘門會在那個縫裡誤判「解析完了」而提早開跑 ——
+        三份文件因此被切成兩批送出去。工人還在跑就是還沒完，這一條才補得起來。
+        """
+        if not self._parse_queue.empty():
+            return True
+        with self._lock:
+            if any(kind == "parse" for kind in self._running.values()):
+                return True
+            return any(job.status == "parsing" for job in self._jobs.values())
+
+    def _already_repaired(self) -> list[str]:
+        """稿子改好、還沒送去讀的。
+
+        正常情況下這是改稿時段剛做出來的那批；**重啟之後也可能有** ——
+        那些不必重跑 apply（重跑會把 MinerU 的原文換成上一輪的修補結果），
+        直接併進下一次的抽取時段。
+        """
+        with self._lock:
+            return [job.job_id for job in self._jobs.values()
+                    if job.status == "repaired" and job.job_id not in self._running]
+
+    def _round_can_start(self) -> tuple[list[str], str | None]:
+        """這一輪可以開工了嗎。可以就回要改的那批，不行就回原因（只給 log）。"""
+        if not self._waiting_for_repair() and not self._already_repaired():
+            return [], None
+        extracting = self._extracting_now()
+        if extracting:
+            return [], f"還有 {len(extracting)} 份在抽取"
+        if self._parsing_now():
+            return [], "這一批還在解析"
+        return self._waiting_for_repair(), None
+
+    def _coordinator_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                batch, blocked = self._round_can_start()
+                ready = self._already_repaired() if blocked is None else []
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("協調者判斷輪次時失敗，稍後重試")
+                batch, ready = [], []
+            if not batch and not ready:
+                self._stop.wait(self.round_poll_seconds)
+                continue
+            try:
+                if batch:
+                    self._repair_phase(batch)
+                # 這一輪要送的＝剛改好的＋本來就改好在等的（重啟留下來的）。
+                # 重讀一次而不是沿用 `_repair_phase` 的回傳，兩者才不會漏掉對方。
+                self._extract_batch(self._already_repaired())
+            except Exception:  # noqa: BLE001
+                # 協調者掛掉等於整條進料停擺而且沒有人知道 —— 記下來，繼續下一輪。
+                LOGGER.exception("這一輪失敗，協調者繼續下一輪")
+                self._stop.wait(self.round_poll_seconds)
+
+    def _repair_phase(self, batch: Sequence[str]) -> list[str]:
+        """改稿時段：把這一批餵進改稿佇列，等它們全部落定，回傳改好的那些。"""
+        LOGGER.info("改稿時段開始：%d 份", len(batch))
+        for job_id in batch:
+            self._repair_queue.put(("repair", job_id))
+        pending = set(batch)
+        while pending and not self._stop.is_set():
+            with self._lock:
+                pending = {job_id for job_id in pending
+                           if (job := self._jobs.get(job_id)) is not None
+                           and job.status == "repairing"}
+            if pending:
+                self._stop.wait(0.05)
+        with self._lock:
+            done = [job_id for job_id in batch
+                    if (job := self._jobs.get(job_id)) is not None
+                    and job.status == "repaired"]
+        LOGGER.info("改稿時段結束：%d 份改好、%d 份沒過", len(done), len(batch) - len(done))
+        return done
 
     def _candidates(self) -> tuple[list[Candidate], list[str]]:
         jobs = self._jobs_snapshot()
@@ -1290,9 +1433,10 @@ class IntakeApp:
             # 以為又被擋了一次。
             job.error = None
             transition(job, "repairing")
-            job.stage_started_at = None              # 排進佇列，還沒輪到
+            job.stage_started_at = None              # 等改稿，還沒輪到
             self.store.save(job)
-            self._admit_queue.put(("admit", job.job_id))
+        # 同 `_auto_admit`：不自己排隊，等協調者。**你按的時間點不用管** ——
+        # 閘門保證改稿只會在沒人抽取的時候動手，早按晚按結果一樣。
         return job
 
     def submit_return(self, job_id: str) -> Job:
@@ -1352,12 +1496,12 @@ class IntakeApp:
                     return
                 kind, job_id = task
                 with self._lock:
-                    self._running.add(job_id)
+                    self._running[job_id] = kind
                 self._mark_stage_started(job_id)
                 if kind == "parse":
                     self._run_parse(job_id)
-                elif kind == "admit":
-                    self._run_admit(job_id)
+                elif kind == "repair":
+                    self._run_repair(job_id)
                 elif kind == "return":
                     self._run_return(job_id)
                 elif kind == "resume":
@@ -1373,7 +1517,7 @@ class IntakeApp:
             finally:
                 if task is not None:
                     with self._lock:
-                        self._running.discard(task[1])
+                        self._running.pop(task[1], None)
                 q.task_done()
 
     def _mark_stage_started(self, job_id: str) -> None:
@@ -1538,9 +1682,10 @@ class IntakeApp:
         """
         with self._lock:
             transition(job, "repairing")
-            job.stage_started_at = None              # 排進佇列，還沒輪到
+            job.stage_started_at = None              # 等改稿，還沒輪到
             self.store.save(job)
-            self._admit_queue.put(("admit", job.job_id))
+        # **不自己排進佇列。** 何時開工由協調者決定 —— 它要先確認沒有人在抽取
+        # （改稿在改檔案、抽取在讀同一份檔案），也要等這一批解析完。
         LOGGER.info("job %s 計畫判定 clean，自動放行", job.job_id)
         self.store.append_log(job.job_id, "計畫判定 clean，自動放行（裁決 4eacaea）")
 
@@ -1779,17 +1924,26 @@ class IntakeApp:
         )
         return job.candidate_id
 
-    def _run_admit(self, job_id: str) -> None:
+    def _run_repair(self, job_id: str) -> None:
+        """改稿：只跑 apply，不碰暫存區也不碰索引。
+
+        **這一段被叫到的時候保證沒有人在抽取** —— 協調者只在抽取全空時才餵工作
+        進改稿佇列。`pp/apply.py` 那道「pipeline 忙碌中，拒絕改檔」因此永遠踩不到；
+        真的踩到了就代表閘門有 bug，而那正是我們想聽到的聲音。
+        """
         job = self._job_for_worker(job_id)
-        admitted: Path | None = None
-        settled = False
         try:
             parsed = self.paths.parsed_dir / job.filename
             if (job.parsed_source_path is not None
                     and Path(job.parsed_source_path) != parsed):
                 raise RuntimeError("job 的 parsed source 不在既定 work/parsed 路徑")
             if not parsed.is_file() or _sha256(parsed) != job.source_sha256:
-                raise RuntimeError("放行前找不到或驗證不了解析來源 PDF")
+                raise RuntimeError("改稿前找不到或驗證不了解析來源 PDF")
+            # **改稿之前就要問一次，不能等到要送去讀才問。** 暫存區有別人的檔
+            # 代表有另一個流程正在用它當工作區，而那個流程隨時可能觸發掃描 ——
+            # 掃描一開始 `pp/apply.py` 就會拒絕改檔，那時候文件會被記成
+            # 「這份壞了」（failed）。而 failed 的出口是重置，重置會刪掉 MinerU
+            # 的解析成果 —— 要錢也要時間，而文件本身從頭到尾沒有錯。
             blocked = self._inputs_blocked_reason()
             if blocked is not None:
                 self._defer_to_review(job_id, blocked)
@@ -1799,33 +1953,93 @@ class IntakeApp:
             if not applied.ok:
                 self._mark_failed(job_id, applied.error or "修補失敗")
                 return
-            # 設計 C 的核心順序：apply 成功之後才允許複製進 inputs。
-            #
-            # 這一次擋下來也是退回而不是失敗：apply 走的是「同內容不重寫、
-            # `_pp_original_*` 只記第一次」（pp/apply.py），重跑安全。
-            blocked = self._inputs_blocked_reason()
-            if blocked is not None:
-                self._defer_to_review(job_id, blocked)
-                return
-            admitted = self._copy_admitted(job, parsed)
-            job.admitted_path = str(admitted)
             with self._lock:
-                transition(job, "admitted")
+                transition(job, "repaired")
                 self.store.save(job)
-                transition(job, "scanning")
-                self.store.save(job)
-            scanned = self.runner.scan(job, admitted)
+        except Exception as exc:  # noqa: BLE001
+            self._mark_failed(
+                job_id, f"修補失敗：{type(exc).__name__}: {exc}", exception=exc,
+            )
+
+    # ⚠ **`_run_admit` 已刪除**（藍桶第 2 條：刪除必須明確說明）。
+    #
+    # 它做的是「一份走完改稿 → 送去讀」。分組之後那條路沒有任何呼叫端了：
+    # 自動放行與人工放行都只把狀態推到 `repairing`，開工時機由協調者決定；
+    # `submit_retry` 把失敗的放回 `planned`，等人再按一次放行。單件補救因此
+    # 完全被「改稿時段 → 抽取時段」涵蓋，那一批的大小剛好是 1。
+    #
+    # **留著它會是第二條路**：兩條路同時存在時，改了其中一條的判準而忘了另一條
+    # 不會報錯，只會偶爾毀資料 —— 這個專案已經踩過五次「同一類東西兩個地方」。
+
+    def _extract_batch(self, job_ids: Sequence[str]) -> None:
+        """把一批改好稿的一起送去讀：複製 → **掃一次** → 一起等。
+
+        **掃一次不是省事，是正確性。** `scan` 掃的是整個目錄，第一次就把這一批
+        全部撿走了；每份各掃一次的話，後面每一次都只會拿到
+        `scanning_skipped_pipeline_busy`，然後一路重試到逾時。
+
+        **每份自己的成敗互不牽連。** 一份索引不起來就標它失敗，其餘照走 ——
+        這是 PO 2026-08-09 的裁決「不等卡住的，剩下的先走」。
+        """
+        jobs = [self._job_for_worker(job_id) for job_id in job_ids]
+        blocked = self._inputs_blocked_reason()
+        if blocked is not None:
+            for job in jobs:
+                self._defer_to_review(job.job_id, blocked)
+            return
+
+        staged: list[tuple[Job, Path]] = []
+        for job in jobs:
+            try:
+                parsed = self.paths.parsed_dir / job.filename
+                admitted = self._copy_admitted(job, parsed)
+                job.admitted_path = str(admitted)
+                with self._lock:
+                    transition(job, "admitted")
+                    self.store.save(job)
+                    transition(job, "scanning")
+                    self.store.save(job)
+                staged.append((job, admitted))
+            except Exception as exc:  # noqa: BLE001
+                self._mark_failed(
+                    job.job_id, f"複製進暫存區失敗：{type(exc).__name__}: {exc}",
+                    exception=exc)
+        if not staged:
+            return
+
+        # 一次掃描涵蓋整批。傳第一份只是為了沿用既有簽章 —— `SubprocessRunner.scan`
+        # 本來就 `del admitted_pdf`，它請的是「掃整個收件區」不是「掃這一份」。
+        first_job, first_admitted = staged[0]
+        scanned = self.runner.scan(first_job, first_admitted)
+        for job, _ in staged:
             self._append_operation(job, "開始索引", scanned)
-            if not scanned.ok:
-                self._mark_failed(job_id, scanned.error or "scan 失敗")
-                return
-            with self._lock:
+        if not scanned.ok:
+            for job, admitted in staged:
+                self._mark_failed(job.job_id, scanned.error or "scan 失敗")
+                self._release_inputs(job, admitted)
+            return
+
+        with self._lock:
+            for job, _ in staged:
                 transition(job, "extracting")
                 self.store.save(job)
+
+        # 每份各自等自己那份 processed。**併行等**：循序等的話，第一份卡住就會
+        # 讓後面每一份都要多等一個逾時，最壞是 N 倍。
+        workers = min(len(staged), max(1, self.repair_workers))
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=workers, thread_name_prefix="intake-wait") as pool:
+            list(pool.map(lambda item: self._finish_one(*item), staged))
+        self._assert_staging_drained(len(staged))
+
+    def _finish_one(self, job: Job, admitted: Path) -> None:
+        """等這一份索引完、驗契約、收尾。失敗只影響它自己。"""
+        settled = False
+        try:
             indexed = self.runner.wait_indexed(job)
             self._append_operation(job, "等待索引完成", indexed)
             if not indexed.ok:
-                self._mark_failed(job_id, indexed.error or "索引驗證失敗")
+                self._mark_failed(job.job_id, indexed.error or "索引驗證失敗")
                 return
             self._cleanup_admitted(job, admitted)
             settled = True
@@ -1834,11 +2048,28 @@ class IntakeApp:
                 self.store.save(job)
         except Exception as exc:  # noqa: BLE001
             self._mark_failed(
-                job_id, f"放行失敗：{type(exc).__name__}: {exc}", exception=exc,
+                job.job_id, f"放行失敗：{type(exc).__name__}: {exc}", exception=exc,
             )
         finally:
-            if not settled and admitted is not None:
+            if not settled:
                 self._release_inputs(job, admitted)
+
+    def _assert_staging_drained(self, batch_size: int) -> None:
+        """一批收尾時**去看**暫存區空了沒，不是假設每一份都清掉了。
+
+        LightRAG 自己那套「讀完把 PDF 搬進 `__parsed__` 存查」在本部署是**壞的**
+        （`inputs` 與 `work/parsed` 是兩個不同的掛載，`rename` 跨裝置失敗，
+        2026-08-10 在正式庫 log 數到 92 次）。所以暫存區能保持乾淨，完全靠這一側。
+
+        一次一份時清不掉最多卡一份；一批 30 份時漏清幾份會擋住**下一整輪**，
+        而畫面上擋人的理由會是上一批的檔名。
+        """
+        leftover = self._foreign_staged_paths()
+        if not leftover:
+            return
+        names = "、".join(path.name for path in leftover)
+        LOGGER.error("一批 %d 份收尾後暫存區還有 %d 份沒清掉：%s —— 下一輪會被它們擋住",
+                     batch_size, len(leftover), names)
 
     def _release_inputs(self, job: Job, admitted: Path) -> None:
         """放行沒走完時，把暫存在收件區的那份撤掉。
@@ -1939,7 +2170,10 @@ class IntakeApp:
             if job is None:
                 LOGGER.error("要退回待審核但找不到 job：%s：%s", job_id, message)
                 return
-            if job.status == "repairing":
+            # `repaired` 也要能退回：一批要送去讀時才發現暫存區被別人佔著，
+            # 那時候整批的狀態是 `repaired` 而不是 `repairing`。漏掉這一格的話
+            # 它們會卡在「改好了」永遠不動，而畫面上看起來只是還在處理中。
+            if job.status in {"repairing", "repaired"}:
                 transition(job, "planned")
             job.error = message
             self.store.save(job)
@@ -2202,9 +2436,8 @@ class IntakeApp:
             "selection": [candidate.public() for candidate in candidates],
             "parsing": [item for item in public_jobs if item["status"] == "parsing"],
             "review": [item for item in public_jobs if item["status"] == "planned"],
-            "in_progress": [item for item in public_jobs if item["status"] in {
-                "repairing", "admitted", "scanning", "extracting",
-            }],
+            "in_progress": [item for item in public_jobs
+                            if item["status"] in IN_PROGRESS_STATUSES],
             "completed": [],
             "skipped": [item for item in public_jobs if item["status"] == "returned"],
             "failed": [item for item in public_jobs if item["status"] in {
@@ -2434,6 +2667,7 @@ def _status_label(status: object, decision: object = None) -> str:
         # 修補→准入→掃描→抽取這四步是系統內部的分工，使用者在這段
         # 除了等沒有別的事可做。細分只會讓人以為每一步都需要他判斷。
         "repairing": "處理中",
+        "repaired": "處理中",
         "admitted": "處理中",
         "scanning": "處理中",
         "extracting": "處理中",
@@ -2444,11 +2678,12 @@ def _status_label(status: object, decision: object = None) -> str:
     return labels.get(str(status), str(status))
 
 
-_BUSY_STATUSES = frozenset({"parsing", "repairing", "admitted", "scanning", "extracting"})
+_BUSY_STATUSES = frozenset({"parsing"}) | IN_PROGRESS_STATUSES
 
 _BUSY_NOTE = {
     "parsing": "送去 MinerU 解析",
     "repairing": "套用修補規則",
+    "repaired": "改好了，等這批一起送",
     "admitted": "準備送進索引",
     "scanning": "LightRAG 掃描中",
     "extracting": "抽取實體與關係",
@@ -2523,7 +2758,7 @@ def _chip_class(status: object, decision: object = None) -> str:
         return "blocked"
     if status == "indexed":
         return "clean"
-    if status in {"parsing", "repairing", "scanning", "extracting", "admitted"}:
+    if status == "parsing" or status in IN_PROGRESS_STATUSES:
         return "review"
     return "idle"
 
