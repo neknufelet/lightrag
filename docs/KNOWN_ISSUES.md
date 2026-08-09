@@ -1,7 +1,7 @@
 ---
 title: KNOWN ISSUES — lightrag
 date_created: 2026-08-07
-date_modified: 2026-08-07
+date_modified: 2026-08-09
 status: living
 kind: analysis
 supersedes: ""
@@ -32,9 +32,10 @@ summary: "已知但決定不修（或暫緩）的問題，附各自的理由。�
 | KI-009 | 低 | `C` 的 69 個空 text 項不回填 | 2026-08-02 | — |
 | KI-010 | 低 | `N Flow` #1135／#1518 不動（型別判錯，無母體可修） | 2026-08-03 | — |
 | KI-011 | 低 | `K Muffler` #277 不改（`eq_similar` 誤報） | 2026-08-03 | — |
-| KI-012 | 低 | 首頁期刊／會議資訊抓不到。**2026-08-08 有第二份證據，可動手了，等 canary 基準刷新** | 2026-08-02 | — |
+| KI-012 | 低 | 首頁期刊／會議資訊抓不到。**2026-08-09 處理了 `text` 型別那一半；`header`／`footer` 型別的仍待查** | 2026-08-02 | — |
 | KI-013 | 低 | `100.87.88.7` 的 `nvidia-smi` 壞了（driver/library mismatch） | 2026-08-03 | — |
 | KI-014 | 低 | TurboQuant 不適用（查過了） | 2026-08-03 | ADR-0002 |
+| KI-015 | 中 | 期刊推薦／封面頁列出**別人的論文**（IOP `You may also like`、AIP `ARTICLES YOU MAY BE INTERESTED IN`） | 2026-08-09 | — |
 
 > 嚴重度：**高** = 功能無法運作 / **中** = 有 workaround / **低** = 不影響主流程
 
@@ -110,7 +111,29 @@ of hybrid absorber…`（AIP，與第一份不同期刊）的第 0 頁出現五�
 「改 → canary 預期失敗 → 逐條確認漂移都是想要的 → `--update`」，
 基準壞掉時第二步做不到，改完不會知道有沒有波及其他文件。
 
-**動它之前**：先讓語料定下來、刷新 canary 基準。
+**2026-08-09：處理了一半，剩下的一半刻意不動。** canary 基準已補回 27 份，安全網
+到位；`pp/rules/title_block.py` 的 `publication` 訊號（錨定在開頭 ＋ 限第 0 頁）
+上線，把 `text` 型別的期刊引用行消掉了。同一份 2019 文件實跑：
+
+```
+#  1 text        標題頁消音   'Cite as: Appl. Phys. Lett. 114, 151901 (2019); https://doi.org…'
+#  2 text        標題頁消音   'Fei Wu, Yong Xiao, Dianlong Yu, Honggang Zhao, Yang Wang, and …'
+# 10 aside_text  雜訊待查     'Aps hds prs'
+# 11 footer      雜訊待查     'AIP Publishing'
+# 12 footer      雜訊待查     'Lake Shore'
+# 13 footer      雜訊待查     'Appl. Phys. Lett. 114, 151901 (2019); https://doi.org/…'
+# 14 footer      雜訊待查     '114, 151901'
+```
+
+**上面舉的那五項一項都沒動，是設計不是漏掉。** 它們的型別是 `header`／`footer`／
+`aside_text`，那是 `layout_noise` 的地盤 —— 兩條規則消到同一項時
+`_pp_original_text` 會被寫兩次而還原只還原得了一次，所以分工用型別切開
+（`apply.py` 有執行者，撞到就整份拒絕）。要消掉它們得改 `layout_noise`
+的判準，那是另一條規則的事，不在這一輪。
+
+~~**動它之前**：先讓語料定下來、刷新 canary 基準。~~
+**2026-08-09 兩個前提都到位了**（基準 27 份、`canary` 綠），所以剩下那一半的
+擋路理由不再是安全網，是「該由哪條規則管」。
 
 **KI-013 nvidia-smi。** `Driver/library version mismatch`，驅動更新但核心模組還是舊的。
 不影響現況（llama.cpp 在 `100.71.26.77`），但要在 dker 用 GPU 會踩到。
@@ -118,3 +141,29 @@ of hybrid absorber…`（AIP，與第一份不同期刊）的第 0 頁出現五�
 **KI-014 TurboQuant。** 它是 Google 的 KV cache 量化，實作在 vLLM + Triton 不是
 llama.cpp，而且針對長脈絡場景——我們是一次一個 chunk，12 GiB 裡塞滿的是模型權重
 不是 KV cache。
+
+**KI-015 期刊推薦區塊列出別人的論文。** 兩種期刊、兩種寫法，同一件事：
+
+```
+IOP   2014 - Acoustic coherent perfect absorbers   `You may also like` 下面三篇別人的論文
+AIP   2019 - Low-frequency sound absorption …      `ARTICLES YOU MAY BE INTERESTED IN` 下面三篇
+```
+
+**它們是真的進了圖譜。** 2026-08-09 從 `lightrag_graph_nodes` 撈到的證據：
+`j z song`（IOP 那頁 `To cite this article: J Z Song et al 2014`）與 `jia-hao xu`
+（同頁推薦清單裡的作者）都是 `person` 型別的節點。它們既不是本文作者、也不是
+聲學史上的人物，純粹是版面帶進來的。
+
+**為什麼這一輪不做**（PO 2026-08-09 裁決）：
+
+- 它的訊號與標題頁那條**不同**。標題頁那條靠「第一項是 `lvl=1` 標題」開火，
+  而這兩份的第一項都不是 —— IOP 那份第 0 頁整頁是封面，AIP 那份的推薦區塊
+  由 `ARTICLES YOU MAY BE INTERESTED IN`（`lvl=2`）起頭，**正好落在標題頁區塊
+  結束的地方之後**。
+- 混進同一條規則會讓兩邊都難驗：一條規則兩種開火條件，出事時分不出是哪一種。
+
+**要做的時候**：訊號是「`lvl=2` 標題文字命中推薦清單樣式（`you may also like`／
+`articles you may be interested in`／`related articles`），消到下一個同級標題為止」
+—— 形狀與 `reference_section` 完全一樣，可以直接抄那條的區段邏輯。
+⚠ 抄的時候連「消到下一個同級或更高級標題、不是消到結尾」一起抄，
+那一條是被 2017 那篇的補充材料逼出來的。

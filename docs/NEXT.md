@@ -1,7 +1,7 @@
 ---
 title: NEXT — 接下來做什麼
 date_created: 2026-06-20
-date_modified: 2026-08-08
+date_modified: 2026-08-09
 status: living
 kind: sop
 supersedes: ""
@@ -46,10 +46,38 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 
 - ⬜ 規則 2a 的小寫修正還沒進圖譜　→ `compat-check` A-32 回綠
 
-  重抽後殘留的 28 個泛用標籤全是小寫（`equation 22`、`eq. 7`），規則已補
-  「不分大小寫」（`a2616c1`）。**不為了 28 個節點重抽**，下次有新文件進來時
-  一起生效，或擇期重抽。
+  規則已補「不分大小寫」（`a2616c1`），但圖譜還是舊規則抽的。
+  **不為了這個重抽**，下次有新文件進來時一起生效，或擇期重抽。
   在那之前 A-32 會一直是 soft FAIL —— 那是它該說的話，不是壞掉。
+
+  ✅ **殘留節點本身 2026-08-09 已用確定性清除處理掉**（`graph-clean.py`）：
+  66 → 27，刪掉的 53 個是 `equation N`／`eq. 7`／`figure 4f`／`table i`／
+  `reference 1` 那一族。提示詞守不住（實測三次，而且遵守度隨後端變），
+  所以改在容器外用樣式掃。`compat-check` A-33 現在守著它。
+
+- ⬜ 決定 `region`／`zone`／`mode`／`model`／`part` 那 27 個節點要不要刪
+  → 決定寫進 `docs/decisions/`，`pp/graph_labels.py` 的兩組字首照著調
+
+  PO 2026-08-09 裁決先不動。它們**可能帶語意**（`Region II` 在分層介質或管道
+  論文裡是「第 II 區」，與 `b_0`／`B_0` 同一類問題），刪掉不可逆。
+  清單跑 `graph-clean.py plan` 就有，`graph-shape.py` 也分開報。
+  ⚠ 這 27 個裡有好幾組只差大小寫（`region i`／`region I`／`Region I`），
+  與實體碎片化那張審查表是同一批東西，**兩件事應該一起判**。
+
+## 標題頁消音已上線，但要等重抽才看得到（2026-08-09）
+
+`pp/rules/title_block.py` 已掛進 `postprocess.py` 與 `pp/apply.py`，27 份實跑：
+16 份有標題頁區塊、消音 76 項、保留待查 14 項、最高比例 3.11%（門檻 8%）。
+canary 基準已補回 27 份且全綠。
+
+- ⬜ 重抽之後量 person／organization 有沒有降下來　→ 現值 188，目標大幅下降
+
+  **消音改的是餵給模型的文字，所以圖譜上今天一個節點都不會變。** 效果要等
+  下一次重抽。量法：`graph-shape.py` 的 `person／organization` 那一格。
+  ⚠ 救不了的三類先寫在這裡，免得屆時把「沒降到 0」當成規則壞掉：
+  正文裡的引用（`Almeida et al.` 那種，89 個人名裡有 10 個）、
+  期刊推薦區塊（KI-015）、以及 `Helmholtz`／`Cremer`／`Maa`／`Mechel`
+  這些**本來就該留著**的聲學史人物。
 
 ## 審核台顯示假狀態（2026-08-08 重抽時抓到，同日修掉 `837b78f`）
 
@@ -147,10 +175,13 @@ ANN 已對整包開啟，**新寫的碼一定要有型別註解**。既有欠帳
 | `scripts/context-budget.py` | 查詢的 token 預算實際花到哪 |
 | `scripts/deploy-stack.py freshness` | 跑著的是不是最新的碼（含 systemd 服務） |
 | `scripts/guard-command.py` | 執行前擋下已知會出事的指令形狀 |
+| `scripts/graph-clean.py` | 位置標記節點還在不在，要刪的話刪哪些（`plan`／`apply`） |
 
-**共同的原則：不要自己算，去問做決定的那一方。** 這五支都是那個原則的實作
+**共同的原則：不要自己算，去問做決定的那一方。** 上面每一支都是那個原則的實作
 （問 compose、問 tokenizer、問 LightRAG 的解析器、問 systemd），因為
-2026-08-08 每一次自己重算都算錯了。
+2026-08-08 每一次自己重算都算錯了。`graph-clean.py` 也是：刪節點走
+`/graph/entity/delete`，不直接對 Postgres 下 DELETE —— 向量表、圖節點表、
+圖邊表三者的一致性是 LightRAG 的內部契約，在容器外自己維持等於重做一次。
 
 ## 已知但刻意不做
 
