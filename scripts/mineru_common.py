@@ -58,6 +58,39 @@ MATH = re.compile(r"\$[^$]*\$|\\\(.*?\\\)|\\\[.*?\\\]", re.S)
 
 TAG = re.compile(r"<[^>]+>")
 
+# ir_builder 產生的圖片標記，長這樣：
+#   <drawing id="im-…" format="jpg" caption="FIG. 2. Absorption of two…"
+#            path="K Muffler Acoustics.blocks.assets/c69b8f97….jpg" src="" />
+_DRAWING_TAG = re.compile(r"<drawing\b[^>]*?/?>", re.I | re.S)
+_DRAWING_CAPTION = re.compile(r'caption="([^"]*)"', re.I | re.S)
+
+
+def compact_drawings(text: str) -> str:
+    """把 `<drawing …>` 壓成只剩圖說，其餘屬性丟掉。
+
+    **圖說要留**：`FIG. 2. Absorption of two hybrid absorbers…` 常常本身就是答案。
+    **其餘是純雜訊**：`id`／`format`／`src`／`path`（一長串 sha256 檔名）對回答
+    問題沒有幫助，只是吃掉回傳給 agent 的字元額度。
+
+    2026-08-09 實測三個查詢（扣掉 caption 之後的雜訊佔回傳字元）：
+        微穿孔板吸聲機制    12 個圖標記   3,388 字元   26.0%
+        盤繞式通道           2 個          561 字元    4.3%
+        阻抗管量測           4 個        1,101 字元    8.5%
+    最壞吃掉四分之一，而且**波動大到不能靠平均值判斷** —— 圖多的論文正好是最需要
+    原文的那種。
+
+    **為什麼住在這裡而不是 `kbapi.py`**：它是純文字處理，不需要任何秘密。
+    放在 kbapi 裡的話測試跑不起來 —— 那個檔一被載入就要讀 `.env`，而 coder 上
+    刻意沒有那個檔。**沒有測試的規則等於只有註解在守。**
+
+    ⚠ 抓圖不受影響：`/kb/{ws}/figures` 解析的是 LightRAG 的原始 chunk，不經過這裡。
+    """
+    def one(m: re.Match[str]) -> str:
+        cap = _DRAWING_CAPTION.search(m.group(0))
+        caption = " ".join(cap.group(1).split()) if cap else ""
+        return f"[圖：{caption}]" if caption else ""
+    return _DRAWING_TAG.sub(one, text)
+
 # prompt 洩漏。1.5.5 上游已把 few-shot 範例換成純佔位符，這組留著防退化。
 LEAK = re.compile(
     r"Noah Carter|World Athletics|Carbon-Fiber Spikes|100m Sprint|Knowledge Graph Specialist",
