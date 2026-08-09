@@ -140,9 +140,24 @@ services:
       - ${DATA_ROOT:-/data/lightrag}:/data/lightrag:ro
     ports:
       - "${BIND_ADDR:-100.87.88.7}:${KBAPI_PORT:-9700}:9700"
+    # 兩件事一起驗：服務活著，**而且資料根還讀得到**。
+    #
+    # 資料根是一顆 USB 外接 SSD 的掛載點（見 docs/rebuild-checklist.md 的 A3）。
+    # 碟掉了的時候 systemd 守衛會停掉容器、檔案系統會轉唯讀 —— 那些都是「壞得很
+    # 明顯」，但**畫面上不會告訴你為什麼**，而每日斷言最多要等到隔天早上 8:30。
+    # 這一條把等待時間壓到 30 秒：容器在 Dockge 上直接翻紅。
+    #
+    # 讀檔不是 stat：`read_bytes()` 一定要開檔，碟真的壞掉時會回 I/O 錯誤；
+    # 只 stat 有可能被 dentry 快取擋掉而看起來正常。
+    # ⚠ **不要在這裡驗可寫** —— 這個掛載本來就是 `:ro`，驗了永遠是紅的。
+    # 「可寫」由宿主上的 compat-check A-34 驗。
+    # ⚠ 檔名與 `pp/paths.py` 的 `DATA_ROOT_MARKER` 必須一致，
+    # `tests/test_data_root_marker.py` 守著這件事（YAML 沒辦法 import 常數）。
     healthcheck:
       test: ["CMD", "python", "-c",
-             "import urllib.request as u; u.urlopen('http://localhost:9700/health', timeout=5)"]
+             "import pathlib, urllib.request as u; "
+             "u.urlopen('http://localhost:9700/health', timeout=5); "
+             "pathlib.Path('/data/lightrag/.lightrag-data-root').read_bytes()"]
       interval: 30s
       timeout: 10s
       retries: 3
