@@ -177,14 +177,55 @@ planned → repairing → repaired → admitted → scanning → extracting → 
 
 ## 沒驗的，動手前要知道
 
-1. **一次送一整批進暫存區、只掃一次，LightRAG 會不會全部登記。**
-   2026-08-09 量過「`MAX_PARALLEL_INSERT` 是文件層閘門，3 → 6 之後六份同時跑」、
-   16／6 之下 22 份 428 秒跑完且 429 零次 —— **但那是在試驗 stack 上量的**，
-   正式庫要複驗一次。整個設計的吞吐效益建立在這句上。
+1. ~~一次送一整批進暫存區、只掃一次，LightRAG 會不會全部登記。~~
+   **✅ 2026-08-10 在正式庫驗掉了**，見下一節。
 2. **改稿 6 條併行會不會撞到 OpenRouter／OpenAI 的速率限制。** 沒量過。
    每一次 apply 內部自己還會開 3 條看表格（`postprocess.py` 的 `--workers` 預設 3）。
 3. **一輪的起跑條件是「解析全空」。** 一次丟 200 篇的話，那 200 篇要全部解析完
    才會開始抽第一份。**現在不加上限**，真的要那樣用再說。
+
+## 地基驗證（2026-08-10，正式庫）
+
+**一次 scan 收下多份、當成同一批跑** —— 這是整個設計的地基。正式庫自己的 log：
+
+```
+INFO: Processing 5 document(s)
+INFO: Extracting stage 1/5: 2014 - Acoustic coherent perfect absorbers.pdf
+INFO: Extracting stage 2/5: 2012 - Subjective Preference of Modal Control Methods…
+INFO: Extracting stage 3/5: 2018 - Coupled Resonators for Sound Trapping and Absorption.pdf
+INFO: Extracting stage 4/5: 2017 - Rainbow-trapping absorbers…
+INFO: Extracting stage 5/5: 2019 - Broadband low-frequency sound absorption…
+```
+
+五份交錯併行，不是一份跑完換下一份。容器裡的原始碼對得上（as-built，`/app/lightrag/pipeline.py`）：
+`total_files = len(to_process_docs)` 把找到的全部收進同一批，
+`Semaphore(self.max_parallel_insert)` 只卡併發 —— **超過的是排隊等，不是被丟掉**。
+
+⚠ **不是引用試驗 stack 的數字。** 先前 LOG 記的「22 份 428 秒、六份同時跑」是在
+已經刪掉的 `lightrag-ds*` 上量的，那組不能拿來證明正式庫。
+
+## ⚠ 驗地基時撞到的：LightRAG 自己的清理是壞的
+
+正式庫 log 裡 **92 次** `Invalid cross-device link`。看掛載才懂：
+
+```
+/data/lightrag/inputs      -> /app/data/inputs
+/data/lightrag/work/parsed -> /app/data/inputs/acoustics_v2/__parsed__   ← 巢狀的第二個掛載
+```
+
+LightRAG 讀完一份會想把 PDF 從 `inputs/<ws>/` **搬進** `__parsed__/` 存查，但兩者是
+不同掛載，`rename` 跨裝置失敗（Errno 18），每一份都失敗。
+
+**資料沒掉**（`work/parsed` 本來就有我們自己放的那份，`library` 還有稽核備份）。
+真正的後果是：**暫存區的清理只剩 intake 這一側在做。**
+
+**這件事跟分組直接相關**：現在一次一份，清不掉最多卡一份。改成一次送 30 份之後，
+只要清理漏掉幾份，**下一輪會被自己上一批的殘留擋住**（`_inputs_blocked_reason`），
+而擋人的理由會是上一批的檔名 —— 2026-08-08 踩過同一個形狀（一件掛掉、後面 15 件
+全部退回「等你看」）。
+
+⇒ 實作時 `_release_inputs`／`_cleanup_admitted` 的失敗處理要當成一等公民，不是
+邊角案例。**一批收尾時要斷言暫存區真的空了**，而不是假設每一份都清掉了。
 
 ## 不動的東西
 
