@@ -1285,9 +1285,10 @@ class IntakeApp:
         撥回 planned 而不是直接重跑放行：擋下來的原因（例如收件區被佔用）可能
         還在，讓人再按一次是唯一能確認「現在方便了」的方式。
         """
-        with self._lock:
-            if self._busy():
-                raise IntakeError("已有序列工作進行中，請等待狀態更新", 409)
+        # 不擋「忙碌中」：這一支**不動檔案也不排佇列**，只是把狀態撥回 planned，
+        # 而它擋在前面的三個條件全是可驗的事實。留著那個守衛的後果是
+        # 「進料期間永遠重試不了」—— 2026-08-09 十一件掉在時機問題上，
+        # 想補回去卻被自己還在跑的佇列擋掉，全部 409。
         job = self._get_job(job_id)
         if job.status != "failed":
             raise IntakeError("只有失敗的 job 可以重試", 409)
