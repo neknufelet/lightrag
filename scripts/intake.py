@@ -1563,6 +1563,40 @@ class IntakeApp:
                     if job.admitted_path
                     and job.status in {"admitted", "scanning", "extracting"}}
 
+    def _foreign_staged_paths(self) -> list[Path]:
+        """暫存區裡**不是本服務放的** PDF。
+
+        **這是「有沒有殘留」的唯一判準**，擋門（`_inputs_blocked_reason`）與畫面上的
+        警示（`staging_warning`）都從這裡讀。分成兩份實作會漂走，**而漂走不報錯** ——
+        2026-08-09 最貴的一次就是同一個判準只加在其中一個呼叫端，索引完了才判失敗。
+        """
+        mine = self._my_staged_names()
+        return [path for path in self._inputs_pdf_paths() if path.name not in mine]
+
+    def staging_warning(self) -> str | None:
+        """暫存區有殘留就回一句話，乾淨就回 None。**沒事的時候必須安靜。**
+
+        **為什麼要主動說**：在此之前殘留只有一個現形時機 —— 下一份放行被擋下來。
+        那行紅字掛在**受害者**那一列，理由寫的是別人的檔名，看到的人只會覺得莫名其妙。
+        鐵則第 6 條：探針要在沒人問的時候會響。
+
+        **為什麼不放 `compat-check`**：它每天早上跑一次，而進料途中暫存區本來就該有
+        東西。它分不出「正在跑」與「殘留」，會天天誤報 —— 只有 intake 知道哪幾份是
+        自己放的。判準要放在知道答案的那一側。
+
+        **為什麼沒事就完全不出現**：9710 的橫幅是本專案唯一的警報管道
+        （2026-08-08 裁決），常態佔著那個位置的代價是真的紅燈會被淹沒。
+        """
+        existing = self._foreign_staged_paths()
+        if not existing:
+            return None
+        stamp = time.strftime("%Y%m%d")
+        archive = self.paths.library_dir / f"manual-{stamp}"
+        names = "、".join(path.name for path in existing)
+        return (f"暫存區有 {len(existing)} 份不是我放的：{names}"
+                f"　—— 下一輪放行會被它們擋住。"
+                f"搬到 {archive}/ 再繼續，**不要直接刪**：那可能是某份文件在這台的唯一副本。")
+
     def _inputs_blocked_reason(self) -> str | None:
         """放行前 `inputs/<ws>` 不得有**別人的** PDF。擋得住就回原因，乾淨就回 None。
 
@@ -1590,8 +1624,7 @@ class IntakeApp:
         四篇一放行全部撞到這裡；當天稍晚重抽拿 inputs 當暫存區，2017 放行撞上，
         被判 failed 而它自己 decision=clean、reasons=[]。）
         """
-        mine = self._my_staged_names()
-        existing = [p for p in self._inputs_pdf_paths() if p.name not in mine]
+        existing = self._foreign_staged_paths()
         if not existing:
             return None
         names = ", ".join(path.name for path in existing)
@@ -2228,6 +2261,7 @@ class IntakeApp:
             "links": self.links(),
             "foreign": foreign_rows,
             "foreign_error": foreign_error,
+            "staging_warning": self.staging_warning(),
         }
 
     def _index_documents(self) -> tuple[dict[str, str], str | None]:
@@ -3190,6 +3224,9 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
                      + _esc("；".join(str(item) for item in warnings)) + "</div>")
     if isinstance(foreign_error, str) and foreign_error:
         warn_html += f"<div class='banner'>⚠ {_esc(foreign_error)}</div>"
+    staging = state.get("staging_warning")
+    if isinstance(staging, str) and staging:
+        warn_html += f"<div class='banner'>⚠ {_esc(staging)}</div>"
 
     # daily-check 的紅綠燈。**這是本專案唯一的警報管道**（2026-08-08 裁決：
     # 「只要在 9710 有警告就好」）。ok 不顯示 —— 常態不該佔畫面，否則真的紅燈

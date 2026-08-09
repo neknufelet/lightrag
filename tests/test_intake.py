@@ -1215,6 +1215,61 @@ def test_staging_blocks_foreign_pdfs_but_not_my_own_concurrent_ones(tmp_path: Pa
         "把自己正在放行的檔一起列成問題了")
 
 
+def test_a_leftover_in_the_staging_area_shows_up_before_it_blocks_anyone(
+    tmp_path: Path,
+) -> None:
+    """殘留要在**沒人問的時候**就出聲，不是等下一份被擋才說（鐵則第 6 條）。
+
+    在此之前，暫存區有別人的檔這件事只有一個現形時機：下一份放行被擋下來。
+    而那行紅字掛在**受害者**那一列、理由寫的是別人的檔名 —— 看到的人會覺得
+    「我這份好好的，為什麼跟我說一個不相干的檔案有問題」。
+
+    改成一次送一整批之後這件事會放大：一次一份時清不掉最多卡一份，一批 30 份
+    時漏清幾份就會擋住下一整輪（2026-08-08 踩過同型：一件掛掉、後面 15 件全退回）。
+
+    ⚠ 順便釘住**兩邊用同一個判準**：橫幅說有問題，`_inputs_blocked_reason` 就必須
+    也說有問題。分成兩份實作的話會漂走，而漂走不報錯 —— 2026-08-09 當天犯三次，
+    最貴的一次是封面頁例外只加在解析側，索引完了才判失敗。
+    """
+    app = _app(tmp_path)
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+    (inputs / "上一批沒清掉的.pdf").write_bytes(PDF)
+
+    html = render_html(app.state())
+    assert "上一批沒清掉的.pdf" in html, (
+        "暫存區有殘留，畫面上完全看不出來 —— 要等下一份被擋才會知道")
+    assert app._inputs_blocked_reason() is not None, (
+        "橫幅說有問題，擋門卻說沒有 —— 兩邊判準已經漂開")
+
+
+def test_the_staging_banner_stays_quiet_when_nothing_is_wrong(tmp_path: Path) -> None:
+    """常態不佔畫面。
+
+    「只要在 9710 有警告就好」是本專案唯一的警報管道（2026-08-08 裁決），
+    所以那個位置一直掛著一句話的代價是**真的紅燈會被淹沒**。
+
+    兩種「沒事」都要安靜：暫存區空的，以及裡面只有我自己正在放行的那幾份。
+    """
+    app = _app(tmp_path)
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+
+    assert "暫存區" not in render_html(app.state()), "暫存區是空的還在喊"
+
+    app.save_upload("我的.pdf", PDF)
+    candidate = next(c for c in app._candidates()[0] if c.filename == "我的.pdf")
+    job = Job.from_candidate(candidate)
+    job.workspace = app.workspace
+    job.status = "scanning"                       # type: ignore[assignment]
+    job.admitted_path = str(inputs / "我的.pdf")
+    app._jobs[job.job_id] = job
+    (inputs / "我的.pdf").write_bytes(PDF)
+
+    assert "暫存區" not in render_html(app.state()), (
+        "把自己正在放行的那份當成殘留在喊")
+
+
 def test_a_novel_plan_needs_every_reason_acknowledged(tmp_path: Path) -> None:
     """`novel` 放得出去，**但要逐條確認**。
 
