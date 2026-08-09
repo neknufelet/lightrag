@@ -69,6 +69,35 @@ WORKSPACE = ENV.get("WORKSPACE") or sys.exit(
 # 耐久的那份。
 DRAWING = re.compile(r'<drawing[^>]*?caption="([^"]*)"[^>]*?path="([^"]+)"', re.I)
 
+# 整個 tag（不管有沒有 caption），給 `search` 壓縮用。
+DRAWING_TAG = re.compile(r"<drawing\b[^>]*?/?>", re.I | re.S)
+_CAPTION_ATTR = re.compile(r'caption="([^"]*)"', re.I | re.S)
+
+
+def _compact_drawings(text: str) -> str:
+    """把 `<drawing …>` 壓成只剩圖說，其餘屬性丟掉。
+
+    **圖說要留**：`FIG. 2. Absorption of two hybrid absorbers…` 常常本身就是答案。
+    **其餘是純雜訊**：`id=`／`format=`／`src=`／`path=`（一長串 sha256 檔名）
+    對回答問題沒有任何幫助，只是吃掉回傳額度。
+
+    2026-08-09 實測三個查詢（扣掉 caption 之後的雜訊佔回傳字元）：
+        微穿孔板吸聲機制    12 個圖標記   3,388 字元   26.0%
+        盤繞式通道           2 個          561 字元    4.3%
+        阻抗管量測           4 個        1,101 字元    8.5%
+    最壞的情況吃掉四分之一的額度，而且**波動大到不能靠平均值判斷** ——
+    圖多的論文正好是最需要原文的那種。
+
+    ⚠ 要圖本身走 `/kb/{ws}/figures`：那個端點解析的是 LightRAG 的原始 chunk，
+    **不經過這裡**，所以壓縮不影響抓圖。三個 skill 裡只有 search 會看到壓縮後的版本。
+    """
+    def one(m: re.Match[str]) -> str:
+        cap = _CAPTION_ATTR.search(m.group(0))
+        text_ = " ".join(cap.group(1).split()) if cap else ""
+        return f"[圖：{text_}]" if text_ else ""
+    return DRAWING_TAG.sub(one, text)
+
+
 MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
         ".gif": "image/gif", ".webp": "image/webp"}
 
@@ -357,7 +386,8 @@ class H(BaseHTTPRequestHandler):
                 raw_chunks = data.get("chunks") or []
                 kept, used = [], 0
                 for c in raw_chunks[:max_chunks]:
-                    body = c.get("content") or ""
+                    # **壓縮要在字元預算之前做**，否則省下來的額度不會變成更多原文。
+                    body = _compact_drawings(c.get("content") or "")
                     room = max_chars - used
                     if room <= 0:
                         break
