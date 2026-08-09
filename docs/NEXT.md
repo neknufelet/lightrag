@@ -31,28 +31,26 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 **它們的母體不存在了**，數字不是變舊而是不再指向任何東西。
 清單還沒逐條清 —— 下次動到哪一條，先確認它講的東西還在。
 
-**現在的狀態**（2026-08-09 實測，不是引用）：知識庫 **70 份**、21,590 節點、31,768 關聯。
-`compat-check` **hard 0、soft 0、驗不了 0，共 444 項**。`canary` 基準 70 份。
-四個容器健康。**第一批進完了，過程與十個 bug 在 [LOG](../cairn/LOG.md)。**
+**第一批進完了**，過程與十個 bug 在 [LOG](../cairn/LOG.md)。
+
+**現在的狀態不寫在這裡，寫死的那一版撐不過一週。** 要知道就跑，指令不會過期：
 
 ```
-docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAF'|' -c \
-  "select (select count(*) from lightrag_graph_nodes  where workspace='acoustics_v2'),
-          (select count(*) from lightrag_graph_edges  where workspace='acoustics_v2'),
-          (select count(*) from lightrag_doc_status   where workspace='acoustics_v2');"
-→ 21590|31768|70
+綠紅        cat /data/lightrag/checks/latest.json     ← timer 每天 08:30 自己寫的
+全套檢查    python3 scripts/compat-check.py           ← 想現在就知道
+份數        docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAF'|' -c \
+              "select count(*) from lightrag_doc_status where workspace='acoustics_v2';"
+節點／關聯  同上，把表換成 lightrag_graph_nodes / lightrag_graph_edges
+收件匣還剩  ls /data/lightrag/inbox/*.pdf | wc -l
 ```
 
-⚠ 節點／關聯與 8/9 收工回報的 **21,617／31,839** 差 27／71。**成因沒查**，
-兩個數字都留著，不要挑一個看起來對的抄進去。
+⚠ **這一段刻意沒有數字**，理由同 [CLAUDE.md](../CLAUDE.md) 的機器關係表。
+往下每一節裡帶日期的量測是**那天量到的**，不是現況——不要拿來當現在的答案。
 
 - ⬜ 把剩下的進料進來　→ 審核台的「已進知識庫」數字對得上 PDF 份數
 
-  收件匣現況：`ls /data/lightrag/inbox/*.pdf | wc -l` → **163**。
-  PO 說總共還剩約 230 篇 ⇒ 還有約 67 篇沒放進收件匣。
-
   ⚠ **MinerU token 2026-09-04 到期**；每天 2,000 頁享最高優先，超過降速不擋，
-  所以 250 篇本來就會跨好幾天。
+  所以剩下的本來就會跨好幾天。
   ⚠ **進料途中不要重啟 intake** —— 在途的會退回「等你看」而且不會自己放行，
   當天為此手動補了四輪。
   ⚠ **「等你看」的東西要看實際消音清單，不要看百分比。** 當天三份「參考文獻
@@ -146,24 +144,20 @@ PP_DATA_ROOT=/data/lightrag-trial \
 
 ## ✅ 實機 `.env` 已填、抽取與眼睛 A 都換完（2026-08-09 驗）
 
-兩把新金鑰 PO 已經填好。**下面是 as-built 不是範本**
-（`docker exec lightrag-acoustics_v2 env`，2026-08-09）：
+兩把新金鑰 PO 已經填好，抽取走 DeepSeek、眼睛 A 走 OpenRouter，2026-08-09 在 dker
+確認過是 as-built 不是範本。**接哪家、用哪個模型看 [CLAUDE.md](../CLAUDE.md) 的外部服務表**；
+併發與預算那幾個旋鈕的現值不抄在這裡：
 
 ```
-LLM_BINDING_HOST=https://api.deepseek.com
-LLM_MODEL=deepseek-v4-flash
-MAX_ASYNC=16
-MAX_PARALLEL_INSERT=6
-MAX_TOTAL_TOKENS=50000
+docker exec lightrag-acoustics_v2 env | grep -E '^(LLM_|MAX_|OPENAI_LLM_)'
+grep -E '^PP_EYE_A_(HOST|MODEL|PROVIDER)=' /opt/stacks/lightrag/.env
 ```
 
-眼睛 A 走 OpenRouter `qwen/qwen3-vl-32b-instruct`，provider 釘在 `alibaba/fp8`
-（`/opt/stacks/lightrag/.env`）。九個金鑰欄位全部非空（只驗有無、不印值）。
-
-- ✅ 填完之後跑 `compat-check`　→ **hard 0、soft 0、驗不了 0，共 444 項**（70 份文件）
+- ✅ 填完之後跑 `compat-check`　→ 當天 hard／soft／驗不了全 0
 
   A-23 是綠的：`tests/model-observations.json` 記的就是
   `qwen/qwen3-vl-32b-instruct + gpt-5.6-luna`，與現行設定相符。
+  **現在還綠不綠要自己跑**，判準見本檔開頭那格。
 
 ## 🔴 十二道閘門寫了，V5–V12 還沒接（2026-08-09）
 
@@ -223,15 +217,14 @@ llama.cpp（當時的正式庫） 0.7624 / 0.8507 / 0.8279     ← 落差 0.09
 DeepSeek（溫度 0.2）      0.8507 / 0.8507 / 0.8507     ← 三次全同
 ```
 
-- ✅ 把查詢端溫度釘住 —— as-built 驗過（`docker exec lightrag-acoustics_v2 env`）：
+- ✅ 把查詢端溫度釘住了，而且思考也關了 —— 2026-08-09 as-built 驗過。現值自己看：
 
   ```
-  OPENAI_LLM_EXTRA_BODY={"thinking": {"type": "disabled"}}
-  OPENAI_LLM_TEMPERATURE=0.2
+  docker exec lightrag-acoustics_v2 env | grep -E '^OPENAI_LLM_(TEMPERATURE|EXTRA_BODY)='
   ```
 
-  ⚠ 這個鍵是**全域的**（extract／keyword／query／vlm 四個角色都吃），
-  所以 0.2 同時是抽取溫度 —— 而抽取溫度那件事**沒有定案，是被這個鍵順帶決定的**。
+  ⚠ `OPENAI_LLM_TEMPERATURE` 是**全域的**（extract／keyword／query／vlm 四個角色都吃），
+  所以它同時就是抽取溫度 —— 而抽取溫度那件事**沒有定案，是被這個鍵順帶決定的**。
   要分開設得先確認 LightRAG 的 role-specific 覆寫怎麼寫
   （`binding_options.py` 有 `role_upper` 的機制，還沒查）。
 
@@ -250,15 +243,15 @@ DeepSeek（溫度 0.2）      0.8507 / 0.8507 / 0.8507     ← 三次全同
 四件都做完了，逐項驗過：
 
 ```
-ls -d /opt/stacks/lightrag-ds*   → (試驗 stack 目錄已不存在)
-ls -d /data/lightrag-trial       → (trial 資料根已不存在)
-docker ps -a | grep ds|trial     → (沒有 ds/trial 容器)
-select workspace, count(*) …     → acoustics_v2|70      ← 只剩正式庫
+ls -d /opt/stacks/lightrag-ds*   → 不存在
+ls -d /data/lightrag-trial       → 不存在
+docker ps -a                     → 沒有 ds／trial 容器
+select workspace … group by 1    → 只剩正式庫 acoustics_v2
 ```
 
 ⚠ **金鑰還有第三個落點：當天那段對話。** 那份不在這台機器上，PO 自理。
 
-- ⬜ 補一份 ADR　→ **決定其實已經做了**（實機在跑 DeepSeek、70 份是它抽的），
+- ⬜ 補一份 ADR　→ **決定其實已經做了**（實機在跑 DeepSeek，庫裡的東西都是它抽的），
   只是沒有落成文件。`docs/decisions/` 目前最新是 0006。
 
   ⚠ **上線了不等於量完了。** 可行性驗過的是速度、併發、品質、成本；
