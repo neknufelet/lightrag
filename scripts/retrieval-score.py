@@ -39,11 +39,17 @@ REPO = Path(__file__).resolve().parent.parent
 QUESTIONS = REPO / "tests" / "retrieval-questions.json"
 
 
-def _post(url: str, body: object, api_key: str, timeout: int = 180) -> object:
+def _post(url: str, body: object, headers: Mapping[str, str], timeout: int = 180) -> object:
+    """POST 一個 JSON。
+
+    ⚠ **兩個服務的認證方式不同，標頭不可共用。** LightRAG 收 `X-API-Key`，
+    而 Infinity（Cohere 相容）收 `Authorization: Bearer`。兩個一起送的話
+    LightRAG 會把那個 Bearer 當成 JWT 並回 401 —— 實測踩過，而且錯誤訊息
+    只說 Unauthorized，看起來像金鑰錯了。
+    """
     req = urllib.request.Request(
         url, method="POST", data=json.dumps(body).encode(),
-        headers={"X-API-Key": api_key, "Authorization": f"Bearer {api_key}",
-                 "Content-Type": "application/json"})
+        headers={**headers, "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         return json.loads(resp.read() or "{}")
 
@@ -56,7 +62,7 @@ def retrieve(host: str, port: int, api_key: str, query: str, top_k: int) -> list
     """
     data = _post(f"http://{host}:{port}/query/data", {
         "query": query, "mode": "mix", "only_need_context": True,
-        "chunk_top_k": top_k}, api_key)
+        "chunk_top_k": top_k}, {"X-API-Key": api_key})
     if not isinstance(data, dict):
         raise RuntimeError(f"/query/data 回傳不是物件：{type(data).__name__}")
     inner = data.get("data")
@@ -75,7 +81,8 @@ def rerank(host: str, port: int, api_key: str, model: str,
     """用 cross-encoder 對取回的段落打分。回傳前 top_n 名的分數（由高到低）。"""
     data = _post(f"http://{host}:{port}/rerank",
                  {"model": model, "query": query, "documents": docs,
-                  "top_n": min(top_n, len(docs))}, api_key)
+                  "top_n": min(top_n, len(docs))},
+                 {"Authorization": f"Bearer {api_key}"})
     if not isinstance(data, dict):
         raise RuntimeError(f"/rerank 回傳不是物件：{type(data).__name__}")
     scores = [float(r["relevance_score"]) for r in (data.get("results") or [])
