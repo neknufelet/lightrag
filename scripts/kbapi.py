@@ -20,8 +20,9 @@ LightRAG 1.5.5 的 API 只有 /query、/query/stream、/query/data 與文件管�
     GET /kb/{ws}/doc/{name}               單篇：章節、表格、方程式、圖片
     GET /kb/{ws}/figures?query=&top_k=    依查詢找圖，回傳可讀檔名與 caption
     GET /kb/{ws}/images/{name}            圖片本體（雜湊名或可讀別名都吃）
-    GET /kb/{ws}/search?query=&chunks=&chars=&mode=  查詢
+    GET /kb/{ws}/search?query=&chunks=&chars=&mode=&hl_keywords=&ll_keywords=
         chunks 預設 6（下傳為 LightRAG 的 chunk_top_k）、chars 預設 12000
+        hl_keywords／ll_keywords 逗號分隔，**自帶才可重現**（見下）
         （字元上限，LightRAG 沒有對應參數，只能在這裡截）
     GET /health
 
@@ -321,11 +322,33 @@ class H(BaseHTTPRequestHandler):
                 # 圖譜就把預算吃光，chunk 直接回 0 個而且不報錯。
                 max_chunks = int((q.get("chunks") or ["6"])[0])
                 max_chars = int((q.get("chars") or ["12000"])[0])
+                # 呼叫端自帶關鍵詞 —— **這是讓查詢可重現的唯一辦法**。
+                #
+                # 不帶的話 LightRAG 會自己用 LLM 把問題變成關鍵詞，而那一步跑在
+                # 查詢端的溫度上、**而且沒有快取**（lightrag_llm_cache 只有
+                # extract／summary 兩類）。2026-08-09 實測：一個沒查過的問題連問
+                # 三次，拿回三組不同的段落 —— 使用者不會有任何訊號。
+                #
+                # 帶了之後那一步不做（數 llama.cpp 日誌：0 次請求，不帶時是 1 次），
+                # 三題各三次全部相同，分數一題更好、兩題持平、零題變差。
+                # ⚠ 不會變快：那次呼叫只佔 0.7–0.9 秒，5 秒的耗時在向量比對與圖譜上。
+                #
+                # 逗號分隔。hl＝高層（主題、概念），ll＝低層（具體名詞、參數）。
+                def _kw(name: str) -> list[str]:
+                    raw = (q.get(name) or [""])[0]
+                    return [s.strip() for s in raw.split(",") if s.strip()]
+
+                hl, ll = _kw("hl_keywords"), _kw("ll_keywords")
+                body = {"query": query, "mode": mode, "top_k": k,
+                        "chunk_top_k": max_chunks, "only_need_context": True}
+                # 只在真的有值時才送。送空陣列的話 LightRAG 會當成「關鍵詞就是空的」
+                # 而不是「請你自己抽」，於是圖譜那一段等於沒查 —— 而且不報錯。
+                if hl:
+                    body["hl_keywords"] = hl
+                if ll:
+                    body["ll_keywords"] = ll
                 try:
-                    d = lightrag("/query/data",
-                                 {"query": query, "mode": mode, "top_k": k,
-                                  "chunk_top_k": max_chunks,
-                                  "only_need_context": True})
+                    d = lightrag("/query/data", body)
                 except Exception as e:                       # noqa: BLE001
                     return self._json({"error": f"LightRAG 查詢失敗: {e}"}, 502)
                 data = d.get("data") or {}
@@ -353,6 +376,12 @@ class H(BaseHTTPRequestHandler):
                                   "chunks_returned": len(kept),
                                   "cap_chunks": max_chunks,
                                   "chars": used, "cap_chars": max_chars},
+                    # 回報有沒有自帶關鍵詞。**沒帶就是這次查詢不可重現**，
+                    # 而呼叫端看不到這件事的話，會把偶然的結果當成穩定的結果。
+                    "keywords": {"supplied": bool(hl or ll), "hl": hl, "ll": ll,
+                                 "note": ("" if (hl or ll) else
+                                          "未自帶關鍵詞：後端用 LLM 抽，同一個問題"
+                                          "重問可能拿到不同段落")},
                     "entities": [e.get("entity_name") for e in (data.get("entities") or [])][:30],
                 }
                 return self._out(out, fmt, lambda o:
