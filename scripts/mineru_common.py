@@ -134,13 +134,72 @@ def load_env(repo: Path, *, required: bool = True) -> dict[str, str]:
             f"{p} 不存在。現役的 .env 在 dker 的 /opt/stacks/lightrag/.env"
             "（2026-08-07 搬出 git checkout，repo 根目錄放一條 symlink 指過去）。\n"
             "coder 上刻意沒有 .env —— 需要它的腳本只能在 dker 跑。")
-    out = {}
-    for line in p.read_text().splitlines():
+    return parse_env_text(p.read_text())
+
+
+def parse_env_text(text: str) -> dict[str, str]:
+    """解析一份 env 檔的內容。
+
+    ⚠ **不要改用 shell `source`。** `LIGHTRAG_PARSER` 的值含 `;`，shell 會把
+    分號後面當成指令。這個解析器與 `.env` 的實際寫法綁在一起，覆寫檔必須用
+    同一支 —— 兩份解析器對引號、空白、註解的處理只要差一點，覆寫就會
+    「看起來設了但沒生效」。
+    """
+    out: dict[str, str] = {}
+    for line in text.splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
             k, v = line.split("=", 1)
             out[k.strip()] = v.strip().strip("'\"")
     return out
+
+
+def overlay_env(base: Mapping[str, str], path: Path) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    """把一份覆寫檔疊在基底設定之上。回傳 (合併後的設定, [(鍵名, 覆寫/新增)])。
+
+    **為什麼是疊加而不是取代**：受控比對的前提是「只變一個東西」。取代的話
+    覆寫檔必須抄一份完整設定，而抄的過程中任何一個鍵抄錯或漏掉，就多變了一個
+    變數 —— 而且是安靜地多變。疊加讓覆寫檔只寫真正要改的那幾行。
+
+    **為什麼要回傳異動清單**：呼叫端必須把它印出來。鍵名打錯（`PP_EYE_A_MODLE`）
+    時疊加會安靜地成功、什麼都沒改，而實驗結果看起來就像「換了模型但沒差」。
+    標成「新增」的鍵就是要看的地方 —— 基底裡沒有這個名字。
+
+    ⚠ 只回傳鍵名，**不要回傳值**：覆寫檔裡會有金鑰。
+    """
+    if not path.is_file():
+        raise EnvFileMissing(f"--env-file 指定的 {path} 不存在")
+    over = parse_env_text(path.read_text(encoding="utf-8"))
+    merged = dict(base)
+    changes: list[tuple[str, str]] = []
+    for k, v in over.items():
+        changes.append((k, "覆寫" if k in base else "新增"))
+        merged[k] = v
+    return merged, sorted(changes)
+
+
+def resolve_env(repo: Path, argv: list[str] | None = None) -> tuple[dict[str, str], list[str]]:
+    """讀 `.env`，命令列帶了 `--env-file` 就疊上去。回傳 (設定, 要印出來的行)。
+
+    **必須在建 parser 之前呼叫**：`add_workspace_arg` 拿 `WORKSPACE` 當預設值，
+    覆寫檔要能改 workspace 就得比它早。所以這裡用 `parse_known_args` 先撈一次；
+    真正的 parser 之後照樣要宣告 `--env-file`，否則 `--help` 看不到它。
+
+    **回傳訊息而不是自己印**：這個模組會被 import，不得 print
+    （`tests/test_no_print_in_library_modules.py` 守著）。組裝在這裡、輸出在
+    呼叫端，兩支 CLI 才不會各寫一份格式而慢慢長歪。
+    """
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--env-file")
+    known, _ = pre.parse_known_args(argv)
+    env = load_env(repo)
+    if not known.env_file:
+        return env, []
+    env, changes = overlay_env(env, Path(known.env_file))
+    lines = [f"設定覆寫：{known.env_file}（{len(changes)} 個鍵）"]
+    lines += [f"  {how}　{key}" for key, how in changes]
+    lines.append("  ⚠ 標「新增」的鍵基底裡沒有這個名字 —— 不是刻意的話就是鍵名打錯了")
+    return env, lines
 
 
 POSTGRES_CONTAINER_DEFAULT = "lightrag-postgres"

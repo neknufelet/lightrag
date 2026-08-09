@@ -39,7 +39,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from mineru_common import LEAK, add_workspace_arg, load_env  # noqa: E402
+from mineru_common import LEAK, add_workspace_arg, resolve_env  # noqa: E402
 from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 from pp.rules import (  # noqa: E402
@@ -268,6 +268,18 @@ CANARY = REPO / "tests" / "canary-baseline.json"
 
 # 金絲雀只比這幾個數字。比全部欄位會被無關的變動洗版（頁數、caption 文字），
 # 比太少又抓不到漂移。這幾個是「規則改動一定會反映在上面」的量。
+def env_with_overlay(argv: list[str] | None = None) -> dict[str, str]:
+    """讀 `.env` 並套用 `--env-file`，把異動清單印出來。
+
+    **異動清單一定要印**：鍵名打錯時疊加會安靜地成功而什麼都沒改，實驗結果
+    看起來就像「換了模型但沒差」。只印鍵名不印值 —— 覆寫檔裡有金鑰。
+    """
+    env, lines = resolve_env(REPO, argv)
+    for line in lines:
+        print(line)
+    return env
+
+
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
                 "refs_mute", "title_mute", "title_held", "title_fired",
                 "tables_total", "repairable", "review",
@@ -836,8 +848,13 @@ def cmd_revert(a, env) -> int:
 
 
 def main():
-    env = load_env(REPO)
+    env = env_with_overlay()
     ap = argparse.ArgumentParser(description="MinerU 解析輸出的後處理")
+    # 在這裡再宣告一次是為了 `--help` 看得到、以及讓 argparse 吃掉這個參數。
+    # 真正生效的是上面 env_with_overlay() 那次 —— 它必須比 add_workspace_arg 早。
+    ap.add_argument("--env-file",
+                    help="設定覆寫檔，疊在 .env 之上（只寫要改的鍵）。"
+                         "配 PP_DATA_ROOT 用，就能在不碰正式設定的前提下換模型")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("plan", help="只讀，算出打算改什麼")
