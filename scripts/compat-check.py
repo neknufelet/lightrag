@@ -74,6 +74,12 @@ PUBLISHED_SERVICES: tuple[tuple[str, str | None, int], ...] = (
 ENV_KEYS_OPTIONAL_IN_LIVE: frozenset[str] = frozenset({
     "INTAKE_SOURCES",   # 留空＝不掃描任何來源，intake.py:494 會明確警告而非誤報空
     "INFINITY_PORT",    # compose 寫 ${INFINITY_PORT:-7997}
+    # 眼睛 A（轉錄者）2026-08-09 從抽取 LLM 拆出來。不設時 fallback 回
+    # LLM_BINDING_*／LLM_MODEL，行為與拆分前逐欄位相同（tests/test_eye_a_split.py），
+    # 所以實機的 .env 可以完全沒有這三個鍵。
+    "PP_EYE_A_HOST",
+    "PP_EYE_A_API_KEY",
+    "PP_EYE_A_MODEL",
 })
 
 # `.env` 的鍵 → LightRAG `MinerUParserOptions.from_env()` 的欄位。

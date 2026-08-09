@@ -75,11 +75,26 @@ def eye_c_from_env(env: dict) -> Eye | None:
 
 
 def eyes_from_env(env: dict) -> tuple[Eye, Eye]:
-    """A = 轉錄者，B = 交叉驗證者。兩者必須不同家族，否則錯誤相關、驗證失效。"""
+    """A = 轉錄者，B = 交叉驗證者。兩者必須不同家族，否則錯誤相關、驗證失效。
+
+    **眼睛 A 與抽取用的 LLM 從 2026-08-09 起可以分開設。** 在此之前它直接讀
+    `LLM_BINDING_*`／`LLM_MODEL` —— 也就是說，改抽取模型會**連帶改掉看圖的那一隻**。
+
+    那是一顆地雷：`pp/judge.py` 的檔頭記著實測結果「deepseek-v4 不吃 image_url，
+    純文字」。所以把抽取換成 DeepSeek 的那一刻，眼睛 A 會靜靜變成一個看不見圖的
+    模型，表格轉錄整條壞掉**而且不會有錯誤訊息**。
+
+    現在 `PP_EYE_A_*` 沒設時 fallback 回原本那三個鍵，**行為逐欄位不變**
+    （`tests/test_eye_a_split.py` 釘住這件事）。要拆才拆，不拆就跟以前一樣。
+
+    ⚠ `name` 一律是 `"qwen"`，即使模型換掉也不改 —— 它是**轉錄快取檔名的一部分**
+    （`{png_sha}.{name}.{model}.json`），改掉會讓既有快取全部 miss 而重新付費。
+    模型是誰由 `model` 決定，家族由 `family` 從 `model` 算，都不看 `name`。
+    """
     a = Eye("qwen",
-            env.get("LLM_BINDING_HOST", "http://localhost:8080/v1"),
-            env.get("LLM_BINDING_API_KEY", ""),
-            env.get("LLM_MODEL", "qwen3.6-35b-a3b"))
+            env.get("PP_EYE_A_HOST") or env.get("LLM_BINDING_HOST", "http://localhost:8080/v1"),
+            env.get("PP_EYE_A_API_KEY") or env.get("LLM_BINDING_API_KEY", ""),
+            env.get("PP_EYE_A_MODEL") or env.get("LLM_MODEL", "qwen3.6-35b-a3b"))
     b = Eye("luna",
             env.get("PP_EYE_B_HOST", "https://api.openai.com/v1"),
             # 預設沿用 embedding 那把 OpenAI 金鑰，不另外散一份出去
