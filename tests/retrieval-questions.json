@@ -1,0 +1,68 @@
+{
+  "_why": "檢索評分的題本。之前這組題目只存在於某次工作階段的暫存腳本裡，隨那個工作區一起消失 —— cairn/retrieval-tuning.md 留下了結論卻留不下方法。這一份進版控就是為了不再發生。",
+  "_design": "五組同義的中英配對。配對是刻意的：中文問英文論文差 63–86% 是這個庫最大的洞（retrieval-tuning.md 第一節），而只有配對才量得出每一題各差多少。不配對的題組只能給一個總平均，看不出是哪類問題掉最兇。",
+  "_history": "zh-1／zh-2／zh-3 是 2026-08-08 那組唯一被寫進文件因而倖存的三題，逐字保留。其餘七題是 2026-08-09 新寫的，所以整組分數不能與 retrieval-tuning.md 的歷史數字比 —— 那些數字從此只能當歷史。",
+  "_method": "對每題查一次知識庫（mode=mix、only_need_context），把回傳的原文段落交給 reranker 打分，取前 N 名平均。reranker 當裁判而不是自己算相似度：cross-encoder 跨語言沒問題（實測中文問題對英文正確答案 0.9134），所以它能公平地評中文題。",
+  "questions": [
+    {
+      "id": "zh-1",
+      "lang": "zh",
+      "pair": "p1",
+      "text": "微穿孔板的聲阻是由什麼機制產生的"
+    },
+    {
+      "id": "en-1",
+      "lang": "en",
+      "pair": "p1",
+      "text": "What mechanism produces the acoustic resistance of a micro-perforated panel?"
+    },
+    {
+      "id": "zh-2",
+      "lang": "zh",
+      "pair": "p2",
+      "text": "盤繞式通道如何不增加厚度降低共振頻率"
+    },
+    {
+      "id": "en-2",
+      "lang": "en",
+      "pair": "p2",
+      "text": "How do coiled-up channels lower the resonance frequency without increasing thickness?"
+    },
+    {
+      "id": "zh-3",
+      "lang": "zh",
+      "pair": "p3",
+      "text": "等效網路的阻抗概念跟超材料吸聲體的共通處"
+    },
+    {
+      "id": "en-3",
+      "lang": "en",
+      "pair": "p3",
+      "text": "What do equivalent network impedance concepts share with metamaterial sound absorbers?"
+    },
+    {
+      "id": "zh-4",
+      "lang": "zh",
+      "pair": "p4",
+      "text": "亥姆霍茲共振器的共振頻率由哪些幾何參數決定"
+    },
+    {
+      "id": "en-4",
+      "lang": "en",
+      "pair": "p4",
+      "text": "Which geometric parameters determine the resonance frequency of a Helmholtz resonator?"
+    },
+    {
+      "id": "zh-5",
+      "lang": "zh",
+      "pair": "p5",
+      "text": "阻抗管的雙麥克風法如何量出吸聲係數"
+    },
+    {
+      "id": "en-5",
+      "lang": "en",
+      "pair": "p5",
+      "text": "How does the two-microphone impedance tube method measure the absorption coefficient?"
+    }
+  ]
+}
