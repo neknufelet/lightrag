@@ -14,6 +14,17 @@ from typing import Final
 DEFAULT_DATA_ROOT: Final[Path] = Path("/data/lightrag")
 CONTAINER_DATA_ROOT: Final[Path] = Path("/app/data")
 
+# 資料根是不是真的掛上了 —— 這個檔只存在於那顆專用磁碟上。
+#
+# **為什麼需要它**：2026-08-09 起資料根是一顆 USB 外接 SSD 的掛載點。沒掛上時
+# `/data/lightrag` 只是底層磁碟上的一個空目錄，而 LightRAG 看到空的資料根會
+# 建一個新的空知識庫**而且不報錯**。掛載點目錄本身設成 root:root mode 000 讓
+# 這種情況立刻權限錯誤，記號檔則再分辨「掛到了另一顆碟」。`compat-check` 的
+# A-34 守著它。
+#
+# 名字刻意不提哪一顆硬碟 —— 換碟是合法操作，寫死型號的那版撐不過第一次換碟。
+DATA_ROOT_MARKER: Final[str] = ".lightrag-data-root"
+
 
 def configured_data_root(
     environment: Mapping[str, str] | None = None,

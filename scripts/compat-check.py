@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -40,7 +41,7 @@ from pp.docctx import (  # noqa: E402
 from pp.extraction_profile import active_profile, profile_hash, read_record  # noqa: E402
 from pp.graph_labels import CERTAIN_RE  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  # noqa: E402
-from pp.paths import DataPaths, configured_data_root  # noqa: E402
+from pp.paths import DATA_ROOT_MARKER, DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
@@ -198,6 +199,63 @@ KNOWN_TYPES = {
     "page_number", "page_footnote", "code", "list",
     "aside_text", "chart",
 }
+
+
+def data_root_state() -> tuple[bool, str, dict]:
+    """資料根在不在那顆專用磁碟上、能不能寫。**A-34 與 `main()` 的前置檢查共用這一份。**
+
+    資料根 2026-08-09 搬到一顆 **USB 外接**的 1TB SSD。USB 會掉。
+
+    **擋的是「安靜地寫到別的地方」。** `/data/lightrag` 現在是掛載點；沒掛上時它就是
+    底層磁碟上的一個空目錄，而 LightRAG 看到空的資料根會**高高興興建一個新的空知識庫，
+    不報錯**。這個專案記過三次同一個形狀（備份回報成功、內容是空的），這是第四個入口。
+
+    **三個訊號各擋一種失效**：
+
+      記號檔  —— 掛載點目錄本身是 root:root mode 000，所以「沒掛上」時連讀都讀不到；
+                記號檔還能分辨「掛到了另一顆碟」。
+      唯讀    —— fstab 帶 `errors=remount-ro`，USB 中途掉線會讓檔案系統轉唯讀。
+                **容器仍然在跑**，只有寫入會失敗 —— 沒有這一條的話，症狀會是零星的
+                寫入錯誤而不是一句「碟壞了」。
+      裝置    —— 印出來給人看，**不當判準**：換碟是合法操作，換了之後只要記號檔還在
+                就該通過（不寫死 UUID —— 寫死的那版撐不過第一次換碟）。
+    """
+    root = Path(DATA_ROOT)
+    marker = root / DATA_ROOT_MARKER
+    src = subprocess.run(
+        ["findmnt", "-n", "-o", "SOURCE,OPTIONS", "--target", str(root)],
+        capture_output=True, text=True, timeout=15, check=False).stdout.strip()
+    data = {"data_root": str(root), "mount": src}
+    if not root.is_dir():
+        return False, f"{root} 不存在 —— 硬碟沒掛上", data
+    # ⚠ `Path.is_file()` **不會**吞掉 PermissionError（只吞 ENOENT／ENOTDIR 那幾種），
+    # 而沒掛上時掛載點正是 root:root mode 000 —— 也就是最常見的那條路會直接丟例外。
+    # 裝飾器會把它變成 hard 失敗（結論對），但訊息會變成一句 `PermissionError`，
+    # 把「先不要動工」那段話吃掉。2026-08-09 測失效路徑時實際踩到，所以分開接。
+    try:
+        marker_ok = marker.is_file()
+    except PermissionError:
+        return False, (
+            f"**{root} 讀不到（權限被拒）—— 這就是硬碟沒掛上的樣子。**"
+            "掛載點目錄本身是 root:root mode 000，就是為了讓「沒掛上」立刻失敗，"
+            "而不是讓 LightRAG 看到一個空資料根、安靜地建一個新的空庫。"
+            "**先不要動工。** 掛回去：`sudo mount /data/lightrag`；"
+            "碟不見的話查 `dmesg | tail`（USB 外接）。"), {**data, "unmounted": True}
+    if not marker_ok:
+        return False, (
+            f"**記號檔 {DATA_ROOT_MARKER} 不在 {root}**。"
+            "資料根不是那顆專用磁碟 —— 可能掛到了別顆，或這是一台還沒建過記號檔的"
+            "新機器（新環境要 `touch` 一個，見 rebuild-checklist）。"
+            "**先不要動工**，現在寫下去的東西會落在錯的地方。"
+            f"　掛載狀態：{src or '（findmnt 問不到）'}"), data
+    if os.statvfs(root).f_flag & os.ST_RDONLY:
+        return False, (
+            f"**{root} 是唯讀的。** fstab 帶 `errors=remount-ro`，所以這代表檔案系統"
+            "出過錯而被轉成唯讀 —— USB 外接碟掉線的典型症狀。"
+            "查 `dmesg | tail`，處理完重新掛載。"), {**data, "readonly": True}
+    free = shutil.disk_usage(root).free
+    data["free_bytes"] = free
+    return True, f"{src}，可寫，剩 {free / 1024**3:.0f} GiB", data
 
 
 @dataclass
@@ -626,7 +684,7 @@ class Checker:
                               f"不符：{diff}"), {"options": got}
 
         @self.check("A-32", "soft", "圖譜是用現行的抽取規則建的")
-        def _() -> tuple[bool, str, dict]:
+        def _() -> tuple[bool | None, str, dict]:
             """改了抽取規則而沒有重抽 —— 要有人知道。
 
             **為什麼是 soft**：規則比圖譜新不是壞掉，是「新舊文件會用不同規則」。
@@ -638,9 +696,20 @@ class Checker:
             審核台 —— 那是本專案唯一的警報管道。
 
             判準與 CLI 共用 `pp/extraction_profile`，不各算一次。
+
+            **空庫要三態，不能報紅。** 2026-08-09 清庫重建時抓到：圖譜已經是 0 份，
+            這條還在拿一份留下來的舊紀錄比對，喊「圖譜是舊規則抽的」—— 而那個圖譜
+            已經不存在了。**沒有母體時「規則一不一致」問不出答案**，跟 A-25／A-26
+            同一個形狀：把「驗不了」講成「壞了」，會讓整個重建期間都亮著紅燈，
+            而永遠紅的警報等於沒有警報。
             """
             paths = DataPaths(configured_data_root())
             record = read_record(paths)
+            if postgres_document_count(load_env(REPO), self.ws) == 0:
+                return None, (f"workspace={self.ws!r} 目前 0 份文件；沒有圖譜可以比對，"
+                              "驗不了。進料完成後跑 `extraction-profile.py stamp`"), {
+                    "documents": 0, "workspace": self.ws,
+                    "stale_record": None if record is None else record.get("profile_hash")}
             if record is None:
                 return False, ("沒有紀錄 —— 無從得知圖譜是用哪版規則抽的。"
                                "重抽完成後跑 `extraction-profile.py stamp`"), {}
@@ -701,6 +770,12 @@ class Checker:
                 f"它們佔著檢索預算又回答不了任何問題。"
                 f"跑 `graph-clean.py plan` 看清單、`graph-clean.py apply` 清掉"
             ), {"certain": n, "workspace": self.ws}
+
+        @self.check("A-34", "hard", "資料根掛在專用磁碟上，而且可寫")
+        def _() -> tuple[bool, str, dict]:
+            """判準在模組層的 `data_root_state()` —— `main()` 在連容器**之前**
+            也要跑同一份（見那裡的說明）。兩邊叫同一個函式，不各寫一份。"""
+            return data_root_state()
 
     # ---------- 資料層（逐文件）----------
 
@@ -822,6 +897,15 @@ def main() -> NoReturn:
                     help="容器內監聽的埠（不是發佈到宿主的 HOST_PORT）")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
+
+    # **資料根要在連容器之前驗。** 硬碟不見時容器也會連不上（守衛會停掉它們，
+    # 或它們自己因為 I/O 錯誤倒下），於是原本會在這裡印一句「容器連不上」就結束
+    # —— 那是症狀不是原因，而真正的原因（碟不在）永遠印不出來，因為 A-34 排在
+    # 後面根本跑不到。2026-08-09 測失效路徑時實際發生。
+    root_ok, root_detail, _ = data_root_state()
+    if not root_ok:
+        print(f"compat-check: 資料根有問題，先不要動工\n  {root_detail}", file=sys.stderr)
+        sys.exit(2)
 
     container = a.container or container_for(a.workspace)
     o = Oracle(container=container)

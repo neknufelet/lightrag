@@ -44,6 +44,32 @@ summary: "從 173 條坑清單裡提煉出唯一在乾淨重建後仍然成立�
 | 要什麼 | 誰建 | 不建會怎樣 |
 |---|---|---|
 | `${DATA_ROOT}/inbox` | **沒有人**——要手動 `mkdir` | intake 的 `source_warnings` 會抱怨、收不到任何候選檔 |
+| `${DATA_ROOT}/.lightrag-data-root` | **沒有人**——要手動 `touch` | `compat-check` 的 A-34 會 hard FAIL 說「資料根不是專用磁碟」，動不了工 |
+
+## A3. 資料根是一顆掛載點，而且是 USB 外接的（2026-08-09 加）
+
+2026-08-09 起 `${DATA_ROOT}` 本身就是一顆 1TB SSD 的掛載點。**掛成同一個路徑是
+刻意的**：compose、`.env`、`DataPaths` 的預設值、三個 skill 的 URL 全都不必改。
+
+**USB 會掉，而掉了的預設結果是「安靜地寫到別的地方」** —— 沒掛上時 `${DATA_ROOT}`
+就是底層磁碟上的一個空目錄，LightRAG 看到空的資料根會建一個新的空知識庫**而且不報錯**。
+所以有三道，缺一不可：
+
+| 手段 | 擋哪一種 | 在哪 |
+|---|---|---|
+| 掛載點目錄設 `root:root` mode `000` | 沒掛上時立刻權限錯誤，而不是看到空目錄 | 手動設，**新機器要記得** |
+| fstab 帶 `errors=remount-ro` | 跑到一半掉線 → 檔案系統轉唯讀，不繼續往壞碟寫 | `/etc/fstab` |
+| `lightrag-mount-guard.service`（`BindsTo=` 掛載單元） | 掛載點消失 → 停掉**本專案的四個**容器 | systemd |
+
+⚠ **`nofail` 要保留。** 拿掉的話掛不上會掉進 emergency mode，而這台只能 ssh —— 那比
+原本要防的問題更糟。
+⚠ **不要把 `docker.service` 綁在這個掛載點上。** 那會讓 dockge／backrest／roonserver／
+samba／nginx／hbbs 這些**別的專案的容器**也跟著起不來。守衛只停我們自己的。
+⚠ `backrest` 把整個 `/data` 綁進它的 mount namespace，所以 `umount ${DATA_ROOT}` 會說
+`target is busy`。要卸載得用 `umount -l`，或先停 backrest（**別人的容器，不要碰**）。
+
+執行者是 `compat-check` 的 A-34，**而且它排在「連上容器」之前** —— 硬碟不見時容器也會
+連不上，排在後面的話畫面只會說「容器連不上」（症狀），永遠印不出「碟不在」（原因）。
 
 **為什麼不讓 intake 自己建**：`--source` 是**來源白名單**。自動建的話，路徑打錯
 （`/data/lightrg/inbox`）會安靜地建出一個空目錄然後「正常運作」——永遠收不到檔，

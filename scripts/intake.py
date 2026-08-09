@@ -2945,11 +2945,15 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
                       " <span class='stamp'>（這筆結果沒有記版本，是舊格式）</span>")
         warn_html += f"<div class='banner{tone}'>🔔 {_esc(msg)}{stamp_html}</div>"
 
-    # 預設只展開「待審核」—— 那是唯一需要你動腦的一節。其餘收起來，
+    # 預設只展開「等你看」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。
-    # 由上而下就是一份文件實際會走的路：
-    #   收件匣 → 解析 → 等你看 → （卡住的）→ 處理 → 進知識庫 →（失敗）
-    # 預設只展開「等你看」——那是唯一需要你動腦的一節。
+    #
+    # **順序不是文件的流程順序，是「你要多常看它」的順序**（PO 2026-08-09 指定
+    # 把「處理中」提到第二）。原本由上而下排的是一份文件實際會走的路
+    #（收件匣 → 解析 → 等你看 → 處理 → 進知識庫），讀起來順，但代價是
+    # 「現在正在跑什麼」被推到畫面中段 —— 而那是進料期間最常要瞄的一節。
+    # 現在的順序：
+    #   收件匣 → 處理中 → 解析中 → 等你看 →（卡住的）→ 進知識庫 → 已跳過 → 失敗
     job_row = lambda row: _render_job_row(row, selected_job_id)  # noqa: E731
     # 三節可能同時裝著本站的 job 與別人送的列（見 state() 的分節規則），
     # 用同一個 renderer 分辨：有 job_id 就是本站的。
@@ -2958,12 +2962,12 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     queue = (
         _render_section("selection", "收件匣", selection, _render_candidate_row,
                         prefix=_render_parse_all(selection))
+        + _render_section("in_progress", "處理中", in_progress, any_row,
+                          open_default=bool(in_progress))
         + _render_section("parsing", "解析中", parsing, job_row,
                           open_default=bool(parsing))
         + _render_section("review", "等你看", review, job_row, open_default=True)
         + _render_pending_groups(state.get("pending_by_reason"))
-        + _render_section("in_progress", "處理中", in_progress, any_row,
-                          open_default=bool(in_progress))
         + _render_section("completed", "已進知識庫", completed, any_row)
         + _render_section("skipped", "已跳過", skipped, job_row,
                           open_default=bool(skipped))
