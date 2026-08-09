@@ -137,13 +137,21 @@ class TitlePlan:
         return self.ratio > SUSPICIOUS_RATIO
 
     def summary(self) -> str:
-        if not self.fired:
-            return f"標題頁：未開火（{self.reason}）"
+        """**永遠報出消音項數，即使區塊沒開火。**
+
+        第 0 頁的 page_footnote 那一掃不看區塊 —— 沒有標題頁的文件照樣可能消掉
+        通訊作者與 DOI。原本這裡看到 `fired=False` 就只印「未開火」，於是
+        `2025 - Design and optimization` 消了 5 項而畫面上一個字都沒有。
+        金絲雀 2026-08-09 用 `title_fired=False, title_mute=5` 這組矛盾的數字
+        把它照出來 —— 那正是把 fired 單獨記一格的理由。
+        """
+        span = "有標題頁區塊" if self.fired else f"無標題頁區塊（{self.reason}）"
         by: dict[str, int] = {}
         for m in self.mutes:
             by[m.signal] = by.get(m.signal, 0) + 1
         detail = "、".join(f"{k} {n}" for k, n in sorted(by.items())) or "無"
         return (f"標題頁消音：{len(self.mutes)} 項（{detail}）、保留待查 {len(self.held)} 項；"
+                f"{span}；"
                 f"正文 {self.body_chars_before:,} → {self.body_chars_after:,} "
                 f"（{self.ratio * 100:.2f}%）"
                 + ("　⚠ 比例異常，請人工確認" if self.suspicious else ""))

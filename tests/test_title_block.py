@@ -218,6 +218,25 @@ def test_headers_are_left_to_layout_noise() -> None:
     assert {m.index for m in p.mutes} == {1}
 
 
+def test_footnote_mutes_are_reported_even_without_a_title_block() -> None:
+    """沒有標題頁區塊也可能消音 —— 而那時 summary 必須照樣說出來。
+
+    第 0 頁的 page_footnote 那一掃不看區塊。實測
+    `2025 - Design and optimization of sound-absorbing metastructure` 就是
+    `fired=False` 但消了 5 項；原本的 summary 看到 fired 是 False 就只印
+    「未開火」，那 5 項在畫面上完全不存在。**消音了卻沒人看得到，比沒消更糟。**
+    """
+    items = [_body("Some journal banner text that is not a level-1 title"),
+             _body("Published by the American Institute of Physics", itype="page_footnote"),
+             _body("Corresponding author: someone@example.edu", itype="page_footnote")]
+    p = tb.plan(items)
+    assert not p.fired
+    assert len(p.mutes) == 2
+    s = p.summary()
+    assert "2 項" in s, f"summary 沒有報出消音項數：{s!r}"
+    assert "無標題頁區塊" in s
+
+
 def test_apply_is_revertible() -> None:
     """消音要能還原 —— `layout_noise.revert_items` 認同一個鍵。"""
     from pp.rules import layout_noise

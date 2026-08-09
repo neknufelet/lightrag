@@ -155,7 +155,9 @@ def render(p: dict, details: bool) -> None:
         return
 
     title = p["title"]
-    if title.fired and (title.mutes or title.held):
+    # 不看 `fired`：沒有標題頁區塊的文件，第 0 頁頁腳那一掃照樣會消掉通訊作者
+    # 與 DOI。看 fired 的話那些消音在畫面上完全不存在。
+    if title.mutes or title.held:
         # **held 一定要印出來。** 那是這條規則的安全網：位置對但通不過測試的項目
         # 全都留在這裡，而「留著沒消」與「根本沒看到」在數字上長得一樣。
         print("\n  ── 標題頁區塊 ──")
