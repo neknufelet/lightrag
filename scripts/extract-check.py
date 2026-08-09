@@ -128,7 +128,13 @@ def main() -> int:
     a = ap.parse_args()
 
     dim = env.get("EMBEDDING_DIM", "3072")
-    model = env.get("EMBEDDING_MODEL", "text-embedding-3-large").replace("-", "_")
+    # ⚠ 表名要把**所有**非英數字元換掉，不能只換 `-`。2026-08-08 embedding 從
+    # `text-embedding-3-large` 換成 `BAAI/bge-m3` 之後，只換 `-` 的版本會拼出
+    # `lightrag_vdb_entity_BAAI/bge_m3_1024d`，psql 直接 syntax error ——
+    # **也就是說接地檢查從那天起就一直跑不起來**，而沒有人發現，因為它只在
+    # 有人主動跑的時候才會炸。這一版沿用 `graph-shape.py` 已經在用的正規化。
+    model = re.sub(r"[^0-9a-z]+", "_", env.get("EMBEDDING_MODEL",
+                                               "text-embedding-3-large").lower())
     etab = f"lightrag_vdb_entity_{model}_{dim}d"
     # **每一句都要帶 workspace。** 多個知識庫共存於同一組 Postgres，靠 workspace
     # 欄位隔離；沒有這個條件時 v155 與 v2 的列會混在一起，而且兩邊的 file_path
