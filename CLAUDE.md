@@ -17,8 +17,8 @@ tag `archive/pre-rebuild-20260807`。
 |---|---|
 | repo | `~/ghq/github.com/neknufelet/lightrag` ← **所有編輯與 commit 在這裡** |
 | 上位規範 | `~/ghq/github.com/neknufelet/standards`（**只有這台有**） |
-| 抽取用 LLM | 容器 `llama-qwen36-moe` :8080，2× RTX 3060。它自己的 `.env` 在 `deploy/llama-qwen36-moe/.env`（一個鍵 `LLAMA_API_KEY`，**與 LightRAG `.env` 的 `LLM_BINDING_API_KEY` 是同一把**）。⚠ **金鑰在容器的命令列上**，`docker inspect` 與 `ps aux` 都看得到——2026-08-08 因此外洩一次，處置見 NEXT 第 4 批 |
-| 併發參數 | 不寫死。要知道就問伺服器：啟動 log 的 `n_slots` 與 `n_ctx_slot`（`docker logs llama-qwen36-moe \| grep n_slots`）。⚠ **`MAX_TOTAL_TOKENS` 與它是乘除關係**：每 slot 上限 ＝ `-c` ÷ `--parallel`，改了併發就要重算查詢預算，否則知識庫會對使用者謊報「找不到」 |
+| 本機 llama | 容器 `llama-qwen36-moe` :8080，2× RTX 3060。**2026-08-09 起停著，也不再是抽取用 LLM**（抽取改走 DeepSeek，見下方外部服務表）。它自己的 `.env` 在 `deploy/llama-qwen36-moe/.env`（一個鍵 `LLAMA_API_KEY`）。⚠ **它與 LightRAG `.env` 的 `LLM_BINDING_API_KEY` 已不再是同一把**——後者現在是 DeepSeek 的。⚠ **金鑰在容器的命令列上**，`docker inspect` 與 `ps aux` 都看得到——2026-08-08 因此外洩一次，處置見 NEXT 第 4 批；重新啟用前先處理它 |
+| 併發參數 | 不寫死，要知道就問伺服器。⚠ **`MAX_TOTAL_TOKENS` 與 slot 的乘除關係只在抽取走本機 llama.cpp 時成立**（每 slot 上限 ＝ `-c` ÷ `--parallel`，`docker logs llama-qwen36-moe \| grep n_slots`；改了併發不重算查詢預算，知識庫會對使用者謊報「找不到」）。**2026-08-09 起抽取走 DeepSeek，這條暫時不適用**——API 的 context 是單一請求的上限，不是所有併發共分的預算。**改回本機就會重新生效，別當它消失了** |
 | worker CLI | `codex`、`opencode`（**只有這台有**） |
 | git hook | pre-commit 擋 commit 格式（`<type>(<scope>): <subject>`） |
 | **沒有** | LightRAG 的 `.env`、跑 LightRAG 的 docker |
@@ -40,9 +40,10 @@ tag `archive/pre-rebuild-20260807`。
 
 | 誰 | 做什麼 | 注意 |
 |---|---|---|
+| DeepSeek 官方 API | **抽取**（`deepseek-v4-flash`），2026-08-09 起 | 金鑰是 `LLM_BINDING_API_KEY`。⚠ **思考必須關掉**：預設開著且 effort=high，會把額度吃在推理上而輸出被安靜截斷（`finish_reason=length`，不報錯）。⚠ **不要設輸出 token 上限**，設了才會製造「安靜被切掉」 |
 | OpenAI | **只剩**第二雙眼睛（`gpt-5.6-luna`）。embedding 2026-08-08 已改本機 BGE-M3，重建不再花 API 費用 | 金鑰是 `PP_EYE_B_API_KEY`，**必須單獨設**——舊的 fallback 沿用 embedding 那把，換本機之後就斷了 |
 | MinerU 官方 API | PDF 解析 | **token 2026-09-04 到期**，`compat-check` A-21 會在剩 14 天內轉警報 |
-| OpenRouter | 第三隻眼，只在三方皆異時呼叫 | 必須釘住 provider，否則同一模型 ID 會被路由到不同供應商 |
+| OpenRouter | 眼睛 A（`qwen/qwen3-vl-32b-instruct`，2026-08-09 起）與第三隻眼（只在三方皆異時呼叫） | 必須釘住 provider，否則同一模型 ID 會被路由到不同供應商。⚠ **眼睛 A 沒單獨設會 fallback 成抽取模型**，而 deepseek-v4 不吃 image_url——看圖那隻會靜靜變成看不見圖的 |
 | backrest | dker，備份 → rclone 到 Google Drive | rag 相關的兩個排程 PO 已說要關，**還沒關** |
 
 **這張表裡刻意沒有數字。** 鍵數、檔數、容器數、費用都會變，寫死的那一版每次都撐不過
