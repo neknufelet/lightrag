@@ -42,6 +42,7 @@ from pp.rules import (  # noqa: E402
     latex_fix,
     layout_noise,
     reference_section,
+    title_block,
 )
 
 
@@ -248,6 +249,13 @@ def apply_doc(
         raise ApplyError(
             f"{ctx.doc_name}：參考文獻區段消音比例 {refs.ratio:.1%} 超標，拒絕自動套用")
 
+    # 標題頁的作者／單位／出版資訊。門檻比另外兩條緊得多（8%）：標題頁在論文裡
+    # 佔比本來就很小，超過就表示圈錯範圍 —— 而圈錯範圍的代價是消掉摘要或正文。
+    title = title_block.plan(items)
+    if title.suspicious:
+        raise ApplyError(
+            f"{ctx.doc_name}：標題頁消音比例 {title.ratio:.1%} 超標，拒絕自動套用")
+
     tables = empty_table.plan(items, *ctx.page_size)
     want = verified_tables or {}
     want_text = verified_text or {}
@@ -255,7 +263,23 @@ def apply_doc(
 
     # 兩條規則不得打到同一個項目：消音會把 text 清空並寫 _pp_original_text，
     # 文字修補會寫同一組欄位 —— 撞在一起時後跑的那條贏，而且不會有訊息。
-    muted_idx = {m.index for m in noise.mutes} | {m.index for m in refs.mutes}
+    # 三條消音規則不得消到同一項。撞在一起時 `_pp_original_text` 會被寫兩次，
+    # 第二次存進去的是**空字串**（第一條已經清空），於是計數說消了兩項、還原
+    # 只還原得了一項，而且不報錯。靠型別分工避免（layout_noise 管 header／footer、
+    # title_block 管 text／page_footnote、reference_section 管參考區段），
+    # 但分工是約定，這裡才是執行者。
+    mute_sets = {"版面雜訊": {m.index for m in noise.mutes},
+                 "參考文獻": {m.index for m in refs.mutes},
+                 "標題頁": {m.index for m in title.mutes}}
+    names = list(mute_sets)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            both = sorted(mute_sets[a] & mute_sets[b])
+            if both:
+                raise ApplyError(
+                    f"{ctx.doc_name}：項目 {both} 同時是「{a}」與「{b}」的消音目標，拒絕")
+
+    muted_idx = mute_sets["版面雜訊"] | mute_sets["參考文獻"] | mute_sets["標題頁"]
     clash = sorted(muted_idx & {int(k) for k in want_text})
     if clash:
         raise ApplyError(f"{ctx.doc_name}：項目 {clash} 同時是消音目標與文字修補目標，拒絕")
@@ -382,7 +406,8 @@ def apply_doc(
 
     # ── 改動 ──
     r.muted = (layout_noise.apply_to_items(items, noise)
-               + reference_section.apply_to_items(items, refs))
+               + reference_section.apply_to_items(items, refs)
+               + title_block.apply_to_items(items, title))
     for k, txt in sorted(want_text.items(), key=lambda kv: int(kv[0])):
         if k in done_txt:                 # 上一輪就是這個內容，不重寫
             continue

@@ -48,6 +48,7 @@ from pp.rules import (  # noqa: E402
     latex_fix,
     layout_noise,
     reference_section,
+    title_block,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -127,13 +128,14 @@ def plan_one(raw: Path, *, source_dir: Path | None = None) -> dict:
     w, h = ctx.page_size
     noise = layout_noise.plan(ctx.items, ctx.n_pages)
     refs = reference_section.plan(ctx.items)
+    title = title_block.plan(ctx.items)
     tables = empty_table.plan(ctx.items, w, h)
     charts = chart_type.plan(ctx.items, ctx.raw_dir)
     # LaTeX 正規化在唯讀階段也要算出來。`apply` 本來就會算一次，但那時已經在
     # 寫檔 —— 唯讀看不到的修改等於沒有人審過，而 σ̂→∂ 一份文件就改 138 處公式符號。
     # 這裡傳的是 ctx.items，`latex_fix.plan` 只讀不寫。
     latex = latex_fix.plan(ctx.items)
-    return {"ctx": ctx, "noise": noise, "refs": refs, "tables": tables,
+    return {"ctx": ctx, "noise": noise, "refs": refs, "title": title, "tables": tables,
             "charts": charts, "latex": latex}
 
 
@@ -144,12 +146,23 @@ def render(p: dict, details: bool) -> None:
     print(f"  {ctx.n_pages} 頁、{len(ctx.items)} 個項目、頁面 {ctx.page_size[0]:.0f}×{ctx.page_size[1]:.0f} pt")
     print(f"  過濾：{noise.summary()}")
     print(f"  文獻：{refs.summary()}")
+    print(f"  標題：{p['title'].summary()}")
     print(f"  表格：{tables.summary()}")
     print(f"  圖片：{p['charts'].line()}")
     print(f"  LaTeX：{p['latex'].summary()}")
 
     if not details:
         return
+
+    title = p["title"]
+    if title.fired and (title.mutes or title.held):
+        # **held 一定要印出來。** 那是這條規則的安全網：位置對但通不過測試的項目
+        # 全都留在這裡，而「留著沒消」與「根本沒看到」在數字上長得一樣。
+        print("\n  ── 標題頁區塊 ──")
+        for m in title.mutes:
+            print(f"    #{m.index:<4} [消音／{m.signal}]  {m.text[:72]!r}")
+        for h in title.held:
+            print(f"    #{h.index:<4} [保留／{h.why}]      {h.text[:72]!r}")
 
     if noise.distinct:
         # 標籤直接讀計畫，不要在這裡重算規則 —— 重算過一次就會跟 layout_noise
@@ -254,6 +267,7 @@ CANARY = REPO / "tests" / "canary-baseline.json"
 # 金絲雀只比這幾個數字。比全部欄位會被無關的變動洗版（頁數、caption 文字），
 # 比太少又抓不到漂移。這幾個是「規則改動一定會反映在上面」的量。
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
+                "refs_mute", "title_mute", "title_held", "title_fired",
                 "tables_total", "repairable", "review",
                 "charts_convert", "charts_dangling",
                 "latex_items", "latex_times", "latex_partials", "latex_glued",
@@ -265,6 +279,16 @@ def canary_row(p: dict) -> dict:
     return {"pages": ctx.n_pages, "items": len(ctx.items),
             "mute": len(noise.mutes), "held": len(noise.held),
             "ratio": round(noise.ratio, 4),
+            # **在此之前只有 layout_noise 被金絲雀守著。** 參考文獻消音 2026-08-08
+            # 落地、標題頁消音 08-09 落地，兩條都會清空 content_list 的 text，
+            # 而它們改了多少項都不會出現在任何基準裡 —— 與 LaTeX 那三格當初的
+            # 情況一模一樣。`title_fired` 單獨記一格是因為它是**三態**：
+            # 開火消了 0 項（正常）與根本沒開火（沒有標題頁）是兩件事，
+            # 合成一個 0 會讓「規則突然不開火了」變成看不見。
+            "refs_mute": len(p["refs"].mutes),
+            "title_mute": len(p["title"].mutes),
+            "title_held": len(p["title"].held),
+            "title_fired": p["title"].fired,
             "tables_total": tables.total,
             "repairable": len(tables.repairable),
             "review": len(tables.review),

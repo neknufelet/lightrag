@@ -51,6 +51,10 @@ def _fake_plan() -> dict:
     return {
         "ctx": SimpleNamespace(n_pages=4, items=[0] * 18),
         "noise": SimpleNamespace(mutes=[], held=[1, 2], ratio=0.0),
+        # 2026-08-09 起金絲雀也守參考文獻與標題頁這兩條消音規則。它們一樣會清空
+        # content_list 的 text，在此之前改了多少項都不會出現在任何基準裡。
+        "refs": SimpleNamespace(mutes=[]),
+        "title": SimpleNamespace(mutes=[], held=[], fired=False),
         "tables": SimpleNamespace(total=0, repairable=[], review=[]),
         "charts": _FakeChartPlan(),
         "latex": SimpleNamespace(items=0, times=0, partials=0, glued=0, vetoed=[]),

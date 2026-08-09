@@ -1,0 +1,307 @@
+"""標題頁的作者、單位與出版資訊消音：它們生出人名機構節點，卻回答不了任何問題。
+
+**為什麼需要這條**：抽取規則第 1 條的措辭已經涵蓋 `author/affiliation block`，
+**是模型沒遵守**。2026-08-09 量到正式庫有 188 個 person／organization 節點，
+裡面是 `mohan d. rao`、`aip publishing`、`american institute of physics` 這種東西。
+跟參考清單一樣，兩種浪費要在兩個地方解決：抽取規則管「不要變成節點」，這條管
+「那段文字根本不要進到模型面前」。
+
+⚠ **位置只用來圈範圍，絕不單獨當判準。** 2026-08-09 逐份看過 27 份解析結果，
+「從標題消到第一個小標題為止」這個直覺做法被真實資料證偽了三次：
+
+    01701_8.1 General remarks       lvl=1 標題後接的是正文第一段
+    C Equivalent Networks           同上
+    2016 - 3D Acoustic Field        span 第 11 項是**摘要**，第 12 項是關鍵詞
+
+這三份照位置消，會把真內容整段吃掉**而且不報錯** —— 正是鐵則第 1 條在防的
+「有產出但產出錯誤」。所以每一項還要自己通過正面測試才消音，通不過的一律進
+`held` 列出來給人看。
+
+⚠ **這條規則救不了的**（先寫清楚，免得事後以為它壞了）：
+  - 正文裡的引用（`Almeida et al.`、`Jia et al.`）—— 那不在標題頁
+  - 期刊封面頁（IOP 那種「You may also like」列別人論文的版面）—— 它的第一項
+    不是 `lvl=1` 標題，本規則不開火。那是另一種版面，另一條規則的事
+  - `Helmholtz`、`Cremer`、`Maa`、`Mechel` —— 那些是聲學史上的真人，本來就不該刪
+"""
+from __future__ import annotations
+
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Final
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from mineru_common import BODY_TYPES  # noqa: E402
+
+# 只看這兩種型別。header／footer／aside_text 是 `layout_noise` 的地盤 ——
+# 兩條規則消到同一項的話，`_pp_original_text` 會被寫兩次，計數各算一次而
+# 還原只還原得了一次。分工用型別切開，不靠「記得不要重疊」。
+CONSIDERED_TYPES: Final[frozenset[str]] = frozenset({"text", "page_footnote"})
+
+# 標題頁區塊最多幾項。實測 17 份有 lvl=1 標題的文件，最長的是 DTU 那份的 15 項
+# （含著作權聲明）。設 25 是留餘裕，不是判準 —— 判準是下面的逐項測試。
+MAX_SPAN = 25
+
+# ── 訊號一：單位 ───────────────────────────────────────────────────────────
+# 字彙表是 2026-08-09 從 17 份文件的標題頁**實際抄下來的**，不是憑印象列的。
+#
+# ⚠ 開頭用 `(?<![A-Za-z])` 而不是 `\b`。單位列前面常常黏著上標的編號
+# （`1Department of Physics`、`2Institute for Advanced Study`、`3Acoustic Metamaterials`），
+# 而 `1` 與 `D` 都是 word character，中間**沒有** `\b`。用 `\b` 的話這些列
+# 一個都認不出來，然後掉進「作者列」那條 —— 實測就是這樣，訊號標成 author
+# 但仍然被消音，所以**症狀是統計數字錯，不是漏消**。那種錯最難發現。
+AFFILIATION = re.compile(
+    r"(?<![A-Za-z])(department|dept\.|institute|institut|university|universit[ée]|"
+    r"college|school\s+of|"
+    r"faculty|laborator(y|ies)|laboratoire|academy|academia|research\s+cent(er|re)|"
+    r"cent(er|re)\s+for|ministry|division|hospital|cnrs|affiliations?|"
+    r"co\.,?\s*ltd|company|inc\.|gmbh|corporation|\bltd\b)\b", re.I)
+
+# ── 訊號二：通訊方式 ──────────────────────────────────────────────────────
+CORRESPONDENCE = re.compile(
+    r"[\w.+-]+\s*@\s*[\w.-]+\.\w+"                     # email
+    r"|corresponding\s+author"
+    r"|author\s+to\s+whom\s+correspondence"
+    r"|\be-?mail\s*:"
+    r"|\btel\.?\s*:", re.I)
+
+# ── 訊號三：出版資訊 ──────────────────────────────────────────────────────
+# **一律錨定在開頭**。不錨定的話「本文引用了……」這種正文句子也會中。
+# 這一族是 `aip publishing`、`american institute of physics`、
+# `acoustical society of america` 那些機構節點的來源。
+PUBLICATION = re.compile(
+    r"^\s*[\\*°••\-]*\s*("
+    r"citation\b|cite\s+as\b|published\s+(by|in)\b|publication\s+date\b|"
+    r"view\s+(online|table\s+of\s+contents)\b|link\s+(to|back)\b|"
+    r"downloaded\s+from\b|document\s+version\b|copyright\b|©|"
+    r"doi\s*:|https?://(dx\.)?doi\.org|submitted\s*:|received\s*:|accepted\s*:"
+    r")", re.I)
+
+# ── 訊號四：作者列 ────────────────────────────────────────────────────────
+# 作者列沒有關鍵字可認，只能認**形狀**：一串以大寫開頭的名字，用逗號／分號／
+# and 串起來，而且不是句子。
+AUTHOR_SEPARATORS = re.compile(r"[,;]|\band\b", re.I)
+_ALPHA_TOKEN = re.compile(r"[A-Za-zÀ-ɏ]{2,}")
+
+# 散文的判準：夠長而且大寫開頭的字佔比低。
+# 實測值：`01701` 第一段 0.13、`C Equivalent Networks` 第一段 0.10、
+# `2016` 的摘要 0.16；而單位列 `a School of Aerospace Engineering …` 是 0.83、
+# 作者列 `Houyou Long, Shuxiang Gao, …` 是 1.00。0.5 落在中間很寬的空隙裡。
+PROSE_MIN_WORDS = 12
+PROSE_MAX_CAPS_RATIO = 0.5
+
+# 作者列要求的大寫比例。比散文門檻高，因為認錯作者列的代價是消掉真內容。
+AUTHOR_MIN_CAPS_RATIO = 0.7
+AUTHOR_MAX_CHARS = 220
+
+# 消音佔比超過此值就標記待查。標題頁在論文裡佔比很小（實測 0.3–2.4%），
+# 所以門檻比參考清單（30%）緊得多 —— 超過就表示圈錯範圍了。
+SUSPICIOUS_RATIO = 0.08
+
+
+@dataclass
+class TitleMute:
+    index: int
+    item_type: str
+    page: object
+    text: str
+    signal: str         # "affiliation" | "correspondence" | "publication" | "author"
+
+
+@dataclass
+class TitleHeld:
+    index: int
+    item_type: str
+    page: object
+    text: str
+    why: str
+
+
+@dataclass
+class TitlePlan:
+    mutes: list[TitleMute]
+    held: list[TitleHeld]
+    fired: bool                 # 規則有沒有開火（沒有標題頁時是 False）
+    reason: str                 # 沒開火的話，為什麼
+    body_chars_before: int
+    body_chars_after: int
+
+    @property
+    def ratio(self) -> float:
+        b = self.body_chars_before
+        return (b - self.body_chars_after) / b if b else 0.0
+
+    @property
+    def suspicious(self) -> bool:
+        return self.ratio > SUSPICIOUS_RATIO
+
+    def summary(self) -> str:
+        if not self.fired:
+            return f"標題頁：未開火（{self.reason}）"
+        by: dict[str, int] = {}
+        for m in self.mutes:
+            by[m.signal] = by.get(m.signal, 0) + 1
+        detail = "、".join(f"{k} {n}" for k, n in sorted(by.items())) or "無"
+        return (f"標題頁消音：{len(self.mutes)} 項（{detail}）、保留待查 {len(self.held)} 項；"
+                f"正文 {self.body_chars_before:,} → {self.body_chars_after:,} "
+                f"（{self.ratio * 100:.2f}%）"
+                + ("　⚠ 比例異常，請人工確認" if self.suspicious else ""))
+
+
+def caps_ratio(text: str) -> float:
+    """以大寫開頭的字佔所有字的比例。單字母的字（`a`、`b` 那種單位標記）不算。"""
+    tokens = _ALPHA_TOKEN.findall(text)
+    if not tokens:
+        return 0.0
+    return sum(1 for t in tokens if t[0].isupper()) / len(tokens)
+
+
+def looks_like_prose(text: str) -> bool:
+    """這是不是一段散文（＝可能是真內容）。
+
+    **這個判斷是本規則唯一的安全網**：標題頁區塊裡混著真正的摘要與正文第一段，
+    而它們沒有任何「我是正文」的標記可認。只能反過來認散文的形狀。
+    """
+    if len(text.split()) < PROSE_MIN_WORDS:
+        return False
+    return caps_ratio(text) < PROSE_MAX_CAPS_RATIO
+
+
+def looks_like_author_line(text: str) -> bool:
+    """這是不是一列作者名。
+
+    判準三條同時成立：夠短、有分隔符、幾乎全是大寫開頭的字。
+    實測 12 份文件的作者列全部通過，而摘要與正文第一段全部不通過。
+    """
+    t = text.strip()
+    if not t or len(t) > AUTHOR_MAX_CHARS:
+        return False
+    if not AUTHOR_SEPARATORS.search(t):
+        return False
+    return caps_ratio(t) >= AUTHOR_MIN_CAPS_RATIO
+
+
+def _signal(text: str) -> str | None:
+    """這一項該不該消音，以及是憑哪個訊號。不該消就回 None。
+
+    順序有意義：`publication` 與 `correspondence` 是錨定／明確的字串，即使
+    整段是散文也照消（DTU 那份的著作權聲明就是散文）。`affiliation` 只是關鍵字，
+    **遇到散文就不算數** —— 不然正文裡一句「…… at Tongji University ……」
+    就會把整段真內容消掉。
+    """
+    t = text.strip()
+    if not t:
+        return None
+    if PUBLICATION.match(t):
+        return "publication"
+    if CORRESPONDENCE.search(t):
+        return "correspondence"
+    if looks_like_prose(t):
+        return None
+    if AFFILIATION.search(t):
+        return "affiliation"
+    if looks_like_author_line(t):
+        return "author"
+    return None
+
+
+def _span(items: list[dict]) -> tuple[list[int], str]:
+    """圈出標題頁區塊的候選索引。回傳 (索引清單, 沒開火的理由)。
+
+    開火條件刻意嚴格 —— 第一項必須是 `text_level == 1` 的文件標題而且在第 0 頁。
+    教科書章節（`01204_3.4 Non-rigid walls`）第 0 頁是從半句話開始的正文，
+    第一項沒有 `text_level`，於是整條規則不開火。**那是設計，不是漏掉。**
+    """
+    if not items:
+        return [], "文件沒有項目"
+    first = items[0]
+    if first.get("text_level") != 1:
+        return [], "第一項不是 lvl=1 標題（教科書章節、期刊封面頁都長這樣）"
+    if (first.get("page_idx") or 0) != 0:
+        return [], "第一項不在第 0 頁"
+
+    span: list[int] = []
+    for i, it in enumerate(items[1:], start=1):
+        if it.get("text_level"):
+            break                       # 碰到 Abstract／Introduction，區塊結束
+        if (it.get("page_idx") or 0) != 0:
+            break                       # 翻頁了
+        if len(span) >= MAX_SPAN:
+            break
+        span.append(i)
+    if not span:
+        return [], "標題後面直接就是下一個標題"
+    return span, ""
+
+
+def plan(items: list[dict]) -> TitlePlan:
+    """算出標題頁區塊要消音哪些項目。只讀不寫。"""
+    span, reason = _span(items)
+    mutes: list[TitleMute] = []
+    held: list[TitleHeld] = []
+
+    for i in span:
+        it = items[i]
+        itype = it.get("type", "")
+        text = it.get("text") or ""
+        if itype not in CONSIDERED_TYPES:
+            # 圖片沒有文字；header／footer 歸 layout_noise。都不列入待查，
+            # 不然每份文件都會多出幾項雜訊把真正該看的蓋掉。
+            continue
+        sig = _signal(text)
+        if sig:
+            mutes.append(TitleMute(index=i, item_type=itype, page=it.get("page_idx"),
+                                   text=text, signal=sig))
+        elif text.strip():
+            held.append(TitleHeld(index=i, item_type=itype, page=it.get("page_idx"),
+                                  text=text,
+                                  why="散文" if looks_like_prose(text) else "沒有訊號"))
+
+    # 第 0 頁的 page_footnote 另外掃一次：通訊作者的 email 常常掛在頁腳，
+    # 而頁腳在 Abstract 之後 —— 不在上面圈的區塊裡。實測 2017 Optimal 就是
+    # `\*Corresponding author. Email: sheng @ust.hk`。
+    # **只認通訊與出版兩個明確訊號**，不用單位關鍵字 —— 頁腳裡什麼都有。
+    seen = {m.index for m in mutes}
+    for i, it in enumerate(items):
+        if i in seen or it.get("type") != "page_footnote":
+            continue
+        if (it.get("page_idx") or 0) != 0:
+            continue
+        text = it.get("text") or ""
+        t = text.strip()
+        if not t:
+            continue
+        if PUBLICATION.match(t):
+            mutes.append(TitleMute(i, it.get("type", ""), it.get("page_idx"), text,
+                                   "publication"))
+        elif CORRESPONDENCE.search(t):
+            mutes.append(TitleMute(i, it.get("type", ""), it.get("page_idx"), text,
+                                   "correspondence"))
+
+    def body_chars(skip: set[int]) -> int:
+        return sum(len(it.get("text") or "")
+                   for j, it in enumerate(items)
+                   if it.get("type") in BODY_TYPES and j not in skip)
+
+    before = body_chars(set())
+    after = body_chars({m.index for m in mutes})
+    return TitlePlan(mutes=sorted(mutes, key=lambda m: m.index), held=held,
+                     fired=bool(span), reason=reason,
+                     body_chars_before=before, body_chars_after=after)
+
+
+def apply_to_items(items: list[dict], plan_: TitlePlan) -> int:
+    """就地消音。原文存進 `_pp_original_text` —— 還原時讀它，查帳時比對它。
+
+    沿用 `layout_noise` 的鍵，所以 `layout_noise.revert_items` 還原得了它。
+    本規則不碰 `list_items`（標題頁沒有清單型別），所以不需要自己的 revert。
+    """
+    n = 0
+    for m in plan_.mutes:
+        it = items[m.index]
+        if it.get("text"):
+            it["_pp_original_text"] = it["text"]
+            it["text"] = ""
+            n += 1
+    return n
