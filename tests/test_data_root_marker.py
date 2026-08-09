@@ -43,6 +43,19 @@ def test_the_marker_is_actually_checked_not_just_mentioned() -> None:
         "碟壞掉時只有真的開檔才會回 I/O 錯誤，stat 可能被 dentry 快取擋掉")
 
 
+def test_compose_is_valid_yaml() -> None:
+    """compose.yaml 至少要解析得動。
+
+    **這條是踩出來的**：2026-08-09 把 healthcheck 寫成
+    `["CMD", "python", "-c",\\n "a" \\n "b"]` —— Python 會把相鄰字串串起來，
+    YAML 的 flow sequence 不會，那是語法錯誤。而 `deploy-stack.py install`
+    照樣把它複製到 stack 目錄並印「已寫入」，要到有人跑 `docker compose up`
+    才會爆。現在 install 自己也擋（`_assert_parses`），這條是第二道。
+    """
+    import yaml
+    yaml.safe_load(COMPOSE.read_text(encoding="utf-8"))
+
+
 def test_marker_name_does_not_name_a_specific_disk() -> None:
     """名字不要綁硬碟型號或容量 —— 換碟是合法操作，寫死的那版撐不過第一次換碟。
 

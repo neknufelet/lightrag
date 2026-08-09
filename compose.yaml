@@ -153,11 +153,19 @@ services:
     # 「可寫」由宿主上的 compat-check A-34 驗。
     # ⚠ 檔名與 `pp/paths.py` 的 `DATA_ROOT_MARKER` 必須一致，
     # `tests/test_data_root_marker.py` 守著這件事（YAML 沒辦法 import 常數）。
+    # ⚠ 用 block 寫法（跟 lightrag 那條一樣），**不要用 `["a", "b"]` 加換行**：
+    # YAML 的 flow sequence 不支援 Python 那種相鄰字串隱式串接，寫成三行會變成
+    # 語法錯誤，而 compose 要到 `up` 的時候才會抱怨（2026-08-09 實際踩到，
+    # 一份無法解析的 compose 已經被複製到 stack 目錄）。
     healthcheck:
-      test: ["CMD", "python", "-c",
-             "import pathlib, urllib.request as u; "
-             "u.urlopen('http://localhost:9700/health', timeout=5); "
-             "pathlib.Path('/data/lightrag/.lightrag-data-root').read_bytes()"]
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import pathlib, urllib.request as u
+          u.urlopen('http://localhost:9700/health', timeout=5)
+          pathlib.Path('/data/lightrag/.lightrag-data-root').read_bytes()
       interval: 30s
       timeout: 10s
       retries: 3

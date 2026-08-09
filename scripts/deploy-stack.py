@@ -46,6 +46,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import yaml
+
 REPO = Path(__file__).resolve().parent.parent
 SOURCE = REPO / "compose.yaml"
 
@@ -422,11 +424,29 @@ def cmd_diff(args: argparse.Namespace) -> int:
     return 2
 
 
+def _assert_parses(text: str) -> None:
+    """寫進 stack 之前先確認它是合法 YAML。
+
+    **不驗的話會寫進一份 compose 讀不了的檔案，而且要到有人跑 `up` 才會知道。**
+    2026-08-09 實際踩到：healthcheck 用了 Python 那種相鄰字串隱式串接
+    （`["CMD", "x",\\n "y" "z"]`），YAML 的 flow sequence 不支援 —— `install`
+    照樣複製過去、印「已寫入」，stack 目錄裡就躺著一份壞檔。
+
+    只驗語法不驗語意（`docker compose config` 要環境變數，這裡不該依賴那些）——
+    語法錯誤是這一類事故裡最常見也最好擋的。
+    """
+    try:
+        yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        sys.exit(f"✗ {SOURCE} 不是合法的 YAML，拒絕寫進 stack：\n  {e}")
+
+
 def cmd_install(args: argparse.Namespace) -> int:
     stack_dir = Path(args.stack_dir)
     _guard_stack_dir(stack_dir)
     target = _target(stack_dir)
     src = _read(SOURCE)
+    _assert_parses(src)
 
     if target.exists() and _read(target) == src:
         print(f"已經一致，沒有動作　sha256:{_sha(src)}")
