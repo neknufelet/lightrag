@@ -15,6 +15,11 @@ Zotero → 工具 → 附加元件 → 齒輪 → Install Add-on From File → �
 ⚠ **要 Zotero 8 以上。** Zotero 8 起選單走 `Zotero.MenuManager`，7 以前的
 自己塞 DOM 那套沒有寫在這裡。
 
+⚠⚠ **裝不上的第一個要看的地方是 `manifest.json` 的 `strict_max_version`。**
+Zotero 比對這個值，比執行中的版本小就**直接拒裝**，而且訊息不會告訴你是哪一行。
+2026-08-10 就是這樣：寫 `9.*` 而 PO 跑的是 10 beta。升級到 11 之後把那個數字
+改掉再 `./make-xpi.sh` 就好 —— 這是升級後唯一要動的地方。
+
 ## 設定
 
 沒設過就用預設值。要改：Zotero → 設定 → 進階 → 設定編輯器，搜 `lightrag`。
