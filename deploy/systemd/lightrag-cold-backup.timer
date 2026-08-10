@@ -1,9 +1,14 @@
 [Unit]
-Description=lightrag 冷備份排程（每日 03:00）
-# 03:00 是刻意挑的：與 08:30 的 daily-check 錯開，也避開白天查詢知識庫的時段。
+Description=lightrag 冷備份排程（每日 04:00）
+# 04:00 是 PO 挑的（2026-08-10）：清晨沒有人在用。與 08:30 的 daily-check 錯開，
+# 也避開白天查詢知識庫的時段。
+#
+# ⚠ 這支會**停服務**（kbapi → lightrag → postgres），停機窗只有本機複製那一段
+# （9.1G 實測約十幾秒），上傳到 Google Drive 是服務啟回來之後才做的。
+# 沒有新的抽取成果時腳本自己會跳過、完全不停機。
 
 [Timer]
-OnCalendar=*-*-* 03:00
+OnCalendar=*-*-* 04:00
 # 機器關過機而錯過時段時，開機後補跑一次。
 Persistent=true
 
