@@ -77,7 +77,12 @@ def test_a4_mixed_with_letter_is_still_refused() -> None:
 
 
 def test_page_size_uses_the_majority_not_the_first_page() -> None:
-    """回傳最常見的尺寸，不是第一頁的 —— 那讓換算誤差最小。"""
+    """回傳最常見的尺寸，不是第一頁的 —— 那讓換算誤差最小。
+
+    ⚠ 2026-08-10 起 `page_size` 也會讀 `content_list.json`：判準改成
+    「**要裁的那幾頁**與基準相容嗎」，所以它必須知道表格落在哪幾頁。
+    真實的 bundle 一定兩個檔都有（`_run_parse` 會明確檢查），這裡補上。
+    """
     import json
     import pathlib
     import tempfile
@@ -89,4 +94,5 @@ def test_page_size_uses_the_majority_not_the_first_page() -> None:
         pages = ([{"page_idx": i, "page_size": [595, 842]} for i in range(3)]
                  + [{"page_idx": i + 3, "page_size": [594, 842]} for i in range(14)])
         (raw / "layout.json").write_text(json.dumps({"pdf_info": pages}), encoding="utf-8")
+        (raw / "content_list.json").write_text("[]", encoding="utf-8")
         assert DocContext(raw).page_size == (594.0, 842.0), "14 頁那組才是多數"

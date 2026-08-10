@@ -35,8 +35,9 @@ from mineru_common import add_workspace_arg, load_env, postgres_container  # noq
 from pp import eyes  # noqa: E402
 from pp.docctx import (  # noqa: E402
     PAGE_SIZE_TOLERANCE_PT,
-    effective_page_sizes,
+    cropping_pages_mismatch,
     page_size_spread,
+    reference_page_size,
 )
 from pp.extraction_profile import active_profile, profile_hash, read_record  # noqa: E402
 from pp.graph_labels import CERTAIN_RE  # noqa: E402
@@ -830,10 +831,16 @@ class Checker:
             sizes = [(float(w), float(h))
                      for w, h in (tuple(p.get("page_size") or ()) for p in pi)
                      if len((w, h)) == 2]
-            # 判準與解析時同一份（含封面頁例外）—— 例外只加一邊的話，
-            # 同一份文件會「解析放行、檢查說不行」，而且是索引完了才被判失敗。
-            # 2026-08-09 實測踩到：3 份封面頁不同的文件走到這裡才 hard FAIL。
-            size_ok = effective_page_sizes(sizes) is not None
+            # 判準與解析時同一份 —— 只改一邊的話，同一份文件會「解析放行、
+            # 檢查說不行」，而且是索引完了才被判失敗。2026-08-09 實測踩到：
+            # 3 份封面頁不同的文件走到這裡才 hard FAIL。
+            #
+            # 2026-08-10：判準從「整份一致」改成「**要裁的那幾頁與基準相容**」，
+            # 所以這裡也要讀 content_list —— 尺寸本身不再是充分條件。
+            items = json.loads((raw_dir / "content_list.json").read_text())
+            reference = reference_page_size(sizes) if sizes else (0.0, 0.0)
+            bad_pages = cropping_pages_mismatch(sizes, items, reference) if sizes else []
+            size_ok = bool(sizes) and not bad_pages
             ok = not bad and size_ok
             dw, dh = page_size_spread(sizes)
             return ok, (f"{len(pi)} 頁，page_size {sorted(set(sizes))}"
@@ -841,8 +848,10 @@ class Checker:
                         if ok else
                         f"錯位頁 {bad[:5]}"
                         + ("" if size_ok else
-                           f"／頁面尺寸差距超出容差：{sorted(set(sizes))}"
-                           f"（寬差 {dw:g}、高差 {dh:g}，容差 {PAGE_SIZE_TOLERANCE_PT:g}）")
+                           "／有表格落在與基準尺寸 "
+                           f"{reference} 不相容的頁上："
+                           + "、".join(f"第 {p} 頁 {sizes[p]}" for p in bad_pages[:5])
+                           + f"（容差 {PAGE_SIZE_TOLERANCE_PT:g} 點）")
                         + " —— 書眉每頁幾何相同，錯頁比對照樣會 IoU 命中"), {}
 
         @self.check("A-16", "hard", f"{name}：沒有未知的項目型別")

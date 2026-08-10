@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import sys
-from collections import Counter
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -51,33 +50,65 @@ def page_sizes_compatible(sizes: list[tuple[float, float]]) -> bool:
     return dw <= PAGE_SIZE_TOLERANCE_PT and dh <= PAGE_SIZE_TOLERANCE_PT
 
 
-def effective_page_sizes(
-        sizes: list[tuple[float, float]]) -> list[tuple[float, float]] | None:
-    """真正拿來換算 bbox 的那組頁面尺寸；判不出來時回 `None`。
+#: 哪些項目型別的 bbox 會被換算成 PDF 點座標去裁圖。
+#:
+#: **只有表格。** `empty_table.plan()` 是唯一會叫 `bbox_to_points()` 的地方
+#: （`pp/apply.py`）。圖用的是 MinerU 自己抽好的檔案、chart 依裁決只登記不處理、
+#: 方程式那條路（`eq-check.py`）是診斷工具不在主流程上 —— 後者是既有的已知限制，
+#: 這次沒有改變它。
+CROPPED_TYPES = frozenset({"table"})
 
-        全部一致                → 原樣回
-        只有第 0 頁不同、內頁一致 → 回**內頁**那組（封面頁例外）
-        內文頁之間就不一致        → `None`，那是真的混排
 
-    **封面頁例外**：出版社常在論文前面蓋一張自己產生的封面，紙張跟內頁不一樣。
-    2026-08-09 進料 30 份遇到 3 份，形狀完全一致（595×793/595×841、612×809/612×792、
-    595×842/612×809）。這不是放寬容差 —— 2 點的容差是刻意的，要擋的是**內文頁之間**
-    混排，那種會讓 bbox 換算安靜地錯。
+def reference_page_size(sizes: list[tuple[float, float]]) -> tuple[float, float]:
+    """換算 bbox 的基準尺寸 ＝ **出現最多次的那一組**，不是第一頁的。
 
-    ⚠ **判準只能有一份。** `DocContext.page_size`（解析時擋）與 `compat-check`
-    的 A-14（契約檢查）都用這個函式。2026-08-09 犯過一次：例外只加在
-    `DocContext` 裡，A-14 還用舊判準，於是同一份文件「解析放行、檢查說不行」，
-    文件索引完了才被判失敗。A-14 的註解本來就寫著「不在這裡再寫一份」——
-    抄本沒有出現，漂掉的是**例外只加了一邊**。
+    一份 22 頁的文件若 14 頁是 594×842、8 頁是 595×842，用多數那組誤差最小。
     """
-    if not sizes:
-        return None
-    if page_sizes_compatible(sizes):
-        return sizes
-    body = sizes[1:]
-    if len(sizes) > 1 and page_sizes_compatible(body):
-        return body
-    return None
+    counts: dict[tuple[float, float], int] = {}
+    for size in sizes:
+        counts[size] = counts.get(size, 0) + 1
+    return max(counts.items(), key=lambda kv: (kv[1], -sizes.index(kv[0])))[0]
+
+
+def cropping_pages_mismatch(
+    sizes: list[tuple[float, float]],
+    items: list[dict],
+    reference: tuple[float, float],
+) -> list[int]:
+    """要裁的東西落在哪幾頁、而那幾頁與基準尺寸不相容。回頁碼清單，空的代表沒問題。
+
+    **判準的重點在這裡：頁面尺寸只影響「裁下來的框畫在哪」。**
+    「這張表要不要修補」由 `empty_table.classify()` 決定，它完全不看頁面尺寸。
+    所以離群的那一頁上沒有表格時，換算根本不會發生在它身上。
+
+    ⚠ **每次都對著當下的 bundle 重算，所以不會過期。** 鐵則第 8 條：重解析同一份
+    PDF，MinerU 對表格的辨識不可重現 —— 今天沒有表的頁，重抽後可能長出一張。
+    但 preflight 與 A-14 都是拿現在的 `content_list.json` 判的，那一刻就會擋下來。
+    """
+    bad: list[int] = []
+    for item in items:
+        if item.get("type") not in CROPPED_TYPES:
+            continue
+        page = item.get("page_idx")
+        if not isinstance(page, int) or not 0 <= page < len(sizes):
+            continue
+        if not page_sizes_compatible([sizes[page], reference]) and page not in bad:
+            bad.append(page)
+    return sorted(bad)
+
+
+# ⚠ **`effective_page_sizes()` 已於 2026-08-10 刪除**（藍桶第 2 條：刪除必須明確說明）。
+#
+# 它回答的是「整份（或扣掉封面的內頁）尺寸一致嗎」，判準換成
+# `reference_page_size()` + `cropping_pages_mismatch()` 之後就沒有呼叫端了。
+#
+# **留著它會是第二份判準。** 「同一件事兩個地方」是本專案踩過五次的形狀，
+# 而這條規則本身就是因為「例外只加了一邊」出過事（2026-08-09）才被抽成共用函式的。
+#
+# 它做的兩件事都沒有消失，只是換了形狀：
+#   「多數尺寸當基準」  → `reference_page_size()`
+#   「封面頁例外」      → 被通則吸收：封面不過就是「離群的那一頁」，
+#                        上面沒有表格就不影響換算，有表格照樣擋
 
 
 @dataclass
@@ -117,42 +148,39 @@ class DocContext:
     def page_size(self) -> tuple[float, float]:
         """PDF 點座標的頁面尺寸。
 
-        尺寸**混雜**時 bbox 換算會錯，而且錯得很安靜（裁出來的圖看起來像張表，
-        只是位置不對）—— 所以要擋。但判準是「落在 `PAGE_SIZE_TOLERANCE_PT` 之內」
-        而不是「完全相同」：同一份 PDF 的各頁常有 1 點的捨入差，那不影響換算。
-
-        回傳**最常見的那組尺寸**，不是第一頁的。一份 22 頁的文件若 14 頁是
+        基準是**出現最多次的那一組**，不是第一頁的：一份 22 頁的文件若 14 頁是
         594×842、8 頁是 595×842，用多數那組會讓換算誤差最小。
+
+        **擋的判準是「要裁的那幾頁與基準相容嗎」，不是「整份一致嗎」**
+        （2026-08-10 改）。尺寸只影響 `bbox_to_points()` 把正規化座標換成 PDF 點，
+        而那只發生在表格上；離群的頁上沒有表格時，換算根本不會發生在它身上。
+
+        舊判準要求整份（或內頁）一致 —— 而老掃描件的頁面尺寸**本來就不可能一致**，
+        那是達不到的條件。2026-08-10 實測四份被它擋下的：只有一份（表格就落在
+        橫向頁上）是真的有問題，其餘三份連一個接觸點都沒有。
+
+        ⚠ **容差沒有動**，2 點還是 2 點；動的是「哪些頁要算進來」。
+        ⚠ **封面頁例外因此被吸收掉了** —— 它本來就是「離群那頁沒東西要裁」的特例。
+           封面上有表格照樣擋，那條測試仍然綠。
         """
         raw = [tuple(p.get("page_size") or ()) for p in self.layout["pdf_info"]]
         sizes = [(float(w), float(h)) for w, h in raw if len((w, h)) == 2]
         if not sizes:
             raise DocContextError(f"{self.doc_name}：layout.json 沒有 page_size")
-        # 判準在模組層的 `effective_page_sizes()`（含封面頁例外）——
-        # `compat-check` 的 A-14 用同一個，**不各寫一份**。
-        body = effective_page_sizes(sizes)
-        if body is None:
-            dw, dh = page_size_spread(sizes)
+        # 判準在模組層 —— `compat-check` 的 A-14 用同一組函式，**不各寫一份**。
+        # 2026-08-09 犯過：例外只加在這裡，A-14 還用舊判準，同一份文件
+        # 「解析放行、檢查說不行」，而且是索引完了才被判失敗。
+        reference = reference_page_size(sizes)
+        bad_pages = cropping_pages_mismatch(sizes, self.items, reference)
+        if bad_pages:
+            details = "、".join(f"第 {p} 頁 {sizes[p]}" for p in bad_pages[:5])
+            dw, dh = page_size_spread([reference, *(sizes[p] for p in bad_pages)])
             raise DocContextError(
-                f"{self.doc_name}：頁面尺寸不一致 {sorted(set(sizes))}"
-                f"（寬差 {dw:g}、高差 {dh:g} 點，容差 {PAGE_SIZE_TOLERANCE_PT:g}）")
-
-        if body is not sizes:
-            # 封面頁與內頁不同。**還要再擋一種**：第 0 頁上有表格。裁圖是拿
-            # 內頁尺寸換算 bbox 的，封面頁的表格會被用錯的尺寸裁 —— 裁出來看
-            # 起來還是像一張表，只是位置不對，而那正是這道檢查存在的理由。
-            # ⚠ 已知限制：`eq-check.py` 對封面頁上的方程式同樣會錯。封面頁通常
-            # 沒有方程式，而它是診斷工具不在主流程上，所以不擋。
-            # ⚠ 這一條**刻意只在這裡**：A-14 是契約檢查（尺寸能不能用），
-            # 「有沒有東西要裁」是 preflight 的事，兩者的問題不同。
-            cover_tables = [i for i, it in enumerate(self.items)
-                            if it.get("page_idx") == 0 and it.get("type") == "table"]
-            if cover_tables:
-                raise DocContextError(
-                    f"{self.doc_name}：封面頁尺寸與內頁不同（{sizes[0]} vs {body[0]}），"
-                    f"而第 0 頁上有 {len(cover_tables)} 張表格 {cover_tables[:5]} —— "
-                    "裁圖會用內頁尺寸換算封面頁的 bbox，裁出來的位置是錯的")
-        return Counter(body).most_common(1)[0][0]
+                f"{self.doc_name}：頁面尺寸不一致 —— 有表格落在與基準尺寸"
+                f"{reference} 不相容的頁上（{details}；寬差 {dw:g}、高差 {dh:g} 點，"
+                f"容差 {PAGE_SIZE_TOLERANCE_PT:g}）。裁圖會用基準尺寸換算那幾頁的 "
+                "bbox，裁出來的位置是錯的，而圖看起來還是像一張表")
+        return reference
 
     @cached_property
     def n_pages(self) -> int:
