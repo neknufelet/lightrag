@@ -8,7 +8,14 @@
     "zotero": {
       "id": "lightrag-inbox@neknufelet",
       "strict_min_version": "8.0",
-      "strict_max_version": "10.*"
+      "strict_max_version": "11.*"
+    }
+  },
+  "browser_specific_settings": {
+    "zotero": {
+      "id": "lightrag-inbox@neknufelet",
+      "strict_min_version": "8.0",
+      "strict_max_version": "11.*"
     }
   }
 }

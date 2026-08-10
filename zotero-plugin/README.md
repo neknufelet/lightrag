@@ -10,7 +10,10 @@
 ./make-xpi.sh                       # 產生 lightrag-inbox-0.1.0.xpi
 ```
 
-Zotero → 工具 → 附加元件 → 齒輪 → Install Add-on From File → 選那個 `.xpi`。
+Zotero → **工具 → 外掛（Tools → Plugins）**，把 `.xpi` **拖進那個視窗**。
+
+⚠ 官方的裝法就是「拖進去」，不是齒輪選單裡的 Install Add-on From File ——
+2026-08-10 照舊路徑試了兩輪都失敗。
 
 ⚠ **要 Zotero 8 以上。** Zotero 8 起選單走 `Zotero.MenuManager`，7 以前的
 自己塞 DOM 那套沒有寫在這裡。
