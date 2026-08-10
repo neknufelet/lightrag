@@ -84,6 +84,11 @@ def _hard_failing_documents(filenames: set[str]) -> tuple[set[str], list[str]]:
 
     第二個回傳值是**整庫層級**的紅燈（A-19、A-26 那種）。有它就不該翻牌 ——
     那代表現在量到的東西本身不可信，而在不可信的基礎上洗白 84 筆是最糟的做法。
+
+    ⚠ `filenames` 要傳**全部** job 的檔名，不是只傳要處置的那幾筆。歸屬比對的
+    母體太小時，別份文件的 hard 失敗會被誤判成「整庫層級」而讓整支工具停擺
+    —— 2026-08-10 實測踩到：2012／2017 兩份的 A-14 明明有主，卻因為它們不在
+    候選名單裡而被算成無主。
     """
     completed = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "compat-check.py"), "--json"],
@@ -142,7 +147,7 @@ def main() -> int:
     # **跑一次全庫的契約檢查，不是逐份跑。** 逐份跑 84 次要十幾分鐘而且會把
     # Postgres 打滿（2026-08-10 實測，中途只好停掉）；而那 84 次問的是同一個
     # 母體，一次就答得完。
-    bad_docs, fatal = _hard_failing_documents({job.filename for job in candidates})
+    bad_docs, fatal = _hard_failing_documents({job.filename for job in jobs})
     if fatal:
         LOGGER.error("契約檢查有**不屬於任何一份文件**的 hard 失敗，先處理它們：\n  %s\n"
                      "整庫層級的紅燈沒排除之前翻牌是不負責任的。", "\n  ".join(fatal))
