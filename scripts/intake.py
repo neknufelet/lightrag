@@ -766,6 +766,36 @@ class LightRAGClient:
         return value
 
 
+def index_status_by_filename(
+    client: LightRAGClient, *, timeout: float = 10.0,
+) -> tuple[dict[str, str], str | None]:
+    """索引裡每份文件的現況：**檔名** → 狀態（小寫）。問不到就回錯誤訊息。
+
+    回錯誤而不是空字典：一個安靜的 0 會讓呼叫端把「連不上」當成「索引裡沒有
+    這份」，然後判它真的失敗 —— 網路瞬斷就會殺掉一整批好文件。
+
+    ⚠ **與 `IntakeApp._index_documents` 是兩件事，不要合併。** 那一支的鍵是
+    **完整 file_path**、而且帶 30 秒快取，它回答的是畫面上「索引裡有哪些東西」；
+    這一支的鍵是**檔名**，回答的是「我這份 job 對應的文件現在怎麼樣」。
+    鍵不同、快取需求也不同，硬併會讓其中一邊靜靜地比對不到。
+    """
+    rows: dict[str, str] = {}
+    try:
+        payload = client.request("/documents", timeout=timeout)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return {}, f"{type(exc).__name__}: {exc}"
+    statuses = payload.get("statuses")
+    if isinstance(statuses, dict):
+        for status_name, documents in statuses.items():
+            for item in documents if isinstance(documents, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                name = Path(str(item.get("file_path") or "")).name
+                if name:
+                    rows[name] = str(item.get("status") or status_name).lower()
+    return rows, None
+
+
 def _contains_value(value: object, needle: str) -> bool:
     if isinstance(value, dict):
         return any(_contains_value(item, needle) for item in value.values())
@@ -1156,21 +1186,8 @@ class IntakeApp:
         if not active:
             return
 
-        rows: dict[str, str] = {}
-        error: str | None = None
-        try:
-            payload = self.client.request("/documents", timeout=10.0)
-            statuses = payload.get("statuses")
-            if isinstance(statuses, dict):
-                for status_name, documents in statuses.items():
-                    for item in documents if isinstance(documents, list) else []:
-                        if not isinstance(item, dict):
-                            continue
-                        name = Path(str(item.get("file_path") or "")).name
-                        if name:
-                            rows[name] = str(item.get("status") or status_name).lower()
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            error = f"{type(exc).__name__}: {exc}"
+        rows, error = index_status_by_filename(self.client)
+        if error is not None:
             LOGGER.warning("重啟恢復：問不到 LightRAG（%s），在途工作維持原狀待確認", error)
 
         for job in active:
