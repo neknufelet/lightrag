@@ -83,6 +83,98 @@
    ],
    "source": "verdicts/records/ledger/C Equivalent Networks.pdf.json 的 parse.coverage note；逐詞歸因在 records/review/c-uncovered-words.md",
    "note": "2026-08-02 由 12.0%（436 詞）降到 10.5%，救回 55 詞來自五筆定點補格。2026-08-07 重建後重跑得 10.6%（383/3629），差 2 個詞＝0.055%，是重現不是退步。**這條是 fail 但已知**——不要再查一次，要動它得先解 KI-001。"
+  },
+  {
+   "check": "coverage-check",
+   "metric": "missing_word_rate",
+   "doc": "2023 - A Differentiable Image Source Model",
+   "verified_on": "2026-08-10",
+   "verdict": "not_a_defect",
+   "at_verification": {
+    "rate": 0.791,
+    "missing": 314,
+    "pdf_words": 397,
+    "content_words": 2500
+   },
+   "summary": "79% 是假訊號：對照源（PDF 文字層）只讀得出 397 個詞，而 MinerU 抽出 2500 個。分母壞了，不是抽取壞了",
+   "root_cause": "IEEE 在頁側蓋的直式浮水印被 pdftotext 讀成逐字母碎片（A c o usti cs → usti），那些碎片在 MinerU 的乾淨輸出裡當然找不到，於是被算成『缺少』。指標方向是反的——MinerU 做得越好，這個數字越高",
+   "sample": [
+    "usti(66)",
+    "diff(32)",
+    "etri(25)",
+    "alls(17)"
+   ],
+   "source": "2026-08-10 對話：逐頁字元數 + pdftotext 原始輸出比對",
+   "note": "正文四頁完整（各 4,800–5,700 字元、英文通順），唯一空的是第 5 頁參考文獻（MinerU 認出 list 區塊但文字為空）——而參考文獻本來就會被 reference_section 消音，所以那個缺口不是損失。⚠ 判準本身還沒改：先讓它繼續叫，累積兩三份同型再決定（hard-rules：只有 1 份的很可能是那份文件的巧合）"
+  },
+  {
+   "check": "coverage-check",
+   "metric": "missing_word_rate",
+   "doc": "2026 - On Efficient Algorithm",
+   "verified_on": "2026-08-10",
+   "verdict": "not_a_defect",
+   "at_verification": {
+    "rate": 0.102,
+    "missing": 92,
+    "pdf_words": 903,
+    "content_words": 1429
+   },
+   "summary": "假訊號：對照源只讀出 903 詞而 MinerU 抽出 1429，缺的全是數學符號被 pdftotext 讀成的重複字母",
+   "root_cause": "粗體／斜體數學字型沒有可用的編碼，pdftotext 輸出 dddd、nnjj、mmmmmm 這種重複字母；那些在 MinerU 的正常輸出裡當然找不到",
+   "sample": [
+    "dddd(17)",
+    "nnjj(8)",
+    "cccc(7)",
+    "ppkk(5)"
+   ],
+   "source": "2026-08-10 對話：逐頁字元數 + top 缺詞檢視",
+   "note": "十頁逐頁字元 865–5221，沒有一頁塌陷"
+  },
+  {
+   "check": "coverage-check",
+   "metric": "missing_word_rate",
+   "doc": "1979 - Image method",
+   "verified_on": "2026-08-10",
+   "verdict": "not_a_defect",
+   "at_verification": {
+    "rate": 0.115,
+    "missing": 271,
+    "pdf_words": 2359,
+    "content_words": 2748
+   },
+   "summary": "假訊號：1979 年掃描件的文字層把詞黏在一起，MinerU 斷對了反而被算成缺少",
+   "root_cause": "掃描 OCR 產生的文字層沒有詞邊界（room acoustics → roomacoustics），比對時找不到黏起來的那個版本",
+   "sample": [
+    "roomacoustics(4)",
+    "simulatingsmall(4)",
+    "methodfor(3)",
+    "convolvedwith(2)"
+   ],
+   "source": "2026-08-10 對話",
+   "note": "MinerU 抽出 2748 詞多於對照源的 2359 —— 抽得比證人還完整"
+  },
+  {
+   "check": "coverage-check",
+   "metric": "missing_word_rate",
+   "doc": "2024 - A Compact Low-Frequency",
+   "verified_on": "2026-08-10",
+   "verdict": "not_a_defect",
+   "at_verification": {
+    "rate": 0.289,
+    "missing": 908,
+    "pdf_words": 3146,
+    "content_words": 2289
+   },
+   "summary": "假訊號：pdftotext 把雙欄版面的同一段話重複輸出，MinerU 只寫一次就被算成缺少",
+   "root_cause": "雙欄／浮動版面讓 pdftotext 的文字流讀岔，同段落輸出兩次且第二次被打散（metasurfacesstructures、noiseInreduction、asoflabyrinthine）。缺詞第一名是 the（336 次）—— 冠詞不可能被漏掉，那本身就是量錯的訊號",
+   "sample": [
+    "the(336)",
+    "acoustic(29)",
+    "slit(34)",
+    "folded(27)"
+   ],
+   "source": "2026-08-10 對話：逐頁 pdftotext 與 MinerU 並排比對第 2 頁",
+   "note": "這份是 13 份超標裡唯一「對照源詞數多於抽取」的，方向看似正確，逐頁並排才看出是重複輸出。⚠ 第 9 頁（參考文獻）確實空白，但那本來就會被 reference_section 消音"
   }
  ]
 }
