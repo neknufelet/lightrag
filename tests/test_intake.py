@@ -938,6 +938,50 @@ def test_retry_puts_a_failed_job_back_without_touching_the_parse(tmp_path: Path)
     assert sorted(path.name for path in bundle.iterdir()) == before
 
 
+def test_a_reviewed_novel_document_can_be_retried_after_it_failed(tmp_path: Path) -> None:
+    """**「等你看」看完並放行過的文件，失敗之後不該變成死路。**
+
+    2026-08-10 實測踩到：兩份老掃描件判定 novel、人逐條確認過理由並放行、
+    在 apply 那關失敗，然後 `retry` 回 409「這份沒有通過審查的計畫」——
+    唯一出口變成「放回收件匣」，而那會刪掉 MinerU 的解析成果，要重新付費解析。
+
+    **判準守錯位置了。** `retry` 只是把狀態撥回「等你看」，它不放行任何東西；
+    要再進去還是得經過 `submit_admit`，而那一關**逐條比對理由**，人沒有重新
+    確認過就進不去。所以「人有沒有看過」是 admit 在守的，retry 多守一次，
+    守到的不是安全，是把人已經看過的文件關進死路。
+    """
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "老掃描件.pdf")
+    job.decision = "novel"
+    job.reasons = ["頁面尺寸不一致"]
+    job.status = "failed"
+    job.error = "修補失敗：頁面尺寸不一致"
+    app.store.save(job)
+
+    app.submit_retry(job.job_id)
+
+    assert job.status == "planned", "人看過並放行過的文件重試不了，只能重新付費解析"
+    assert job.decision == "novel", "重試把「這份要人看」這件事洗掉了"
+    assert job.reasons == ["頁面尺寸不一致"], (
+        "理由被清掉的話，下次放行的逐條確認就無從比對")
+
+
+def test_a_failure_that_never_produced_a_plan_still_cannot_be_retried(
+    tmp_path: Path,
+) -> None:
+    """**控制組。** 解析階段就掛掉、從來沒有計畫的，重試沒有意義 ——
+    那種是真的只能重新解析。沒有這一條的話，上面那支可以靠「一律放行」通過。
+    """
+    app = _app(tmp_path)
+    job = _ready_to_admit(app, "沒計畫的.pdf")
+    job.plan = None
+    job.status = "failed"
+    app.store.save(job)
+
+    with pytest.raises(IntakeError, match="計畫"):
+        app.submit_retry(job.job_id)
+
+
 def test_retry_refuses_when_the_parse_is_gone(tmp_path: Path) -> None:
     """解析成果不在了就不能收下重試 —— 那會變成「宣稱不用重跑」卻其實要。"""
     app = _app(tmp_path)
