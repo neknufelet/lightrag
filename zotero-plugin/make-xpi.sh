@@ -24,7 +24,14 @@ members = ["manifest.json", "bootstrap.js"]
 for directory in ("lib", "locale"):
     members += [str(p) for p in sorted(Path(directory).rglob("*")) if p.is_file()]
 
+# 目錄項目也寫進去。一般的 zip 讀取器不需要它們，但 Zotero／Firefox 那條路
+# 沒有人保證，而多寫幾個空項目的成本是零 —— 排除掉一個變因比省 40 位元組值錢。
+directories = sorted({str(parent) for m in members for parent in Path(m).parents
+                      if str(parent) != "."})
+
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+    for name in directories:
+        zf.writestr(name + "/", b"")
     for name in members:
         zf.write(name, name)
 
