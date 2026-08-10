@@ -86,9 +86,10 @@ class FakeRunner:
         self.calls.append("wait")
         return OperationResult(True, "fake indexed")
 
-    def verify(self, job: Job) -> OperationResult:
+    def verify_batch(self, jobs, known_filenames) -> dict[str, OperationResult]:
+        # 整批一次 —— 逐份跑實測 20 秒／份，86 份的尾巴約 28 分鐘。
         self.calls.append("verify")
-        return OperationResult(True, "fake verify")
+        return {j.job_id: OperationResult(True, "fake verify") for j in jobs}
 
 
 class ExplodingParseRunner(FakeRunner):
@@ -159,13 +160,17 @@ class VerifyTimingRunner(FakeRunner):
             with self._guard:
                 self._waiting -= 1
 
-    def verify(self, job: Job) -> OperationResult:
+    def verify_batch(self, jobs, known_filenames) -> dict[str, OperationResult]:
+        # 2026-08-10 起是**整批一次**（逐份跑實測 20 秒／份，86 份尾巴約 28 分鐘）。
+        # 這支釘的意圖沒變：跑的當下不得還有人在等索引。
         with self._guard:
             busy = self._waiting
-        if busy:
-            self.verified_while_waiting.append(f"{job.filename}（還有 {busy} 份在等索引）")
-        self.verified.append(job.filename)
-        return OperationResult(True, "fake verify")
+        for job in jobs:
+            if busy:
+                self.verified_while_waiting.append(
+                    f"{job.filename}（還有 {busy} 份在等索引）")
+            self.verified.append(job.filename)
+        return {job.job_id: OperationResult(True, "fake verify") for job in jobs}
 
 
 def _batch_app(tmp_path: Path, names: tuple[str, ...]) -> tuple[IntakeApp, BatchWatchingRunner]:

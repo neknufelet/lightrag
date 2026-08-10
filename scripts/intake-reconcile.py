@@ -52,6 +52,7 @@ from intake import (  # noqa: E402
     JobStore,
     LightRAGClient,
     configured_data_root,
+    hard_failing_documents,
     index_status_by_filename,
     load_env,
 )
@@ -80,38 +81,21 @@ def decide(job_status: str, index_status: str | None, *, verify_ok: bool) -> tup
 
 
 def _hard_failing_documents(filenames: set[str]) -> tuple[set[str], list[str]]:
-    """跑一次全庫契約檢查，回傳（哪幾份有 hard 失敗、不屬於任何文件的 hard 失敗）。
+    """跑一次全庫契約檢查，把結果交給共用的判準去分。
 
-    第二個回傳值是**整庫層級**的紅燈（A-19、A-26 那種）。有它就不該翻牌 ——
-    那代表現在量到的東西本身不可信，而在不可信的基礎上洗白 84 筆是最糟的做法。
-
-    ⚠ `filenames` 要傳**全部** job 的檔名，不是只傳要處置的那幾筆。歸屬比對的
-    母體太小時，別份文件的 hard 失敗會被誤判成「整庫層級」而讓整支工具停擺
-    —— 2026-08-10 實測踩到：2012／2017 兩份的 A-14 明明有主，卻因為它們不在
-    候選名單裡而被算成無主。
+    ⚠ **解析那段不寫在這裡。** `intake.py` 的批次驗證用同一支
+    `hard_failing_documents()` —— 兩份實作只要有人改一邊就會靜靜地不一致，
+    而這個專案已經踩過五次「同一件事兩個地方」。
     """
     completed = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "compat-check.py"), "--json"],
         cwd=REPO, capture_output=True, text=True, check=False, timeout=3600)
     try:
-        results = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
+        return hard_failing_documents(completed.stdout, filenames)
+    except (ValueError, json.JSONDecodeError) as exc:
         raise RuntimeError(
             f"compat-check --json 的輸出不是 JSON（exit {completed.returncode}）："
             f"{exc}；stderr 前 300 字：{completed.stderr[:300]}") from exc
-
-    bad: set[str] = set()
-    fatal: list[str] = []
-    for row in results:
-        if not isinstance(row, dict) or row.get("level") != "hard" or row.get("ok") is not False:
-            continue
-        what = str(row.get("what") or "")
-        owners = [name for name in filenames if name in what]
-        if owners:
-            bad.update(owners)
-        else:
-            fatal.append(f"{row.get('id')} {what}")
-    return bad, fatal
 
 
 def main() -> int:

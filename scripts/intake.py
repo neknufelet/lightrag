@@ -661,7 +661,8 @@ class IntakeRunner(Protocol):
 
     def wait_indexed(self, job: Job) -> OperationResult: ...
 
-    def verify(self, job: Job) -> OperationResult: ...
+    def verify_batch(self, jobs: Sequence[Job],
+                     known_filenames: set[str]) -> dict[str, OperationResult]: ...
 
 
 def _as_mapping(value: object) -> dict[str, object]:
@@ -801,6 +802,39 @@ class LightRAGClient:
         if not isinstance(value, dict):
             raise ValueError(f"LightRAG {path} 回傳不是 object")
         return value
+
+
+def hard_failing_documents(
+    compat_json: str, filenames: set[str],
+) -> tuple[set[str], list[str]]:
+    """讀 `compat-check --json` 的輸出，分出「哪幾份有 hard 失敗」與「無主的 hard 失敗」。
+
+    **純函式，沒有 I/O** —— 判準要能單獨被測。`intake` 的批次驗證與
+    `intake-reconcile.py` 都用這一支，**不各寫一份**。
+
+    第二個回傳值是**整庫層級**的紅燈（A-19 pipeline 閒置、A-26 母體一致那種）。
+    把它算在某一份文件頭上會讓那一份被誤殺 —— 2026-08-10 一批 89 份誤殺 84 份
+    就是這個成因。呼叫端看到它非空就該停下來，不要繼續判每一份。
+
+    ⚠ `filenames` 要傳**全部** job 的檔名，不是只傳這一批。比對母體太小時，
+    別份文件的紅燈會被誤判成無主 —— 同日實測踩過。
+
+    soft 一律不算：soft 的定義就是「值得知道但不該擋」（2026-08-08 血淚，
+    A-32 第一次回 soft 時整批放行被自己的紅燈擋死）。
+    """
+    results = json.loads(compat_json)
+    bad: set[str] = set()
+    fatal: list[str] = []
+    for row in results if isinstance(results, list) else []:
+        if not isinstance(row, dict) or row.get("level") != "hard" or row.get("ok") is not False:
+            continue
+        what = str(row.get("what") or "")
+        owners = [name for name in filenames if name in what]
+        if owners:
+            bad.update(owners)
+        else:
+            fatal.append(f"{row.get('id')} {what}")
+    return bad, fatal
 
 
 def index_status_by_filename(
@@ -1013,21 +1047,45 @@ class SubprocessRunner:
             time.sleep(self.poll_seconds)
         return OperationResult(False, "", f"等待 {job.filename} processed 逾時")
 
-    def verify(self, job: Job) -> OperationResult:
-        """驗契約。**呼叫端保證這一批已經全部抽完了**，這裡再等一次 pipeline 閒置。
+    def verify_batch(
+        self, jobs: Sequence[Job], known_filenames: set[str],
+    ) -> dict[str, OperationResult]:
+        """整批驗契約：**跑一次全庫的 compat-check**，不是逐份跑 N 次。
 
-        為什麼要再等：`processed` 是「這一份寫完了」，而 `pipeline_busy` 是
-        「整條管線閒了沒」——最後一份 processed 到管線真正落地之間有一小段。
-        A-19 是 hard，踩到那一段就會把好文件判死。
+        2026-08-10 實測：逐份跑約 20 秒／份，86 份的尾巴約 28 分鐘（整批 66 分鐘
+        的四成），而且每次都打一輪 Postgres。那 N 次問的是同一個母體。
 
-        **不替 A-19 開特例。** 挪到真的閒下來之後，那條斷言就恢復成有意義的斷言，
-        30 項檢查一條都不用拿掉。2026-08-10 實測：一批 89 份、84 份因為
-        「鄰居還在跑」被誤殺，而資料庫那側 159 份全部是 processed。
+        **呼叫端保證這一批已經全部抽完了**，這裡再等一次 pipeline 閒置：
+        `processed` 是「這一份寫完了」，`pipeline_busy` 是「整條管線閒了沒」，
+        兩者之間有一小段。A-19 是 hard，踩到那一段就會把好文件判死。
+
+        `known_filenames` 要是**全部** job 的檔名而不是這一批的 —— 比對母體太小時
+        別份文件的紅燈會被誤判成整庫層級（2026-08-10 實測踩過）。
         """
         blocked = self._wait_pipeline_idle()
         if blocked is not None:
-            return OperationResult(False, "", blocked)
-        return self._compat_check(job)
+            return {job.job_id: OperationResult(False, "", blocked) for job in jobs}
+        command = [self.python, str(self.repo / "scripts" / "compat-check.py"), "--json"]
+        result = self._run(command, self.command_timeout)
+        try:
+            bad, fatal = hard_failing_documents(result.output, known_filenames)
+        except (ValueError, json.JSONDecodeError) as exc:
+            message = (f"契約檢查的輸出讀不出來（exit {result.code}）：{exc}"
+                       f"；前 200 字：{result.output[:200]}")
+            return {job.job_id: OperationResult(False, result.output, message) for job in jobs}
+        if fatal:
+            # 整庫層級的紅燈**不算在任何一份頭上**，但也不能當成沒事 ——
+            # 那代表現在量到的東西本身不可信。整批標失敗，理由指向真正的問題。
+            message = "契約檢查有不屬於任何一份文件的 hard 失敗：" + "；".join(fatal)
+            return {job.job_id: OperationResult(False, result.output, message) for job in jobs}
+        verdicts: dict[str, OperationResult] = {}
+        for job in jobs:
+            if job.filename in bad:
+                verdicts[job.job_id] = OperationResult(
+                    False, result.output, f"{job.filename}：契約檢查 hard 失敗")
+            else:
+                verdicts[job.job_id] = OperationResult(True, "契約檢查通過")
+        return verdicts
 
     # compat-check.py:550 的退出碼語義：2 = hard 失敗、5 = soft 失敗、0 = 全過。
     # soft 的定義就是「值得知道但不該擋」，把它當成流程失敗會讓
@@ -2119,14 +2177,18 @@ class IntakeApp:
                 max_workers=workers, thread_name_prefix="intake-wait") as pool:
             waited = list(pool.map(lambda item: self._wait_one(*item), staged))
 
-        # ── 第二段：驗。**整批都不在抽取了才驗**，而且是循序的。
+        # ── 第二段：驗。**整批都不在抽取了才驗**，而且**跑一次全庫的檢查**。
         #
         # 契約檢查裡有一條斷言「LightRAG 現在是閒的」（A-19，hard）。在第一段裡
         # 驗的話，除了最後一份，每一份跑完時鄰居都還在跑 —— 那條必然失敗，
         # 好文件被判死而它其實已經進庫了。2026-08-10 實測：一批 89 份、84 份
         # 這樣被誤殺，資料庫那側 159 份全部是 processed，壞掉的只有簿記。
-        for job, admitted in [item for item, ok in zip(staged, waited, strict=True) if ok]:
-            self._verify_one(job, admitted)
+        survivors = [item for item, ok in zip(staged, waited, strict=True) if ok]
+        if survivors:
+            known = {job.filename for job in self._jobs_snapshot()}
+            verdicts = self.runner.verify_batch([job for job, _ in survivors], known)
+            for job, admitted in survivors:
+                self._verify_one(job, admitted, verdicts.get(job.job_id))
         self._assert_staging_drained(len(staged))
 
     def _wait_one(self, job: Job, admitted: Path) -> bool:
@@ -2144,11 +2206,17 @@ class IntakeApp:
         self._release_inputs(job, admitted)
         return False
 
-    def _verify_one(self, job: Job, admitted: Path) -> None:
-        """驗契約、收尾。到這裡整批都已經不在抽取了。"""
+    def _verify_one(self, job: Job, admitted: Path,
+                    verified: OperationResult | None) -> None:
+        """收尾這一份。契約的判定是**整批一次跑出來的**，這裡只負責落地。
+
+        判定拿不到（`None`）就當失敗 —— 那代表整批驗證那一步出了意外，
+        而「不知道」不能當成「通過」。
+        """
         settled = False
         try:
-            verified = self.runner.verify(job)
+            if verified is None:
+                verified = OperationResult(False, "", "整批契約驗證沒有回傳這一份的判定")
             self._append_operation(job, "驗證契約", verified)
             if not verified.ok:
                 self._mark_failed(job.job_id, verified.error or "契約驗證失敗")
