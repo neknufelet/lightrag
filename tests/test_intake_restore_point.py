@@ -94,8 +94,8 @@ def test_a_failed_restore_point_stops_the_batch(tmp_path: Path) -> None:
 def test_the_screen_says_a_restore_point_is_being_made(tmp_path: Path) -> None:
     """畫面要說得出「現在在做什麼」。
 
-    停機窗實測 92 秒 —— 沒有這一句的話，那 92 秒裡使用者看到的是
-    「按了沒反應」，而查詢也剛好在那段時間失敗。
+    停機窗實測 77 秒（2026-08-10，排除 models 之後；之前是 92 秒）—— 沒有這一句
+    的話，那 77 秒裡使用者看到的是「按了沒反應」，而查詢也剛好在那段時間失敗。
     """
     app, _ = _app(tmp_path)
     assert "restore_point" in app.state(), "state() 沒有還原點的欄位"
