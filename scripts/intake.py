@@ -508,10 +508,47 @@ def _configured_source_roots(configured: Sequence[Path]) -> list[SourceRoot]:
     return roots
 
 
+class DigestCache:
+    """檔案內容雜湊的快取，鍵是 `(路徑, 大小, 修改時間)`。
+
+    **只給選片掃描用。** 掃描要回答的是「這份內容我見過嗎」，而它每 3 秒被問
+    一次（畫面輪詢 `/api/state`）—— 2026-08-10 實測 400 多個 PDF 全部重算一遍
+    要 5.1 秒，且與檔案總數成正比。
+
+    ⚠ **`_sha256()` 本身不加快取，這是刻意的。** 另外十一個呼叫點是拿它來驗證
+    「剛複製進去的內容對不對」「即將刪掉的是不是我以為的那個」—— 那些地方吃
+    快取等於把**驗證**變成**假設**。
+
+    ⚠ **已知限制**：內容變了但大小與 mtime 都沒變時會回舊值。實務上 mtime 是
+    奈秒解析度，正常寫檔一定會動；但這是真的限制，`tests/test_digest_cache.py`
+    有一條專門把它釘出來看得見，而不是假裝不存在。
+    """
+
+    def __init__(self) -> None:
+        self._values: dict[tuple[str, int, int], str] = {}
+        self.computed = 0          # 真的讀過檔的次數，測試靠它分辨有沒有生效
+
+    def digest(self, path: Path) -> str:
+        stat = path.stat()
+        key = (str(path), stat.st_size, stat.st_mtime_ns)
+        cached = self._values.get(key)
+        if cached is not None:
+            return cached
+        value = _sha256(path)
+        self.computed += 1
+        # 同一個路徑換了大小或時間就是新的鍵；舊鍵留著沒有意義，順手清掉，
+        # 否則長時間跑下來會累積每個檔案的每一版。
+        for stale in [k for k in self._values if k[0] == key[0]]:
+            del self._values[stale]
+        self._values[key] = value
+        return value
+
+
 class CandidateScanner:
     def __init__(self, paths: DataPaths, configured: Sequence[Path]) -> None:
         self.paths = paths
         self.configured = tuple(configured)
+        self.digests = DigestCache()
 
     def _known_hashes(self) -> set[str]:
         known: set[str] = set()
@@ -521,7 +558,7 @@ class CandidateScanner:
         for pdf in pdfs:
             if pdf.is_file():
                 try:
-                    known.add(_sha256(pdf))
+                    known.add(self.digests.digest(pdf))
                 except OSError as exc:
                     LOGGER.warning("無法計算既有檔案 sha：%s：%s", pdf, exc)
         for manifest in self.paths.parsed_dir.glob("*.mineru_raw/_manifest.json"):
@@ -568,7 +605,7 @@ class CandidateScanner:
                     warnings.append(warning)
                     continue
                 try:
-                    digest = _sha256(resolved)
+                    digest = self.digests.digest(resolved)
                     size = resolved.stat().st_size
                 except OSError as exc:
                     warning = f"無法讀取來源檔案 {resolved}: {type(exc).__name__}: {exc}"
