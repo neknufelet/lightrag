@@ -86,6 +86,10 @@ class FakeRunner:
         self.calls.append("wait")
         return OperationResult(True, "fake indexed")
 
+    def verify(self, job: Job) -> OperationResult:
+        self.calls.append("verify")
+        return OperationResult(True, "fake verify")
+
 
 class ExplodingParseRunner(FakeRunner):
     def parse(self, job: Job, source_pdf: Path) -> OperationResult:
@@ -127,6 +131,41 @@ class BatchWatchingRunner(FakeRunner):
         extracting = [j for j in self.app._jobs.values() if j.status == "extracting"]
         self.max_extracting = max(self.max_extracting, len(extracting))
         return super().wait_indexed(job)
+
+
+class VerifyTimingRunner(FakeRunner):
+    """記「契約檢查跑的當下，還有沒有人在等索引」。
+
+    契約檢查裡有一條 A-19 斷言「LightRAG 現在是閒的」。一次一份的時代那永遠
+    成立；分批之後，除了最後一份，每一份跑完時同批的鄰居都還在跑 ——
+    於是 A-19 必然失敗，整份被判失敗**而文件其實好好地進了庫**。
+    2026-08-10 實測：一批 89 份，84 份被這樣誤殺，資料庫那側 159 份全是 processed。
+    """
+
+    def __init__(self, data_root: Path) -> None:
+        super().__init__(data_root)
+        self._waiting = 0
+        self._guard = threading.Lock()
+        self.verified_while_waiting: list[str] = []
+        self.verified: list[str] = []
+
+    def wait_indexed(self, job: Job) -> OperationResult:
+        with self._guard:
+            self._waiting += 1
+        try:
+            time.sleep(0.05)          # 讓同批的等待真的重疊得起來
+            return super().wait_indexed(job)
+        finally:
+            with self._guard:
+                self._waiting -= 1
+
+    def verify(self, job: Job) -> OperationResult:
+        with self._guard:
+            busy = self._waiting
+        if busy:
+            self.verified_while_waiting.append(f"{job.filename}（還有 {busy} 份在等索引）")
+        self.verified.append(job.filename)
+        return OperationResult(True, "fake verify")
 
 
 def _batch_app(tmp_path: Path, names: tuple[str, ...]) -> tuple[IntakeApp, BatchWatchingRunner]:
@@ -228,7 +267,10 @@ def test_parse_review_keeps_inputs_empty_and_admit_order(tmp_path: Path) -> None
         # 「放行前 inputs 必須是空的」那條不變式由 FakeRunner.apply 當場斷言。
         indexed = _wait_for(app, job.job_id, "indexed")
         assert indexed["decision"] == "clean"
-        assert runner.calls == ["parse", "plan", "apply", "scan", "wait"]
+        # `verify`（契約檢查）是獨立的一步，不再埋在 `wait` 裡面 ——
+        # 它要等整批都不在抽取了才跑，理由見
+        # `test_the_contract_check_waits_until_the_whole_batch_stopped_extracting`。
+        assert runner.calls == ["parse", "plan", "apply", "scan", "wait", "verify"]
         assert list(paths.inputs_dir("test").glob("*.pdf")) == []
         state_path = paths.intake_job_dir(job.job_id) / "job.json"
         saved = json.loads(state_path.read_text(encoding="utf-8"))
@@ -944,7 +986,10 @@ def test_a_clean_plan_admits_itself(tmp_path: Path) -> None:
         assert isinstance(candidate, dict)
         job = app.submit_parse([str(candidate["candidate_id"])])[0]
         _wait_for(app, job.job_id, "indexed")
-        assert runner.calls == ["parse", "plan", "apply", "scan", "wait"]
+        # `verify`（契約檢查）是獨立的一步，不再埋在 `wait` 裡面 ——
+        # 它要等整批都不在抽取了才跑，理由見
+        # `test_the_contract_check_waits_until_the_whole_batch_stopped_extracting`。
+        assert runner.calls == ["parse", "plan", "apply", "scan", "wait", "verify"]
     finally:
         app.stop()
 
@@ -1356,6 +1401,42 @@ def test_a_batch_is_repaired_before_anyone_is_extracted(tmp_path: Path) -> None:
         assert runner.max_extracting > 1, (
             f"從頭到尾只有 {runner.max_extracting} 份在抽取 —— 根本沒有併行，"
             "光是不重疊的話一次一件就做得到")
+    finally:
+        app.stop()
+
+
+def test_the_contract_check_waits_until_the_whole_batch_stopped_extracting(
+    tmp_path: Path,
+) -> None:
+    """契約檢查要等**整批**抽完才跑，不是每份索引完就立刻跑。
+
+    因為那組檢查裡有一條斷言「LightRAG 現在是閒的」。一批同時跑的時候，
+    除了最後一份，每一份跑完時鄰居都還在跑 —— 那條必然失敗，而它是 hard，
+    於是整份被判失敗**而文件其實已經好好地進了庫**。
+
+    2026-08-10 實跑 89 份，84 份這樣被誤殺；資料庫那側 159 份全是 processed，
+    也就是說壞掉的從頭到尾只有簿記。
+
+    **不替 A-19 開特例**：把檢查挪到 pipeline 真的閒下來之後，那條斷言就恢復成
+    有意義的斷言，30 項一條都不用拿掉。
+    """
+    source_parent = _source(tmp_path, ("甲.pdf", "乙.pdf", "丙.pdf", "丁.pdf"))
+    data_root = tmp_path / "data"
+    runner = VerifyTimingRunner(data_root)
+    app = IntakeApp(DataPaths(data_root), "test", [source_parent], runner=runner,
+                    environment={"INTAKE_ROUND_POLL_SECONDS": "0.02"})
+    app.start()
+    try:
+        ids = [str(c["candidate_id"]) for c in app.state()["sections"]["selection"]
+               if isinstance(c, dict)]
+        jobs = app.submit_parse(ids)
+        _wait_all(app, [j.job_id for j in jobs], "indexed")
+
+        assert runner.verified_while_waiting == [], (
+            "契約檢查在別人還在抽取的時候就跑了：\n"
+            + "\n".join(runner.verified_while_waiting))
+        assert len(runner.verified) == 4, (
+            f"不是每一份都驗過 —— 驗了 {len(runner.verified)} 份")
     finally:
         app.stop()
 

@@ -624,6 +624,8 @@ class IntakeRunner(Protocol):
 
     def wait_indexed(self, job: Job) -> OperationResult: ...
 
+    def verify(self, job: Job) -> OperationResult: ...
+
 
 def _as_mapping(value: object) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
@@ -935,12 +937,30 @@ class SubprocessRunner:
                     continue
                 status = str(row.get("status") or "").lower()
                 if status == "processed":
-                    return self._compat_check(job)
+                    # **只等，不驗。** 契約檢查搬到整批抽完之後（`verify`）——
+                    # 它裡面有一條斷言「pipeline 現在是閒的」，而同批的鄰居還在跑。
+                    return OperationResult(True, json.dumps(row, ensure_ascii=False))
                 if status in {"failed", "error", "failure"}:
                     return OperationResult(False, json.dumps(row, ensure_ascii=False),
                                            f"文件狀態為 {status}")
             time.sleep(self.poll_seconds)
         return OperationResult(False, "", f"等待 {job.filename} processed 逾時")
+
+    def verify(self, job: Job) -> OperationResult:
+        """驗契約。**呼叫端保證這一批已經全部抽完了**，這裡再等一次 pipeline 閒置。
+
+        為什麼要再等：`processed` 是「這一份寫完了」，而 `pipeline_busy` 是
+        「整條管線閒了沒」——最後一份 processed 到管線真正落地之間有一小段。
+        A-19 是 hard，踩到那一段就會把好文件判死。
+
+        **不替 A-19 開特例。** 挪到真的閒下來之後，那條斷言就恢復成有意義的斷言，
+        30 項檢查一條都不用拿掉。2026-08-10 實測：一批 89 份、84 份因為
+        「鄰居還在跑」被誤殺，而資料庫那側 159 份全部是 processed。
+        """
+        blocked = self._wait_pipeline_idle()
+        if blocked is not None:
+            return OperationResult(False, "", blocked)
+        return self._compat_check(job)
 
     # compat-check.py:550 的退出碼語義：2 = hard 失敗、5 = soft 失敗、0 = 全過。
     # soft 的定義就是「值得知道但不該擋」，把它當成流程失敗會讓
@@ -2024,22 +2044,46 @@ class IntakeApp:
                 transition(job, "extracting")
                 self.store.save(job)
 
-        # 每份各自等自己那份 processed。**併行等**：循序等的話，第一份卡住就會
-        # 讓後面每一份都要多等一個逾時，最壞是 N 倍。
+        # ── 第一段：等。**併行等** —— 循序等的話第一份卡住就會讓後面每一份都
+        # 多等一個逾時，最壞是 N 倍。
         workers = min(len(staged), max(1, self.repair_workers))
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=workers, thread_name_prefix="intake-wait") as pool:
-            list(pool.map(lambda item: self._finish_one(*item), staged))
+            waited = list(pool.map(lambda item: self._wait_one(*item), staged))
+
+        # ── 第二段：驗。**整批都不在抽取了才驗**，而且是循序的。
+        #
+        # 契約檢查裡有一條斷言「LightRAG 現在是閒的」（A-19，hard）。在第一段裡
+        # 驗的話，除了最後一份，每一份跑完時鄰居都還在跑 —— 那條必然失敗，
+        # 好文件被判死而它其實已經進庫了。2026-08-10 實測：一批 89 份、84 份
+        # 這樣被誤殺，資料庫那側 159 份全部是 processed，壞掉的只有簿記。
+        for job, admitted in [item for item, ok in zip(staged, waited, strict=True) if ok]:
+            self._verify_one(job, admitted)
         self._assert_staging_drained(len(staged))
 
-    def _finish_one(self, job: Job, admitted: Path) -> None:
-        """等這一份索引完、驗契約、收尾。失敗只影響它自己。"""
-        settled = False
+    def _wait_one(self, job: Job, admitted: Path) -> bool:
+        """等這一份 processed。回傳「還活著嗎」。失敗只影響它自己。"""
         try:
             indexed = self.runner.wait_indexed(job)
             self._append_operation(job, "等待索引完成", indexed)
-            if not indexed.ok:
-                self._mark_failed(job.job_id, indexed.error or "索引驗證失敗")
+            if indexed.ok:
+                return True
+            self._mark_failed(job.job_id, indexed.error or "索引驗證失敗")
+        except Exception as exc:  # noqa: BLE001
+            self._mark_failed(
+                job.job_id, f"等待索引失敗：{type(exc).__name__}: {exc}", exception=exc,
+            )
+        self._release_inputs(job, admitted)
+        return False
+
+    def _verify_one(self, job: Job, admitted: Path) -> None:
+        """驗契約、收尾。到這裡整批都已經不在抽取了。"""
+        settled = False
+        try:
+            verified = self.runner.verify(job)
+            self._append_operation(job, "驗證契約", verified)
+            if not verified.ok:
+                self._mark_failed(job.job_id, verified.error or "契約驗證失敗")
                 return
             self._cleanup_admitted(job, admitted)
             settled = True
