@@ -48,8 +48,16 @@ DB_ROOT=${DB_ROOT:-/data/lightrag}
 # 2026-08-07 從 /data/rag/coldstage 搬來。PO 定案「/data/rag 廢除，不再牽扯」，
 # 而舊值會讓這支腳本每天 mkdir -p 把那個目錄重建出來 —— 刪一次它建一次，
 # 且看起來一切正常（實測：PO 清掉 /data/rag 之後，03:28 又出現一個空目錄）。
-STAGE=/data/lightrag-coldstage
-STAMP=/data/lightrag/.backup-cold.stamp
+#
+# 三個 `BACKUP_*` 環境變數只是為了**能測**：這支會停容器、會 rm -rf，唯一能安全
+# 驗證它的方式是在 tmp 底下拿假的 docker／sudo 跑一遍。預設值就是正式路徑，
+# 正式環境不設它們（`tests/test_backup_restore_point.py`）。
+STAGE=${BACKUP_STAGE_DIR:-/data/lightrag-coldstage}
+# 戳記跟著資料根走 —— 與 Python 那邊的 `paths.backup_stamp` 同一個定義。
+STAMP=$DB_ROOT/.backup-cold.stamp
+# 跳過的條件除了「指紋沒變」之外還要不要確認目錄還在？每日那條不用（它的暫存
+# 本來就會在上傳成功後被刪掉），還原點那條要 —— 見下面。
+SKIP_NEEDS_DIR=0
 
 # ── --stage-only：只做到本機複本，不上傳（2026-08-10 加）───────────────────
 # **還原點是本機那份複本，不是 Google Drive 上那份。** 要「回到這一批之前」，
@@ -62,10 +70,22 @@ STAMP=/data/lightrag/.backup-cold.stamp
 #
 # ⚠ **用不同的目錄**：每日那次會 `rm -rf` 自己的暫存區，共用的話你的還原點
 # 會在當晚 04:00 被蓋掉。
-# ⚠ **不寫指紋**：指紋的意思是「這個狀態已經上傳到 restic 了」。stage-only
+# ⚠ **不寫每日那個指紋**：它的意思是「這個狀態已經上傳到 restic 了」。stage-only
 # 沒有上傳，寫了會讓當晚那次誤以為已經備過而跳過 —— 那正是這個開關最不該犯的錯。
+#
+# ⚠⚠ **用自己的戳記，而且跳過之前要確認目錄還在**（2026-08-10 修，血淚見下）：
+# 一開始這裡共用每日那個戳記，結果是「還原點永遠建不出來」。因為每日備份上傳
+# 成功之後會 `rm -rf` 掉本機暫存 —— 戳記還在，複本沒了。常態長這樣：
+#
+#     04:00  備份 → 上傳成功 → 寫戳記 → 刪本機複本
+#     10:00  放 PDF、按全部開始 → 指紋沒變 → 跳過 ⇒ 本機還原點不存在
+#
+# 兩種模式問的是不同的問題：每日問「這個狀態上傳過了嗎」，還原點問「本機現在
+# 有沒有一份可以換回去的複本」。**同一個戳記答不了兩個問題。**
 if [ "$STAGE_ONLY" = "1" ]; then
-  STAGE=/data/lightrag-restorepoint
+  STAGE=${BACKUP_RESTOREPOINT_DIR:-/data/lightrag-restorepoint}
+  STAMP=$STAGE.stamp
+  SKIP_NEEDS_DIR=1
 fi
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
 DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)
@@ -79,9 +99,10 @@ FAILED=""
 # 或第一份的 `start_all` 把第二份要停的容器啟回來 —— 而複製出來的東西是不是
 # 一致的沒有人知道。2026-08-10 差點踩到：每日排程的上傳還在跑（38 分鐘），
 # 而進料的還原點正要觸發第二次。
-exec 9>/tmp/lightrag-backup-cold.lock
+LOCK=${BACKUP_LOCK:-/tmp/lightrag-backup-cold.lock}
+exec 9>"$LOCK"
 if ! flock -n 9; then
-  echo "已經有一支冷備份在跑（/tmp/lightrag-backup-cold.lock）—— 這次不跑" >&2
+  echo "已經有一支冷備份在跑（$LOCK）—— 這次不跑" >&2
   exit 6
 fi
 
@@ -121,6 +142,9 @@ if [ -z "$NOW_FP" ]; then
   log "讀不到資料庫指紋（PG 沒起來？）—— 照跑，寧可多備一份"
 elif [ "$FORCE" = "1" ]; then
   log "指紋 $NOW_FP；--force，照跑"
+elif [ "$SKIP_NEEDS_DIR" = "1" ] && [ ! -d "$STAGE" ]; then
+  # 戳記是那份複本的收據，不是複本。目錄不見了就得重建，別相信收據。
+  log "指紋 $NOW_FP 沒變，但 $STAGE 不在 —— 重建還原點"
 elif [ -f "$STAMP" ] && [ "$NOW_FP" = "$(tr -d '[:space:]' < "$STAMP")" ]; then
   log "沒有新的抽取成果（指紋未變：$NOW_FP）"
   log "上次備份：$(date -r "$STAMP" '+%Y-%m-%d %H:%M' 2>/dev/null || echo 未知)"
@@ -149,6 +173,9 @@ done
 # ⚠ 用 rsync 而不是 `cp -a` 之後再刪：後者會先花時間抄那 6.4G 再刪掉，
 # 停機窗一點都沒有變短。
 log "複製到 $STAGE（排除 models/，那是可重下的權重快取）"
+# **先撕掉收據再動目錄**：複製抄到一半失敗的話，留著的是一份半殘的複本；
+# 舊戳記還在就會讓下一次跳過，然後拿那份半殘的當還原點。
+[ "$SKIP_NEEDS_DIR" = "1" ] && sudo rm -f "$STAMP"
 sudo rm -rf "$STAGE"; sudo mkdir -p "$STAGE"
 T0=$(date +%s)
 sudo rsync -a --exclude='models/' "$DB_ROOT/" "$STAGE/" || fail "複製失敗"
@@ -178,11 +205,15 @@ done
 # **金鑰從 stdin 進，不走命令列。** `docker exec -e RESTIC_PASSWORD=…` 會讓密碼
 # 出現在 `ps` 輸出裡，這台機器上任何使用者都看得到（2026-08-03 實際踩到）。
 if [ "$STAGE_ONLY" = "1" ]; then
+  # 收據最後才開：目錄驗過了（上面第 4 段）才敢說「這個指紋有複本」。
+  if [ -n "$NOW_FP" ]; then
+    printf '%s\n' "$NOW_FP" > "$STAMP" && log "還原點指紋已記錄（$NOW_FP）"
+  fi
   log "還原點已建立：$STAGE"
   log "  還原方式：停掉容器 → 把這個目錄的內容覆蓋回 $DB_ROOT → 啟動"
   log "  ⚠ 這份**不含 models/**（可重下的權重快取）——還原時不要整個目錄換掉，"
   log "     否則 models/ 會一起不見；用覆蓋的方式，或先把 models/ 留著"
-  log "  （--stage-only：不上傳、不寫指紋，異地副本由每日 04:00 那次負責）"
+  log "  （--stage-only：不上傳、不碰每日那個指紋，異地副本由每日 04:00 那次負責）"
   exit 0
 fi
 
