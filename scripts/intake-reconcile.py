@@ -25,8 +25,9 @@ processed**。死因是契約檢查裡的一條斷言「pipeline 現在是閒的
     python3 scripts/intake-reconcile.py                 # 乾跑，只列出判定
     python3 scripts/intake-reconcile.py --commit        # 真的寫
 
-⚠ **跑之前先把 intake 服務停掉。** 它把 job 抱在記憶體裡、只在自己改動時存檔；
-在它底下改 `job.json` 不會被讀到，重啟之後還會被舊值蓋回去。
+⚠ **乾跑不用停服務**（它只讀）。**`--commit` 之前才要停** —— intake 把 job 抱在
+記憶體裡、只在自己改動時存檔，在它底下改 `job.json` 不會被讀到，重啟之後還會
+被舊值蓋回去。
 
     sudo systemctl stop lightrag-intake.service
     python3 scripts/intake-reconcile.py --commit
@@ -35,7 +36,9 @@ processed**。死因是契約檢查裡的一條斷言「pipeline 現在是閒的
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import subprocess
 import sys
 from pathlib import Path
 from typing import Final
@@ -48,7 +51,6 @@ from intake import (  # noqa: E402
     Job,
     JobStore,
     LightRAGClient,
-    SubprocessRunner,
     configured_data_root,
     index_status_by_filename,
     load_env,
@@ -77,15 +79,43 @@ def decide(job_status: str, index_status: str | None, *, verify_ok: bool) -> tup
     return FLIP, "索引裡是 processed，契約也重驗過了"
 
 
+def _hard_failing_documents(filenames: set[str]) -> tuple[set[str], list[str]]:
+    """跑一次全庫契約檢查，回傳（哪幾份有 hard 失敗、不屬於任何文件的 hard 失敗）。
+
+    第二個回傳值是**整庫層級**的紅燈（A-19、A-26 那種）。有它就不該翻牌 ——
+    那代表現在量到的東西本身不可信，而在不可信的基礎上洗白 84 筆是最糟的做法。
+    """
+    completed = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "compat-check.py"), "--json"],
+        cwd=REPO, capture_output=True, text=True, check=False, timeout=3600)
+    try:
+        results = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"compat-check --json 的輸出不是 JSON（exit {completed.returncode}）："
+            f"{exc}；stderr 前 300 字：{completed.stderr[:300]}") from exc
+
+    bad: set[str] = set()
+    fatal: list[str] = []
+    for row in results:
+        if not isinstance(row, dict) or row.get("level") != "hard" or row.get("ok") is not False:
+            continue
+        what = str(row.get("what") or "")
+        owners = [name for name in filenames if name in what]
+        if owners:
+            bad.update(owners)
+        else:
+            fatal.append(f"{row.get('id')} {what}")
+    return bad, fatal
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__ or "")
     parser.add_argument("--commit", action="store_true", help="真的寫入；預設只列出判定")
-    parser.add_argument("--workspace", default=None, help="預設讀 .env 的 WORKSPACE")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     environment = load_env(REPO)
-    workspace = args.workspace or environment.get("WORKSPACE") or "acoustics_v2"
     paths = DataPaths(configured_data_root(environment))
     store = JobStore(paths)
     jobs = store.load()
@@ -109,15 +139,21 @@ def main() -> int:
         LOGGER.info("沒有失敗的 job，不用做事。")
         return 0
 
-    runner = SubprocessRunner(REPO, {**environment, "WORKSPACE": workspace})
+    # **跑一次全庫的契約檢查，不是逐份跑。** 逐份跑 84 次要十幾分鐘而且會把
+    # Postgres 打滿（2026-08-10 實測，中途只好停掉）；而那 84 次問的是同一個
+    # 母體，一次就答得完。
+    bad_docs, fatal = _hard_failing_documents({job.filename for job in candidates})
+    if fatal:
+        LOGGER.error("契約檢查有**不屬於任何一份文件**的 hard 失敗，先處理它們：\n  %s\n"
+                     "整庫層級的紅燈沒排除之前翻牌是不負責任的。", "\n  ".join(fatal))
+        return 2
+    LOGGER.info("全庫契約檢查跑完：%d 份有 hard 失敗", len(bad_docs))
+
     flipped: list[Job] = []
     kept: list[tuple[Job, str]] = []
     for job in candidates:
         status = index.get(job.filename)
-        verify_ok = False
-        if status is not None and status.lower() == "processed":
-            result = runner.verify(job)
-            verify_ok = result.ok
+        verify_ok = job.filename not in bad_docs
         verdict, why = decide(job.status, status, verify_ok=verify_ok)
         if verdict is FLIP:
             flipped.append(job)
