@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ledger  # noqa: E402
 from mineru_common import load_env  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
@@ -1783,6 +1784,49 @@ class IntakeApp:
                 job_id, f"解析／計畫失敗：{type(exc).__name__}: {exc}", exception=exc,
             )
 
+    def _record_ledger_from_plan(self, job: Job, evaluation: PlanEvaluation) -> None:
+        """把計畫階段的判定寫進體檢表。**紀錄不是閘門，寫不進去也不能擋路。**
+
+        **為什麼寫在這裡而不是批次收尾**：這兩格的判定在計畫那一刻就有了，而
+        被 preflight 擋下的文件永遠進不了批次 —— 寫在收尾的話它們不會有任何
+        紀錄，而「停在等你看的那些」正是最需要有人回頭看的一批。
+
+        **為什麼要自動**：`ledger.py` 設計得很完整（三態、強制附理由），但它是
+        手動的 —— 2026-08-10 實測，知識庫 257 份而體檢表只有 20 份舊語料的紀錄。
+        鐵則第 6 條：探針要在沒人問的時候會響。
+
+        只寫 intake 手上真的有的兩格。其餘六格留空 —— **沒跑過的閘門填 `pass`
+        就是說謊**，而 `ledger` 的三態設計正是為了不讓「不知道」偽裝成「查過了」。
+        """
+        try:
+            if evaluation.accepted:
+                ledger.record(self.paths.root, self.workspace, job.filename,
+                              "pp.preflight", "pass", note="機械計畫判定 clean")
+            else:
+                ledger.record(self.paths.root, self.workspace, job.filename,
+                              "pp.preflight", "fail",
+                              note="；".join(evaluation.reasons) or "preflight 擋下")
+
+            tables = _as_mapping(evaluation.plan.get("tables"))
+            total = tables.get("total")
+            repair = _as_list(tables.get("repair"))
+            review = _as_list(tables.get("review"))
+            if repair or review:
+                ledger.record(
+                    self.paths.root, self.workspace, job.filename, "pp.tables",
+                    "unverifiable",
+                    note=(f"共 {total} 張：{len(repair)} 張待修、{len(review)} 張待查"
+                          " —— 兩雙眼睛沒把握的轉錄不會自動寫入，要人看一眼"))
+            else:
+                ledger.record(self.paths.root, self.workspace, job.filename,
+                              "pp.tables", "pass",
+                              note=f"共 {total} 張，沒有待修或待查的")
+        except Exception as exc:  # noqa: BLE001
+            # **體檢表寫不進去不得影響進料。** 它是紀錄不是閘門 —— 磁碟滿了、
+            # 目錄權限錯了都會讓寫入失敗，而那不該讓一份好文件停在半路。
+            LOGGER.warning("job %s 寫體檢表失敗（不影響進料）：%s: %s",
+                           job.job_id, type(exc).__name__, exc)
+
     def _record_plan(self, job: Job, evaluation: PlanEvaluation) -> None:
         with self._lock:
             job.plan = evaluation.plan
@@ -1793,6 +1837,7 @@ class IntakeApp:
             job.processed_index = max_index + 1
             transition(job, "planned")
             self.store.save(job)
+        self._record_ledger_from_plan(job, evaluation)
         if evaluation.reasons:
             for index, reason in enumerate(evaluation.reasons):
                 detail = evaluation.details[index] if index < len(evaluation.details) else reason
