@@ -51,6 +51,34 @@ case $scan_rc in
   *) fail_msgs+=("∂ 誤讀探針掛了 (rc=$scan_rc) → $CHECK_DIR/scan-$ts.txt") ;;
 esac
 
+# ── 解析品質：碎字元（2026-08-10 加入）──────────────────────────────────
+# `parse-check` 的離開碼只在**掉字**時非 0（WARN 不算），而 2026-08-10 對 257 份
+# 實測那個層級是 2/2 全對：抓到的兩份確實有整頁被抽成碎字元
+# （`s d s e o a sne a`），成因是 .env.example 記過的「文字層路徑會吃掉
+# x-height 字母」，`is_ocr=true` 沒有百分之百擋掉。
+# 它的對照源是解析成果自己，不依賴 pdftotext —— 不會被壞掉的文字層騙。
+python3 scripts/parse-check.py > "$CHECK_DIR/parse-$ts.txt" 2>&1
+parse_rc=$?
+if [ "$parse_rc" -ne 0 ]; then
+  fail_msgs+=("解析出現碎字元 (rc=$parse_rc) → $CHECK_DIR/parse-$ts.txt")
+fi
+
+# ── 漏字比對：**只記錄，不進紅燈**（2026-08-10 加入）────────────────────
+# 2026-08-10 對 257 份實測：13 份超標，**逐份查證的 4 份全是假訊號** ——
+# 它拿 `pdftotext` 讀的文字層當對照源，而那個證人對雙欄學術論文會自己壞掉
+# （浮水印讀成碎片、數學字型讀成 dddd、掃描件黏字、同段落重複輸出）。
+#
+# **所以它的離開碼不進 fail_msgs。** 讓它天天把紅燈染紅，代價是真的紅燈被淹沒
+# —— 那正是本專案在別處一再避開的形狀。判斷交給 `kb-health-check` skill，
+# 查過的結論記進 tests/verified-findings.json，工具下次會自己印出來。
+python3 scripts/coverage-check.py --json \
+  > "$CHECK_DIR/coverage-$ts.json" 2> "$CHECK_DIR/coverage-$ts.err"
+coverage_rc=$?
+
+# ⚠ **`extract-check` 刻意不放在每日。** 2026-08-10 實測全庫要一個多小時，
+# 而它量的東西（實體接不接得回原文）不會天天變。要跑就在一批進料收尾時跑，
+# 或手動：`python3 scripts/extract-check.py --json`。
+
 # ── 部署完整性：systemd 單元有沒有跟 repo 一致 ─────────────────────────
 # 這支腳本本身是「誰會報錯」的答案，但**觸發它的 timer 原本不在版控裡**——
 # /etc 掉了或有人手改了，腳本還在、排程沒了，看起來一切正常。
@@ -110,9 +138,10 @@ status=pass
 # 「檢查結果要帶上產生它的版本」是要升上游的通則之一。
 commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
 
-printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"deploy_rc":%d,"fresh_rc":%d,"tests_rc":%d,"detail":"%s"}\n' \
+# coverage_rc 記在這裡但**不影響 status** —— 它是參考值不是判定，理由見上方。
+printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"deploy_rc":%d,"fresh_rc":%d,"tests_rc":%d,"parse_rc":%d,"coverage_rc":%d,"detail":"%s"}\n' \
   "$ts" "$status" "$commit" "$rc" "$scan_rc" "$units_rc" "$deploy_rc" "$fresh_rc" \
-  "$tests_rc" "$CHECK_DIR/compat-$ts.json" \
+  "$tests_rc" "$parse_rc" "$coverage_rc" "$CHECK_DIR/compat-$ts.json" \
   > "$CHECK_DIR/latest.json"
 
 # 保留最新 120 份。`v2-*` 那組是 CUTOVER 之前雙 checkout 時代留下的**歷史**
@@ -121,7 +150,8 @@ printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"scan_rc":%d,"unit
 find "$CHECK_DIR" \( -name 'compat-2*' -o -name 'canary-2*' \
                      -o -name 'v2-compat-2*' -o -name 'v2-canary-2*' \
                      -o -name 'scan-2*' -o -name 'units-2*' \
-                     -o -name 'deploy-2*' -o -name 'fresh-2*' \) |
+                     -o -name 'deploy-2*' -o -name 'fresh-2*' \
+                     -o -name 'parse-2*' -o -name 'coverage-2*' \) |
   sort | head -n -120 | xargs -r rm --
 
 if [ "$status" = fail ]; then
