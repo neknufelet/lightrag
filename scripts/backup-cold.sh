@@ -25,12 +25,13 @@
 # 判斷依據是**資料庫的內容指紋**，不是時鐘；`--force` 可強制跑。
 set -uo pipefail
 
-KEEP_STAGE=0; FORCE=0
+KEEP_STAGE=0; FORCE=0; STAGE_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --keep-stage) KEEP_STAGE=1 ;;
     --force)      FORCE=1 ;;
-    *) echo "未知參數：$arg（可用 --keep-stage --force）" >&2; exit 2 ;;
+    --stage-only) STAGE_ONLY=1 ;;
+    *) echo "未知參數：$arg（可用 --keep-stage --force --stage-only）" >&2; exit 2 ;;
   esac
 done
 
@@ -49,12 +50,40 @@ DB_ROOT=${DB_ROOT:-/data/lightrag}
 # 且看起來一切正常（實測：PO 清掉 /data/rag 之後，03:28 又出現一個空目錄）。
 STAGE=/data/lightrag-coldstage
 STAMP=/data/lightrag/.backup-cold.stamp
+
+# ── --stage-only：只做到本機複本，不上傳（2026-08-10 加）───────────────────
+# **還原點是本機那份複本，不是 Google Drive 上那份。** 要「回到這一批之前」，
+# 要的是「停掉、換回目錄、啟動」——而那只需要本機的複本。上傳到 Google Drive
+# 防的是火災跟整台機器沒了，跟「我放錯檔案想退回去」是兩件事。
+#
+# 為什麼要分開：進料按下「全部開始」時會叫這支建還原點，而 2026-08-10 實測
+# **restic 上傳要 38 分鐘**。等它等於讓使用者盯著「還原點建立中」半小時，
+# 解析完全不動 —— 而那半小時買到的東西（異地副本）對這個用途一點用都沒有。
+#
+# ⚠ **用不同的目錄**：每日那次會 `rm -rf` 自己的暫存區，共用的話你的還原點
+# 會在當晚 04:00 被蓋掉。
+# ⚠ **不寫指紋**：指紋的意思是「這個狀態已經上傳到 restic 了」。stage-only
+# 沒有上傳，寫了會讓當晚那次誤以為已經備過而跳過 —— 那正是這個開關最不該犯的錯。
+if [ "$STAGE_ONLY" = "1" ]; then
+  STAGE=/data/lightrag-restorepoint
+fi
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
 DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)
 # 2026-08-07 起只有 Postgres —— 圖換成 PGTableGraphStorage，Neo4j 整個移除。
 DBS=(lightrag-postgres)
 TS=$(date +%Y%m%dT%H%M%S)
 FAILED=""
+
+# ── 同時只准跑一支 ──────────────────────────────────────────────────────
+# 這支會**停容器**。兩份同時跑的話，第二份會在第一份正在複製時把服務停掉、
+# 或第一份的 `start_all` 把第二份要停的容器啟回來 —— 而複製出來的東西是不是
+# 一致的沒有人知道。2026-08-10 差點踩到：每日排程的上傳還在跑（38 分鐘），
+# 而進料的還原點正要觸發第二次。
+exec 9>/tmp/lightrag-backup-cold.lock
+if ! flock -n 9; then
+  echo "已經有一支冷備份在跑（/tmp/lightrag-backup-cold.lock）—— 這次不跑" >&2
+  exit 6
+fi
 
 log() { printf '%s  %s\n' "$(date +%H:%M:%S)" "$*"; }
 fail() { FAILED="${FAILED}${FAILED:+; }$*"; log "！$*"; }
@@ -139,6 +168,13 @@ done
 #
 # **金鑰從 stdin 進，不走命令列。** `docker exec -e RESTIC_PASSWORD=…` 會讓密碼
 # 出現在 `ps` 輸出裡，這台機器上任何使用者都看得到（2026-08-03 實際踩到）。
+if [ "$STAGE_ONLY" = "1" ]; then
+  log "還原點已建立：$STAGE"
+  log "  還原方式：停掉容器 → 把這個目錄換回 $DB_ROOT → 啟動"
+  log "  （--stage-only：不上傳、不寫指紋，異地副本由每日 04:00 那次負責）"
+  exit 0
+fi
+
 log "restic 上傳"
 PW=$(docker exec backrest sh -c 'cat /config/config.json' \
      | python3 -c 'import sys,json;d=json.load(sys.stdin);print(next(r["password"] for r in d["repos"] if r["id"]=="rag-db"))' 2>/dev/null)

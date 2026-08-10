@@ -1103,8 +1103,15 @@ class SubprocessRunner:
         加 `--force` 只會製造沒有意義的停機。
 
         ⚠ 這一步會停 LightRAG 約 92 秒（2026-08-10 實測，11G）。
+
+        **`--stage-only`：只做到本機複本，不等 restic 上傳。**
+        還原點是本機那份複本（`/data/lightrag-restorepoint`），要「回到這一批
+        之前」只需要停掉、換回目錄、啟動。上傳到 Google Drive 防的是火災跟整台
+        機器沒了，跟「我放錯檔案想退回去」是兩件事 —— 而 2026-08-10 實測那段
+        要 38 分鐘，等它等於讓人盯著「還原點建立中」半小時而解析完全不動。
+        異地副本由每日 04:00 那次負責。
         """
-        command = ["bash", str(self.repo / "scripts" / "backup-cold.sh")]
+        command = ["bash", str(self.repo / "scripts" / "backup-cold.sh"), "--stage-only"]
         return self._run(command, self.command_timeout)
 
     # compat-check.py:550 的退出碼語義：2 = hard 失敗、5 = soft 失敗、0 = 全過。

@@ -99,3 +99,20 @@ def test_the_screen_says_a_restore_point_is_being_made(tmp_path: Path) -> None:
     """
     app, _ = _app(tmp_path)
     assert "restore_point" in app.state(), "state() 沒有還原點的欄位"
+
+
+def test_the_restore_point_does_not_wait_for_the_offsite_upload() -> None:
+    """還原點只等本機複本 —— **不等 restic 上傳**。
+
+    2026-08-10 實測：上傳 11G 到 Google Drive 要 38 分鐘。等它等於讓人盯著
+    「還原點建立中」半小時而解析完全不動，**而那半小時買到的東西（異地副本）
+    對「我放錯檔案想退回去」一點用都沒有** —— 那個用途要的是本機那份複本，
+    還原方式是停掉、換回目錄、啟動。
+
+    讀原始碼而不是跑：`SubprocessRunner` 需要 .env，coder 上沒有。
+    """
+    src = (ROOT / "scripts" / "intake.py").read_text(encoding="utf-8")
+    # 只看真正組指令的那一行 —— 說明文字裡本來就會提到 `--force` 為什麼不帶。
+    line = next(ln for ln in src.splitlines() if "backup-cold.sh" in ln and "command = " in ln)
+    assert "--stage-only" in line, f"還原點會等 restic 上傳完才回來：{line}"
+    assert "--force" not in line, f"不該帶 --force —— 指紋沒變時本來就不必再備一次：{line}"
