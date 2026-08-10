@@ -139,10 +139,19 @@ done
 [ -n "$FAILED" ] && { log "有容器停不掉，不做複製（資料可能不一致）"; exit 3; }
 
 # ── 2. 本機複製（停機窗只有這一段）───────────────────────────────────
-log "複製到 $STAGE"
+# **排除 `models/`**（2026-08-10，PO 裁決）。那是 HuggingFace 的權重快取
+# （BGE-M3 與 reranker），11G 裡佔 6.4G，而 Infinity 啟動時會自己重新下載 ——
+# 備份它只是把停機窗與上傳時間拉長，換到一個隨時可以重建的東西。
+#
+# 這不是「省空間」的最佳化：2026-08-10 實測第一次上傳 11G **62 分鐘還沒傳完**，
+# 撞到 systemd 的一小時上限被砍。扣掉 models 之後剩約 4.6G。
+#
+# ⚠ 用 rsync 而不是 `cp -a` 之後再刪：後者會先花時間抄那 6.4G 再刪掉，
+# 停機窗一點都沒有變短。
+log "複製到 $STAGE（排除 models/，那是可重下的權重快取）"
 sudo rm -rf "$STAGE"; sudo mkdir -p "$STAGE"
 T0=$(date +%s)
-sudo cp -a "$DB_ROOT/." "$STAGE/" || fail "複製失敗"
+sudo rsync -a --exclude='models/' "$DB_ROOT/" "$STAGE/" || fail "複製失敗"
 sudo chmod -R a+rX "$STAGE" 2>/dev/null
 T1=$(date +%s)
 log "複製完成，$((T1-T0)) 秒"
@@ -170,7 +179,9 @@ done
 # 出現在 `ps` 輸出裡，這台機器上任何使用者都看得到（2026-08-03 實際踩到）。
 if [ "$STAGE_ONLY" = "1" ]; then
   log "還原點已建立：$STAGE"
-  log "  還原方式：停掉容器 → 把這個目錄換回 $DB_ROOT → 啟動"
+  log "  還原方式：停掉容器 → 把這個目錄的內容覆蓋回 $DB_ROOT → 啟動"
+  log "  ⚠ 這份**不含 models/**（可重下的權重快取）——還原時不要整個目錄換掉，"
+  log "     否則 models/ 會一起不見；用覆蓋的方式，或先把 models/ 留著"
   log "  （--stage-only：不上傳、不寫指紋，異地副本由每日 04:00 那次負責）"
   exit 0
 fi
