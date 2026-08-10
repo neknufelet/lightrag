@@ -88,6 +88,30 @@ def test_an_old_scan_with_no_tables_gets_through(tmp_path: Path) -> None:
     assert ctx.page_size in sizes
 
 
+def test_a_good_table_on_a_rotated_page_does_not_block(tmp_path: Path) -> None:
+    """**判準再收一格（2026-08-10）：問的是「那張表需要裁圖嗎」，不是「那頁有表格嗎」。**
+
+    2017 那份的實況：第 6 頁是橫向頁、上面就是 Table 1，但 MinerU 已經把整張表
+    抽出來了（五種 liner 一列不少、公式都在），`classify()` 判定 **OK**。
+    OK 的表不會進修補名單、不會被裁圖 —— **這份文件從頭到尾不會發生一次 bbox 換算**。
+
+    擋它等於把一篇論文永遠關在庫外，而危害是零。
+
+    ⚠ 代價：判準會**隨解析結果變動**。同一份文件重抽之後可能從「過」變成「擋」
+    （鐵則第 8 條：MinerU 對表格的辨識不可重現）。那不是規則不穩 —— 它忠實反映
+    「現在這份 bundle 需不需要裁圖」，而 preflight 與 A-14 每次都拿當下的
+    content_list 重算，所以不會過期。
+    """
+    portrait, landscape = (544.0, 742.0), (742.0, 544.0)
+    sizes = [*[portrait] * 6, landscape, *[portrait] * 10]
+    good = {"type": "table", "page_idx": 6,
+            "table_body": "<table><tr><td>Liner</td><td>Sketch</td></tr>"
+                          "<tr><td>Single degree of freedom (SDOF)</td>"
+                          "<td>impedance model with real content</td></tr></table>"}
+    ctx = DocContext(_bundle(tmp_path, sizes, [good]))
+    assert ctx.page_size == portrait
+
+
 def test_a_rotated_page_carrying_a_table_is_still_blocked(tmp_path: Path) -> None:
     """2017 那份的形狀：整份直式，其中一頁是**橫向**（同尺寸轉 90 度），
     而那一頁上就有一張表。

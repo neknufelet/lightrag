@@ -15,6 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from mineru_common import KNOWN_TYPES, read_json  # noqa: E402
 
+from pp.rules import empty_table  # noqa: E402
+
 
 class DocContextError(RuntimeError):
     pass
@@ -50,13 +52,24 @@ def page_sizes_compatible(sizes: list[tuple[float, float]]) -> bool:
     return dw <= PAGE_SIZE_TOLERANCE_PT and dh <= PAGE_SIZE_TOLERANCE_PT
 
 
-#: 哪些項目型別的 bbox 會被換算成 PDF 點座標去裁圖。
-#:
-#: **只有表格。** `empty_table.plan()` 是唯一會叫 `bbox_to_points()` 的地方
-#: （`pp/apply.py`）。圖用的是 MinerU 自己抽好的檔案、chart 依裁決只登記不處理、
-#: 方程式那條路（`eq-check.py`）是診斷工具不在主流程上 —— 後者是既有的已知限制，
-#: 這次沒有改變它。
-CROPPED_TYPES = frozenset({"table"})
+def _will_be_cropped(item: dict) -> bool:
+    """這個項目會不會真的被裁圖 —— 也就是它的 bbox 會不會被換算成 PDF 點。
+
+    **只有「需要修補的表格」會。** `empty_table.plan()` 是唯一會叫
+    `bbox_to_points()` 的地方（`pp/apply.py`），而它只對 `classify() != OK`
+    的表格算座標；判定 OK 的表連進都不會進修補名單。
+
+    圖用的是 MinerU 自己抽好的檔案、chart 依裁決只登記不處理、方程式那條路
+    （`eq-check.py`）是診斷工具不在主流程上 —— 後者是既有的已知限制，沒有改變。
+
+    ⚠ **判準因此會隨解析結果變動。** 鐵則第 8 條：重解析同一份 PDF，MinerU 對
+    表格的辨識不可重現，今天判 OK 的表明天可能變成空殼。那不是規則不穩 ——
+    它忠實回答「**現在這份 bundle** 需不需要裁圖」，而 preflight 與 A-14 每次都
+    拿當下的 `content_list.json` 重算，所以不會過期。
+    """
+    if item.get("type") != "table":
+        return False
+    return empty_table.classify(item) is not empty_table.TableClass.OK
 
 
 def reference_page_size(sizes: list[tuple[float, float]]) -> tuple[float, float]:
@@ -87,7 +100,7 @@ def cropping_pages_mismatch(
     """
     bad: list[int] = []
     for item in items:
-        if item.get("type") not in CROPPED_TYPES:
+        if not _will_be_cropped(item):
             continue
         page = item.get("page_idx")
         if not isinstance(page, int) or not 0 <= page < len(sizes):
