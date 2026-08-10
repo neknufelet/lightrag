@@ -144,30 +144,65 @@ def save(root: Path, ws: str, rec: dict) -> Path:
     return p
 
 
-def cmd_set(a: argparse.Namespace) -> int:
-    if a.gate not in GATES:
-        sys.exit(f"ledger: 未知的閘門 {a.gate!r}。允許的是：\n  " + "\n  ".join(GATES))
-    if a.state not in STATES:
-        sys.exit(f"ledger: state 只能是 {'/'.join(STATES)}")
-    # 「驗不了」沒有理由就跟「沒檢查」無法區分 —— 那是三態要防的事，直接拒收。
-    if a.state == "unverifiable" and not (a.note or "").strip():
-        sys.exit("ledger: unverifiable 必須附 --note（當時為什麼驗不了、證據是什麼）。"
-                 "沒有理由的『驗不了』跟沒檢查在表上長得一樣。")
+def record(
+    root: Path,
+    workspace: str,
+    doc: str,
+    gate: str,
+    state: str,
+    *,
+    note: str | None = None,
+    value: float | None = None,
+    threshold: float | None = None,
+) -> tuple[str, dict, dict | None]:
+    """寫一格判定。回 `(解析後的文件名, 新的那一格, 原本那一格或 None)`。
 
-    doc = resolve_doc(a.root, a.workspace, a.doc)
-    rec = load(a.root, a.workspace, doc)
-    entry: dict = {"state": a.state}
-    if a.value is not None:
-        entry["value"] = a.value
-    if a.threshold is not None:
-        entry["threshold"] = a.threshold
-    if (a.note or "").strip():
-        entry["note"] = a.note.strip()
+    **判準只有這一支。** CLI（`cmd_set`）與 intake 的自動寫入都走它 ——
+    直接呼叫 `load`／`save` 會繞過下面三道守衛，而繞過的症狀是「表上多出一個
+    沒人認得的閘門」或「一堆沒有理由的驗不了」：兩者都不報錯，只會讓這張表
+    慢慢失去意義。
+
+    丟 `ValueError` 而不是 `sys.exit`：這一支現在有非 CLI 的呼叫端，
+    直接結束行程會把 intake 的 worker 一起帶走。
+    """
+    if gate not in GATES:
+        raise ValueError(f"未知的閘門 {gate!r}。允許的是：" + "、".join(GATES))
+    if state not in STATES:
+        raise ValueError(f"state 只能是 {'/'.join(STATES)}")
+    # 「驗不了」沒有理由就跟「沒檢查」無法區分 —— 那是三態要防的事，直接拒收。
+    if state == "unverifiable" and not (note or "").strip():
+        raise ValueError("unverifiable 必須附理由（當時為什麼驗不了、證據是什麼）。"
+                         "沒有理由的『驗不了』跟沒檢查在表上長得一樣。")
+
+    # ⚠ **關鍵字解析留在 CLI 層。** `resolve_doc()` 是給人打關鍵字用的便利功能，
+    # 而且找不到時直接 `sys.exit` —— 那在 intake 的 worker 裡會把整個行程帶走。
+    # 程式化的呼叫端手上本來就有精確檔名，不需要猜。
+    resolved = doc
+    rec = load(root, workspace, resolved)
+    entry: dict = {"state": state}
+    if value is not None:
+        entry["value"] = value
+    if threshold is not None:
+        entry["threshold"] = threshold
+    if (note or "").strip():
+        entry["note"] = (note or "").strip()
     entry["at"] = now()
 
-    old = rec["gates"].get(a.gate)
-    rec["gates"][a.gate] = entry
-    p = save(a.root, a.workspace, rec)
+    old = rec["gates"].get(gate)
+    rec["gates"][gate] = entry
+    save(root, workspace, rec)
+    return resolved, entry, old
+
+
+def cmd_set(a: argparse.Namespace) -> int:
+    try:
+        doc, entry, old = record(a.root, a.workspace,
+                                 resolve_doc(a.root, a.workspace, a.doc),
+                                 a.gate, a.state,
+                                 note=a.note, value=a.value, threshold=a.threshold)
+    except ValueError as exc:
+        sys.exit(f"ledger: {exc}")
+    p = ledger_dir(a.root, a.workspace) / f"{doc}.json"
     was = f"（原本 {old['state']}）" if old else ""
     print(f"{doc}　{a.gate} = {a.state}{was}")
     if a.value is not None:
