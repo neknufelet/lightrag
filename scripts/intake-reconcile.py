@@ -84,7 +84,7 @@ def main() -> int:
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    environment = load_env()
+    environment = load_env(REPO)
     workspace = args.workspace or environment.get("WORKSPACE") or "acoustics_v2"
     paths = DataPaths(configured_data_root(environment))
     store = JobStore(paths)
