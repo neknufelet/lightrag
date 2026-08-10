@@ -1,8 +1,36 @@
 # LightRAG 收件匣（Zotero 外掛）
 
 在 Zotero 裡選文獻 → 右鍵「送進 lightrag 收件匣」→ 打上標籤。
+之後它**自己回頭確認**真的進了知識庫，再把標籤換掉。
 
 **取代的是「自己拖檔案 + 自己打標」這兩個手動動作**，不多做別的判斷。
+
+## 兩個標籤
+
+```
+_toRaged   送出去了，還在路上   ← 這是你的待辦清單
+_RAGED     伺服器說它進去了
+```
+
+送進收件匣**不等於**進了知識庫：中間還要解析、過規格、抽取，而且可能被擋下來
+等人看。只打一個標的話，卡住的那些會安靜地混在「已入庫」裡面 ——
+而知識庫少一篇文獻，是查詢的時候才會發現的那種錯。
+
+⚠ **壞掉的不打標籤**，只在對帳的視窗裡列出來。
+
+## 對帳什麼時候跑
+
+```
+Zotero 開起來 30 秒後   自己跑一次
+之後                    每 10 分鐘一次
+想現在知道              工具 → 更新 lightrag 入庫狀態
+```
+
+**你什麼都不用做，關掉 Zotero 也漏不掉** —— 判斷依據是伺服器現在的狀態，
+不是「有沒有收到通知」。關兩星期再打開，一樣會對上。
+
+自動跑的時候**只有真的有東西入庫才出聲**；問不到伺服器（例如筆電不在內網）
+安靜跳過，不然每 10 分鐘彈一次沒人受得了。手動叫的時候一律回報。
 
 ## 裝法
 
@@ -30,12 +58,21 @@ Zotero 比對這個值，比執行中的版本小就**直接拒裝**，而且訊
 | 鍵 | 預設 | 是什麼 |
 |---|---|---|
 | `extensions.zotero.lightrag.server` | `http://100.87.88.7:9710` | 審核台的網址（Tailscale 內網） |
-| `extensions.zotero.lightrag.tag` | `_toRaged` | 送成功之後打的標籤 |
+| `extensions.zotero.lightrag.tag` | `_toRaged` | 送出成功之後打的標籤 |
+| `extensions.zotero.lightrag.doneTag` | `_RAGED` | 確認進知識庫之後換成的標籤 |
+| `extensions.zotero.lightrag.intervalMinutes` | `10` | 自動對帳的間隔 |
 
-## 標籤的意思是「送出去了」，不是「已經進知識庫」
+## 檔名記在「其他」欄位
 
-送進收件匣之後還要解析、過規格、抽取，而且**可能被擋下來等你看**。
-Zotero 這邊看不出來 —— 要對帳的話，審核台上「失敗／等你看」那兩格就是差集。
+```
+lightrag: 2026 - Nonlinear Dynamics and Vibration Suppression ....pdf
+```
+
+對帳靠它。**記的是伺服器實際存成的名字，不是我們算的** —— 同名時它會加序號。
+⚠ 撈不到名字時**不會拿算出來的頂替**：伺服器是用內容雜湊比對的，它認得的那份
+可能叫別的名字，頂替一個猜的名字會讓之後對帳對到別份文件上。
+
+⚠ 這一欄**只動自己那一行**，Better BibTeX 的 `Citation Key:` 之類的不會被洗掉。
 
 ## 一次送很多份會怎樣
 
@@ -54,20 +91,25 @@ Zotero 這邊看不出來 —— 要對帳的話，審核台上「失敗／等�
 ## 驗過什麼、沒驗什麼
 
 ```
-✅ 檔名怎麼組出來的        node --test zotero-plugin/tests/*.test.js（10 條）
+✅ 送出這條路（實跑）      2026-08-10 PO 按下去，10 MB 的 PDF 進了收件匣
+✅ 檔名怎麼組出來的        node --test zotero-plugin/tests/*.test.js
+✅ 對帳怎麼判、檔名記在哪  同上
 ✅ 上傳端點的行為          tests/test_intake.py 那一族（伺服器側）
-❌ 外掛本身                沒驗 —— 這裡沒有 Zotero 跑得起來
+❌ 對帳這條路（實跑）      **沒驗** —— 沒等到有文件真的走完
 ```
 
-⚠ **第一次按下去很可能要修一兩個地方**（API 名稱、選單位置、fetch 的行為）。
-出事先看 Zotero 的偵錯輸出：說明 → 偵錯輸出記錄 → 檢視輸出，搜 `lightrag-inbox`。
+⚠ 出事先看 Zotero 的偵錯輸出：說明 → 偵錯輸出記錄 → 檢視輸出，搜 `lightrag-inbox`。
+2026-08-10 裝不上那次猜了四輪都沒中，開 debug 一行就講完了
+（`applications.zotero.update_url not provided`）。**先開 debug。**
 
 ## 檔案
 
 ```
-manifest.json               外掛身分與相容版本
-bootstrap.js                生命週期、選單、送出流程
-lib/filename.js             檔名怎麼組（純函式，唯一測得到的部分）
+manifest.json               外掛身分與相容版本（update_url 是必填）
+update.json                 Zotero 檢查更新時抓的清單（放 repo，公開網址）
+bootstrap.js                生命週期、選單、送出、對帳
+lib/filename.js             檔名怎麼組（純函式）
+lib/reconcile.js            檔名記在哪、拿狀態怎麼判（純函式）
 locale/en-US/*.ftl          選單標籤（Zotero 8 起只能走語言檔）
-tests/filename.test.js      node 測試
+tests/*.test.js             node 測試
 ```

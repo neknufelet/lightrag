@@ -3,3 +3,6 @@
 # 所以放中文等於「不管介面語言是什麼都顯示中文」。這是自己用的工具。
 lightrag-inbox-send =
     .label = 送進 lightrag 收件匣
+
+lightrag-inbox-reconcile =
+    .label = 更新 lightrag 入庫狀態
