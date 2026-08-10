@@ -29,16 +29,28 @@ echo "== python3 tests/test_gates.py =="
 gates_rc=0
 python3 tests/test_gates.py || gates_rc=$?
 
-if [ "$pytest_rc" -ne 0 ] || [ "$gates_rc" -ne 0 ]; then
-  echo "測試失敗：pytest rc=$pytest_rc，test_gates.py rc=$gates_rc" >&2
+# Zotero 外掛的檔名那支是 JavaScript，只有 node 跑得動。
+# dker 上沒有 node —— 同樣走「驗不了 ≠ 失敗」那條路，不要讓它變成紅燈。
+node_rc=0
+node_unavailable=0
+if ! command -v node >/dev/null 2>&1; then
+  echo "驗不了：這台沒有 node（zotero-plugin 的檔名測試沒跑）。" >&2
+  node_unavailable=1
+else
+  echo "== node --test zotero-plugin/tests =="
+  node --test zotero-plugin/tests/*.test.js || node_rc=$?
+fi
+
+if [ "$pytest_rc" -ne 0 ] || [ "$gates_rc" -ne 0 ] || [ "$node_rc" -ne 0 ]; then
+  echo "測試失敗：pytest rc=$pytest_rc，test_gates.py rc=$gates_rc，node rc=$node_rc" >&2
   exit 1
 fi
 
-if [ "$pytest_unavailable" -eq 1 ]; then
-  # 回 3 而不是 0：這台只驗了一半。回 0 會讓「一半沒跑」看起來像「全部通過」，
+if [ "$pytest_unavailable" -eq 1 ] || [ "$node_unavailable" -eq 1 ]; then
+  # 回 3 而不是 0：這台只驗了一部分。回 0 會讓「一部分沒跑」看起來像「全部通過」，
   # 而那正是本專案反覆踩到的形狀。
-  echo "test_gates.py 通過，但 pytest 那半驗不了（本機沒裝）。" >&2
+  echo "跑得動的都通過了，但這台驗不了全部（pytest 缺=$pytest_unavailable，node 缺=$node_unavailable）。" >&2
   exit 3
 fi
 
-echo "兩個測試入口全部通過。"
+echo "三個測試入口全部通過。"

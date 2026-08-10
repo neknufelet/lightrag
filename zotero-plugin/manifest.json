@@ -1,0 +1,14 @@
+{
+  "manifest_version": 2,
+  "name": "LightRAG 收件匣",
+  "version": "0.1.0",
+  "description": "在 Zotero 裡選文獻，右鍵一次送進 lightrag 收件匣並打上標籤。",
+  "homepage_url": "https://github.com/neknufelet/lightrag",
+  "applications": {
+    "zotero": {
+      "id": "lightrag-inbox@neknufelet",
+      "strict_min_version": "8.0",
+      "strict_max_version": "9.*"
+    }
+  }
+}

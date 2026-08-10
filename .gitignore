@@ -17,3 +17,6 @@ inputs/
 *.log
 .DS_Store
 __pycache__/
+
+# Zotero 外掛的打包產物（make-xpi.sh 隨時重建得出來）
+zotero-plugin/*.xpi
