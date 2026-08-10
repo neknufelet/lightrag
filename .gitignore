@@ -18,5 +18,5 @@ inputs/
 .DS_Store
 __pycache__/
 
-# Zotero 外掛的打包產物（make-xpi.sh 隨時重建得出來）
-zotero-plugin/*.xpi
+# Zotero 外掛的 .xpi **要進版控**：`update.json` 的 update_link 指著它，
+# 那是 Zotero 檢查更新時會去抓的網址。忽略掉的話那個連結是死的。
