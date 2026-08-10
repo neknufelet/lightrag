@@ -86,6 +86,11 @@ class FakeRunner:
         self.calls.append("wait")
         return OperationResult(True, "fake indexed")
 
+    def restore_point(self) -> OperationResult:
+        # 按下「全部開始」先建還原點，建好才拆解（PO 2026-08-10）。
+        self.calls.append("backup")
+        return OperationResult(True, "fake backup")
+
     def verify_batch(self, jobs, known_filenames) -> dict[str, OperationResult]:
         # 整批一次 —— 逐份跑實測 20 秒／份，86 份的尾巴約 28 分鐘。
         self.calls.append("verify")
@@ -275,7 +280,7 @@ def test_parse_review_keeps_inputs_empty_and_admit_order(tmp_path: Path) -> None
         # `verify`（契約檢查）是獨立的一步，不再埋在 `wait` 裡面 ——
         # 它要等整批都不在抽取了才跑，理由見
         # `test_the_contract_check_waits_until_the_whole_batch_stopped_extracting`。
-        assert runner.calls == ["parse", "plan", "apply", "scan", "wait", "verify"]
+        assert runner.calls == ["backup", "parse", "plan", "apply", "scan", "wait", "verify"]
         assert list(paths.inputs_dir("test").glob("*.pdf")) == []
         state_path = paths.intake_job_dir(job.job_id) / "job.json"
         saved = json.loads(state_path.read_text(encoding="utf-8"))
@@ -1038,7 +1043,7 @@ def test_a_clean_plan_admits_itself(tmp_path: Path) -> None:
         # `verify`（契約檢查）是獨立的一步，不再埋在 `wait` 裡面 ——
         # 它要等整批都不在抽取了才跑，理由見
         # `test_the_contract_check_waits_until_the_whole_batch_stopped_extracting`。
-        assert runner.calls == ["parse", "plan", "apply", "scan", "wait", "verify"]
+        assert runner.calls == ["backup", "parse", "plan", "apply", "scan", "wait", "verify"]
     finally:
         app.stop()
 
@@ -1064,7 +1069,7 @@ def test_a_novel_plan_still_waits_for_a_human(tmp_path: Path) -> None:
         planned = _wait_for(app, job.job_id, "planned")
         assert planned["decision"] == "novel"
         time.sleep(0.2)
-        assert runner.calls == ["parse", "plan"], "novel 的計畫被自動放行了"
+        assert runner.calls == ["backup", "parse", "plan"], "novel 的計畫被自動放行了"
         assert app._jobs[job.job_id].status == "planned"
     finally:
         app.stop()

@@ -665,6 +665,8 @@ class IntakeRunner(Protocol):
     def verify_batch(self, jobs: Sequence[Job],
                      known_filenames: set[str]) -> dict[str, OperationResult]: ...
 
+    def restore_point(self) -> OperationResult: ...
+
 
 def _as_mapping(value: object) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
@@ -1088,6 +1090,23 @@ class SubprocessRunner:
                 verdicts[job.job_id] = OperationResult(True, "契約檢查通過")
         return verdicts
 
+    def restore_point(self) -> OperationResult:
+        """建立這一批的還原點：跑冷備份。**在任何解析發生之前。**
+
+        PO 怕的是圖譜（2026-08-10）：實體與關係一旦合併進去，放錯的檔案很難只
+        拿掉那一份。LightRAG 的刪除其實會**重建**還有其他來源的實體
+        （`lightrag.py:4734` 的 delete-outright／rebuild 分支），但那條路沒有人
+        實測過；還原點是確定可行的那條 —— 停掉、換回目錄、啟動。
+
+        **不帶 `--force`。** 腳本比的是「現在的資料庫」對「上次備份成功時的」，
+        沒變就跳過而且完全不停機 —— 而那時上一份備份本來就已經是這一批的還原點。
+        加 `--force` 只會製造沒有意義的停機。
+
+        ⚠ 這一步會停 LightRAG 約 92 秒（2026-08-10 實測，11G）。
+        """
+        command = ["bash", str(self.repo / "scripts" / "backup-cold.sh")]
+        return self._run(command, self.command_timeout)
+
     # compat-check.py:550 的退出碼語義：2 = hard 失敗、5 = soft 失敗、0 = 全過。
     # soft 的定義就是「值得知道但不該擋」，把它當成流程失敗會讓
     # 「文件其實已經索引成功」被報成 failed。實際咬過：第一份文件進來時
@@ -1205,6 +1224,8 @@ class IntakeApp:
         self.client = LightRAGClient(self.environment)
         # 與 LightRAG 對帳的結果快取；state() 會被輪詢，每次都打 API 太吵。
         self._index_cache: tuple[float, dict[str, str], str | None] | None = None
+        # 這一批的還原點狀態，給畫面看。None = 這次開機還沒建過。
+        self._restore_point: dict[str, object] | None = None
         self._ensure_directories()
         self._recover_active_jobs()
 
@@ -1521,9 +1542,47 @@ class IntakeApp:
                 job.stage_started_at = None          # 排進佇列，還沒輪到
                 self._jobs[job.job_id] = job
                 self.store.save(job)
-                self._parse_queue.put(("parse", job.job_id))
                 jobs.append(job)
+        # **先建還原點，建好才開始拆解。** 不直接排隊 —— 見 `_restore_then_parse`。
+        threading.Thread(
+            target=self._restore_then_parse, args=([job.job_id for job in jobs],),
+            name="intake-restore-point", daemon=True).start()
         return jobs
+
+    def _restore_then_parse(self, job_ids: list[str]) -> None:
+        """建這一批的還原點，成功才把它們排進解析佇列。
+
+        **為什麼在解析之前。** PO 怕的是圖譜（2026-08-10）：實體與關係一旦合併
+        進去，放錯的檔案很難只拿掉那一份。還原點落在解析之前，這一批才是真的
+        「什麼都還沒發生」—— 連放錯的那份 PDF 都還沒被解析過。
+
+        **建不起來就整批不開始。** 這個備份存在的唯一理由就是「出事要能回去」，
+        建不起來還照抽，等於明知沒有安全網還往前走。而備份失敗本身就是該停下來
+        看的事。
+
+        ⚠ 這一步會停 LightRAG 約 92 秒（2026-08-10 實測，11G）。畫面在這段期間
+        要說得出「還原點建立中」，否則使用者看到的是「按了沒反應」，而查詢也
+        剛好在那段時間失敗。
+        """
+        with self._lock:
+            self._restore_point = {"state": "建立中", "at": _now_iso(), "note": None}
+        try:
+            result = self.runner.restore_point()
+        except Exception as exc:  # noqa: BLE001
+            result = OperationResult(False, "", f"{type(exc).__name__}: {exc}")
+        if not result.ok:
+            message = f"還原點建立失敗，這一批沒有開始：{result.error or '未知原因'}"
+            with self._lock:
+                self._restore_point = {"state": "失敗", "at": _now_iso(), "note": message}
+            LOGGER.error("%s", message)
+            for job_id in job_ids:
+                self._mark_failed(job_id, message)
+            return
+        with self._lock:
+            self._restore_point = {"state": "完成", "at": _now_iso(), "note": None}
+        LOGGER.info("還原點建立完成，開始拆解 %d 份", len(job_ids))
+        for job_id in job_ids:
+            self._parse_queue.put(("parse", job_id))
 
     def submit_admit(self, job_id: str, *, acknowledged: Sequence[str] | None = None) -> Job:
         """放行。`acknowledged` 是**人在畫面上看到並確認過的那幾條理由**。
@@ -2720,6 +2779,7 @@ class IntakeApp:
             "foreign": foreign_rows,
             "foreign_error": foreign_error,
             "staging_warning": self.staging_warning(),
+            "restore_point": self._restore_point,
         }
 
     def _index_documents(self) -> tuple[dict[str, str], str | None]:
@@ -3687,6 +3747,16 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     staging = state.get("staging_warning")
     if isinstance(staging, str) and staging:
         warn_html += f"<div class='banner'>⚠ {_esc(staging)}</div>"
+    # 還原點：**建立中那 92 秒一定要說出來**，否則使用者看到的是「按了沒反應」，
+    # 而查詢也剛好在那段時間失敗（冷備份會停 LightRAG）。
+    # 完成之後不再顯示 —— 常態不佔畫面，同暫存區橫幅的理由。
+    rp = state.get("restore_point")
+    if isinstance(rp, dict) and rp.get("state") in {"建立中", "失敗"}:
+        if rp.get("state") == "建立中":
+            warn_html += ("<div class='banner'>⏳ 還原點建立中"
+                          "（會暫停索引服務約一分半，建好才開始拆解）</div>")
+        else:
+            warn_html += f"<div class='banner'>⚠ {_esc(str(rp.get('note') or '還原點建立失敗'))}</div>"
 
     # daily-check 的紅綠燈。**這是本專案唯一的警報管道**（2026-08-08 裁決：
     # 「只要在 9710 有警告就好」）。ok 不顯示 —— 常態不該佔畫面，否則真的紅燈
