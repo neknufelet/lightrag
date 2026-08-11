@@ -93,6 +93,58 @@ def test_tables_needing_a_look_are_recorded_as_unverifiable(tmp_path: Path) -> N
         app.stop()
 
 
+def test_a_plan_with_no_tables_section_must_not_be_recorded_as_pass(tmp_path: Path) -> None:
+    """**假通過的洞**（2026-08-11 找到，workflow 指出、我讀碼實測確認）。
+
+    計畫沒有產出 `tables` 那一段時（例如計畫本身半路失敗），
+    `_as_mapping(None)` 回 `{}` → `total=None`、`repair=[]`、`review=[]`
+    → 走 else → 寫下 `pp.tables = pass`，備註「共 **None** 張，沒有待修或待查的」。
+
+    實測那個分支：
+
+        _as_mapping(None) = {}
+        total = None　repair = []　review = []
+        → 走哪個分支: pass
+
+    dker 上 259 個 job 裡有 4 個是這個形狀（計畫失敗但文件已入庫）。
+    它們現在還沒有體檢表紀錄，**但照原本的程式回填就會當場產生 4 個假通過**。
+
+    諷刺的是同一個函式的說明往上 12 行自己寫著「沒跑過的閘門填 `pass`
+    就是說謊」—— 規則寫對了，程式沒跟上。
+
+    「空的表格清單」與「根本沒有表格這一段」是兩件事：前者是真的沒有待辦，
+    後者是**不知道**。三態設計存在的理由就是不讓後者偽裝成前者。
+    """
+    plan = _plan_payload("paper.pdf")
+    del plan["tables"]
+    app, job_id = _run_one(tmp_path, PlanEvaluation(True, (), (), plan))
+    try:
+        _wait_for(app, job_id, "indexed")
+        entry = ledger.load(app.paths.root, app.workspace, "paper.pdf")["gates"]["pp.tables"]
+        assert entry["state"] != "pass", f"沒有表格資料卻寫了 pass：{entry}"
+        assert entry["state"] == "unverifiable", entry
+        assert entry["note"], "驗不了沒有理由，跟沒檢查在表上長得一樣"
+        assert "None" not in entry["note"], f"備註把 None 當數字印出來了：{entry['note']}"
+    finally:
+        app.stop()
+
+
+def test_an_empty_table_list_is_still_a_pass(tmp_path: Path) -> None:
+    """控制組：真的**有**表格那一段而且是空的 —— 那是「查過了，沒有待辦」。
+
+    修上面那條的時候最容易把這條一起改壞，變成所有文件都寫「驗不了」。
+    """
+    app, job_id = _run_one(tmp_path, PlanEvaluation(
+        True, (), (), _plan_payload("paper.pdf",
+                                    tables={"total": 0, "repair": [], "review": []})))
+    try:
+        _wait_for(app, job_id, "indexed")
+        entry = ledger.load(app.paths.root, app.workspace, "paper.pdf")["gates"]["pp.tables"]
+        assert entry["state"] == "pass", entry
+    finally:
+        app.stop()
+
+
 def test_writing_the_ledger_never_kills_the_worker(tmp_path: Path) -> None:
     """**體檢表寫不進去不得影響進料。**
 

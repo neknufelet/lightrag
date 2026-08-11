@@ -1873,7 +1873,21 @@ class IntakeApp:
                               "pp.preflight", "fail",
                               note="；".join(evaluation.reasons) or "preflight 擋下")
 
-            tables = _as_mapping(evaluation.plan.get("tables"))
+            # **「空的清單」與「根本沒有這一段」是兩件事。**（2026-08-11 修）
+            # 計畫半路失敗時 plan 裡沒有 `tables` 鍵，而 `_as_mapping(None)` 回 `{}`
+            # —— 於是 total=None、repair=[]、review=[]，一路走到下面的 else，
+            # 寫下 `pp.tables = pass`、備註「共 None 張，沒有待修或待查的」。
+            # 上面那段說明自己寫著「沒跑過的閘門填 pass 就是說謊」，程式沒跟上。
+            # dker 上 259 個 job 裡有 4 個是這個形狀，回填時會當場產生 4 個假通過。
+            tables_section = evaluation.plan.get("tables")
+            if not isinstance(tables_section, dict):
+                ledger.record(
+                    self.paths.root, self.workspace, job.filename, "pp.tables",
+                    "unverifiable",
+                    note="計畫沒有產出表格那一段（多半是計畫半路失敗）"
+                         " —— 有沒有待修的表**不知道**，不能當成沒有")
+                return
+            tables = tables_section
             total = tables.get("total")
             repair = _as_list(tables.get("repair"))
             review = _as_list(tables.get("review"))
