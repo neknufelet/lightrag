@@ -678,6 +678,7 @@ def _as_list(value: object) -> list[object]:
 
 def ledger_entries_from_plan(
     *, accepted: bool, reasons: Sequence[str], plan: Mapping[str, object],
+    admitted: bool = False,
 ) -> list[tuple[str, str, str]]:
     """計畫的判定 →〔閘門, 三態, 理由〕。**純函式，不碰磁碟。**
 
@@ -685,14 +686,24 @@ def ledger_entries_from_plan(
     路 —— 這個專案已經被「兩條路」咬過（十二道閘門的 V1／V2 在兩個地方各寫
     一份，其中一份沒人叫）。
 
+    `admitted` 是**回填才會用到的資訊**：計畫那一刻文件還沒被放行，所以進料
+    這條路一律傳預設值。回填時才知道「當初被擋、後來人看過放行了」。
+
     只回 intake 手上真的有的兩格。其餘六格不回 —— **沒跑過的閘門填 `pass`
     就是說謊**，而 `ledger` 的三態設計正是為了不讓「不知道」偽裝成「查過了」。
     """
     out: list[tuple[str, str, str]] = []
+    why = "；".join(reasons) or "preflight 擋下"
     if accepted:
         out.append(("pp.preflight", "pass", "機械計畫判定 clean"))
+    elif admitted:
+        # **機器攔了、人看過放行了。** 記 `fail` 的話，表在說「不得進下一段」
+        # 而它早就進去了；記 `pass` 的話，等於宣稱機器沒攔過。兩邊都要寫進理由。
+        # ⚠ 三態沒有「人工放行」這一格，`unverifiable` 只是最不會說謊的那個。
+        out.append(("pp.preflight", "unverifiable",
+                    f"機械判定擋下：{why}　—— 人工看過後放行，文件已進知識庫"))
     else:
-        out.append(("pp.preflight", "fail", "；".join(reasons) or "preflight 擋下"))
+        out.append(("pp.preflight", "fail", why))
 
     # **「空的清單」與「根本沒有這一段」是兩件事。**（2026-08-11 修）
     # 計畫半路失敗時 plan 裡沒有 `tables` 鍵，而 `_as_mapping(None)` 回 `{}`

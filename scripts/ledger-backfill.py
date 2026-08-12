@@ -110,7 +110,10 @@ def main() -> int:
                 for gate, state, note in intake.ledger_entries_from_plan(
                         accepted=job.get("decision") == "clean",
                         reasons=[str(r) for r in (job.get("reasons") or [])],
-                        plan=plan):
+                        plan=plan,
+                        # 被擋下**而且已經進知識庫** ⇒ 人看過放行了。
+                        # 計畫那一刻不知道這件事，只有回填才知道。
+                        admitted=job.get("status") == "indexed"):
                     planned.append((doc, gate, state, note))
         # `pp.equations` 當初就是用這個掃描驗的（見既有體檢表的備註）：
         # 「accent 類 token 站在 frac 首位或行內除法算子位置、且非 \partial」。

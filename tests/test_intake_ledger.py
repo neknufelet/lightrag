@@ -169,6 +169,44 @@ def test_the_mapping_reports_why_preflight_blocked_it() -> None:
     assert "未知型別" in note
 
 
+def test_a_document_the_machine_blocked_but_a_human_admitted() -> None:
+    """**機器攔了、人看過放行了** —— 那既不是 `pass` 也不是 `fail`。
+
+    2026-08-12 回填時冒出來的：6 份文件在表上是 `pp.preflight = fail`，
+    但它們**早就在知識庫裡**。因為守門攔下之後會退回「等你看」，而 PO 逐份看過
+    才按放行。實際理由全是良性的：
+
+        四份  同一份 PDF 裡頁面尺寸差幾點（掃描造成，或有一頁是橫的）
+        兩份  參考文獻消音比例 31.6%／49.0%（綜述論文本來就佔三到五成）
+
+    記 `fail` 的問題：規則寫著「fail 的文件不得進下一段」，而它們已經進去了 ——
+    表在說一件跟事實不符的事。
+    記 `pass` 的問題：那等於宣稱機器沒攔過，而攔下的理由是真的判斷依據。
+
+    ⇒ 記 `unverifiable` ＋ **兩邊都寫進理由**：機器攔的原因、以及人放行了。
+    ⚠ 這不是三態的完美對應（那份文件其實「被人驗過」），但三態沒有「人工放行」
+    這一格，而 `unverifiable` 至少不會在總表上假裝乾淨。
+    """
+    got = dict((g, (s, n)) for g, s, n in intake.ledger_entries_from_plan(
+        accepted=False, reasons=("頁面尺寸不一致",),
+        plan=_plan_payload("paper.pdf"), admitted=True))
+    state, note = got["pp.preflight"]
+    assert state == "unverifiable", got
+    assert "頁面尺寸不一致" in note, note
+    assert "放行" in note, f"沒說是人放行的，讀者會以為機器自己過了：{note}"
+
+
+def test_a_blocked_document_nobody_admitted_is_still_a_fail() -> None:
+    """控制組：還停在「等你看」的，就是 `fail`。
+
+    改上面那條時最容易把這條一起改壞 —— 那樣所有被擋下的文件都會變成
+    「驗不了」，而「還沒有人看」與「人看過放行了」是兩件完全不同的事。
+    """
+    got = dict((g, (s, n)) for g, s, n in intake.ledger_entries_from_plan(
+        accepted=False, reasons=("頁面尺寸不一致",), plan=_plan_payload("paper.pdf")))
+    assert got["pp.preflight"][0] == "fail"
+
+
 def test_the_mapping_never_calls_a_missing_tables_section_a_pass() -> None:
     """**假通過那個洞的純函式版。** 計畫沒產出表格那一段 ⇒ 驗不了，不是通過。"""
     plan = _plan_payload("paper.pdf")
