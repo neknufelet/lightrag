@@ -183,38 +183,72 @@ def frac_sides(s: str, k: int) -> tuple[str, str] | None:
             b[1:-1] if b.startswith("{") else b)
 
 
-def side_tokens(side: str) -> list[str]:
-    r"""這一側**站在算子位置上**、而且不是 `\partial` 的候選 token（已正規化）。
+def side_operators(side: str) -> list[tuple[str, bool]]:
+    r"""這一側站在算子位置上的候選 token，以及**它後面有沒有被微分量**。
 
-    「算子位置」＝式子開頭，或前一個算子單元吃掉被微分量之後的下一格。
-    連續兩個誤讀算子（`∂x_i∂x_j`）要都抓得到，所以吃掉被微分量後繼續。
+    「後面有沒有東西」是 2026-08-12 補的，用來擋這個誤報（`N Flow Acoustics` 第 149 項）：
+
+        f̃ᶠ = (ρ̄ f̄) / ρ̄      「filtered part of f」——密度加權平均的定義式
+
+    上下同形成立（兩側都是 ρ̄），但那是真的平均密度，改掉就是毀資料。
+    分辨的關鍵是**真導數的兩側都有被微分量**（`∂p` 對 `∂n`），
+    而這裡分母只有孤零零一個 ρ̄。
+
+    ⚠ 上標算數：`∂²/∂t²` 的分子是 `ô^2`，後面接的是次方不是被微分量，
+    但它仍然是算子（`canon` 的說明也寫著上標要剝）。
     """
-    out: list[str] = []
+    out: list[tuple[str, bool]] = []
     i = 0
     while i < len(side):
         u, ni = read_unit(side, i)
         if not u:
             break
-        i = skip_scripts(side, ni)
+        after = skip_scripts(side, ni)
+        had_script = after != ni
+        i = after
+        token: str | None = None
         if norm(u) == r"\partial":
             pass                        # 真算子：吃掉被微分量，下一格仍是算子位
         elif CAND.match(u):
             # **帶下標的 accent 不是算子**：算子不帶下標，`ρ̃_ss` 那種是具名的量。
-            # 下標在 skip_scripts 之前判斷，因為那一步會把它吃掉。
             j = ni
             while j < len(side) and side[j].isspace():
                 j += 1
             if j < len(side) and side[j] == "_":
                 break
-            c = canon(u)
-            if c is None:
+            token = canon(u)
+            if token is None:
                 break                   # 蓋在運算式上（系綜平均）→ 不是這一族
-            out.append(c)
         else:
             break                       # 其餘（一般變數、\rho、\left…）不是這一族
-        _, i2 = read_unit(side, i)      # 被微分量
+        operand, i2 = read_unit(side, i)
         i = skip_scripts(side, i2)
+        if token is not None:
+            out.append((token, bool(operand) or had_script))
     return out
+
+
+def hit_tokens(num: str, den: str) -> list[str]:
+    r"""兩側都站在算子位置、**而且兩側都有被微分量**的 token —— 那才是誤讀的 ∂。
+
+    這就是整支的判準。少了「兩側都有被微分量」那半，真的比值會被吃進來
+    （見 `side_operators` 的說明與 `tests/test_scan_partial.py`）。
+    """
+    def collect(side: str) -> dict[str, bool]:
+        seen: dict[str, bool] = {}
+        for tok, has_operand in side_operators(side):
+            seen[tok] = seen.get(tok, False) or has_operand
+        return seen
+
+    left, right = collect(num), collect(den)
+    return sorted(t for t in left.keys() & right.keys() if left[t] and right[t])
+
+
+# `side_tokens` 於 2026-08-12 刪除（原本在這裡）。
+# 它與 `side_operators` 是同一套剖析，只差沒回報「後面有沒有被微分量」——
+# 留著就是第二份會各自漂移的解析器。這個專案已經被「兩條路」咬過一次
+# （十二道閘門裡 V1／V2 在兩個地方各寫一份，其中一份沒人叫）。
+# 要拿舊行為就是 `[t for t, _ in side_operators(side)]`。
 
 
 def scan(root: Path) -> tuple[list[dict], list[dict]]:
@@ -237,10 +271,10 @@ def scan(root: Path) -> tuple[list[dict], list[dict]]:
                         bad.append({"doc": doc, "item": n, "field": f,
                                     "off": m.start(), "ctx": v[m.start():m.start() + 70]})
                         continue
-                    num, den = (side_tokens(s) for s in r)
                     # **判準**：同一個（正規化後的）token 同時站在分子與分母的
-                    # 算子位置上 → 導數形狀 → 疑似被讀錯的 ∂。
-                    for tok in set(num) & set(den):
+                    # 算子位置上，**而且兩側都有被微分量** → 導數形狀 → 疑似 ∂。
+                    # 後半是 2026-08-12 補的，擋掉 Favre 平均那個誤報。
+                    for tok in hit_tokens(*r):
                         hits.append({"doc": doc, "item": n, "field": f, "token": tok,
                                      "off": m.start(), "ctx": v[m.start():m.start() + 90]})
     return hits, bad
