@@ -86,6 +86,60 @@ def test_a_named_ratio_with_subscripts_is_not_a_hit() -> None:
     assert hits(r"\frac { \tilde { \rho } _ { ss } } { \tilde { \rho } _ { ff } }") == []
 
 
+# ── 斜線寫法（2026-08-12 加）────────────────────────────────────────────────
+#
+# `∂p/∂n` 不一定寫成 `\frac`，很多時候是行內的斜線。探針原本只看 `\frac`，
+# 所以這一整族**完全看不見**，而且掃描結果不會提醒你它漏了什麼。
+#
+# dker 全庫實跑找到 11 處候選，逐處看過：10 處是真的、1 處是比值。
+# 下面每一條都取自那 11 處的原文。
+
+
+def slash(latex: str) -> list[str]:
+    return sp.slash_hits(latex)
+
+
+def test_the_paper_says_partial_derivatives_out_loud() -> None:
+    r"""`O Analytical and Numerical Methods` 第 27 項，原文寫著 partial derivatives。"""
+    assert slash(r"whether the partial derivatives $\hat { o } \mathbf { q } / "
+                 r"\hat { o } \mathbf { a } _ { \mathrm { i } }$ can be evaluated") == [r"\hat{o}"]
+
+
+def test_a_bare_operator_before_the_slash_is_a_hit() -> None:
+    r"""`D = ∂/∂n`，法向導數算子 —— 分子只有算子，被微分的量在外面。
+
+    取自同一份文件第 377 項：「for the operator $\mathrm{D} = ô / ô\mathbf{n}$」。
+    """
+    assert slash(r"$\mathrm { D } = \hat { \boldsymbol { o } } / "
+                 r"\hat { o } \mathbf { n }$") == [r"\hat{o}"]
+
+
+def test_variational_stationarity_conditions_are_hits() -> None:
+    r"""`∂Φ/∂a = 0, ∂Φ/∂b = 0` —— 變分駐值條件，而且那一章就叫 Variational Principles。"""
+    got = slash(r"{ \hat { c } \Phi / \hat { c } \mathbf { a } = 0 , "
+                r"\hat { c } \Phi / \hat { c } \mathbf { b } = 0 ; }")
+    assert got == [r"\hat{c}", r"\hat{c}"], got
+
+
+def test_a_ratio_across_a_relation_is_not_a_hit() -> None:
+    r"""**這是斜線那一族唯一的誤報**（`01705_11.5 Evolution of Sawtooth Waveforms` 第 51 項）：
+
+        $1 + x / \bar{x} \approx x / \bar{x}$
+
+    x̄ 是震波形成距離，`x/x̄` 是無因次距離的比值，不是導數。
+
+    它會被誤判是因為往左找分子時**跨過了 `\approx`** —— 抓成 `x̄ ≈ x`。
+    真正的分子只有 `x`。⇒ 分子必須是「算子（＋一個被微分量）」而且**剛好到斜線為止**，
+    中間多出任何東西就不算。
+    """
+    assert slash(r"$1 + x / \bar { x } \approx x / \bar { x }$") == []
+
+
+def test_a_subscripted_ratio_written_with_a_slash_is_not_a_hit() -> None:
+    r"""控制組：`p̄/p̄_0` 是具名量的比值。帶下標的 accent 不是算子，斜線這條路也要守住。"""
+    assert slash(r"$\bar { p } / \bar { p } _ { 0 }$") == []
+
+
 def test_different_tokens_on_each_side_are_not_a_hit() -> None:
     r"""控制組：上下不同形就不是這條規則的事。
 

@@ -184,7 +184,16 @@ def frac_sides(s: str, k: int) -> tuple[str, str] | None:
 
 
 def side_operators(side: str) -> list[tuple[str, bool]]:
-    r"""這一側站在算子位置上的候選 token，以及**它後面有沒有被微分量**。
+    """站在算子位置上的候選 token（不管剖析到哪裡為止）。見 `parse_side`。"""
+    return parse_side(side)[0]
+
+
+def parse_side(side: str) -> tuple[list[tuple[str, bool]], int]:
+    r"""這一側站在算子位置上的候選 token、它後面有沒有被微分量，**以及剖析到哪裡為止**。
+
+    「剖析到哪裡」是斜線那條路要用的：行內的 `A / B` 沒有括號界定分子從哪裡開始，
+    所以要能判斷「我抓的這一段是不是剛好就是分子」。剖不完代表抓過頭了
+    —— `x̄ ≈ x` 那個誤報就是跨過 `\approx` 抓來的。
 
     「後面有沒有東西」是 2026-08-12 補的，用來擋這個誤報（`N Flow Acoustics` 第 149 項）：
 
@@ -199,13 +208,17 @@ def side_operators(side: str) -> list[tuple[str, bool]]:
     """
     out: list[tuple[str, bool]] = []
     i = 0
+    # ⚠ **`consumed` 只在整輪成功之後才前進。** 直接回傳 `i` 是錯的：
+    # 迴圈一開頭就把 `i` 推到那個單元後面，於是「因為它不是算子而中斷」的那個
+    # 單元也被算成剖析完了。`x̄ ≈ x` 那個誤報就是這樣溜過去的 —— 中斷在 `x`，
+    # 但回報的位置已經越過 `x`，看起來剛好剖析完。
+    consumed = 0
     while i < len(side):
         u, ni = read_unit(side, i)
         if not u:
             break
         after = skip_scripts(side, ni)
         had_script = after != ni
-        i = after
         token: str | None = None
         if norm(u) == r"\partial":
             pass                        # 真算子：吃掉被微分量，下一格仍是算子位
@@ -221,11 +234,55 @@ def side_operators(side: str) -> list[tuple[str, bool]]:
                 break                   # 蓋在運算式上（系綜平均）→ 不是這一族
         else:
             break                       # 其餘（一般變數、\rho、\left…）不是這一族
+        i = after
         operand, i2 = read_unit(side, i)
         i = skip_scripts(side, i2)
+        consumed = i
         if token is not None:
             out.append((token, bool(operand) or had_script))
+    return out, consumed
+
+
+# ── 行內斜線（2026-08-12 加）────────────────────────────────────────────────
+# `∂p/∂n` 不一定寫成 `\frac`，很多時候是行內的斜線。原本只看 `\frac`，於是
+# 這一整族**完全看不見**，而且掃描結果不會提醒你它漏了什麼。
+# 全庫實跑 11 處候選，逐處看過：10 處真、1 處假。
+SLASH = re.compile(r"(?:\\(?:bigg?|Bigg?)\s*)?/")
+ACC_START = re.compile(r"\\(?:" + "|".join(ACCENT) + r")\s*\{")
+
+
+def slash_sides(s: str, start: int, after: int) -> tuple[str, str] | None:
+    r"""行內斜線的分子與分母；抓不到分子就回 None。
+
+    ⚠ **分子必須剛好剖析完。** 行內斜線沒有括號界定分子從哪裡開始，只能往左找；
+    找過頭就會抓到別的式子。`$1 + x / \bar{x} \approx x / \bar{x}$` 就是這樣被
+    誤判的 —— 往左抓成 `x̄ ≈ x`，而真正的分子只有 `x`（那是比值不是導數）。
+    """
+    base = max(0, start - 90)
+    window = s[base:start]
+    for m in reversed(list(ACC_START.finditer(window))):
+        left = window[m.start():]
+        toks, used = parse_side(left)
+        if len(toks) != 1:
+            continue                    # 分子只該有一個算子
+        if left[used:].strip(" {}$"):
+            continue                    # 剖不完 ⇒ 抓過頭了，這不是它的分子
+        return left, s[after:after + 90]
+    return None
+
+
+def slash_findings(s: str) -> list[tuple[int, str]]:
+    """（斜線位置, 誤讀 token）。判準完全沿用 `hit_tokens`，只有找兩側的方式不同。"""
+    out: list[tuple[int, str]] = []
+    for m in SLASH.finditer(s):
+        sides = slash_sides(s, m.start(), m.end())
+        if sides:
+            out.extend((m.start(), tok) for tok in hit_tokens(*sides))
     return out
+
+
+def slash_hits(s: str) -> list[str]:
+    return [tok for _, tok in slash_findings(s)]
 
 
 def hit_tokens(num: str, den: str) -> list[str]:
@@ -269,20 +326,27 @@ def scan(root: Path) -> tuple[list[dict], list[dict]]:
         for n, it in enumerate(json.loads(cl.read_text())):
             for f in FIELDS:
                 v = it.get(f)
-                if not isinstance(v, str) or "frac" not in v:
+                if not isinstance(v, str):
                     continue
-                for m in FRAC.finditer(v):
-                    r = frac_sides(v, m.end())
-                    if not r:
-                        bad.append({"doc": doc, "item": n, "field": f,
-                                    "off": m.start(), "ctx": v[m.start():m.start() + 70]})
-                        continue
-                    # **判準**：同一個（正規化後的）token 同時站在分子與分母的
-                    # 算子位置上，**而且兩側都有被微分量** → 導數形狀 → 疑似 ∂。
-                    # 後半是 2026-08-12 補的，擋掉 Favre 平均那個誤報。
-                    for tok in hit_tokens(*r):
+                if "frac" in v:
+                    for m in FRAC.finditer(v):
+                        r = frac_sides(v, m.end())
+                        if not r:
+                            bad.append({"doc": doc, "item": n, "field": f,
+                                        "off": m.start(), "ctx": v[m.start():m.start() + 70]})
+                            continue
+                        # **判準**：同一個（正規化後的）token 同時站在分子與分母的
+                        # 算子位置上，**而且分母那側有被微分量** → 導數形狀 → 疑似 ∂。
+                        # 後半是 2026-08-12 補的，擋掉 Favre 平均那個誤報。
+                        for tok in hit_tokens(*r):
+                            hits.append({"doc": doc, "item": n, "field": f, "token": tok,
+                                         "off": m.start(), "ctx": v[m.start():m.start() + 90]})
+                # 行內斜線寫法。**判準完全沿用上面那個**，只有找兩側的方式不同。
+                if "/" in v:
+                    for off, tok in slash_findings(v):
                         hits.append({"doc": doc, "item": n, "field": f, "token": tok,
-                                     "off": m.start(), "ctx": v[m.start():m.start() + 90]})
+                                     "off": off, "form": "slash",
+                                     "ctx": v[max(0, off - 60):off + 60]})
     return hits, bad
 
 
