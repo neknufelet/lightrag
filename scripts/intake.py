@@ -676,6 +676,49 @@ def _as_list(value: object) -> list[object]:
     return value if isinstance(value, list) else []
 
 
+def ledger_entries_from_plan(
+    *, accepted: bool, reasons: Sequence[str], plan: Mapping[str, object],
+) -> list[tuple[str, str, str]]:
+    """計畫的判定 →〔閘門, 三態, 理由〕。**純函式，不碰磁碟。**
+
+    抽出來是因為**回填現有文件要用同一段判定**。抄一份就是再造第二條會漂移的
+    路 —— 這個專案已經被「兩條路」咬過（十二道閘門的 V1／V2 在兩個地方各寫
+    一份，其中一份沒人叫）。
+
+    只回 intake 手上真的有的兩格。其餘六格不回 —— **沒跑過的閘門填 `pass`
+    就是說謊**，而 `ledger` 的三態設計正是為了不讓「不知道」偽裝成「查過了」。
+    """
+    out: list[tuple[str, str, str]] = []
+    if accepted:
+        out.append(("pp.preflight", "pass", "機械計畫判定 clean"))
+    else:
+        out.append(("pp.preflight", "fail", "；".join(reasons) or "preflight 擋下"))
+
+    # **「空的清單」與「根本沒有這一段」是兩件事。**（2026-08-11 修）
+    # 計畫半路失敗時 plan 裡沒有 `tables` 鍵，而 `_as_mapping(None)` 回 `{}`
+    # —— 於是 total=None、repair=[]、review=[]，一路走到 else，寫下
+    # `pp.tables = pass`、備註「共 None 張，沒有待修或待查的」。
+    # 上面那段說明自己寫著「沒跑過的閘門填 pass 就是說謊」，程式沒跟上。
+    # dker 上 259 個 job 裡有 4 個是這個形狀，回填時會當場產生 4 個假通過。
+    tables_section = plan.get("tables")
+    if not isinstance(tables_section, dict):
+        out.append(("pp.tables", "unverifiable",
+                    "計畫沒有產出表格那一段（多半是計畫半路失敗）"
+                    " —— 有沒有待修的表**不知道**，不能當成沒有"))
+        return out
+
+    total = tables_section.get("total")
+    repair = _as_list(tables_section.get("repair"))
+    review = _as_list(tables_section.get("review"))
+    if repair or review:
+        out.append(("pp.tables", "unverifiable",
+                    f"共 {total} 張：{len(repair)} 張待修、{len(review)} 張待查"
+                    " —— 兩雙眼睛沒把握的轉錄不會自動寫入，要人看一眼"))
+    else:
+        out.append(("pp.tables", "pass", f"共 {total} 張，沒有待修或待查的"))
+    return out
+
+
 def _failure_reason(message: str) -> str:
     if "未知的項目型別" in message:
         tail = message.split("未知的項目型別", 1)[1].split("——", 1)[0].strip(" ：")
@@ -1861,46 +1904,16 @@ class IntakeApp:
         手動的 —— 2026-08-10 實測，知識庫 257 份而體檢表只有 20 份舊語料的紀錄。
         鐵則第 6 條：探針要在沒人問的時候會響。
 
-        只寫 intake 手上真的有的兩格。其餘六格留空 —— **沒跑過的閘門填 `pass`
-        就是說謊**，而 `ledger` 的三態設計正是為了不讓「不知道」偽裝成「查過了」。
+        **判定本身在 `ledger_entries_from_plan`**（模組層、純函式），因為回填
+        現有文件要用同一段。這裡只負責「寫進去」與「寫壞了不能擋路」。
         """
         try:
-            if evaluation.accepted:
+            for gate, state, note in ledger_entries_from_plan(
+                    accepted=evaluation.accepted,
+                    reasons=evaluation.reasons,
+                    plan=evaluation.plan):
                 ledger.record(self.paths.root, self.workspace, job.filename,
-                              "pp.preflight", "pass", note="機械計畫判定 clean")
-            else:
-                ledger.record(self.paths.root, self.workspace, job.filename,
-                              "pp.preflight", "fail",
-                              note="；".join(evaluation.reasons) or "preflight 擋下")
-
-            # **「空的清單」與「根本沒有這一段」是兩件事。**（2026-08-11 修）
-            # 計畫半路失敗時 plan 裡沒有 `tables` 鍵，而 `_as_mapping(None)` 回 `{}`
-            # —— 於是 total=None、repair=[]、review=[]，一路走到下面的 else，
-            # 寫下 `pp.tables = pass`、備註「共 None 張，沒有待修或待查的」。
-            # 上面那段說明自己寫著「沒跑過的閘門填 pass 就是說謊」，程式沒跟上。
-            # dker 上 259 個 job 裡有 4 個是這個形狀，回填時會當場產生 4 個假通過。
-            tables_section = evaluation.plan.get("tables")
-            if not isinstance(tables_section, dict):
-                ledger.record(
-                    self.paths.root, self.workspace, job.filename, "pp.tables",
-                    "unverifiable",
-                    note="計畫沒有產出表格那一段（多半是計畫半路失敗）"
-                         " —— 有沒有待修的表**不知道**，不能當成沒有")
-                return
-            tables = tables_section
-            total = tables.get("total")
-            repair = _as_list(tables.get("repair"))
-            review = _as_list(tables.get("review"))
-            if repair or review:
-                ledger.record(
-                    self.paths.root, self.workspace, job.filename, "pp.tables",
-                    "unverifiable",
-                    note=(f"共 {total} 張：{len(repair)} 張待修、{len(review)} 張待查"
-                          " —— 兩雙眼睛沒把握的轉錄不會自動寫入，要人看一眼"))
-            else:
-                ledger.record(self.paths.root, self.workspace, job.filename,
-                              "pp.tables", "pass",
-                              note=f"共 {total} 張，沒有待修或待查的")
+                              gate, state, note=note)
         except Exception as exc:  # noqa: BLE001
             # **體檢表寫不進去不得影響進料。** 它是紀錄不是閘門 —— 磁碟滿了、
             # 目錄權限錯了都會讓寫入失敗，而那不該讓一份好文件停在半路。

@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import intake  # noqa: E402
 import ledger  # noqa: E402
 from intake import DataPaths, IntakeApp, PlanEvaluation  # noqa: E402
 
@@ -143,6 +144,50 @@ def test_an_empty_table_list_is_still_a_pass(tmp_path: Path) -> None:
         assert entry["state"] == "pass", entry
     finally:
         app.stop()
+
+
+# ── 判定抽成純函式（2026-08-12）────────────────────────────────────────────
+#
+# 回填 259 份現有文件要用同一段判定。**抄一份就是再造第二條會漂移的路** ——
+# 這個專案已經被「兩條路」咬過（十二道閘門的 V1／V2 在兩個地方各寫一份，
+# 其中一份沒人叫）。所以判定抽成純函式，進料與回填都叫它。
+
+
+def test_the_mapping_is_a_pure_function_of_the_plan() -> None:
+    """乾淨的計畫 → 兩格都 pass。純函式，不碰磁碟、不需要跑起 app。"""
+    got = intake.ledger_entries_from_plan(
+        accepted=True, reasons=(), plan=_plan_payload("paper.pdf"))
+    assert [(g, s) for g, s, _ in got] == [("pp.preflight", "pass"), ("pp.tables", "pass")]
+
+
+def test_the_mapping_reports_why_preflight_blocked_it() -> None:
+    """被擋下來的要帶理由 —— 沒有理由的 fail 跟沒檢查一樣沒用。"""
+    got = dict((g, (s, n)) for g, s, n in intake.ledger_entries_from_plan(
+        accepted=False, reasons=("未知型別 sidebar_note",), plan=_plan_payload("paper.pdf")))
+    state, note = got["pp.preflight"]
+    assert state == "fail"
+    assert "未知型別" in note
+
+
+def test_the_mapping_never_calls_a_missing_tables_section_a_pass() -> None:
+    """**假通過那個洞的純函式版。** 計畫沒產出表格那一段 ⇒ 驗不了，不是通過。"""
+    plan = _plan_payload("paper.pdf")
+    del plan["tables"]
+    got = dict((g, (s, n)) for g, s, n in intake.ledger_entries_from_plan(
+        accepted=True, reasons=(), plan=plan))
+    state, note = got["pp.tables"]
+    assert state == "unverifiable", got
+    assert "None" not in note, note
+
+
+def test_the_mapping_marks_tables_needing_a_look(tmp_path: Path) -> None:
+    """待修待查的表是「沒得驗」，而且理由要帶數字。"""
+    got = dict((g, (s, n)) for g, s, n in intake.ledger_entries_from_plan(
+        accepted=True, reasons=(),
+        plan=_plan_payload("paper.pdf", tables={"total": 5, "repair": [1], "review": [2, 3]})))
+    state, note = got["pp.tables"]
+    assert state == "unverifiable"
+    assert "1" in note and "2" in note, note
 
 
 def test_writing_the_ledger_never_kills_the_worker(tmp_path: Path) -> None:
