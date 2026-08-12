@@ -46,13 +46,25 @@ MinerU 會把 `∂` 的曲線讀成「某個字母戴帽子」——`\hat{\sigma
   **整份一致地**讀錯，兩側的 ∂ 會變成同一個錯 token，「對面留著真 ∂」幾乎
   不發生。
 
+## 2026-08-12 的兩個更新
+
+- **「對今天的合法符號誤報 0」那句話不再成立。** `N Flow Acoustics` 第 149 項的
+  `(ρ̄f̄)/ρ̄` 是 Favre 平均的定義式，上下同形成立但 ρ̄ 是真的平均密度。
+  補上「**分母那側要有被微分量**」之後歸零。⚠ 判準**不對稱**：分子可以是光禿禿
+  的算子（`∂/∂t`），寫成「兩側都要」會殺掉三分之一的真誤讀（實測 62 → 41）。
+- **行內除法已覆蓋**（原本列在「已知未覆蓋」）。實測 11 處候選、逐處看過原文，
+  10 真 1 假；判準沿用 `hit_tokens`，新增的只有「怎麼找到兩側」。
+  ⚠ 分子必須**剛好剖析完**到斜線為止 —— 往左找跨過 `\approx` 就會抓成
+  `x̄ ≈ x`（那個假的就是這樣來的）。
+
 ## 已知未覆蓋
 
-- 行內除法（`a/b` 不走 `\frac`）：歷史 1,044 筆裡有 10 筆屬此類。上一代同樣
-  沒處理。要補的話錨點是 `/` 兩側，但誤報風險高很多（任何比值都長那樣），
-  **量了再說**，不要先加。
 - 單側重複（同一 token 在同一側出現兩次、另一側沒有）：規則放寬到「≥2 次」
   可多抓 94 筆，但那會讓「同側兩個獨立導數」型的合法式子進來。目前取嚴。
+- **同一個 ∂ 被讀成兩個不同字母**（分子 `D̂`、分母 `Ô`）：上下同形永遠看不到。
+  ⚠ 不要靠放寬這條規則去抓 —— 放寬等於「任何 accent 對 accent 的分數都算導數」，
+  而真的比值就是長那樣（Favre 與 Biot 兩個誤報都是這個形狀）。
+  已知案例記在 `docs/partial-review-20260812.md`，量還沒數過。
 """
 from __future__ import annotations
 
@@ -60,7 +72,9 @@ import argparse
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
@@ -183,12 +197,24 @@ def frac_sides(s: str, k: int) -> tuple[str, str] | None:
             b[1:-1] if b.startswith("{") else b)
 
 
+class Op(NamedTuple):
+    """一個站在算子位置上的候選：正規化後的 token、後面有沒有被微分量、原字串的範圍。
+
+    範圍是**修補**要用的：判斷與修補共用同一個剖析，兩邊才不會各自漂移。
+    """
+
+    token: str
+    has_operand: bool
+    start: int
+    end: int
+
+
 def side_operators(side: str) -> list[tuple[str, bool]]:
     """站在算子位置上的候選 token（不管剖析到哪裡為止）。見 `parse_side`。"""
-    return parse_side(side)[0]
+    return [(o.token, o.has_operand) for o in parse_side(side)[0]]
 
 
-def parse_side(side: str) -> tuple[list[tuple[str, bool]], int]:
+def parse_side(side: str) -> tuple[list[Op], int]:
     r"""這一側站在算子位置上的候選 token、它後面有沒有被微分量，**以及剖析到哪裡為止**。
 
     「剖析到哪裡」是斜線那條路要用的：行內的 `A / B` 沒有括號界定分子從哪裡開始，
@@ -206,7 +232,7 @@ def parse_side(side: str) -> tuple[list[tuple[str, bool]], int]:
     ⚠ 上標算數：`∂²/∂t²` 的分子是 `ô^2`，後面接的是次方不是被微分量，
     但它仍然是算子（`canon` 的說明也寫著上標要剝）。
     """
-    out: list[tuple[str, bool]] = []
+    out: list[Op] = []
     i = 0
     # ⚠ **`consumed` 只在整輪成功之後才前進。** 直接回傳 `i` 是錯的：
     # 迴圈一開頭就把 `i` 推到那個單元後面，於是「因為它不是算子而中斷」的那個
@@ -239,7 +265,7 @@ def parse_side(side: str) -> tuple[list[tuple[str, bool]], int]:
         i = skip_scripts(side, i2)
         consumed = i
         if token is not None:
-            out.append((token, bool(operand) or had_script))
+            out.append(Op(token, bool(operand) or had_script, ni - len(u), ni))
     return out, consumed
 
 
@@ -305,6 +331,120 @@ def hit_tokens(num: str, den: str) -> list[str]:
 
     left, right = collect(num), collect(den)
     return sorted(t for t in left.keys() & right.keys() if right[t])
+
+
+def _content_spans(s: str, k: int) -> tuple[tuple[int, int], tuple[int, int]] | None:
+    """`frac_sides` 的位置版：兩側**內容**在原字串裡的範圍（外層大括號不算）。"""
+    def inner(span: tuple[int, int], text: str) -> tuple[int, int]:
+        return (span[0] + 1, span[1] - 1) if text.startswith("{") else span
+
+    a, i = read_unit(s, k)
+    if not a:
+        return None
+    a_span = (i - len(a), i)
+    i = skip_scripts(s, i)
+    b, j = read_unit(s, i)
+    if not b:
+        return None
+    return inner(a_span, a), inner((j - len(b), j), b)
+
+
+def repair_text(s: str) -> tuple[str, int]:
+    r"""把**被判定為誤讀的那些位置**換成 `\partial`；回傳（新文字, 換了幾處）。
+
+    **判斷與修補共用同一個剖析**（`parse_side` 回報 token 的位置），所以修補
+    動到的就是探針報出來的那些格子，一個不多一個不少。
+
+    ⚠ **這裡刻意不認字元。** `pp/rules/latex_fix.py` 的 `fix_partial` 認的是一張
+    token 清單，而它自己的說明寫著「`\hat{c}` 全母體 9 處裡有 3 處是真的遞迴係數
+    ĉ_n，盲目換成 ∂ 會直接毀掉它」—— 所以**不能把別的 token 加進那張清單**。
+    這裡改的是位置不是字元：同一段文字裡的 `ĉ_n` 不會被波及，因為它沒有站在
+    算子位置上。
+
+    ⚠ `\bar{\partial}` 也走這條：整個 token 被換成 `\partial`，效果就是
+    「把多出來的那條槓拿掉」（原圖上 ∂ 頭上是乾淨的）。
+    """
+    spans: set[tuple[int, int]] = set()
+
+    def collect(base: int, side: str, toks: set[str]) -> None:
+        for op in parse_side(side)[0]:
+            if op.token in toks:
+                spans.add((base + op.start, base + op.end))
+
+    if "frac" in s:
+        for m in FRAC.finditer(s):
+            got = _content_spans(s, m.end())
+            if not got:
+                continue
+            (a0, a1), (b0, b1) = got
+            num, den = s[a0:a1], s[b0:b1]
+            toks = set(hit_tokens(num, den))
+            if toks:
+                collect(a0, num, toks)
+                collect(b0, den, toks)
+    if "/" in s:
+        for m in SLASH.finditer(s):
+            sides = slash_sides(s, m.start(), m.end())
+            if not sides:
+                continue
+            left, right = sides
+            toks = set(hit_tokens(left, right))
+            if toks:
+                collect(m.start() - len(left), left, toks)
+                collect(m.end(), right, toks)
+
+    if not spans:
+        return s, 0
+    out: list[str] = []
+    last = n = 0
+    for a, b in sorted(spans):
+        if a < last:
+            continue                    # 重疊：同一處被兩條路徑各找到一次
+        out.append(s[last:a])
+        out.append(r"\partial")
+        last = b
+        n += 1
+    out.append(s[last:])
+    return "".join(out), n
+
+
+def repair_bundle(root: Path, *, stamp: str) -> tuple[int, int]:
+    """把修補落地到 `root` 底下每一份 `*.mineru_raw/content_list.json`。
+
+    回傳（動到幾個項目, 換掉幾個 token）。
+
+    寫回的慣例跟 `pp/rules/latex_fix.py` 的 `apply_to_items` 一樣，**不另立一套**：
+    原文進 `_pp_original_<欄位>`（`setdefault`，只記第一次）、蓋 `_pp_repaired_at`。
+    「只記第一次」很重要 —— 人工裁定過的項目原文早就記好了，被這一輪蓋掉的話
+    就只退得回「這一輪之前」，退不回真正的原始解析結果。
+
+    ⚠ 只寫真的有改動的檔案。沒改到的項目不蓋章，否則查帳時分不出
+    「這一輪動過它」與「這一輪只是掃過它」。
+    """
+    n_items = n_tokens = 0
+    for d in sorted(root.glob("*.mineru_raw")):
+        cl = d / "content_list.json"
+        if not cl.is_file():
+            continue
+        items = json.loads(cl.read_text(encoding="utf-8"))
+        touched = False
+        for it in items:
+            for f in FIELDS:
+                v = it.get(f)
+                if not isinstance(v, str):
+                    continue
+                new, k = repair_text(v)
+                if not k:
+                    continue
+                it.setdefault(f"_pp_original_{f}", v)
+                it[f] = new
+                it["_pp_repaired_at"] = stamp
+                n_items += 1
+                n_tokens += k
+                touched = True
+        if touched:
+            cl.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+    return n_items, n_tokens
 
 
 # `side_tokens` 於 2026-08-12 刪除（原本在這裡）。
@@ -374,12 +514,32 @@ def main() -> int:
                     default=Path(env.get("DATA_ROOT", str(DEFAULT_DATA_ROOT))))
     ap.add_argument("--details", action="store_true", help="逐處印出上下文")
     ap.add_argument("--update", action="store_true", help="把目前結果認可為新基準")
+    ap.add_argument("--repair", action="store_true",
+                    help="把命中的位置換成 \\partial 並寫回 content_list.json"
+                         "（原文留在 _pp_original_*）")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
 
     parsed = DataPaths(a.root).parsed_dir
     if not parsed.is_dir():
         sys.exit(f"找不到 {parsed}")
+
+    if a.repair:
+        # 先掃一次再修，讓「改之前有幾處」留在輸出裡 —— 事後要對帳只有這個數字。
+        before, _ = scan(parsed)
+        stamp = datetime.now().astimezone().isoformat(timespec="seconds")
+        n_items, n_tokens = repair_bundle(parsed, stamp=stamp)
+        after, _ = scan(parsed)
+        print(f"修補前命中 {len(before)} 處")
+        print(f"改動 {n_items} 個項目、{n_tokens} 個 token（原文留在 _pp_original_*，"
+              f"時間戳 {stamp}）")
+        print(f"修補後命中 {len(after)} 處")
+        if after:
+            print("⚠ 沒有歸零 —— 有東西沒被修到，先別重建索引，回頭看是什麼", file=sys.stderr)
+            return 1
+        print("⚠ 這只改了解析結果。知識庫要等 reindex 才會反映。")
+        return 0
+
     hits, bad = scan(parsed)
     cur = tally(hits)
     ndocs = len(list(parsed.glob("*.mineru_raw")))

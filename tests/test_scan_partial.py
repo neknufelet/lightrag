@@ -10,6 +10,7 @@ r"""∂ 誤讀探針的判準。**這支之前一個測試都沒有** —— 血
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -138,6 +139,131 @@ def test_a_ratio_across_a_relation_is_not_a_hit() -> None:
 def test_a_subscripted_ratio_written_with_a_slash_is_not_a_hit() -> None:
     r"""控制組：`p̄/p̄_0` 是具名量的比值。帶下標的 accent 不是算子，斜線這條路也要守住。"""
     assert slash(r"$\bar { p } / \bar { p } _ { 0 }$") == []
+
+
+# ── 修補（2026-08-12 加）──────────────────────────────────────────────────
+#
+# **修補用的是探針的判斷，不是另一張字元清單。** `latex_fix.fix_partial` 認的是
+# 字元（只認 `\hat{\sigma}` 那幾種），而它自己的說明就寫著「`\hat{c}` 全母體
+# 9 處裡有 3 處是真的 ĉ，盲目換成 ∂ 會直接毀掉它」——
+# 所以不能把別的 token 加進那張清單。
+#
+# 這裡改的是**探針已經逐處剖析確認過的那些位置**：同一個 token 站在分子與分母的
+# 算子位置上、分母有被微分量。判斷與修補共用同一個剖析，不會各自漂移。
+
+
+def test_repair_replaces_only_the_hit_positions() -> None:
+    r"""基本形：`∂p/∂n` 換成真的 `\partial`。"""
+    got, n = sp.repair_text(r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }")
+    assert n == 2, got
+    assert r"\hat" not in got, got
+    assert got.count(r"\partial") == 2, got
+
+
+def test_repair_leaves_a_real_symbol_in_the_same_text_alone() -> None:
+    r"""**同一段文字裡的真符號不能被波及。**
+
+    `ĉ_n` 是遞迴係數（`latex_fix` 的說明記著全母體 9 處裡有 3 處是真的），
+    而同一段裡另有一個真的 `∂p/∂n` 誤讀 —— 只准動後者。
+    """
+    text = (r"\hat { c } _ { n } = ( 1 - \beta ^ { 2 } ) \hat { c } _ { n - 1 } "
+            r"\quad \frac { \hat { c } \mathrm { p } } { \hat { c } \mathrm { n } }")
+    got, n = sp.repair_text(text)
+    assert n == 2, got
+    assert r"\hat { c } _ { n }" in got, f"遞迴係數被動到了：{got}"
+    assert r"\hat { c } _ { n - 1 }" in got, f"遞迴係數被動到了：{got}"
+    assert r"\frac { \partial \mathrm { p } } { \partial \mathrm { n } }" in got, got
+
+
+def test_repair_does_not_touch_the_two_known_false_positives() -> None:
+    r"""**控制組，最重要的一條。** 兩個已經確認的誤報，修補一樣不准碰。"""
+    favre = (r"\frac { \overline { { { \rho } } } \overline { { { \bf f } } } } "
+             r"{ \overline { { { \rho } } } }")
+    assert sp.repair_text(favre) == (favre, 0)
+    sawtooth = r"$1 + x / \bar { x } \approx x / \bar { x }$"
+    assert sp.repair_text(sawtooth) == (sawtooth, 0)
+
+
+def test_repair_handles_the_slash_form() -> None:
+    r"""斜線寫法也要修得到（取自 `O Analytical` 第 27 項的原文）。"""
+    got, n = sp.repair_text(r"the partial derivatives $\hat { o } \mathbf { q } / "
+                            r"\hat { o } \mathbf { a } _ { \mathrm { i } }$")
+    assert n == 2, got
+    assert r"$\partial \mathbf { q } / \partial \mathbf { a } _ { \mathrm { i } }$" in got, got
+
+
+def test_repair_strips_a_spurious_bar_off_partial() -> None:
+    r"""`∂̄` 的修法是把多出來的槓拿掉 —— 原圖上 ∂ 頭上是乾淨的（`N Flow` 第 199 項）。"""
+    got, n = sp.repair_text(r"\frac { \bar { \partial } \mathbf { p } } "
+                            r"{ \bar { \partial } \mathbf { x } }")
+    assert n == 2, got
+    assert r"\bar" not in got, got
+    assert got.count(r"\partial") == 2, got
+
+
+def test_repair_is_idempotent() -> None:
+    """修過的再修一次不會再變 —— 探針對 `\\partial` 本來就不報。"""
+    once, _n1 = sp.repair_text(r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }")
+    twice, n2 = sp.repair_text(once)
+    assert n2 == 0 and twice == once, (once, twice)
+
+
+def _bundle(tmp_path: Path, items: list[dict]) -> Path:
+    root = tmp_path / "parsed"
+    d = root / "T.pdf.mineru_raw"
+    d.mkdir(parents=True)
+    (d / "content_list.json").write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
+    return root
+
+
+def test_repair_bundle_records_the_original_and_stamps(tmp_path: Path) -> None:
+    r"""落地時要留退路：原文進 `_pp_original_<欄位>`，並蓋一個時間戳。
+
+    跟 `pp/rules/latex_fix.py` 的 `apply_to_items` 同一套慣例 —— 那是這個專案
+    既有的「可還原、可查帳」寫回路徑，不要另立一套。
+    """
+    root = _bundle(tmp_path, [
+        {"type": "equation",
+         "text": r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }"},
+        {"type": "text", "text": "沒有東西要改的一段"},
+    ])
+    n_items, n_tokens = sp.repair_bundle(root, stamp="2026-08-12T00:00:00+08:00")
+    assert (n_items, n_tokens) == (1, 2)
+
+    items = json.loads((root / "T.pdf.mineru_raw" / "content_list.json").read_text())
+    assert r"\partial" in items[0]["text"]
+    assert items[0]["_pp_original_text"] == \
+        r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }"
+    assert items[0]["_pp_repaired_at"] == "2026-08-12T00:00:00+08:00"
+    assert "_pp_original_text" not in items[1], "沒改到的項目不該被蓋章"
+
+
+def test_repair_bundle_never_overwrites_an_earlier_original(tmp_path: Path) -> None:
+    r"""**控制組。** `_pp_original_*` 只記第一次的原文。
+
+    這條規則跑在人工裁定之後，裁定過的項目原文早就記好了 —— 被這一輪蓋掉的話，
+    要退回去就只能退到「這一輪之前」，退不回真正的原始解析結果。
+    """
+    root = _bundle(tmp_path, [
+        {"type": "equation",
+         "text": r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }",
+         "_pp_original_text": "人工裁定之前的原文"},
+    ])
+    sp.repair_bundle(root, stamp="2026-08-12T00:00:00+08:00")
+    items = json.loads((root / "T.pdf.mineru_raw" / "content_list.json").read_text())
+    assert items[0]["_pp_original_text"] == "人工裁定之前的原文"
+
+
+def test_repair_bundle_is_idempotent(tmp_path: Path) -> None:
+    """再跑一次不該再動任何東西 —— 修過的位置探針已經不報了。"""
+    root = _bundle(tmp_path, [
+        {"type": "equation",
+         "text": r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }"},
+    ])
+    sp.repair_bundle(root, stamp="s1")
+    first = (root / "T.pdf.mineru_raw" / "content_list.json").read_text()
+    assert sp.repair_bundle(root, stamp="s2") == (0, 0)
+    assert (root / "T.pdf.mineru_raw" / "content_list.json").read_text() == first
 
 
 def test_different_tokens_on_each_side_are_not_a_hit() -> None:
