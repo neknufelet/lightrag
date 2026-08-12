@@ -751,9 +751,22 @@ def cmd_reindex(a, env) -> int:
         with urllib.request.urlopen(req, timeout=120) as r:
             return json.loads(r.read() or "{}")
 
-    docs = api("/documents/paginated", "POST",
-               {"page": 1, "page_size": 200})
-    rows = docs.get("documents") or []
+    # **要翻完所有頁。**（2026-08-12 修）
+    # 原本只抓第 1 頁 200 筆，而知識庫已經 259 份 —— 排在 200 名之後的文件
+    # `--doc` 對不到（訊息還會說「對不到任何已索引文件」，指向錯的方向），
+    # 而**不帶 `--doc` 全部重建時會安靜地只重建 200 份**。
+    # 那是這個專案最常踩的形狀：做得比你以為的少，而且沒有人會發現。
+    rows: list[dict] = []
+    page = 1
+    while True:
+        got = (api("/documents/paginated", "POST",
+                   {"page": page, "page_size": 200}).get("documents") or [])
+        rows += got
+        if len(got) < 200:
+            break
+        page += 1
+        if page > 50:                    # 跑不完就停，不要無聲無盡地翻
+            sys.exit("翻頁超過 50 頁，先確認 /documents/paginated 的行為")
     keys = [k.lower() for k in (a.doc or [])]
     want = [d for d in rows
             if not keys or any(k in (d.get("file_path") or "").lower() for k in keys)]
