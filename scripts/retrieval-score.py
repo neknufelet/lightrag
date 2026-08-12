@@ -22,6 +22,13 @@ llama.cpp 少約三成 —— 少掉的是雜訊還是真連結，**圖譜指標
 ⚠ 兩邊的文件母體必須一樣，否則差異有一部分來自文件數而不是抽取模型。
    跑之前自己確認（`lightrag_doc_status` 的列數）。
 
+⚠⚠⚠ **送去檢索的是題本的 `retrieval_text`，不是 `text`**（2026-08-12 修）。
+   先前直接把中文原句送進向量檢索，**繞過了 ADR-0005 的翻譯步驟** —— 量的是
+   沒有人在走的那條路。而 reranker 對語言有偏心（同一份文件、只把問題改成中文，
+   分數掉 82%），於是產出「中文比英文差 63–86%」這個假警報。
+   ⇒ 中英配對現在量的是**翻譯有沒有損失**（中文題翻成英文 vs 原生英文題），
+     不是「中文問 vs 英文問」。那才是 ADR-0005 之後該問的問題。
+
 ⚠⚠ **這支的單次結果不可信，一定要跑重複。** 2026-08-09 實測：同一題、同一個
    端點重跑三次拿到 0.7624／0.8507／0.8279 —— 單題的重跑落差比整組總平均的
    差距大一個量級。成因是 `mode=mix` 會先用 LLM 從問題抽關鍵詞再走圖譜，而
@@ -135,16 +142,28 @@ def main() -> int:
     book = json.loads(a.questions.read_text(encoding="utf-8"))
     questions = book["questions"]
 
+    # **缺 `retrieval_text` 就停，不要默默退回 `text`。**（2026-08-12）
+    # 退回去正是先前那個洞：中文原句被直接送進向量檢索，繞過 ADR-0005 的翻譯
+    # 步驟，量的是沒有人在走的那條路 —— 而它安靜地產出「中文差 63–86%」的假警報。
+    # 少一欄就整支停，比多一個看起來合理的數字好。
+    missing = [q["id"] for q in questions if not q.get("retrieval_text", "").strip()]
+    if missing:
+        sys.exit(f"題本缺 retrieval_text：{'、'.join(missing)}\n"
+                 "  那一欄是**實際送進向量檢索與 reranker 的字**（照 ADR-0005 一律英文）。"
+                 "\n  沒有它就只能拿 text 去猜，而中文題那樣量出來的分數是假的。")
+
     rows: list[dict[str, object]] = []
     print(f"題本 {a.questions.name}　{len(questions)} 題　"
-          f"取回 {a.top_k} 段、前 {a.top} 名平均\n")
+          f"取回 {a.top_k} 段、前 {a.top} 名平均")
+    print("送去檢索與打分的是 retrieval_text（照 ADR-0005 一律英文），不是使用者打的字\n")
     print(f"{'題':<6}{'語言':<5}{a.label_a:>10}{a.label_b:>10}   題目")
     print("-" * 92)
     for q in questions:
-        sa, na = score_one(env, host, a.a, q["text"], a.top_k, a.top)
-        sb, nb = score_one(env, host, a.b, q["text"], a.top_k, a.top)
+        asked = q["retrieval_text"]
+        sa, na = score_one(env, host, a.a, asked, a.top_k, a.top)
+        sb, nb = score_one(env, host, a.b, asked, a.top_k, a.top)
         rows.append({"id": q["id"], "lang": q["lang"], "pair": q.get("pair"),
-                     "text": q["text"], "a": sa, "b": sb,
+                     "text": q["text"], "retrieval_text": asked, "a": sa, "b": sb,
                      "a_chunks": na, "b_chunks": nb})
         fa = f"{sa:.4f}" if sa is not None else "驗不了"
         fb = f"{sb:.4f}" if sb is not None else "驗不了"
