@@ -208,11 +208,20 @@ def test_repair_is_idempotent() -> None:
     assert n2 == 0 and twice == once, (once, twice)
 
 
-def _bundle(tmp_path: Path, items: list[dict]) -> Path:
+def _bundle(tmp_path: Path, items: list[dict], *, manifest: bool = True) -> Path:
+    """一份最小的 bundle。**預設帶 `_manifest.json`** —— 正式環境每一份都有，
+    而修補完要重蓋它的指紋（見 `tests/test_restamp_manifest.py`）。"""
+    import hashlib
     root = tmp_path / "parsed"
     d = root / "T.pdf.mineru_raw"
     d.mkdir(parents=True)
-    (d / "content_list.json").write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
+    cl = d / "content_list.json"
+    cl.write_text(json.dumps(items, ensure_ascii=False), encoding="utf-8")
+    if manifest:
+        (d / "_manifest.json").write_text(json.dumps({"critical_file": {
+            "path": "content_list.json", "size": cl.stat().st_size,
+            "sha256": "sha256:" + hashlib.sha256(cl.read_bytes()).hexdigest()}}),
+            encoding="utf-8")
     return root
 
 
@@ -252,6 +261,24 @@ def test_repair_bundle_never_overwrites_an_earlier_original(tmp_path: Path) -> N
     sp.repair_bundle(root, stamp="2026-08-12T00:00:00+08:00")
     items = json.loads((root / "T.pdf.mineru_raw" / "content_list.json").read_text())
     assert items[0]["_pp_original_text"] == "人工裁定之前的原文"
+
+
+def test_repair_bundle_refuses_a_bundle_with_no_manifest(tmp_path: Path) -> None:
+    r"""沒有 `_manifest.json` 就**不要動內容**。
+
+    改了內容卻沒有指紋可蓋，下次 `/scan` 一樣會重新解析並覆蓋掉修補 ——
+    那正是 2026-08-12 那個坑。**寧可整支停，也不要寫一個註定會被沖掉的修補**：
+    寫下去只會讓人以為修好了。
+    """
+    import pytest
+    root = _bundle(tmp_path, [
+        {"type": "equation",
+         "text": r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }"},
+    ], manifest=False)
+    with pytest.raises(FileNotFoundError):
+        sp.repair_bundle(root, stamp="s")
+    items = json.loads((root / "T.pdf.mineru_raw" / "content_list.json").read_text())
+    assert r"\hat" in items[0]["text"], "manifest 不見了卻還是改了內容"
 
 
 def test_repair_bundle_is_idempotent(tmp_path: Path) -> None:

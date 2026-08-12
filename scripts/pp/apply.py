@@ -186,6 +186,38 @@ def _sha256(p: Path) -> str:
     return "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def _read_manifest_and_stamp(
+    manifest_path: Path, content_list_path: Path,
+) -> tuple[dict, tuple[tuple[int, str], tuple[int, str]]]:
+    """重蓋 `critical_file` 的指紋並寫回；回傳（manifest, (舊值, 新值)）。"""
+    man = json.loads(manifest_path.read_text(encoding="utf-8"))
+    cf = man.get("critical_file") or {}
+    if cf.get("path") != "content_list.json":
+        raise ApplyError(f"critical_file 不是 content_list.json（{cf.get('path')!r}），"
+                         "契約改了，停下來")
+    old = (cf.get("size"), cf.get("sha256"))
+    cf["size"] = content_list_path.stat().st_size
+    cf["sha256"] = _sha256(content_list_path)
+    man["critical_file"] = cf
+    write_json_atomic(manifest_path, man)
+    return man, (old, (cf["size"], cf["sha256"]))
+
+
+def restamp_manifest(raw_dir: Path) -> tuple[tuple[int, str], tuple[int, str]]:
+    r"""改完 `content_list.json` 之後重蓋指紋；回傳（舊值, 新值）。
+
+    **指紋的維護只能有一個擁有者，就是這裡。** `is_bundle_valid()` 比對
+    `critical_file` 的 size 與 sha256 —— 只改內容不改 manifest，快取立刻失效，
+    下次 `/scan` 會重新解析並**把修補整個覆蓋掉**（見本檔檔頭）。
+
+    ⚠ 2026-08-12 實測踩過：`scan-partial --repair` 自己寫 `content_list.json`
+    卻沒走這裡，reindex 之後 ∂ 探針 0 → 668 處，一份文件帶原文的項目 455 → 0。
+    抄一份就是再造第二條會漂移的路 —— 所有改 `content_list.json` 的人都叫這支。
+    """
+    return _read_manifest_and_stamp(
+        raw_dir / "_manifest.json", raw_dir / "content_list.json")[1]
+
+
 def bundle_valid(ctx: DocContext, oracle: Oracle, *, workspace: str) -> bool:
     """問 LightRAG 本人這份 bundle 還算不算數。不要自己重算 —— 驗證邏輯
     包含 options_signature 等我們不該複製的東西。"""
@@ -501,15 +533,7 @@ def apply_doc(
     r.items_after = len(items)
 
     # ── 更新 manifest，否則快取失效、下次 /scan 會重抓覆蓋掉修補 ──
-    man = json.loads(ctx.manifest_path.read_text())
-    cf = man.get("critical_file") or {}
-    if cf.get("path") != "content_list.json":
-        raise ApplyError(f"critical_file 不是 content_list.json（{cf.get('path')!r}），"
-                         "契約改了，停下來")
-    cf["size"] = ctx.content_list_path.stat().st_size
-    cf["sha256"] = _sha256(ctx.content_list_path)
-    man["critical_file"] = cf
-    write_json_atomic(ctx.manifest_path, man)
+    man, _ = _read_manifest_and_stamp(ctx.manifest_path, ctx.content_list_path)
 
     # ── 寫完必須再問一次 ──
     ctx2 = DocContext(raw_dir, source_dir=source_dir)

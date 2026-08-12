@@ -78,6 +78,7 @@ from typing import NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
+from pp.apply import restamp_manifest  # noqa: E402
 from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -443,7 +444,20 @@ def repair_bundle(root: Path, *, stamp: str) -> tuple[int, int]:
                 n_tokens += k
                 touched = True
         if touched:
+            # **先確認蓋得了章，才動內容。** 反過來做的話，沒有 manifest 時會留下
+            # 一個「改了但指紋沒蓋」的半成品 —— 而那正是 2026-08-12 那個坑的形狀，
+            # 下次 /scan 會重新解析把它沖掉，人卻以為修好了。
+            if not (d / "_manifest.json").is_file():
+                raise FileNotFoundError(
+                    f"{d.name} 沒有 _manifest.json，蓋不了指紋 —— 不動它的內容。"
+                    "（改了內容卻沒有指紋可蓋，下次掃描會把修補沖掉）")
             cl.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+            # **改完一定要重蓋指紋，而且要走 apply.py 那支唯一的擁有者。**
+            # 2026-08-12 這一行不存在，於是 `is_bundle_valid()` 對這 10 份回 False，
+            # 下次 /scan 認為快取壞了 → 重新解析 → 把修補整個覆蓋掉
+            #（實測 ∂ 探針 0 → 668 處，一份文件帶原文的項目 455 → 0）。
+            # `apply.py` 的檔頭一字不差地預告了這件事 —— 我沒讀就另開了一條寫入路徑。
+            restamp_manifest(d)
     return n_items, n_tokens
 
 

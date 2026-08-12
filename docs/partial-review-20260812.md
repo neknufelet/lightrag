@@ -158,29 +158,42 @@ $ python3 scripts/postprocess.py canary
 （消音數、表格數、標題頁數），而換掉方程式裡的算子符號本來就不該動到那些。
 它在這裡的作用是**確認沒有意外的副作用**。
 
-### 🔴 reindex 會把修補洗掉 —— 別照舊文件做（2026-08-12 21:26 實測）
+### 🔴 修補被 reindex 洗掉了 —— 而原因是我自己的 bug（2026-08-12 21:26 實測）
 
-**`reindex` 重新產生 `content_list.json`，人工修補全部消失。**
+**先說結論：`reindex` 沒有壞，專案文件寫的流程也沒有錯。錯的是我另開了一條
+不知道合約的寫入路徑。**
 
 ```
 21:26  reindex --commit（10 份）
 21:28  content_list.json 被重寫
 21:41  ∂ 探針：0 → 668 處，正好分佈在那 10 份
-
-N Flow Acoustics：帶 _pp_original_text 的項目 455 → 0
-第 199 項回到 \bar{\partial}（原始誤讀）
+       N Flow Acoustics：帶 _pp_original_text 的項目 455 → 0
 ```
 
-⚠⚠ **被洗掉的不只這次改的 —— 是那份文件歷來所有的後處理修補。**
-一份就少了 455 個項目的原文。知識庫對那 10 份的內容因此比動手前**更差**。
+**真正的因果鏈：**
 
-⚠ 本文件上一版寫著「改 `content_list.json` + `reindex`」。**那個流程是錯的**：
-照著做會先修好、再親手洗掉，而且只有跑探針才會發現。
+```
+1. scan-partial --repair 直接改了 content_list.json
+2. 但沒有更新 _manifest.json 的 critical_file（size ＋ sha256）
+3. is_bundle_valid() 因此對這 10 份回 False
+4. reindex 觸發掃描 → 看到「壞掉的快取」→ 重新解析 → 覆蓋掉修補
+```
 
-**還沒有人知道正確的做法是什麼。** 已知的線索：
-- 新文件走 `postprocess.py prepare`（解析 → 修補 → 掃描，只抽取一次），
-  修補是在**第一次進索引之前**套用的。
-- 已經在索引裡的文件，目前沒有找到「讓修補生效而不重新解析」的路。
+實測（2026-08-13）：259 份裡**正好 10 份**指紋對不上，就是被改過的那 10 份。
+
+⚠⚠ **而答案就寫在 `pp/apply.py` 的檔頭第一段**，一字不差地預告了這件事：
+
+> 為什麼要更新 manifest：`is_bundle_valid()` 會比對 critical_file 的 size 與
+> sha256。**只改內容不改 manifest，快取立刻失效，下次 /scan 會重新向 MinerU
+> 抓一份，把修補覆蓋掉**
+
+⇒ 這是「**抄一份就是再造第二條會漂移的路**」的又一個實例 ——
+而我前一天才在 commit 訊息裡寫下那句話。`apply.py` 知道要重蓋指紋，
+我新寫的 `repair_bundle` 不知道。
+
+**已修**（2026-08-13）：指紋的維護抽成 `pp/apply.py` 的 `restamp_manifest()`，
+是唯一的擁有者；`repair_bundle` 改完內容一定叫它，而且**蓋不了章就不動內容**
+（沒有 `_manifest.json` 直接 raise —— 寧可整支停，也不要留一個註定被沖掉的修補）。
 
 ### 還原點救回來了（還原路徑第一次真的被走）
 
