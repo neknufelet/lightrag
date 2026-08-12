@@ -45,6 +45,17 @@ def test_a_second_derivative_is_still_a_hit() -> None:
         == [r"\hat{o}"]
 
 
+def test_a_bare_operator_over_dt_is_a_hit() -> None:
+    r"""**正例，而且是最常見的寫法**：`∂/∂t`，被微分的量寫在分數外面。
+
+    ⚠ 2026-08-12 我第一版把判準寫成「**兩側**都要有被微分量」，
+    當場殺掉 20 處這個形狀的真誤讀（只留下 41／62）。
+
+    判準是**不對稱**的：分母一定有被微分量（∂t、∂x_i、∂n），分子可以只有算子。
+    """
+    assert hits(r"\frac { \hat { o } } { \hat { o } \mathbf { t } }") == [r"\hat{o}"]
+
+
 def test_favre_averaging_is_not_a_derivative(tmp_path: Path) -> None:
     r"""**這是 2026-08-12 抓到的第一個真誤報。**
 

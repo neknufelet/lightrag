@@ -229,10 +229,16 @@ def side_operators(side: str) -> list[tuple[str, bool]]:
 
 
 def hit_tokens(num: str, den: str) -> list[str]:
-    r"""兩側都站在算子位置、**而且兩側都有被微分量**的 token —— 那才是誤讀的 ∂。
+    r"""兩側都站在算子位置、**而且分母那一側有被微分量**的 token —— 那才是誤讀的 ∂。
 
-    這就是整支的判準。少了「兩側都有被微分量」那半，真的比值會被吃進來
-    （見 `side_operators` 的說明與 `tests/test_scan_partial.py`）。
+    **判準是不對稱的，這一點很容易寫錯。** 分母一定有被微分量（`∂t`、`∂x_i`、`∂n`），
+    分子可以只有一個光禿禿的算子 —— `∂/∂t` 就是這樣，被微分的量寫在分數外面，
+    而那是最常見的寫法。
+
+    ⚠ 2026-08-12 第一版寫成「**兩側**都要有被微分量」，當場殺掉 20 處真誤讀
+    （62 → 41）。那 20 處全是 `∂/∂t`、`∂/∂x_i` 這個形狀。
+
+    要擋的只有分母光禿禿的那種：`(ρ̄ f̄) / ρ̄` 是 Favre 平均的定義，不是導數。
     """
     def collect(side: str) -> dict[str, bool]:
         seen: dict[str, bool] = {}
@@ -241,7 +247,7 @@ def hit_tokens(num: str, den: str) -> list[str]:
         return seen
 
     left, right = collect(num), collect(den)
-    return sorted(t for t in left.keys() & right.keys() if left[t] and right[t])
+    return sorted(t for t in left.keys() & right.keys() if right[t])
 
 
 # `side_tokens` 於 2026-08-12 刪除（原本在這裡）。
