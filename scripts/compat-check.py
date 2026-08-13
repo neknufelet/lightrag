@@ -779,6 +779,50 @@ class Checker:
             也要跑同一份（見那裡的說明）。兩邊叫同一個函式，不各寫一份。"""
             return data_root_state()
 
+        @self.check("A-36", "hard", "釘住的供應商還在該模型的端點清單裡")
+        def _() -> tuple[bool, str, dict]:
+            """**A-29 驗的是金鑰有效，不是「程式實際會走的那條路打得到」。**
+
+            2026-08-13 實測抓到：`PP_EYE_A_PROVIDER=alibaba/fp8` 在 OpenRouter 上
+            **已經沒有端點了**（量化後綴被拿掉，現在叫 `alibaba`），於是
+            `vlm.transcribe()` 送出的 `provider.order` 直接 404。而同一時間：
+
+            ```
+            裸呼叫（不釘供應商）      OK
+            只要 JSON 格式            OK
+            只釘供應商                HTTP 404 No endpoints found
+            ```
+
+            ⇒ 模型好的、金鑰好的、A-29 是綠的，**而實際那條路是死的**。
+            供應商清單是外部的、會變，而釘住它正是交叉驗證的前提
+            （不釘就分不清差異是模型讀錯還是換了後端，見 `eyes.Eye.provider`）。
+            **釘住一個會消失的東西，就必須有人守著它還在不在。**
+
+            ⚠ hard 不是 soft：這條紅的時候，兩雙眼睛只剩一雙，而多數決在
+            兩票之間**沒有多數**——交叉驗證會安靜地退化成單一模型的說法。
+            """
+            env = load_env(REPO)
+            pinned = [e for e in [*eyes.eyes_from_env(env), eyes.eye_c_from_env(env)]
+                      if e is not None and e.provider and "openrouter" in e.host]
+            if not pinned:
+                return True, "沒有任何眼睛釘供應商（OpenRouter 之外不適用）", {}
+            out: dict[str, str] = {}
+            for eye in pinned:
+                code, body = _http_get(
+                    f"{eye.host.rstrip('/')}/models/{eye.model}/endpoints",
+                    {"Authorization": f"Bearer {eye.api_key}"}, timeout=20)
+                if code != 200:
+                    out[eye.name] = f"問不到端點清單（HTTP {code}）"
+                    continue
+                tags = [str(x.get("tag") or x.get("provider_name") or "")
+                        for x in ((json.loads(body).get("data") or {}).get("endpoints") or [])]
+                out[eye.name] = ("ok" if eye.provider in tags else
+                                 f"釘的 {eye.provider!r} 不在清單，現有：{tags}")
+            bad = {k: v for k, v in out.items() if v != "ok"}
+            return not bad, ("全部釘得到" if not bad else
+                             f"**{len(bad)} 隻眼睛釘不到供應商** —— {bad}。"
+                             f"改對應的 `PP_EYE_*_PROVIDER`"), out
+
         @self.check("A-35", "soft", "每份解析成果都登記了來源，而且檔案沒被換過")
         def _() -> tuple[bool, str, dict]:
             """**沒登記的文件會安靜地從公式交叉比對裡消失。**

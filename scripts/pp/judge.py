@@ -123,7 +123,7 @@ def ask(gt_text: str, html: str, caption: str = "", *,
 def ask_json(system: str, user: str, *, model: str = DEFAULT_MODEL,
              host: str = DEFAULT_HOST, api_key: str | None = None,
              timeout: int = 120, effort: str = REASONING_EFFORT,
-             provider: str = "") -> Ruling:
+             provider: str = "", reasoning: bool = False) -> Ruling:
     """問一個模型、要回 `Ruling` 形狀的 JSON。**任何「同不同」的裁判都走這裡。**
 
     ⚠ 從 `ask()` 抽出來的（2026-08-13），行為逐欄位不變。抽出來的理由是公式那條
@@ -133,8 +133,14 @@ def ask_json(system: str, user: str, *, model: str = DEFAULT_MODEL,
     `provider` 給 OpenRouter 用：同一個模型 ID 會被路由到不同供應商，
     而交叉驗證的前提是模型固定（理由見 `eyes.Eye.provider`）。
     """
+    # 推理模型（gpt-5 系列）用 `max_completion_tokens` 且不吃 `temperature`。
+    # ⚠ 2026-08-13 實測：送錯的話是 HTTP 400「Unsupported parameter」，
+    # 而那長得像「模型判不出來」—— 判準與基礎設施故障必須分得開。
+    # 判準與 `vlm.transcribe()` 同一份（那支的 `reasoning` 旗標）。
+    budget = ({"max_completion_tokens": MAX_TOKENS} if reasoning
+              else {"temperature": 0, "max_tokens": MAX_TOKENS})
     payload: dict = {
-        "model": model, "temperature": 0, "max_tokens": MAX_TOKENS,
+        "model": model, **budget,
         "reasoning_effort": effort,
         "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": system},

@@ -75,7 +75,8 @@ def ask_pair(a: str, b: str, eye: Eye, *, timeout: int = 120) -> Ruling:
     """問一隻眼睛：這兩條是不是同一條。"""
     user = f"=== EQUATION A ===\n{_show(a)}\n\n=== EQUATION B ===\n{_show(b)}"
     return ask_json(SYSTEM, user, model=eye.model, host=eye.host,
-                    api_key=eye.api_key, timeout=timeout, provider=eye.provider)
+                    api_key=eye.api_key, timeout=timeout, provider=eye.provider,
+                    reasoning=eye.reasoning)
 
 
 @dataclass
