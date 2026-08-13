@@ -2860,9 +2860,17 @@ class IntakeApp:
         distance = None
         if last_event is not None and isinstance(last_event.get("processed_index"), int):
             distance = max(0, processed - int(last_event["processed_index"]))
+        # **數的是「幾種」就不能拿「幾次」來數。** 2026-08-14 PO 看畫面問
+        # 「9 種跟 152 份之前不是矛盾嗎」—— 兩個都對，錯的是標籤：
+        # 那 9 是**事件次數**（同一種型態重複出現也各記一次），而實際只有 2 種。
+        # 而且 `events[-20:]` 是**顯示上限**不是時間窗口，畫面卻寫成「最近 20 筆內」。
+        # 兩個標籤都在誤導，所以計數改成算相異的 `reason`，清單另外給。
+        kinds = sorted({str(e.get("reason") or "") for e in events if isinstance(e, dict)} - {""})
         convergence = {
             "processed": processed,
             "events": events[-20:],
+            "event_kinds": kinds,
+            "event_occurrences": len(events),
             "distance_since_last_event": distance,
             "warning": "；".join(self.store.load_errors + self.events.read_errors) or None,
         }
@@ -3327,8 +3335,13 @@ def _render_convergence(convergence: Mapping[str, object], links: Mapping[str, o
         n = int(processed)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         n = 0
-    events = convergence.get("events")
-    event_count = len([e for e in events if isinstance(e, dict)]) if isinstance(events, list) else 0
+    kinds = convergence.get("event_kinds")
+    kinds = [str(k) for k in kinds] if isinstance(kinds, list) else []
+    event_count = len(kinds)
+    try:
+        occurrences = int(convergence.get("event_occurrences") or 0)
+    except (TypeError, ValueError):
+        occurrences = 0
     distance = convergence.get("distance_since_last_event")
     distance_text = "—" if distance is None else str(distance)
 
@@ -3338,7 +3351,8 @@ def _render_convergence(convergence: Mapping[str, object], links: Mapping[str, o
     elif event_count == 0:
         verdict = f"連續 {n} 份沒有出現新型態 —— 規則可能已經涵蓋這批文件。"
     else:
-        verdict = (f"最近一次新型態出現在 {distance_text} 份之前。"
+        verdict = (f"{event_count} 種型態、共 {occurrences} 次，"
+                   f"最近一次出現在 {distance_text} 份之前（{'、'.join(kinds[:3])}）。"
                    f"距離拉長代表規則在收斂。")
 
     warning = convergence.get("warning")
@@ -3357,7 +3371,7 @@ def _render_convergence(convergence: Mapping[str, object], links: Mapping[str, o
         f"<div><div class='k'>已處理</div><div class='v'>{n}</div>"
         "<div class='u'>份文件</div></div>"
         f"<div><div class='k'>新型態</div><div class='v'>{event_count}</div>"
-        "<div class='u'>種（最近 20 筆內）</div></div>"
+        f"<div class='u'>種（共 {occurrences} 次）</div></div>"
         f"<div><div class='k'>距上次</div><div class='v'>{_esc(distance_text)}</div>"
         "<div class='u'>份文件之前</div></div>"
         "</div>"
