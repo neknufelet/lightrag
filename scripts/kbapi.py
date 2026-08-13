@@ -339,6 +339,32 @@ class H(BaseHTTPRequestHandler):
                     return [s.strip() for s in raw.split(",") if s.strip()]
 
                 hl, ll = _kw("hl_keywords"), _kw("ll_keywords")
+                # 走圖譜卻沒帶關鍵詞 → **拒絕，不要安靜地變成不確定**。
+                #
+                # 上面那段註解記著「三次拿回三組不同的段落，使用者不會有任何訊號」，
+                # 而在 2026-08-13 之前**沒有任何東西擋著它** —— skill 的說明有寫，
+                # 但說明不是執行者。當天實測（走這一層、同一題各三次）：
+                #
+                #     naive   不帶／帶      三次相同 ／ 三次相同
+                #     mix     不帶／帶      **三次不同** ／ 三次相同
+                #     local   不帶／帶      **三次不同** ／ 三次相同
+                #     global  不帶／帶      **三次不同** ／ 三次相同
+                #
+                # ⚠ 不改成自動退回 naive：那是**安靜地換掉檢索策略**，圖譜整張不查
+                #   而呼叫端不會知道。寧可回錯誤讓人改呼叫，也不要偷偷給別的東西。
+                # ⚠ 逃生門留著（`allow_llm_keywords=1`）：擋下的東西要有辦法明確要求，
+                #   否則遲早有人繞過整個這一層。
+                if mode != "naive" and not (hl or ll) and \
+                        (q.get("allow_llm_keywords") or ["0"])[0] not in ("1", "true"):
+                    return self._json({
+                        "error": "走圖譜的模式必須自帶關鍵詞，否則同一題每次拿到不同段落",
+                        "why": ("mode=mix/local/global 會先用後端 LLM 把問題變成關鍵詞，"
+                                "那一步沒有快取也不確定。實測同一題三次拿到三組不同段落。"),
+                        "how": ("加上 hl_keywords（高層概念 2–3 個）與 "
+                                "ll_keywords（具體名詞參數 3–5 個），逗號分隔；"
+                                "或用 mode=naive（確定，但不查圖譜）；"
+                                "真的要不確定的行為就加 allow_llm_keywords=1"),
+                        "mode": mode}, 400)
                 body = {"query": query, "mode": mode, "top_k": k,
                         "chunk_top_k": max_chunks, "only_need_context": True}
                 # 只在真的有值時才送。送空陣列的話 LightRAG 會當成「關鍵詞就是空的」
