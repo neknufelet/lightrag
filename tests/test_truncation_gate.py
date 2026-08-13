@@ -17,7 +17,6 @@
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import logging
 import sys
@@ -30,10 +29,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from pp import eyes, vlm  # noqa: E402
 
-_spec = importlib.util.spec_from_file_location(
-    "postprocess", ROOT / "scripts" / "postprocess.py")
-_pp = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_pp)
+sys.path.insert(0, str(ROOT / "tests"))
+
+from _scripts import load  # noqa: E402
+
+_pp = load("postprocess", "postprocess.py")
 
 # 完整的一張表，以及模型常見的 ``` 圍籬收尾。dker 上 21 筆真實快取全部長這樣，
 # 而且 V1／V2 實跑 21/21 通過 —— 接上這道閘門不會改變今天的任何行為。

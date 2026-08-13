@@ -17,7 +17,6 @@ LightRAG 的 is_bundle_valid() 回 False
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -25,16 +24,13 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from _scripts import load  # noqa: E402
 from pp.apply import ApplyError, restamp_manifest  # noqa: E402
 
-_spec = importlib.util.spec_from_file_location(
-    "scan_partial", ROOT / "scripts" / "scan-partial.py")
-assert _spec and _spec.loader
-sp = importlib.util.module_from_spec(_spec)
-sys.modules["scan_partial"] = sp
-_spec.loader.exec_module(sp)
+sp = load("scan_partial", "scan-partial.py")
 
 MISREAD = r"\frac { \hat { o } \mathrm { p } } { \hat { o } \mathrm { n } }"
 

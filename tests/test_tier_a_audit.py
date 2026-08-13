@@ -18,19 +18,17 @@ A_a = P_abs / I_0     吸收面積        骨架 #={\frac{#}{#}}
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-_spec = importlib.util.spec_from_file_location("eq_dup", ROOT / "scripts" / "eq-dup.py")
-assert _spec and _spec.loader
-eqdup = importlib.util.module_from_spec(_spec)
-sys.modules["eq_dup"] = eqdup
-_spec.loader.exec_module(eqdup)
+from _scripts import load  # noqa: E402
+
+eqdup = load("eq_dup", "eq-dup.py")
 
 AUDIT = ROOT / "verdicts" / "eq-tier-a-audit.json"
 # 全票判異的實例，取自 2026-08-13 的審計。

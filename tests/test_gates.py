@@ -20,12 +20,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-import importlib.util  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-spec = importlib.util.spec_from_file_location(
-    "postprocess", Path(__file__).resolve().parent.parent / "scripts" / "postprocess.py")
-pp = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(pp)
+from _scripts import load  # noqa: E402
+
+# ⚠ 共用載入器，不要自己 exec 一份 —— `test_truncation_gate.py` 也載這一支，
+# 各自 exec 就是同一個模組兩個物件（2026-08-13 在 `intake` 上咬過一次）。
+pp = load("postprocess", "postprocess.py")
 
 from pp.apply import ApplyError, assert_additive  # noqa: E402
 from pp.rules import latex_fix  # noqa: E402

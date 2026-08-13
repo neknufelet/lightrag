@@ -9,17 +9,16 @@ r"""∂ 誤讀探針的判準。**這支之前一個測試都沒有** —— 血
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location("scan_partial", ROOT / "scripts" / "scan-partial.py")
-assert _spec and _spec.loader
-sp = importlib.util.module_from_spec(_spec)
-sys.modules["scan_partial"] = sp
-_spec.loader.exec_module(sp)
+sys.path.insert(0, str(ROOT / "tests"))
+
+from _scripts import load  # noqa: E402
+
+sp = load("scan_partial", "scan-partial.py")
 
 
 def hits(latex: str) -> list[str]:

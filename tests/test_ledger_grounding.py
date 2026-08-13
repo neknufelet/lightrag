@@ -8,19 +8,16 @@
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-_spec = importlib.util.spec_from_file_location(
-    "ledger_backfill", ROOT / "scripts" / "ledger-backfill.py")
-assert _spec and _spec.loader
-bf = importlib.util.module_from_spec(_spec)
-sys.modules["ledger_backfill"] = bf
-_spec.loader.exec_module(bf)
+from _scripts import load  # noqa: E402
+
+bf = load("ledger_backfill", "ledger-backfill.py")
 
 T = 0.10
 
