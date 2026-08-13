@@ -48,6 +48,9 @@ summary: "eq-dup 的來源原本從檔名推論、五類全錯。這裡是候選
 
 **判定：兩本書，分開。**
 
+\
+**ok.** 
+
 ### A2. 這兩本書叫什麼
 
 書名要填進登記檔的 `label`，只影響報告可讀性，不影響分組。
@@ -60,7 +63,20 @@ summary: "eq-dup 的來源原本從檔名推論、五類全錯。這裡是候選
 兩本我都**沒有翻到標題頁**，`pdfinfo` 也吐不出標題。
 </details>
 
-**判定：書 A ＝ ______、書 B ＝ ______（填不出來就留空，不影響分組）**
+**判定：書 A ＝ \_____\_、書 B ＝ \_____\_（填不出來就留空，不影響分組）**\
+\
+**A** Room acoustics , Kuttruf\
+B Acoustics: An Introduction to Its Physical Principles and Applications  Allan D. Pierce
+
+> **↳ 收到（2026-08-13）**，登記檔會填成：
+>
+> ```
+> book:0xxxx-A  →  Kuttruff, Room Acoustics
+> book:0xxxx-B  →  Pierce, Acoustics: An Introduction to Its Physical Principles and Applications
+> ```
+>
+> 這也**反向印證了 A 節的分法是對的**：章題順序（書 A 走室內聲學、書 B 走物理聲學）
+> 與你給的兩本書一致，而那是機器用章號差分出來的，兩條線索各自獨立。
 
 ---
 
@@ -80,18 +96,37 @@ Exceptions will be clearly noted in the respective Section」——
 
 **判定：同一本，合併。**
 
+**ok**
+
 ---
 
 ## C. 四本學位論文的章節切片
 
-| 組 | 份數 | 原本被切成幾組 |
-|---|---|---|
-| `2012 - Combined wave and ray based…` | 9 | **2**（檔名差一個空格） |
-| `2023 - Perception-of-room-modes` | 9 | **4**（檔名多了 `_Conclusions`／`_Control of Room Modes`／`_Subjective…`） |
-| `2021 - Room acoustic modeling with the TD_DG method` | 7 | 1（本來就對） |
-| `2026 - hybrid computational framework for room-acoustic` | 7 | 1（本來就對） |
+這四本都是**學位論文**，當初進庫時是**一章一個 PDF 檔**。所以庫裡看起來有 32 份
+文件，其實是 **4 部作品**。
 
-**判定：四組各自合併。**
+下表的「舊規則切成幾組」＝ 被丟掉的那個檔名推論**把這一本當成了幾篇不同的文獻**：
+
+| 這一本 | 章節份數 | 舊規則切成幾組 | 後果 |
+|---|---|---|---|
+| `2012 - Combined wave and ray based…` | 9 | **2**（檔名差一個空格） | 同一本論文自己跟自己被當成兩篇文獻 → **假報** |
+| `2023 - Perception-of-room-modes` | 9 | **4**（檔名多了 `_Conclusions`／`_Control of Room Modes`／`_Subjective…`） | 同上，更嚴重 → **假報** |
+| `2021 - Room acoustic modeling with the TD_DG method` | 7 | 1 | 本來就對 |
+| `2026 - hybrid computational framework for room-acoustic` | 7 | 1 | 本來就對 |
+
+**判定：每一本論文的所有章節算同一個來源；四本彼此仍然是四個不同的來源。**
+
+> **↳ 我在原處回（2026-08-13）**
+>
+> 「四組各自合併」是我寫得不清楚，抱歉。**不是**把四本併成一本。意思是
+> 「第一本的 9 章併成一個來源、第二本的 9 章併成一個來源……」，四本之間互不相干。
+>
+> 後兩本舊規則本來就判對了，仍然列出來是因為**四本都要進登記檔**——
+> 只登記壞掉的那兩本，剩下兩本就會落在 unknown，等於白白少報。
+>
+> 你只要確認一句話：**同一本學位論文的不同章節，不算「兩篇文獻都這樣寫」。**
+> 同意就不用改；如果你認為某一本的某幾章其實該算獨立（例如那是彙編式論文、
+> 每章是各自發表過的期刊論文），那是下面 E 節在處理的事。
 
 ---
 
@@ -118,7 +153,8 @@ Exceptions will be clearly noted in the respective Section」——
 - `2019 - … Supplementary material` → 併入 `2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up chan…`
 - `2020 - … Supplementary Material` → 併入 `2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels`
 - `2022 - …_supplemental_file` → 併入 `2022 - Broadband impedance modulation via non-local acoustic metamaterials`
-- `41598_2017_5710_MOESM1_ESM` → 併入 `2017 - Metadiffusers Deep-subwavelength sound diffusers`
+- `41598_2017_5710_MOESM1_ESM` → 併入 `2017 - Metadiffusers Deep-subwavelength sound diffusers`\
+  ok
 
 ---
 
@@ -157,6 +193,22 @@ Exceptions will be clearly noted in the respective Section」——
 - `2021 TD_DG` ↔ `2019 - Room acoustics modelling in the time-domain…` → **同一部作品，合併**
 - 0.74 那組 → **否決**（節標題撞名，不是同一篇）
 
+> **↳ 這節你還沒留判定（2026-08-13）**
+>
+> 白話版：C 節處理的是「同一本論文的章節不算兩篇」。**E 節處理的是更隱蔽的一層**
+> ——那位作者把自己已經發表過的期刊論文，原封不動收進學位論文當一章，
+> 而**那篇期刊論文本身也在庫裡**。
+>
+> 於是同一條公式出現兩次，一次在論文裡、一次在期刊版，工具會說
+> 「兩個獨立來源都這樣寫」——但那是**同一個人寫的同一段文字**。
+> 這是 C 節分對了也救不掉的，因為它們確實是兩份不同的作品檔案。
+>
+> 證據強度：第一組 0.98（章名跟期刊論文標題幾乎逐字相同）、
+> 第二組 0.90，而且那本論文自己在內文寫著「本章根據 Paper III」。
+> 第三組 0.74 是誤報，我建議否決。
+>
+> **要你決定的**：這兩組合併、第三組否決，可以嗎？
+
 ### E2. 沒查完的部分
 
 - `2021 TD_DG` 的 Paper I／III／…分別對應庫裡哪幾篇，**沒查**（要翻論文的 paper list）。
@@ -180,7 +232,8 @@ Exceptions will be clearly noted in the respective Section」——
 我建議算一個，理由是這支工具問的是「有沒有第二個獨立來源這樣寫」，
 而姊妹篇不提供那個。政策定了之後往後自動適用。
 
-**判定：算一個來源。**
+**判定：算一個來源。**\
+**ok**
 
 ---
 
