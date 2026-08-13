@@ -1,0 +1,464 @@
+{
+ "version": 1,
+ "_": "PO 2026-08-13 逐題判的，題目是論文原頁裁下來的公式圖（不是解析器的 LaTeX）。抽樣工具 scripts/eq-label.py sample；判準與過程在 docs/eq-label-review-20260813.md。⚠ A1／A3 等 9 題的圖第一版被切掉過，這裡記的是重裁後重答的版本。",
+ "labels": [
+  {
+   "id": "A1",
+   "verdict": "different",
+   "part": 1,
+   "ratio": null,
+   "band": "",
+   "evidence_constants": 2,
+   "skeleton": "\\begin{#}#{#(#,#=N)={#}(-N\\pi#),}\\end{#}",
+   "items": [
+    {
+     "doc": "2019 - Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method",
+     "item": 129,
+     "nums": [
+      "0",
+      "2"
+     ]
+    },
+    {
+     "doc": "2021 - An arbitrary high-order discontinuous Galerkin method with local time-stepping for linear acoustic w",
+     "item": 158,
+     "nums": [
+      "0",
+      "0.5"
+     ]
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "A2",
+   "verdict": "same",
+   "part": 1,
+   "ratio": null,
+   "band": "",
+   "evidence_constants": 2,
+   "skeleton": "#(#)=\\fracN\\pi|#(#(#))-#(#(#))|\\timesN\\%,",
+   "items": [
+    {
+     "doc": "2019 - Broadband Time-domain Impedance Boundary Modeling with the Discontinuous Galerkin Method for Room Ac",
+     "item": 74,
+     "nums": [
+      "1",
+      "100"
+     ]
+    },
+    {
+     "doc": "2020 - Frequency-dependent transmission boundary condition in the acoustic time-domain nodal discontinuous",
+     "item": 165,
+     "nums": [
+      "1",
+      "100"
+     ]
+    },
+    {
+     "doc": "2020 - Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room ac",
+     "item": 140,
+     "nums": [
+      "1",
+      "100"
+     ]
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "A3",
+   "verdict": "same",
+   "part": 1,
+   "ratio": null,
+   "band": "",
+   "evidence_constants": 0,
+   "skeleton": "#=\\frac#{#}(\\frac{#\\overline#}{#}+\\frac{#\\overline#}{#}+\\frac{#\\overline#}{#})",
+   "items": [
+    {
+     "doc": "2004 - Room Sizing and Optimization at Low Frequencies",
+     "item": 51,
+     "nums": []
+    },
+    {
+     "doc": "2015 - Determining Optimum Room Dimensions for Critical Listening Environments A New Methodology",
+     "item": 44,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B1",
+   "verdict": "same",
+   "part": 2,
+   "ratio": 0.9922,
+   "band": "0.95-1.00",
+   "evidence_constants": 1,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2021 - Estimation of locally reacting surface impedance at modal frequencies using an eigenvalue approximat",
+     "item": 51,
+     "nums": [
+      "1"
+     ]
+    },
+    {
+     "doc": "2023 - A Review of Finite Element Methods for Room Acoustics",
+     "item": 36,
+     "nums": [
+      "1"
+     ]
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B2",
+   "verdict": "same",
+   "part": 2,
+   "ratio": 0.9744,
+   "band": "0.95-1.00",
+   "evidence_constants": 3,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2019 - Broadband Time-domain Impedance Boundary Modeling with the Discontinuous Galerkin Method for Room Ac",
+     "item": 19,
+     "nums": [
+      "1",
+      "0",
+      "0"
+     ]
+    },
+    {
+     "doc": "2019 - Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method",
+     "item": 23,
+     "nums": [
+      "1",
+      "0",
+      "0"
+     ]
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B3",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.9655,
+   "band": "0.95-1.00",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2019 - Acoustic perfect absorbers via Helmholtz resonators with embedded apertures",
+     "item": 62,
+     "nums": []
+    },
+    {
+     "doc": "2026 - hybrid computational framework for room-acoustic_CH02",
+     "item": 259,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B4",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.963,
+   "band": "0.95-1.00",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2024 - A Compact Low-Frequency Acoustic Perfect Absorber Constructed with a Folded Slit",
+     "item": 53,
+     "nums": []
+    },
+    {
+     "doc": "2024 - A hybrid room acoustic modeling approach combining image source, acoustic diffusion equation, and ti",
+     "item": 127,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B5",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.9492,
+   "band": "0.90-0.95",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2023 - A Review of Finite Element Methods for Room Acoustics",
+     "item": 34,
+     "nums": []
+    },
+    {
+     "doc": "N Flow Acoustics",
+     "item": 775,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B6",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.9286,
+   "band": "0.90-0.95",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "01504_6.4 Helmholtz resonators",
+     "item": 5,
+     "nums": []
+    },
+    {
+     "doc": "2024 - A Compact Low-Frequency Acoustic Perfect Absorber Constructed with a Folded Slit",
+     "item": 52,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B7",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.9231,
+   "band": "0.90-0.95",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2020 - Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room ac",
+     "item": 174,
+     "nums": []
+    },
+    {
+     "doc": "2026 - hybrid computational framework for room-acoustic_CH03",
+     "item": 47,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B8",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.9091,
+   "band": "0.90-0.95",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "01703_8.3 Examination of the impulse response",
+     "item": 2,
+     "nums": []
+    },
+    {
+     "doc": "2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials",
+     "item": 121,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B9",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.8989,
+   "band": "0.85-0.90",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2022 - Broadband impedance modulation via non-local acoustic metamaterials_supplemental_file",
+     "item": 43,
+     "nums": []
+    },
+    {
+     "doc": "K Muffler Acoustics",
+     "item": 99,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B10",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.8906,
+   "band": "0.85-0.90",
+   "evidence_constants": 1,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "01701_11.1 Nonlinear Steepening",
+     "item": 18,
+     "nums": [
+      "0"
+     ]
+    },
+    {
+     "doc": "O Analytical and Numerical Methods in Acoustics",
+     "item": 294,
+     "nums": [
+      "2"
+     ]
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B11",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.871,
+   "band": "0.85-0.90",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped a",
+     "item": 148,
+     "nums": []
+    },
+    {
+     "doc": "N Flow Acoustics",
+     "item": 1318,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B12",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.864,
+   "band": "0.85-0.90",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2023 - A Review of Finite Element Methods for Room Acoustics",
+     "item": 34,
+     "nums": []
+    },
+    {
+     "doc": "O Analytical and Numerical Methods in Acoustics",
+     "item": 434,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B13",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.8493,
+   "band": "0.80-0.85",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "01503_9.3 The Doppler Effect",
+     "item": 41,
+     "nums": []
+    },
+    {
+     "doc": "B General Linear Fluid Acoustics",
+     "item": 235,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B14",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.8387,
+   "band": "0.80-0.85",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2023 - Perception-of-room-modes_CH3",
+     "item": 59,
+     "nums": []
+    },
+    {
+     "doc": "B General Linear Fluid Acoustics",
+     "item": 754,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B15",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.8214,
+   "band": "0.80-0.85",
+   "evidence_constants": 0,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2026 - hybrid computational framework for room-acoustic_CH04",
+     "item": 61,
+     "nums": []
+    },
+    {
+     "doc": "O Analytical and Numerical Methods in Acoustics",
+     "item": 667,
+     "nums": []
+    }
+   ],
+   "by": "human:2026-08-13"
+  },
+  {
+   "id": "B16",
+   "verdict": "different",
+   "part": 2,
+   "ratio": 0.8125,
+   "band": "0.80-0.85",
+   "evidence_constants": 1,
+   "skeleton": null,
+   "items": [
+    {
+     "doc": "2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures",
+     "item": 152,
+     "nums": [
+      "2"
+     ]
+    },
+    {
+     "doc": "M Room Acoustics",
+     "item": 883,
+     "nums": [
+      "1"
+     ]
+    }
+   ],
+   "by": "human:2026-08-13"
+  }
+ ]
+}

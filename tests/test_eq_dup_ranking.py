@@ -141,3 +141,29 @@ def test_a_lopsided_pair_is_not_treated_as_strong() -> None:
     lopsided = {"a": {"nums": ["32", "1", "32", "2", "32"]}, "b": {"nums": ["4"]}}
     both_weak = {"a": {"nums": ["64"]}, "b": {"nums": ["4"]}}
     assert eqdup.pair_evidence(lopsided) == eqdup.pair_evidence(both_weak) == 1
+
+
+def test_pairs_without_comparable_constants_are_dropped_and_counted() -> None:
+    """零可比常數的配對不進報告 —— **PO 抽樣 12 對全部不是同一條**（2026-08-13）。
+
+    ⚠ 這是**必要條件不是充分條件**：有常數也可能不是同一條（B10／B16 各有 1 個
+    常數仍被判「不是」）。這裡只擋掉「連一個數字都對不上就宣稱兩篇都這樣寫」。
+    ⚠ 樣本只有 16 對。12/12 是強訊號不是證明，要推翻就再抽一批來標。
+    """
+    pairs = [{"a": {"nums": []}, "b": {"nums": ["2"]}},          # 一邊空 → 沒得對
+             {"a": {"nums": []}, "b": {"nums": []}},             # 兩邊都空
+             {"a": {"nums": ["32"]}, "b": {"nums": ["8"]}}]      # 有得對
+    kept, dropped = eqdup.with_evidence(pairs)
+    assert len(kept) == 1 and dropped == 2
+    assert kept[0]["a"]["nums"] == ["32"]
+
+
+def test_similarity_alone_is_not_used_as_the_criterion() -> None:
+    """**相似度高但沒有常數可對**的，仍然要被擋掉。
+
+    這條是本檔第一條的反面：PO 判「不是同一條」的 14 對裡，相似度最高的是
+    0.9922、最低 0.8125 —— 分數本身分不出來，所以它只能排序不能裁決。
+    """
+    high_ratio_no_constants = {"ratio": 0.99, "a": {"nums": []}, "b": {"nums": []}}
+    kept, dropped = eqdup.with_evidence([high_ratio_no_constants])
+    assert kept == [] and dropped == 1

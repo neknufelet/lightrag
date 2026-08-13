@@ -76,15 +76,25 @@ def test_never_audited_is_excluded_and_counted_separately() -> None:
 
 
 def test_model_disagreement_is_not_treated_as_pass() -> None:
-    """模型自己就分歧的留 `uncertain`，**不當成通過**。
+    """`uncertain` **不當成通過**。把「沒有共識」算成「是同一條」，就是把不知道講成知道。
 
-    把「沒有共識」算成「是同一條」，就是把不知道講成知道。
+    ⚠ 用合成的判定表測，**不綁現在的資料**：2026-08-13 PO 把當時僅有的三組分歧
+    判掉之後，這條原本綁在實檔上的斷言當場變紅 —— 而它要守的行為一點都沒變。
+    「資料剛好有沒有那一類」與「碰到那一類時怎麼做」是兩件事。
+    """
+    kept, tally = eqdup.audited(_groups("某個沒有共識的骨架"), {"某個沒有共識的骨架": "uncertain"})
+    assert kept == [] and tally["uncertain"] == 1
+
+
+def test_the_frozen_audit_has_no_unresolved_groups_left() -> None:
+    """現況：分歧的都判完了。**這條會隨資料變**，變紅時要看的是資料不是程式。
+
+    新語料進來會長出新的等價類，模型可能又投不出多數 —— 那時這條轉紅，
+    意思是「有東西等人判」，處置在 `docs/eq-label-review-20260813.md`。
     """
     data = json.loads(AUDIT.read_text(encoding="utf-8"))["groups"]
-    split = [k for k, v in data.items() if v["verdict"] == "uncertain"]
-    assert split, "審計檔裡一組分歧都沒有 —— 素材不對，換一份"
-    kept, tally = eqdup.audited(_groups(*split), eqdup.load_audit(AUDIT))
-    assert kept == [] and tally["uncertain"] == len(split)
+    unresolved = [k for k, v in data.items() if v["verdict"] == "uncertain"]
+    assert not unresolved, f"{len(unresolved)} 組還沒判：{unresolved[:3]}"
 
 
 def test_a_missing_audit_file_does_not_silently_pass_everything() -> None:

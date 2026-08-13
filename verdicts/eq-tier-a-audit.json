@@ -25,7 +25,7 @@
    "by": "panel:2026-08-13"
   },
   "\\begin{#}#{#(#,#=N)={#}(-N\\pi#),}\\end{#}": {
-   "verdict": "uncertain",
+   "verdict": "different",
    "votes": [
     "different",
     "same",
@@ -33,7 +33,8 @@
    ],
    "size": 2,
    "sources": 2,
-   "by": "panel:2026-08-13"
+   "by": "human:2026-08-13",
+   "note": "模型投不出多數（['different', 'same', 'different']），由人判"
   },
   "#=\\frac{#}{N#}.": {
    "verdict": "different",
@@ -190,7 +191,7 @@
    "by": "panel:2026-08-13"
   },
   "#(#)=\\fracN\\pi|#(#(#))-#(#(#))|\\timesN\\%,": {
-   "verdict": "uncertain",
+   "verdict": "same",
    "votes": [
     "different",
     "same",
@@ -198,7 +199,8 @@
    ],
    "size": 3,
    "sources": 3,
-   "by": "panel:2026-08-13"
+   "by": "human:2026-08-13",
+   "note": "模型投不出多數（['different', 'same', 'different']），由人判"
   },
   "\\begin{#}{#}{#}&=&{[\\begin{#}{#}N&N&N&{\\frac{#}#}\\\\N&N&N&{\\frac{#}#}\\\\N&N&N&{\\frac{#}#}\\\\{#^2#}&{#^2#}&{#^2#}&N\\end{#}],}\\end{#}": {
    "verdict": "same",
@@ -267,7 +269,7 @@
    "by": "panel:2026-08-13"
   },
   "#=\\frac#{#}(\\frac{#\\overline#}{#}+\\frac{#\\overline#}{#}+\\frac{#\\overline#}{#})": {
-   "verdict": "uncertain",
+   "verdict": "same",
    "votes": [
     "different",
     "different",
@@ -275,7 +277,8 @@
    ],
    "size": 2,
    "sources": 2,
-   "by": "panel:2026-08-13"
+   "by": "human:2026-08-13",
+   "note": "模型投不出多數（['different', 'different', 'uncertain']），由人判"
   },
   "#=#^{|#|}#^{|#-1|}": {
    "verdict": "same",

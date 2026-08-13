@@ -103,6 +103,29 @@ def collect(parsed: Path, smap: SourceMap) -> tuple[list[dict], list[str]]:
     return out, skipped
 
 
+def with_evidence(pairs: list[dict]) -> tuple[list[dict], int]:
+    """只留「兩邊都有數字可以對」的配對。**過濾是獨立一步，不藏在 `tier_b()` 裡。**
+
+    2026-08-13 PO 逐題判過 16 對（題目是論文原頁裁下來的公式圖，不是解析器的
+    LaTeX，判定凍結在 `verdicts/eq-labels.json`）：
+
+    ```
+    判「是同一條」的 2 對    可比常數 1 個與 3 個
+    判「不是」的   14 對    其中 12 對是**零可比常數**
+    零可比常數的抽樣        12 對全部不是同一條
+    ```
+
+    ⚠ **相似度本身沒有鑑別力** —— 0.9922 與 0.8125 都出現在「不是同一條」裡。
+    真正有訊號的是「兩邊有沒有數字可以對」，所以 `--min-ratio` 留著當排序起點，
+    判準改用這個。⚠ 有常數不代表就是同一條（B10／B16 各有 1 個常數仍判「不是」）
+    —— 這是**必要條件不是充分條件**。
+
+    ⚠ 樣本只有 16 對，12/12 是強訊號但不是證明。要推翻它就再抽一批來標。
+    """
+    kept = [p for p in pairs if pair_evidence(p) > 0]
+    return kept, len(pairs) - len(kept)
+
+
 def pair_evidence(pair: dict) -> int:
     """一對匹配有多少常數可比 —— **排序用的證據強度，不是判準。**
 
@@ -254,7 +277,7 @@ def main() -> int:
 
     trivial = [e for e in eqs if TRIVIAL.match(e["skeleton"])]
     groups, tally = audited(tier_a(eqs), load_audit(a.audit))
-    pairs = tier_b(eqs, a.min_ratio)
+    pairs, no_evidence = with_evidence(tier_b(eqs, a.min_ratio))
     disagree_a = [g for g in groups if not g["constants_agree"]]
     disagree_b = [p for p in pairs if not p["constants_agree"]]
 
@@ -284,8 +307,12 @@ def main() -> int:
         if tally["unaudited"]:
             print(f"   ⚠ 其中 {tally['unaudited']} 組**從來沒審過**，"
                   f"跑 `eq-label.py audit` 補上")
-    print(f"Tier B（骨架相近、跨來源、成對）：{len(pairs)} 對，"
+    print(f"Tier B（骨架相近、跨來源、**兩邊都有常數可對**）：{len(pairs)} 對，"
           f"其中係數不一致 **{len(disagree_b)}** 對")
+    if no_evidence:
+        print(f"   ⚠ 排除 {no_evidence} 對「零可比常數」不計入 —— "
+              f"人工抽樣 12 對全部不是同一條（`verdicts/eq-labels.json`）。"
+              f"⚠ 相似度本身沒有鑑別力：0.99 與 0.81 都出現在「不是」裡")
     print("\n⚠ 這是「哪裡有分歧」不是「哪裡有錯」——"
           "分歧可能是 MinerU 讀錯、原文本來就不同、或兩篇假設不同。\n")
 
