@@ -65,11 +65,12 @@ ENABLE = ("lightrag-daily-check.timer", "lightrag-cold-backup.timer",
 #
 # 但也不能靜靜跳過：那樣「刻意暫停」與「有人手滑關掉」又變成同一件事。
 # 所以照樣報出來，只是說清楚是誰、為什麼，並且不算失敗。
-PAUSED: dict[str, str] = {
-    "lightrag-cold-backup.timer":
-        "PO 2026-08-08 暫停。backup-cold.sh 當天改過 DBS 陣列（拿掉 neo4j）"
-        "但一次都沒跑過，而它會停容器再啟動。手動驗過一次之後再開回來。",
-}
+# 2026-08-13 清空：`lightrag-cold-backup.timer` 的暫停條件已經滿足並移除。
+# 當初暫停的理由是「backup-cold.sh 改過 DBS 陣列但一次都沒跑過，而它會停容器」。
+# 2026-08-11 04:00 實跑完整一輪（停容器 → 抄 22,774 檔 4.18 GiB → restic
+# 快照 bcc02bb0 → 開回來 → 清暫存 → 完成，rc=0），之後兩次因指紋未變而跳過。
+# ⇒ 條件滿足，留在這裡只會讓「刻意暫停」與「有人手滑關掉」再度混在一起。
+PAUSED: dict[str, str] = {}
 
 LOGGER = logging.getLogger("systemd-units")
 
