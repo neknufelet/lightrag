@@ -180,6 +180,21 @@ def doc_summary(ws: str, doc: str) -> dict:
             "note": "headings/equations 有上限，完整內容請用 search 定位"}
 
 
+
+def needs_keywords(mode: str, hl: list[str], ll: list[str], allow: str) -> bool:
+    """走圖譜卻沒帶關鍵詞就該擋。**這是判準，只有這一份。**
+
+    ⚠ `naive` 不走圖譜，所以不需要關鍵詞 —— 它本來就確定（2026-08-13 實測：
+    同一題三次逐位元相同）。其餘三個模式會先用後端 LLM 把問題變成關鍵詞，
+    那一步沒有快取也不確定，實測同一題三次拿到三組不同段落。
+
+    ⚠ **空字串算沒帶。** `hl_keywords=` 這種送下去，LightRAG 會當成「關鍵詞就是
+    空的」而不是「請你自己抽」，圖譜那段等於沒查 —— 而且不報錯。
+    ⚠ 只要有一邊有值就放行：兩邊都要求會逼人硬湊，而硬湊的關鍵詞比沒有更糟。
+    """
+    return mode != "naive" and not (hl or ll) and str(allow).lower() not in ("1", "true", "yes")
+
+
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -340,6 +355,8 @@ class H(BaseHTTPRequestHandler):
 
                 hl, ll = _kw("hl_keywords"), _kw("ll_keywords")
                 # 走圖譜卻沒帶關鍵詞 → **拒絕，不要安靜地變成不確定**。
+                # 判準抽成模組層的 `needs_keywords()`，不要 inline —— inline 的話
+                # 沒有測試搆得到它，而這是一條「安靜失敗」的守衛，正是最需要守的那種。
                 #
                 # 上面那段註解記著「三次拿回三組不同的段落，使用者不會有任何訊號」，
                 # 而在 2026-08-13 之前**沒有任何東西擋著它** —— skill 的說明有寫，
@@ -354,8 +371,8 @@ class H(BaseHTTPRequestHandler):
                 #   而呼叫端不會知道。寧可回錯誤讓人改呼叫，也不要偷偷給別的東西。
                 # ⚠ 逃生門留著（`allow_llm_keywords=1`）：擋下的東西要有辦法明確要求，
                 #   否則遲早有人繞過整個這一層。
-                if mode != "naive" and not (hl or ll) and \
-                        (q.get("allow_llm_keywords") or ["0"])[0] not in ("1", "true"):
+                if needs_keywords(mode, hl, ll,
+                                  (q.get("allow_llm_keywords") or ["0"])[0]):
                     return self._json({
                         "error": "走圖譜的模式必須自帶關鍵詞，否則同一題每次拿到不同段落",
                         "why": ("mode=mix/local/global 會先用後端 LLM 把問題變成關鍵詞，"
