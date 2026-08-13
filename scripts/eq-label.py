@@ -190,6 +190,77 @@ def cmd_control(eqs: list[dict], groups: list[dict], n: int) -> int:
     return 0 if ok else 2
 
 
+_STRUCT = re.compile(r"\\[A-Za-z]+")
+
+
+def specificity(skeleton: str) -> dict:
+    """骨架有多「具體」。**這裡只量，不下判準** —— 判準要等量完才有依據。
+
+    三個候選一起量，因為它們會分歧：`#=\\frac{#}{#}` 三個都低，
+    而 `#^#(#,#)=\\sum^{#}#^#(#^#,#)#^#(#)` 結構命令只有 1 個卻很長很 specific。
+    **只數結構命令會把後者一起殺掉**，所以不能只看一個數字。
+    """
+    return {"struct": len(_STRUCT.findall(skeleton)),
+            "chars": len(skeleton),
+            "slots": skeleton.count("#")}
+
+
+def _cross_source_pair(group: dict, eqs_by_key: dict) -> tuple[str, str] | None:
+    """從一組裡挑**跨來源**的兩條。同來源的兩條不能拿來問「兩篇是否都這樣寫」。"""
+    seen: dict[str, dict] = {}
+    for m in group["members"]:
+        e = eqs_by_key[(m["doc"], m["item"])]
+        seen.setdefault(e["source"], e)
+        if len(seen) == 2:
+            a, b = seen.values()
+            return a["latex"], b["latex"]
+    return None
+
+
+def cmd_audit(eqs: list[dict], groups: list[dict], out: Path | None) -> int:
+    """讓模型把每一組 Tier A 都審一遍，看骨架具體度與「是不是同一條」在哪裡分開。"""
+    from pp import eqjudge
+    from pp.eyes import assert_distinct, eye_c_from_env, eyes_from_env
+
+    env = load_env(REPO)
+    panel = [*eyes_from_env(env)]
+    if (third := eye_c_from_env(env)) is not None:
+        panel.append(third)
+    assert_distinct(panel)
+    by_key = {(e["doc"], e["item"]): e for e in eqs}
+
+    rows = []
+    print(f"=== Tier A 審計：{len(groups)} 組 × {len(panel)} 隻眼睛 ===")
+    for i, g in enumerate(groups, 1):
+        pair = _cross_source_pair(g, by_key)
+        if pair is None:
+            continue
+        rulings = [eqjudge.ask_pair(*pair, eye) for eye in panel]
+        verdict = eqjudge.panel_verdict(rulings)
+        rows.append({"skeleton": g["skeleton"], "size": g["size"],
+                     "sources": len(g["sources"]), "verdict": verdict,
+                     **specificity(g["skeleton"]),
+                     "votes": [r.verdict if not r.error else "ERR" for r in rulings]})
+        print(f"  [{i:>3}/{len(groups)}] {verdict:<10} {g['skeleton'][:56]}")
+
+    print("\n── 骨架具體度 × 多數決")
+    for name in ("struct", "chars", "slots"):
+        print(f"\n  依 {name} 分箱：")
+        for lo, hi in ((0, 2), (2, 4), (4, 8), (8, 16), (16, 10**6)) if name != "chars" \
+                else ((0, 20), (20, 40), (40, 80), (80, 10**6), (10**6, 10**7)):
+            grp = [r for r in rows if lo <= r[name] < hi]
+            if not grp:
+                continue
+            d = sum(1 for r in grp if r["verdict"] == "different")
+            s = sum(1 for r in grp if r["verdict"] == "same")
+            print(f"    {name} {lo}–{hi if hi < 10**6 else '∞'}　{len(grp):>3} 組"
+                  f" → 判同 {s}、**判異 {d}**、沒共識 {len(grp) - s - d}")
+    if out:
+        out.write_text(json.dumps(rows, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"\n逐組結果寫到 {out}")
+    return 0
+
+
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -202,6 +273,8 @@ def main() -> int:
     p.add_argument("--out", type=Path)
     c = sub.add_parser("control", help="裁判體檢：模型分不分得出來（沒過就不准用它的票）")
     c.add_argument("-n", type=int, default=12, help="每個對照組幾題")
+    d = sub.add_parser("audit", help="讓模型把每組 Tier A 審一遍（量骨架具體度 × 是不是同一條）")
+    d.add_argument("--out", type=Path)
     a = ap.parse_args()
 
     parsed = DataPaths(a.root).parsed_dir
@@ -216,6 +289,8 @@ def main() -> int:
 
     if a.cmd == "control":
         return cmd_control(eqs, eqdup.tier_a(eqs), a.n)
+    if a.cmd == "audit":
+        return cmd_audit(eqs, eqdup.tier_a(eqs), a.out)
 
     smap_raw = json.loads(a.map.read_text(encoding="utf-8")) if a.map.is_file() else {}
     labels = {d: (smap_raw.get("sources", {}).get(v.get("source"), {}) or {}).get("label", "")

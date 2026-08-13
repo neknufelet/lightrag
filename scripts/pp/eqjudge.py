@@ -130,6 +130,22 @@ class ControlResult:
                 f"棄權 {self.diff_abstain}{err}")
 
 
+def panel_verdict(rulings: list[Ruling]) -> str:
+    """多數決。**平手或票數不足一律回 `uncertain`** —— 沒有多數就是沒有結論。
+
+    ⚠ 不要把「棄權」算進任何一邊。棄權是模型說「我看不出來」，
+    當成任何一種答案都是把不知道講成知道。
+    """
+    ok = [r for r in rulings if not r.error]
+    same = sum(1 for r in ok if r.says_same)
+    diff = sum(1 for r in ok if r.says_different)
+    if same > diff and same >= 2:
+        return "same"
+    if diff > same and diff >= 2:
+        return "different"
+    return "uncertain"
+
+
 def control(eye: Eye, same: list[tuple[str, str]], diff: list[tuple[str, str]],
             *, workers: int = 2) -> ControlResult:
     """跑負向控制。`same`／`diff` 是 (latexA, latexB) 的清單。
