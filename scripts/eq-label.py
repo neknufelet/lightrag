@@ -79,46 +79,66 @@ def _member_lines(eq: dict, labels: dict[str, str]) -> list[str]:
     return out
 
 
-def render(eqs: list[dict], groups: list[dict], pairs: list[dict],
-           labels: dict[str, str], verdicts: dict[str, str] | None = None) -> str:
-    """樣本本文。`eqs` 只用來把 (doc, item) 換回 LaTeX。
+def questions(eqs: list[dict], groups: list[dict], pairs: list[dict],
+              verdicts: dict[str, str] | None = None) -> list[dict]:
+    """題目清單。**選題只在這裡做一次**，markdown 與結構化輸出都從它長出來。
 
     第一部分**只放模型吵不定的那幾組** —— 全票的不用問人（2026-08-13 實測：
     模型在「不是同一條」那個方向 100% 準、零次亂點頭）。把全票的也塞給人看，
     是拿別人的時間去確認一件已經確定的事。
+
+    ⚠ **不要從產出的 markdown 反推題目**：那裡的檔名截短過，前綴會對到多份文件
+    （2026-08-13 實測 4 題因此對不上）。要結構化資料就呼叫這支。
     """
     text = {(e["doc"], e["item"]): e for e in eqs}
-    split = [g for g in groups if (verdicts or {}).get(g["skeleton"]) == "uncertain"]
-    out: list[str] = [f"## 第一部分：模型吵不定的 {len(split)} 組（只有這幾組需要你判）\n",
-                      "這幾組的骨架逐字相同，但**三隻模型投不出多數** —— "
-                      "有的說是同一條、有的說不是。全票的那些不放進來，"
-                      "問你等於拿你的時間去確認已經確定的事。\n"]
-    for i, g in enumerate(split, 1):
-        out.append(f"### A{i}　{g['size']} 處、{len(g['sources'])} 個來源"
-                   f"　係數{'一致' if g['constants_agree'] else '**不一致**'}\n")
-        for m in g["members"][:3]:
-            out += _member_lines(text[(m["doc"], m["item"])], labels)
-        if g["size"] > 3:
-            out.append(f"- …其餘 {g['size'] - 3} 處省略")
-        out.append("\n**標註：同一條 / 不是同一條**\n")
-
-    out.append(f"\n## 第二部分：Tier B 按相似度分層（{len(BANDS) * PER_BAND} 對）\n")
-    out.append("這是**要決定門檻的那批**。現在 `--min-ratio 0.8` 只是排序起點，"
-               "沒有任何依據說 0.8 以上就算同一條。\n")
+    out: list[dict] = []
+    for i, g in enumerate([g for g in groups
+                           if (verdicts or {}).get(g["skeleton"]) == "uncertain"], 1):
+        out.append({"id": f"A{i}", "part": 1, "more": max(0, g["size"] - 3),
+                    "head": f"{g['size']} 處、{len(g['sources'])} 個來源"
+                            f"　係數{'一致' if g['constants_agree'] else '**不一致**'}",
+                    "options": ["同一條", "不是同一條"],
+                    "items": [text[(m["doc"], m["item"])] for m in g["members"][:3]]})
     n = 0
     for lo, hi in BANDS:
         inband = sorted([p for p in pairs if lo <= p["ratio"] < hi],
                         key=lambda p: (-p["ratio"], p["a"]["doc"], p["a"]["item"]))
-        out.append(f"\n### 相似度 {lo:.2f}–{min(hi, 1.0):.2f}"
-                   f"（這一段共 {len(inband)} 對，抽 {PER_BAND} 對）\n")
         for p in spaced(inband, PER_BAND):
             n += 1
-            out.append(f"#### B{n}　相似度 {p['ratio']}　可比常數 "
-                       f"{eqdup.pair_evidence(p)} 個"
-                       f"　係數{'一致' if p['constants_agree'] else '**不一致**'}")
-            for side in ("a", "b"):
-                out += _member_lines(text[(p[side]["doc"], p[side]["item"])], labels)
-            out.append("\n**標註：同一條 / 不是同一條 / 看不出來**\n")
+            out.append({"id": f"B{n}", "part": 2, "more": 0, "ratio": p["ratio"],
+                        "band": f"{lo:.2f}-{min(hi, 1.0):.2f}", "band_total": len(inband),
+                        "head": f"相似度 {p['ratio']}　可比常數 "
+                                f"{eqdup.pair_evidence(p)} 個"
+                                f"　係數{'一致' if p['constants_agree'] else '**不一致**'}",
+                        "options": ["同一條", "不是同一條", "看不出來"],
+                        "items": [text[(p[s]["doc"], p[s]["item"])] for s in ("a", "b")]})
+    return out
+
+
+def render(qs: list[dict], labels: dict[str, str]) -> str:
+    """把題目清單寫成 markdown。**選題不在這裡做**，見 `questions()`。"""
+    part1 = [q for q in qs if q["part"] == 1]
+    out: list[str] = [f"## 第一部分：模型吵不定的 {len(part1)} 組（只有這幾組需要你判）\n",
+                      "這幾組的骨架逐字相同，但**三隻模型投不出多數** —— "
+                      "有的說是同一條、有的說不是。全票的那些不放進來，"
+                      "問你等於拿你的時間去確認已經確定的事。\n"]
+    band = ""
+    for q in qs:
+        if q["part"] == 2 and not band:
+            out.append(f"\n## 第二部分：Tier B 按相似度分層（{len(BANDS) * PER_BAND} 對）\n")
+            out.append("這是**要決定門檻的那批**。現在 `--min-ratio 0.8` 只是排序起點，"
+                       "沒有任何依據說 0.8 以上就算同一條。\n")
+        if q["part"] == 2 and q["band"] != band:
+            band = q["band"]
+            out.append(f"\n### 相似度 {band}（這一段共 {q['band_total']} 對，"
+                       f"抽 {PER_BAND} 對）\n")
+        out.append(("### " if q["part"] == 1 else "#### ")
+                   + f"{q['id']}　{q['head']}" + ("\n" if q["part"] == 1 else ""))
+        for e in q["items"]:
+            out += _member_lines(e, labels)
+        if q["more"]:
+            out.append(f"- …其餘 {q['more']} 處省略")
+        out.append("\n**標註：" + " / ".join(q["options"]) + "**\n")
     return "\n".join(out)
 
 
@@ -278,6 +298,8 @@ def main() -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("sample", help="抽一批給人標註")
     p.add_argument("--out", type=Path)
+    p.add_argument("--questions-json", type=Path,
+                   help="同一批題目的結構化輸出（含完整檔名，給裁圖／出網頁用）")
     c = sub.add_parser("control", help="裁判體檢：模型分不分得出來（沒過就不准用它的票）")
     c.add_argument("-n", type=int, default=12, help="每個對照組幾題")
     d = sub.add_parser("audit", help="讓模型把每組 Tier A 審一遍（量骨架具體度 × 是不是同一條）")
@@ -303,7 +325,11 @@ def main() -> int:
     labels = {d: (smap_raw.get("sources", {}).get(v.get("source"), {}) or {}).get("label", "")
               for d, v in (smap_raw.get("documents") or {}).items()}
     verdicts = eqdup.load_audit(a.audit)
-    body = render(eqs, eqdup.tier_a(eqs), eqdup.tier_b(eqs, a.min_ratio), labels, verdicts)
+    qs = questions(eqs, eqdup.tier_a(eqs), eqdup.tier_b(eqs, a.min_ratio), verdicts)
+    if a.questions_json:
+        a.questions_json.write_text(json.dumps(qs, ensure_ascii=False), encoding="utf-8")
+        print(f"題目清單（含完整檔名）寫到 {a.questions_json}")
+    body = render(qs, labels)
     header = (f"<!-- {rec.line()}；排除 {len(skipped)} 份 -->\n\n")
     if a.out:
         a.out.write_text(header + body + "\n", encoding="utf-8")
