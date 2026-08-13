@@ -730,6 +730,24 @@ def ledger_entries_from_plan(
     return out
 
 
+# 尾端那組帶量測值的括號：`參考文獻消音比例異常（31.6%）`。
+_MEASURED_TAIL = re.compile(r"[（(][^（()）]*[0-9][^（()）]*[)）]\s*$")
+
+
+def _event_kind(event: Mapping[str, object]) -> str:
+    """教學事件的**型態**（不是次數，也不是那一次量到多少）。
+
+    ⚠ 有些 `reason` 把量測值寫進字串裡（2026-08-09 的兩筆是
+    `參考文獻消音比例異常（31.6%）` 與 `（49.0%）`）。直接數相異字串的話，
+    **同一種型態量到不同數字就變成兩種**，「還在教我們東西嗎」這個問題就答錯了。
+
+    ⚠ 這是這個專案反覆出現的同一個病：**把會變的量測值塞進識別字裡**。
+    數字本身沒有消失 —— 它在 `detail` 欄裡（藍桶第 2 條）。
+    """
+    reason = str(event.get("reason") or "").strip()
+    return _MEASURED_TAIL.sub("", reason).strip()
+
+
 def _failure_reason(message: str) -> str:
     if "未知的項目型別" in message:
         tail = message.split("未知的項目型別", 1)[1].split("——", 1)[0].strip(" ：")
@@ -2865,7 +2883,7 @@ class IntakeApp:
         # 那 9 是**事件次數**（同一種型態重複出現也各記一次），而實際只有 2 種。
         # 而且 `events[-20:]` 是**顯示上限**不是時間窗口，畫面卻寫成「最近 20 筆內」。
         # 兩個標籤都在誤導，所以計數改成算相異的 `reason`，清單另外給。
-        kinds = sorted({str(e.get("reason") or "") for e in events if isinstance(e, dict)} - {""})
+        kinds = sorted({_event_kind(e) for e in events if isinstance(e, dict)} - {""})
         convergence = {
             "processed": processed,
             "events": events[-20:],

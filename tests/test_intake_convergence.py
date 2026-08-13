@@ -64,3 +64,30 @@ def test_no_events_reads_as_covered() -> None:
     """一次都沒出現過 ≠ 出現過但很久沒出現。兩句話要不一樣。"""
     html = _html(event_kinds=[], event_occurrences=0)
     assert "沒有出現新型態" in html
+
+
+# ── 型態的識別字裡不能有量測值 ────────────────────────────────────────────
+
+
+def test_the_same_kind_with_different_measurements_is_one_kind() -> None:
+    """**同一種型態量到不同數字，不是兩種型態。**
+
+    2026-08-14 實機撞到：畫面顯示 3 種，實際只有 2 種 —— 因為兩筆的 `reason`
+    是 `參考文獻消音比例異常（31.6%）` 與 `（49.0%）`，字串不同。
+    ⚠ 這是專案反覆出現的同一個病：把會變的量測值塞進識別字裡。
+    """
+    a = intake._event_kind({"reason": "參考文獻消音比例異常（31.6%）"})
+    b = intake._event_kind({"reason": "參考文獻消音比例異常（49.0%）"})
+    assert a == b == "參考文獻消音比例異常"
+
+
+def test_a_kind_without_numbers_is_left_alone() -> None:
+    """**控制組。** 只剝尾端帶數字的括號，別的一個字都不准動。"""
+    assert intake._event_kind({"reason": "頁面尺寸不一致"}) == "頁面尺寸不一致"
+    assert intake._event_kind({"reason": "未知型別 foo, bar"}) == "未知型別 foo, bar"
+
+
+def test_an_internal_parenthesis_is_not_stripped() -> None:
+    """句中的括號不是量測值尾巴，剝掉會改變型態的意思。"""
+    assert intake._event_kind({"reason": "頁序錯位（第 3 頁）之後還有內容"}) == \
+        "頁序錯位（第 3 頁）之後還有內容"
