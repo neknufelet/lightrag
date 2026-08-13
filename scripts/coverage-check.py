@@ -183,6 +183,30 @@ def latex_unspace(text: str) -> str:
     return CMD_ARG.sub(lambda m: m.group(1) + _glue_letters(m.group(2)) + m.group(3), text)
 
 
+# 軟連字號（U+00AD）＋換行 ＝ 排版斷字，不是內容。
+# **NFKC 不會處理它** —— 它是格式字元不是相容字元。
+SOFT_HYPHEN = re.compile("\u00ad\\s*")
+
+
+def desoft(text: str) -> str:
+    """把排版斷字接回去：`absorp<U+00AD>\\ntion` → `absorption`。
+
+    實測踩過（2026-08-13）：`2025 - Incorporating extended neck …` 量出漏詞
+    5.6%，漏最多的是 `tion(10)`、`quency(7)`、`absorp(6)`、`sorption(6)`、
+    `asurface(4)` —— 看起來像 MinerU 把整段內容弄丟了。實際上 pdftotext 吐的是
+    **軟連字號**（隱形字元），`[a-z]{4,}` 配不到它，於是把 `absorp­tion` 從中間
+    切成兩個「詞」；MinerU 那邊是正確接好的 `absorption`。**解析是對的，
+    量測工具錯了。**
+
+    ⚠ 這與檔頭記的 `ﬂ` 連字（U+FB02）是**同一個形狀的第二次**：偵測器量到的是
+    文字層的排版產物，不是內容缺漏（鐵則 5：覺得數字不對時先查偵測器量了什麼）。
+
+    ⚠ 兩邊都做，理由同 `words()` 的說明 —— 單邊正規化正是「同一份資料兩個答案」
+    的來源。content 側本來就沒有軟連字號，所以對稱套用不會動到分子。
+    """
+    return SOFT_HYPHEN.sub("", text or "")
+
+
 def words(text: str) -> collections.Counter:
     """斷詞前**必須先做 NFKC 正規化**，再做 LaTeX 字母間隔正規化。
 
@@ -201,7 +225,7 @@ def words(text: str) -> collections.Counter:
     對稱套用不會動到分母；但寫成對稱的才不會有人日後把它挪成單邊而不自知 ——
     單邊正規化正是「同一份資料兩個答案」的來源。
     """
-    t = latex_unspace(unicodedata.normalize("NFKC", text))
+    t = latex_unspace(unicodedata.normalize("NFKC", desoft(text)))
     return collections.Counter(WORD.findall(t.lower()))
 
 
