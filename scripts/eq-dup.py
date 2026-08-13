@@ -34,13 +34,23 @@ r"""同一條公式在庫裡出現幾次，係數一不一致。
 ## 「跨來源」不是「跨文件」
 
 同一本書的 §10.2 與 §10.8 重複一條公式，不算「兩篇文獻都這樣寫」。
-⚠ 來源分組是**從檔名猜的**，`--source-map` 印出來給人核過再信。
+
+**來源是查表來的，不是從檔名推的**（2026-08-13 換掉）。舊版用兩條正規表達式猜檔名，
+逐份核過**五類全錯**，四類是假報方向 —— 把同一本書當成兩篇獨立文獻，於是
+「兩篇都這樣寫」是假的，而人會去查一個不存在的分歧。判定過程在
+`docs/source-review-20260813.md`，登記檔是 `verdicts/source-map.json`。
+
+⚠ **要改分組請改那份資料，不要回來改程式。** 這裡沒有規則可改了。
+
+⚠ 查不到登記的文件**整份不進比對**，並在表頭報數。少報只是漏線索，
+假報會叫人去查不存在的東西。
 
 用法：
     eq-dup.py                    # 給人看的報告
     eq-dup.py --json             # 結構化（⚠ 後面還會接一段給人看的報告）
-    eq-dup.py --source-map       # 印出來源分組，核對用
     eq-dup.py --min-ratio 0.9    # Tier B 的下限（預設 0.8，排序輸出，不是門檻）
+
+來源分組要看、要核、要改：`scripts/source-map.py`
 """
 from __future__ import annotations
 
@@ -56,36 +66,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.eqkey import constants, skeleton, structure_profile  # noqa: E402
 from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
+from pp.sources import DEFAULT_MAP_PATH, SourceMap, ledger_hashes  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 
 # 瑣碎骨架：列出來、給數字，但不進主報告。**不是丟掉。**
 TRIVIAL = re.compile(r"^[#N=,.;:()\[\]{}+\-*/^_\s]*$")
 
-_BOOK_SLICE = re.compile(r"^0(\d)(\d{3})_")          # 01405_5.5 …
-_CH_SLICE = re.compile(r"^(.*?)_CH\d+", re.I)         # …_CH01
 
+def collect(parsed: Path, smap: SourceMap) -> tuple[list[dict], list[str]]:
+    """全庫的方程式項目，以及**被排除的文件**。
 
-def source_key(doc: str) -> str:
-    """同一本書的章節切片算同一個來源。
-
-    ⚠ **這個函式是猜的。** 體檢表裡沒有來源欄位，只能從檔名推。
-    用 `--source-map` 把 259 份的分組印出來核過再信。
+    ⚠ 來源查不到（沒登記／雜湊對不上）的整份排除，並且回傳清單讓表頭報數 ——
+    安靜跳過就是這個專案七個 bug 的共同形狀：報「N 筆」而 N 的母體不是真的母體。
     """
-    if m := _BOOK_SLICE.match(doc):
-        return f"book:0{m.group(1)}xxx"
-    if m := _CH_SLICE.match(doc):
-        return f"book:{m.group(1)}"
-    return f"doc:{doc}"
-
-
-def collect(parsed: Path) -> list[dict]:
-    """全庫的方程式項目。"""
     out: list[dict] = []
+    skipped: list[str] = []
     for d in sorted(parsed.glob("*.mineru_raw")):
         doc = d.name.removesuffix(".pdf.mineru_raw")
         cl = d / "content_list.json"
         if not cl.is_file():
+            continue
+        source = smap.source_of(doc)
+        if source is None:
+            skipped.append(doc)
             continue
         for n, it in enumerate(json.loads(cl.read_text(encoding="utf-8"))):
             if it.get("type") != "equation":
@@ -95,8 +99,8 @@ def collect(parsed: Path) -> list[dict]:
                 continue
             out.append({"doc": doc, "item": n, "latex": latex,
                         "skeleton": skeleton(latex), "nums": constants(latex),
-                        "source": source_key(doc)})
-    return out
+                        "source": source})
+    return out, skipped
 
 
 def pair_evidence(pair: dict) -> int:
@@ -183,7 +187,8 @@ def main() -> int:
     ap.add_argument("--min-ratio", type=float, default=0.80,
                     help="Tier B 的下限。**這不是門檻是排序起點** —— "
                          "在有標註集之前不要拿它當判準")
-    ap.add_argument("--source-map", action="store_true", help="印出來源分組供人核")
+    ap.add_argument("--map", type=Path, default=DEFAULT_MAP_PATH,
+                    help="來源登記檔（人核過的資料）")
     ap.add_argument("--show", type=int, default=12)
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
@@ -191,18 +196,13 @@ def main() -> int:
     parsed = DataPaths(a.root).parsed_dir
     if not parsed.is_dir():
         sys.exit(f"找不到 {parsed}")
-    eqs = collect(parsed)
 
-    if a.source_map:
-        by_src: dict[str, list[str]] = defaultdict(list)
-        for d in sorted({e["doc"] for e in eqs}):
-            by_src[source_key(d)].append(d)
-        print(f"來源分組（{len(by_src)} 組 / {sum(len(v) for v in by_src.values())} 份）"
-              "　⚠ 這是從檔名猜的，請核對\n")
-        for src, docs in sorted(by_src.items(), key=lambda kv: -len(kv[1])):
-            print(f"  {src:<28} {len(docs):>3} 份　{docs[0][:44]}"
-                  + (f" …+{len(docs) - 1}" if len(docs) > 1 else ""))
-        return 0
+    # **先對帳再比對。** 沒對帳的 SourceMap 一律回 unknown，於是整份報告會安靜
+    # 變空 —— 那比報錯還糟，所以對帳結果一定要印（見 pp/sources.py 的檔頭）。
+    smap = SourceMap.load(a.map)
+    corpus = sorted(p.name.removesuffix(".pdf.mineru_raw") for p in parsed.glob("*.mineru_raw"))
+    rec = smap.reconcile(corpus, ledger_hashes(a.root))
+    eqs, skipped = collect(parsed, smap)
 
     trivial = [e for e in eqs if TRIVIAL.match(e["skeleton"])]
     groups = tier_a(eqs)
@@ -212,12 +212,21 @@ def main() -> int:
 
     if a.json:
         print(json.dumps({"workspace": a.workspace, "equations": len(eqs),
-                          "trivial": len(trivial), "tier_a": groups, "tier_b": pairs},
+                          "trivial": len(trivial), "reconciliation": rec.line(),
+                          "excluded": skipped, "tier_a": groups, "tier_b": pairs},
                          ensure_ascii=False, indent=1))
 
     print(f"=== 公式交叉比對：{a.workspace} ===")
-    print(f"掃過 {len({e['doc'] for e in eqs})} 份、{len(eqs)} 條公式"
-          f"（其中 {len(trivial)} 條骨架瑣碎，另計不進比對）\n")
+    print(rec.line())
+    if not a.map.is_file():
+        print("⛔ **來源登記檔不存在，所以每一份都是 unknown、比對母體是空的。**"
+              f"　找不到 {a.map}")
+    if skipped:
+        print(f"⚠ 排除 {len(skipped)} 份（來源查不到，不計入跨來源）："
+              + "、".join(d[:34] for d in skipped[:3]) + ("…" if len(skipped) > 3 else ""))
+    print(f"比對母體 {len({e['doc'] for e in eqs})} 份、{len(eqs)} 條公式"
+          f"（其中 {len(trivial)} 條骨架瑣碎，另計不進比對）"
+          f"、來源 {len({e['source'] for e in eqs})} 組\n")
     print(f"Tier A（骨架逐字相同、跨來源）：{len(groups)} 組，"
           f"其中係數不一致 **{len(disagree_a)}** 組")
     print(f"Tier B（骨架相近、跨來源、成對）：{len(pairs)} 對，"

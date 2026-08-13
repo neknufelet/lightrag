@@ -27,6 +27,7 @@ r"""Tier B 的排序：**證據強度優先於相似度**。
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -109,6 +110,27 @@ def test_agreeing_pairs_still_sort_after_disagreeing_ones() -> None:
     pairs = eqdup.tier_b(CORPUS, 0.80)
     agree_flags = [p["constants_agree"] for p in pairs]
     assert agree_flags == sorted(agree_flags), agree_flags
+
+
+def test_documents_without_a_registered_source_are_excluded_and_counted(tmp_path: Path) -> None:
+    """來源查不到的**整份不進比對，而且要被數出來**。
+
+    安靜跳過就是這個專案七個 bug 的共同形狀 —— 工具報「N 筆」而 N 的母體
+    根本不是真的母體。排除是對的（少報不假報），**不報數才是 bug**。
+    """
+    from pp.sources import SourceMap
+
+    for doc in ("registered", "never-registered"):
+        d = tmp_path / f"{doc}.pdf.mineru_raw"
+        d.mkdir()
+        (d / "content_list.json").write_text(
+            json.dumps([{"type": "equation", "text": r"$x = 2 y$"}]), encoding="utf-8")
+
+    smap = SourceMap({}, {"registered": {"source": "doc:registered", "pdf_sha256": "sha256:a"}})
+    smap.reconcile(["registered", "never-registered"], {"registered": "sha256:a"})
+    eqs, skipped = eqdup.collect(tmp_path, smap)
+    assert [e["doc"] for e in eqs] == ["registered"]
+    assert skipped == ["never-registered"]
 
 
 def test_a_lopsided_pair_is_not_treated_as_strong() -> None:

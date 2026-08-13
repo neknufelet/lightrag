@@ -17,6 +17,20 @@
 | `records/review/*.md` | 各族群的裁決材料，每份都有「定案」節 | 例：為什麼 `\mathfrak{O}` 在白名單上、C 的 91 個未覆蓋詞往哪併 |
 | `records/review/20260803-speedup-symbol3/` | `SPEEDUP` 與 `SYMBOL-3` 兩條線的工單與終審判定全文 | 15 份，含 fable 的設計單與 sol 的五份判定 |
 | `records/ledger/*.pdf.json` | 每份文件的三態體檢表 | 裡面的 `note` 欄記著 waiver 的原文與 120 個可疑實體名 |
+| `source-map.json` | 哪幾份文件其實是同一個來源（人核） | **是**。判定過程在 `docs/source-review-20260813.md`；它記的是**關於文獻的知識**（某本學位論文的某一章就是庫裡的某篇期刊論文），砍掉重建也還是真的 |
+
+## ⚠ `source-map.json` 是「程式會讀」的唯一例外
+
+下一節說「程式讀的是 `/data`，不讀這個目錄」。**`source-map.json` 是例外**，
+`scripts/eq-dup.py` 直接讀 repo 裡的這一份。三個理由：
+
+1. **沒有程式在寫它**，只有人。而編輯與 commit 都在 coder，放 `/data` 等於要上 dker 編輯。
+2. 讀它的是 `eq-dup`（唯讀分析），**不是 `apply`** —— 下一節那個「不改讀取路徑」的理由
+   是怕動到碰資料的不可逆操作，這裡沒有那個風險。
+3. 只有一份、沒有活本／副本之分，所以**沒有漂移的空間**。
+
+⚠ **等 intake 也開始寫它的時候，這個例外就不成立了** —— 那時要拆成
+「活本在 dker、快照進 repo」，跟這個目錄其他東西一樣。
 
 **不在這裡**（可再生，刻意不進版控）：`work/parsed`（MinerU 解析快取 307 MB）、
 `work/crops/<doc>/crops`（裁圖，從 PDF 重裁）、`work/crops/<doc>/cache`（模型轉錄快取）、

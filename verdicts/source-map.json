@@ -1,0 +1,2188 @@
+{
+ "version": 1,
+ "_": "人核完成 2026-08-13，判定過程在 docs/source-review-20260813.md。⚠ 這是資料不是規則：要改分組請改這裡，不要回去改程式。",
+ "sources": {
+  "book:0xxxx-A": {
+   "label": "Kuttruff, Room Acoustics",
+   "evidence": "PO 2026-08-13 認定；章題順序與書名相符，機器是用章號差分的，兩條線索各自獨立",
+   "same_work_as": []
+  },
+  "book:0xxxx-B": {
+   "label": "Pierce, Acoustics: An Introduction to Its Physical Principles and Applications",
+   "evidence": "PO 2026-08-13 認定；章首帶 'Chapter N'，與書 A 的排版慣例不同",
+   "same_work_as": []
+  },
+  "doc:1979 - Image method for efficiently simulating small-room acoustics": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:1986 - LoudspeakerMeasurementsand Their Relationship to Listener PreferencesPart 2": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2004 - Room Sizing and Optimization at Low Frequencies": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2005 - Perception_of_Modal_Distribution_Metrics_in_Critical_Listening_Spaces—Dependence_on_Room_Aspect_Ratios": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2006 - Loudspeakers and Rooms for Sound  Reproduction—A Scientific Review": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2006 - Practical methods to define scattering coefficients in a room acoustics computer model": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2007 - Hybrid method for numerical simulation of room acoustics part 2 - validation of the computational c": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2007 - Hybrid method for numerical simulation of room acoustics with auralization part 1 - theoretical and": {
+   "label": "",
+   "evidence": "F：姊妹篇算一個來源。PO 2026-08-13 政策 —— 同作者同一套推導分兩篇發表，不是彼此獨立的證據",
+   "same_work_as": [
+    "doc:2007 - Hybrid method for numerical simulation of room acoustics part 2 - validation of the computational c"
+   ]
+  },
+  "doc:2007 - Thresholds of Detection for Changes to the Q Factor of Low-Frequency Modes in Listening Environments": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2008 - Optimal Modal Spacing and Density for Critical Listening": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2008 - Prediction of energy decay in room impulse responses simulated with an image-source model": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2009 - Gmsh A 3‐D finite element mesh generator with built‐in pre‐ and post‐processing facilities": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2009 - Perceptually relevant parameters for virtual listening simulation of small room acoustics": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2009 - Time-Domain Impedance Boundary Conditions for Simulations of Outdoor Sound Propagation": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro": {
+   "label": "學位論文：Combined wave and ray based room acoustic simulations of small rooms",
+   "evidence": "9 章切片；舊規則因檔名差一個空格切成 2 組",
+   "same_work_as": []
+  },
+  "doc:2012 - Energy- and wave-based beam-tracing prediction of room-acoustical parameters using different boundar": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2012 - Extreme Acoustic Metamaterial by Coiling Up Space": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2012 - Omnidirectional broadband acoustic absorber based on metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2012 - Subjective Preference of Modal Control Methods in Listening Rooms": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2013 - Quantifying the just noticeable difference of reverberation time with band-limited noise centered around 1000 Hz": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2013 - Room Impulse Response Synthesis and Validation Using a Hybrid Acoustic Model": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2014 - Acoustic coherent perfect absorbers": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2014 - Development of a Low-Cost Impedance Tube to Measure Acoustic Absorption and Transmission Loss of Mat": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2015 - Application of the Transfer Matrix and Finite Surface Size  Correction to Room Acoustics Simulation": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2015 - Determining Optimum Room Dimensions for Critical Listening Environments A New Methodology": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2015 - Overview of geometrical room acoustic modeling techniques": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2015 - Perceptual thresholds for the effects of room modes as a function of modal decay": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2015 - Subwavelength total acoustic absorption with degenerate resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2016 - 3D Acoustic Field Intensity Probe Design and Measurements": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2016 - A sound absorbing metasurface with coupled resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2016 - Perfect and broadband acoustic absorption by critically coupled sub-wavelength resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Band": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2017 - A low-frequency sound absorbing material with subwavelength thickness": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2017 - Broadband liner impedance eduction for multimodal acoustic propagation in the presence of a mean flo": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2017 - Metadiffusers Deep-subwavelength sound diffusers": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2017 - Optimal sound-absorbing structures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2017 - Rainbow-trapping absorbers Broadband, perfect and asymmetric sound absorption by subwavelength pane": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2018 - Acoustic perfect absorbers via spiral metasurfaces with embedded apertures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2018 - Broadband acoustic phased array with subwavelength active tube array": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2018 - Coupled Resonators for Sound Trapping and Absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2018 - Multiband quasi-perfect low-frequency sound absorber based on double-channel Mie resonator": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Acoustic perfect absorbers via Helmholtz resonators with embedded apertures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Broadband Time-domain Impedance Boundary Modeling with the Discontinuous Galerkin Method for Room Ac": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Broadband low-frequency sound absorption by periodic metamaterial resonators embedded in a porous la": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Broadband ultra-thin acoustic metasurface absorber": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Comparative Study and Design of Economical Sound Intensity Probe": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Extreme low-frequency ultrathin acoustic absorbing metasurface": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Image Source Method Based Acoustic Simulation For 3-D Room Environment": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up chan": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2019 - Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - A case study on workstation-dependent acoustic characterization of open-plan offices": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - A double porosity material for low frequency sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - Frequency-dependent transmission boundary condition in the acoustic time-domain nodal discontinuous": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - Non-cuboid Iterative Room Optimizer": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - Numerical simulations of near-field head-related transfer functions Magnitude verification and vali": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room ac": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2020 - Ultra-broadband acoustic absorption of a thin microperforated panel metamaterial with multi-order re": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - A benchmark for room acoustical simulation. Concept and database": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - A machine-learning framework for acoustic design assessment in early design stages": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - Acoustic multi-layer Helmholtz resonance metamaterials with multiple adjustable absorption peaks": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - An arbitrary high-order discontinuous Galerkin method with local time-stepping for linear acoustic w": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - Comparison of measurement and prediction for acoustical treatments designed with Transfer Matrix Mod": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - Estimation of locally reacting surface impedance at modal frequencies using an eigenvalue approximat": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - Experimental validation and uncertainty quantification in wave-based computational room acoustics": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2021 - Filter and correction for a hybrid sound field analysis of geometrical and wave-based acoustics": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "book:2021-roomacousticmodelingwiththetd_dgmethod": {
+   "label": "學位論文：Room acoustic modeling with the TD_DG method",
+   "evidence": "7 章切片；E：CH02 章名與該篇標題近逐字相同（0.90），且 CH04 內文自承『based on Paper III』",
+   "same_work_as": [
+    "doc:2019 - Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method"
+   ]
+  },
+  "doc:2021 - Wave-based room acoustic simulations of an open plan office 12th European Congress and Exposition o": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2022 - A compact multifunctional metastructure for Low-frequency broadband sound absorption and crash energ": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2022 - Broadband impedance modulation via non-local acoustic metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2022 - Design of broadband Helmholtz resonator arrays using the radiation impedance method": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2022 - Elimination of the Phase Mismatch Error in PP Probe Using Synchronous Measurement Technique": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2022 - General extended-reacting porous materials modeling with the time-domain discontinuous Galerkin meth": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2022 - Prediction of eigenfrequencies in non-rectangular rooms with machine learning": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2023 - A Differentiable Image Source Model for Room Acoustics Optimization": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2023 - A Review of Finite Element Methods for Room Acoustics": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2023 - An Iterative Ray Tracing Algorithm to Increase Simulation Speed While Maintaining Overall Precision": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2023 - CHARACTERISATION OF SMALL ROOM ACOUSTICS FOR AUDIO PRODUCTION": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2023 - Development of a prototype of a low-cost sound intensity probe": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2023 - Extended reacting boundary modeling of porous materials with thin coverings for time-domain room aco": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "book:2023-perception-of-room-modes": {
+   "label": "學位論文：Perception of room modes",
+   "evidence": "9 章切片；舊規則因檔名多了人類註記切成 4 組",
+   "same_work_as": []
+  },
+  "doc:2023 - Ultra-broadband symmetrical acoustic coherent perfect absorbers designed by the causality principle": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - A Compact Low-Frequency Acoustic Perfect Absorber Constructed with a Folded Slit": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - A hybrid room acoustic modeling approach combining image source, acoustic diffusion equation, and ti": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - An Open-Source Time-Domain Wave-Based Room Acoustic software in": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Bayesian Parameter Identification in Impedance Boundary Conditions for Helmholtz Problems": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Broadband sound absorbers via quality-factor modulation": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Design of the Helmholtz resonators assembly for optimizing the broadband sound absorption of acousti": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Differentiable Acoustic Path Tracing Full Spectral Rendering": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic abso": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - Hybrid porous Helmholtz resonator for low-frequency broadband absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2024 - JAX-SSO Differentiable Finite Element Analysis Solver for Structural Optimization and Seamless Inte": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - A method for extracting an average scattering coefficient for room acoustic modeling": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Broadband Low-Frequency Near-Perfect Sound Absorber via Coupled Metasurfaces": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Broadband low-frequency sound absorption of multifunctional composite metastructure": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Comparison of Impulse Response Generation Methods for a Simple Shoebox-Shaped Room": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Differentiable Acoustic Radiance Transfer": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Differentiable Geometric Acoustic Path Tracing using Time-Resolved Path Replay Backpropagation": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Differentiation Strategies for Acoustic Inverse Problems Admittance Estimation and Shape Optimizati": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - EVALUATING THE APPLICABILITY OF STATISTICAL REVERBERATION THEORY IN ROOMS WITH VARYING COMPACTNESS A": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Improvement of Low Frequency Sound Absorption in a Room": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Incorporating extended neck Helmholtz resonators into an advanced multi-degree of freedom acoustic m": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Modeling Nonuniform Energy Decay Through the Modal Decomposition of Acoustic Radiance Transfer": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Recent advancements in sound-absorbing materials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped a": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - Towards a community hub for open-source room acoustics software": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - jaxFMM An Adaptive, GPU-Parallel Implementation of the Fast Multipole Method in JAX": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2025 - misuka An open-source differentiable room acoustic renderer": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - In situ estimation of the acoustic surface impedance using simulation-based inference": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - JAX-BEM Gradient-Based Acoustic Shape Optimisation via a Differentiable Boundary Element Method": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - On Efficient Algorithm for Calculation of Acoustical Parameters in Rooms on the Basis of the Ray Tra": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "book:2026-hybridcomputationalframeworkforroom-acoustic": {
+   "label": "學位論文：Hybrid computational framework for room-acoustic",
+   "evidence": "7 章切片；E：CH03 章名與該篇標題近逐字相同（自動比對 0.98），PO 2026-08-13 認定同一部作品",
+   "same_work_as": [
+    "doc:2024 - A hybrid room acoustic modeling approach combining image source, acoustic diffusion equation, and ti"
+   ]
+  },
+  "book:a-r-handbook": {
+   "label": "聲學公式手冊（A–R 共 18 章）",
+   "evidence": "A 章內文自稱 'will be used in the book'，章號 A–R 連續無缺；⚠ 沒有書名頁，是推斷",
+   "same_work_as": []
+  }
+ },
+ "documents": {
+  "01405_5.5 The influence of unequal path lengths": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:175262d5c19a2ec994d7ce762fce3d8179500ae1e5c6c98149844ab2ee79fdc5",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01405_8.5 Amplitude Variation Along Rays": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:7f456a95ffc539d7d60aa66f4443711eccec290aaa3d622f6c3327451791cf0c",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01406_5.6 Enclosure driven by a sound source": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:975ad5246389bc27345272feaa7fabc908c569e78d88c46097daf534b1afa585",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01406_8.6 Wave Amplitudes in Moving Media": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:0d8dd0a0f610337a16407249d3c13b295c4507cb2529d6eafc8eb52810cffaeb",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01407_5.7 Applications of the radiosity integral_ the influence of imperfect diffusene": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:5a63ddefa7af48f744a4c57ab1b3d16a8cb668ec9336369c9ecdde010bb66ba8",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01407_8.7 Source Above an Interface": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:60ac5c4ed58b9d6c5fe8635800f2a7ef006e8631e0f66e669e26e5276bb1ca06",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01408_8.8 Reflection from Curved Surfaces": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:18a7568dd10f022735518de2f14c4e8f0787569a4b8cb4d4eb66c05cbf5c12e5",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01409_8.9 Problems": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:ee18bf5f56de93b89cd441228be471f26303bcecfe14950eff465597376b4297",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01500_6 Sound absorption and sound absorbers": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:a843453ac88c29b24f91fa992083d82653f8f38d778378a439d67e044a9dc034",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01500_9 Scattering and Diffraction": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:37877d0af3d1af4af1e1598b58c77c8a72632a0453a50e876ad34954c3f6d28b",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01501_6.1 Energy losses in the medium": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:65e3ab90d04c994ebfe3c3acda3ab482f4e1d4d5aa99bf24015f12c21fe9a19c",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01501_9.1 Basic Scattering Concepts": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:5936173c726fa75f3697036c78abb109572af8ff053e0deb4cee5e716ce10bdf",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01502_6.2 Sound absorption by membranes and perforated sheets": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:88927c2ce7436e3acc27bb33a20771fa7fcdccd0b631a16f813a875302add651",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01502_9.2 Monostatic and Bistatic Scattering_ MeasurementConfigurations": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:999bcaaf95f95b7b14e296c4d404c5810fda84c4eae6b20a7d3bd31d2b6f67df",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01503_6.3 Resonance absorbers": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:fd6a95faf951aea49f3e53ef4b597f563a208b65fa14d9184fc7874a9bed3165",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01503_9.3 The Doppler Effect": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:20a10a7b5b698c43425c15d4c4d87fcf819be33a86b3ca9367dd8b711cafc83e",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01504_6.4 Helmholtz resonators": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:4a83ae01cdd8db3a2bc93c6ce51bde16e456eec2858375bbc25e63c8404d27f6",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01504_9.4 Acoustic Fields Near Caustics": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:fb9552dc91f0933fc3db2b70132364403ff1d73ab08d1c0da68393b398c3316e",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01505_6.5 Sound propagation in porous materials, the rayleigh model": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:76ee5fd1797b20038c6110ab1517a15ad7d5dfa759291357fe54ad76cf346920",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01505_9.5 Shadow Zones and Creeping Waves": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:651a123fa7ca2db8b5276a11a3c07ef0ad32573050210d2701faf586399562b5",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01506_6.6 Porous absorbers": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:a7fa11afe4f381c05300f1439e816d3e9ec2f13fd66cab455b802b4c80a7143a",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01506_9.6 Source or Listener on the Edge of a Wedge": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:fee8a04e9c69f6acdfd2a48a8e1af4bdd5b1914c77b76be25871d34325be9f92",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01507_6.7 Audience and seat absorption": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:16550498a63c066ff1245f7fa9aefacb00cd762a9aeffdb8eb6c564c5b7f93e5",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01507_9.7 Contour-Integral Solution for Diffraction by a Wedge": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:e3c48ee646241db6e91e9f3fbf35aa6b733820b7f1b077f7498185debdbfba9b",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01508_6.8 Anechoic rooms": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:2024121f26c6fb93cc71b140f68805c4c37170c35b85722f342df8e75815f1c0",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01508_9.8 Geometrical-Acoustic and Diffracted-Wave Contributions for the Wedge Problem": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:ffe22c94686a80fdbb6b6fc267cec25553de8555b80adcff2ce45cad002e03df",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01509_9.9 Applications of Wedge-Diffraction Theory": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:75b45f0bc40b44313218d4d39c7ee86a396099edfc08759870683343e68553d9",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01510_9.10 Problems": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:4f721bb353cada19963b2da51a49867da2dcde0f6b2ffcf05ffd3a033558a1f6",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01600_10 Effects of Viscosity and Other Dissipative Processes": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:dc913ebbf941ee40d68bce1c9b77683ffddefe82d5dc172ec3007157eba2e231",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01600_7 Subjective room acoustics": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:10292ca45ff60a9efff8a16839f80dcfc852f515de6732ea43d028439ba964f4",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01601_10.1 The Navier–Stokes–Fourier Model": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:8456d29c4f1e1ef8e4103c5ad3e191364fac65dcccc678be902bce83187b0026",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01601_7.1 Sound pressure level, strength factor": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:6cd3db162ee35e1fa6377de643b04de4378c645c2b22c70482e481e5998c8064",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01602_10.2 Linear Acoustic Equations and Energy Dissipation": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:bb864dc4e1eccaa1a2f0874827d5fe6007aa0344ec0c716a3874fc6315f417ff",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01602_7.2 Some general remarks on reflections and echoes": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:8218d7a720062627c55e255632beafe5912223d6281099a42bcbcdd7f6946d82",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01603_10.3 Vorticity, Entropy, and Acoustic Modes": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:b681e05177e4844d2ea1cbea6b42bd3173033d12495f8575729cc40455732664",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01603_7.3 The perception of reflections and echoes": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:1fa0ef2008d606d093f6cc5825b5d2c1ad4fdeb8dd39638ed96f727a47c8cee2",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01604_10.4 Acoustic Boundary-Layer Theory": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:7c16215ae867e3a8440de9af25e5d8a89eae0e9b41ced7181598135019adf83f",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01604_7.4 Echoes and colouration": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:64adf7237f893a8786b202a77c0aecc6bc778b48e2870279eb8809a9e149c5d9",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01605_10.5 Attenuation and Dispersion in Ducts and Thin Tubes": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:2947d920283f40ab39a8f47efb9e6ce8bd36ec93ac05b026aec016bed3390a18",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01605_7.5 Parameters characterizing the ‘early energy’": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:5ebb7b18fcda047180270a0b2c1fe82d89be3ffeb13c047cded09af78f31dd4e",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01606_10.6 Viscosity Effects on Sound Radiation": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:6facf48bce06461df6c66084f107987812b8ee1789136fdbc3e769df1acb9c25",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01606_7.6 Reverberation and reverberance": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:904817845d307ae5387de25d0127466d52120e131988fa5e588dd9084694b54f",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01607_10.7 Relaxation Processes": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:b3c7d9285dc7287705a4df11fe3a48e6208d18d0fa110ccb805cfe18288903f9",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01607_7.7 Spaciousness of sound fields": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:7738ff99be773612c53f35dec4c8a533af62f3d62cb75eb4e9a31ef43050183c",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01608_10.8 Absorption of Sound": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:3190fc1b8d5ca4062db9cd0437db65bc163bc6e3cf656abf8193c23e0465f9a3",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01608_7.8 Assessment of concert hall acoustics": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:4ed04b408a526a36aacd93b83a9ea8c3b8b5260211988407043fc4025f164f8b",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01609_10.9 Problems": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:26858e351dd068e3980c36d7da9044aa4706179ee5575eeaba5fd78f25d04bf2",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01700_11 Nonlinear Effects in Sound Propagation": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:b262258d8fc463f1a1b79b42923ce05b361b79105f5c0703ca6fe7c3aa059c93",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01700_8 Measuring techniques in room acoustics": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:807eb0650a89e55e5a0e255e6d9144d8aa00769cfdfcad1ed389fed811c838da",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01701_11.1 Nonlinear Steepening": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:3f7fa9146ff43ead5a9b2e4066df5877b7c3a9368c9735b501e7fa0d9974918c",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01701_8.1 General remarks on instrumentation": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:5126dd83ec42a587a05e36ecc5fc7e133af34cf03cd2c769b4cf5f70b62aa9ae",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01702_11.2 Generation of Harmonics": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:8b4b4062187447cb19b56b47637434e1622752b91b9d77d44a3fa4742c416225",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01702_8.2 Measurement of the impulse response": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:0d56a7b86a7b59379cc0fb405e69e8b9c8b1b6eaace071349426a68f805324c9",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01703_11.3 Weak-Shock Theory": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:08fa05eb21fb844800d2d364d641e6f295797b30c3d545fa2209e9ccf114fe97",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01703_8.3 Examination of the impulse response": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:fbcbf3d0732c6a57a9c34d9a7e996d37d2232160878b7e590958e6e4cd3155b0",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01704_11.4 N Waves and Anomalous Energy Dissipation": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:c6e037bcbacbf18fbcd0617060e00e1fb2bb02d4291c6ccfc7990a3487ccaa71",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01704_8.4 Measurement of reverberation": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:ed24de7c9747dc3b5e872b1bd26791d64e56cf89eef64139124037cff24cc0da",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01705_11.5 Evolution of Sawtooth Waveforms": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:23a9a0f263e11e2c5452d25d0d0802a289218cca667926a44f1829e1c181d615",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01705_8.5 Directional distribution, diffuseness of a sound field": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:f01eef6d6d43fecce1e2327a853887cd032dbb573c75e3da89d048412b16305d",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01706_11.6 Nonlinear Dissipative Waves": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:debf961b8f9bec4721db4e7d2272b057571feaf3e85bc530f514422dbfdb9beb",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01706_8.6 Sound absorption — tube methods": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:75570b9fa836db4cc70c87d7fb92e762d648cb213a15bd6460ba730af63cfccf",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01707_11.7 Transition to Old Age": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:e884357ac7b49625ec9f8f464d80516aed5043d2ae92f41569dbb86c0a621462",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01707_8.7 Sound absorption — reverberation chamber": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:176a7971ee34a92c11b56ff43c4cc2c6e482fe61c60377ceff9e1c8f1c008ab4",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01708_11.8 Nonlinear Effects in Converging and Diverging Waves": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:a892382e3811fbbba6b24a0a5ef72cd2921006ef00cb7d9966601895301d0429",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01708_8.8 Scattering coefficient": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:8cab294adea347aee90ee4af8d239adbdf48493b3e8c2d09e95dc29576b4d98b",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01709_11.9 N Waves in Inhomogeneous Media_ Spherical Waves": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:1c8ed5df2c7eb7a005f394aaa3d37314351e8b28deb88021dc0e43b6422eae3a",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01710_11.10 Ballistic Shocks_ Sonic Booms": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:224ce534bf41195ae207c352fac1bd942575da9b8ccabb8004b0c1b13d1b58c8",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01711_11.11 Problems": {
+   "source": "book:0xxxx-B",
+   "pdf_sha256": "sha256:a7946a3e1b7e781632720b1ef593609f198d85a616d04470ce1b7214cccd7b2b",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01800_9 Design considerations and design procedures": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:138d115d619f9723c23ff806d11edb61e60c2a8c117b9f064d83e4aef3efc8be",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01801_9.1 Prediction of noise level": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:4aa568be6f902e30e759d8004c35647c5870f8e15caca43ce15d6aee2c338803",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01802_9.2 Direct sound": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:15c0fd3bbb2c46ec82acd363d50626de2882ac880bb1e64ba553b3d660e9bcf9",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01803_9.3 Examination of room shape": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:d32a3c614de9d016fa373f33609fd6a14e3b16bf78b76c2b3579ce101321e26c",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01804_9.4 Reverberation time": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:350c9a16c0b5edd1d8d4544355ec8301a67c2826654213dee7dc1454b9d62a09",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01805_9.5 More on concert halls": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:6d3f3826744878761b73cbae9bfe6bbfdacdcc9f179da2a744a937053101b583",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01806_9.6 Multipurpose halls": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:9e58319e83d7ff895b6ab6513d411b4b67869ed2885e60bc36d5ebe0e7649f4d",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01900_10 Prediction models": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:1d12e8002ac363a47c36fd137111fc2fe38e69068dda6c25953bcc43339a8059",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01901_10.1 Acoustical scale models": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:e7547b548dbff96a290e3345b7ec18083fc1a9ff339dca13a96c5145f9fc6b11",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01902_10.2 Computer simulation": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:80df6e224b0db9c33a803f096794aa51ad89292d6b491d1d7bf87aa48c1504d8",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01903_10.3 Hybrid methods": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:5ea2d54e56bca8e3c2ae89a08946fe73f8b8d810e5e36f683be7aa7a8f459198",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "01904_10.4 Auralization, virtual reality": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:a2cbbb28a62ec2b4ef4fc43dd7132851adc5ba3b8eab0b61613a3803481c666a",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02000_11 Electroacoustical systems in rooms": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:a9a2b7ab9a2ac5eb5ade6cbf688f10c83184ee6f887fb262a3c15de16d16dffa",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02001_11.1 Loudspeakers": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:6181dd41f692185313a55804ca3ea729c8346970f34b811401499793f6357d30",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02002_11.2 Required power and reach of a loudspeaker": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:59d0062fe5648674ebf6b215978db88e3f7cc7c60dc58e6ccc205833c8e6d8be",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02003_11.3 Remarks on loudspeaker positions": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:f32e40bda4b423016f6e7e0e88ff0a04c3a697ca58a4d81a32071cc19233dbff",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02004_11.4 Acoustical feedback and its suppression": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:13eec238742a16e787b459424c6d94c1e9fc5e2c9792c53b03b89632ecb18f82",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02005_11.5 Reverberation enhancement with external reverberators": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:87057a14080b28935eab62ea69a4fe7fff7d8e2826507b896f18d650d799b0c6",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02006_11.6 Reverberation enhancement by controlled feedback": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:ab4b98abbe03f2588352ffdf2f0efc63ffc7713de483626d51a08a8aad40a38d",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "02007_11.7 Immersive audio systems": {
+   "source": "book:0xxxx-A",
+   "pdf_sha256": "sha256:701ad70fb70359c274061a0eac784e01efdcfa3eb3e0216f78ecc03d1f6b6716",
+   "by": "human",
+   "note": "章號差（idx-9 / idx-6，實測零歧義）"
+  },
+  "1979 - Image method for efficiently simulating small-room acoustics": {
+   "source": "doc:1979 - Image method for efficiently simulating small-room acoustics",
+   "pdf_sha256": "sha256:20f77543fb8b9bd0ba710cace4413b040417d7e3d80dbde66cad923429cc60eb",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "1986 - LoudspeakerMeasurementsand Their Relationship to Listener PreferencesPart 2": {
+   "source": "doc:1986 - LoudspeakerMeasurementsand Their Relationship to Listener PreferencesPart 2",
+   "pdf_sha256": "sha256:ff6e27f8da314a454c43b6247868251e76a45c6be2fef42cd8c2844af6910a2b",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2004 - Room Sizing and Optimization at Low Frequencies": {
+   "source": "doc:2004 - Room Sizing and Optimization at Low Frequencies",
+   "pdf_sha256": "sha256:7c5ba8e5566a03241766fbc820be5dd13802af52b36434b10ecc496795faa7b0",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2005 - Perception_of_Modal_Distribution_Metrics_in_Critical_Listening_Spaces—Dependence_on_Room_Aspect_Ratios": {
+   "source": "doc:2005 - Perception_of_Modal_Distribution_Metrics_in_Critical_Listening_Spaces—Dependence_on_Room_Aspect_Ratios",
+   "pdf_sha256": "sha256:e2d380deef4dc3d7a2670ce01b925ecd60a8e9e460fe5ebf60c5250a63916907",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2006 - Loudspeakers and Rooms for Sound  Reproduction—A Scientific Review": {
+   "source": "doc:2006 - Loudspeakers and Rooms for Sound  Reproduction—A Scientific Review",
+   "pdf_sha256": "sha256:3e65d91c68b80297d0816d3eaf3e2ac1a94ab8a9bd77da6e52128a64d8bda3c8",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2006 - Practical methods to define scattering coefficients in a room acoustics computer model": {
+   "source": "doc:2006 - Practical methods to define scattering coefficients in a room acoustics computer model",
+   "pdf_sha256": "sha256:db3434bae2549af0db3e25e35a8c54a230c6bfa823021949ead0c85506701065",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2007 - Hybrid method for numerical simulation of room acoustics part 2 - validation of the computational c": {
+   "source": "doc:2007 - Hybrid method for numerical simulation of room acoustics part 2 - validation of the computational c",
+   "pdf_sha256": "sha256:515a84f620aa0826afd28e5bad589fbf2193d50d133462ec69124853a167838f",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2007 - Hybrid method for numerical simulation of room acoustics with auralization part 1 - theoretical and": {
+   "source": "doc:2007 - Hybrid method for numerical simulation of room acoustics with auralization part 1 - theoretical and",
+   "pdf_sha256": "sha256:c811311e32c0a0b2e069f0b2a72e2157e901a0150b2827d01f15ccc1a234b74c",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2007 - Thresholds of Detection for Changes to the Q Factor of Low-Frequency Modes in Listening Environments": {
+   "source": "doc:2007 - Thresholds of Detection for Changes to the Q Factor of Low-Frequency Modes in Listening Environments",
+   "pdf_sha256": "sha256:126e5da2034820ecee3d4f166695a6461b8d1060f0063df9feb1e19f86761fea",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2008 - Optimal Modal Spacing and Density for Critical Listening": {
+   "source": "doc:2008 - Optimal Modal Spacing and Density for Critical Listening",
+   "pdf_sha256": "sha256:7b9a4a9c6312741498931823f589afeb0b29e44717438ab486ff7e7b70ee8063",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2008 - Prediction of energy decay in room impulse responses simulated with an image-source model": {
+   "source": "doc:2008 - Prediction of energy decay in room impulse responses simulated with an image-source model",
+   "pdf_sha256": "sha256:beeb00b701031f2858aa9620ded959a882b671f73ccd9e673fc43bc96f2aacdc",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2009 - Gmsh A 3‐D finite element mesh generator with built‐in pre‐ and post‐processing facilities": {
+   "source": "doc:2009 - Gmsh A 3‐D finite element mesh generator with built‐in pre‐ and post‐processing facilities",
+   "pdf_sha256": "sha256:b9d41566a8df629143e2e608a5815e46853c6b978415cf76e745471b44410e4c",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2009 - Perceptually relevant parameters for virtual listening simulation of small room acoustics": {
+   "source": "doc:2009 - Perceptually relevant parameters for virtual listening simulation of small room acoustics",
+   "pdf_sha256": "sha256:d45da963975ded1c68c0d1470255c75ebb9c7b83e892d2309531649dcb435b8f",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2009 - Time-Domain Impedance Boundary Conditions for Simulations of Outdoor Sound Propagation": {
+   "source": "doc:2009 - Time-Domain Impedance Boundary Conditions for Simulations of Outdoor Sound Propagation",
+   "pdf_sha256": "sha256:eec3e7992b64b5453062afc0fd5f202cda5d76a93d3864145750461f0c9ab1cd",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2012 - Combined wave and ray based room acoustic simulations of small rooms_CH10": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:997ec555e2df27eb953640d97177786ee7e480baab1eedce23d4aad4cccd1c9a",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 - Combined wave and ray based room acoustic simulations of small rooms_CH1_2": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:336cb7318f4959f982555d2d4093a157f133296ff4188c36298f297adeb24762",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 - Energy- and wave-based beam-tracing prediction of room-acoustical parameters using different boundar": {
+   "source": "doc:2012 - Energy- and wave-based beam-tracing prediction of room-acoustical parameters using different boundar",
+   "pdf_sha256": "sha256:ff35126df1ab4a00e2fc4d3fab0e99f8ee1cb8f300ceb05d84c7554f48f4cfe8",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2012 - Extreme Acoustic Metamaterial by Coiling Up Space": {
+   "source": "doc:2012 - Extreme Acoustic Metamaterial by Coiling Up Space",
+   "pdf_sha256": "sha256:85c44304e11385119e24e4abacb8cdbb27f19136679347699318f94b1a7be540",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2012 - Omnidirectional broadband acoustic absorber based on metamaterials": {
+   "source": "doc:2012 - Omnidirectional broadband acoustic absorber based on metamaterials",
+   "pdf_sha256": "sha256:d1440ddca033d44233a94af70db95cef733e2cd25da981c549ee6058d32356e6",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2012 - Subjective Preference of Modal Control Methods in Listening Rooms": {
+   "source": "doc:2012 - Subjective Preference of Modal Control Methods in Listening Rooms",
+   "pdf_sha256": "sha256:e0e6ea1dee9516776bb894abd839309ad69a03dc50709da80b852c2cf3d1ce9c",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH3": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:1ef1c945de6bfbe1fe0cf281602cf64f946780dfad03b41165dfa1dbabd0d68e",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH4": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:4e4178af4118a9029443a716b3416d1e6c6b55fb45b92344686081bff37c1e7b",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH5": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:205d1a165191e75f12721dc2ed33012ea91e302f49afce1dbabbdcc82c381180",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH6": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:ca912590c856ffa482269226d3b53bf2917e79e55d6bf8126d4189ae581b0112",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH7": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:07d7fbc22a2e73f8e428ef5b8fd619c9083808a6c21402a2feb1bfd58e138c5c",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH8": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:ab45a3c795f99c1f72659d7723dd00f8e7210a1495cb48515f0fd0eaf5b8f9b2",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH9": {
+   "source": "book:2012-combinedwaveandraybasedroomacousticsimulationsofsmallro",
+   "pdf_sha256": "sha256:39d8cd654744eee6ebd3ca31ec10f9ab649db6b089e1d0bd8c4c4f4e91053b7c",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2013 - Quantifying the just noticeable difference of reverberation time with band-limited noise centered around 1000 Hz": {
+   "source": "doc:2013 - Quantifying the just noticeable difference of reverberation time with band-limited noise centered around 1000 Hz",
+   "pdf_sha256": "sha256:de2d6a2899473237d86fed07eb89e66e77d5244db628fde0f1cc6e1545efa3dd",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2013 - Room Impulse Response Synthesis and Validation Using a Hybrid Acoustic Model": {
+   "source": "doc:2013 - Room Impulse Response Synthesis and Validation Using a Hybrid Acoustic Model",
+   "pdf_sha256": "sha256:18d1aa614cf5689829720ae2c0c0a60427174946ddbf026a1804b5d793567761",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2014 - Acoustic coherent perfect absorbers": {
+   "source": "doc:2014 - Acoustic coherent perfect absorbers",
+   "pdf_sha256": "sha256:0f1e7a6bb9b3c4e2293ad024e44e48045c1373b76c20fef500dcc92e71085945",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2014 - Development of a Low-Cost Impedance Tube to Measure Acoustic Absorption and Transmission Loss of Mat": {
+   "source": "doc:2014 - Development of a Low-Cost Impedance Tube to Measure Acoustic Absorption and Transmission Loss of Mat",
+   "pdf_sha256": "sha256:8945ff23d971f052c0dd7c2971bc3d3b5cef5991a071f06b55b0028ff7dd21c5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves": {
+   "source": "doc:2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves",
+   "pdf_sha256": "sha256:c1718a0d8512b638b8e7d9665434732bab2d7084db6af053fbdd46c18815d7c0",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2015 - Application of the Transfer Matrix and Finite Surface Size  Correction to Room Acoustics Simulation": {
+   "source": "doc:2015 - Application of the Transfer Matrix and Finite Surface Size  Correction to Room Acoustics Simulation",
+   "pdf_sha256": "sha256:3df0498f598f466cfa87e2be012c23617d8af8c9f18f5df0414739dea336d6a5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2015 - Determining Optimum Room Dimensions for Critical Listening Environments A New Methodology": {
+   "source": "doc:2015 - Determining Optimum Room Dimensions for Critical Listening Environments A New Methodology",
+   "pdf_sha256": "sha256:167becd95cdc73e1b25c5ce28f5978bb9d1f6ab964bd01f5d99a885468a0a34e",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2015 - Overview of geometrical room acoustic modeling techniques": {
+   "source": "doc:2015 - Overview of geometrical room acoustic modeling techniques",
+   "pdf_sha256": "sha256:c6f8d606703fb7e19cddaae4911eea4053e6a2a23775c4d579973b2b821d3587",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2015 - Perceptual thresholds for the effects of room modes as a function of modal decay": {
+   "source": "doc:2015 - Perceptual thresholds for the effects of room modes as a function of modal decay",
+   "pdf_sha256": "sha256:f96a6eede9d51d66e4f11d3468d586cee2c165a678385d2ccb51e8d8c177549b",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2015 - Subwavelength total acoustic absorption with degenerate resonators": {
+   "source": "doc:2015 - Subwavelength total acoustic absorption with degenerate resonators",
+   "pdf_sha256": "sha256:b4d35ce8045654891e49b22e244a92822e06558cfaab783691693d0ff58726d5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2016 - 3D Acoustic Field Intensity Probe Design and Measurements": {
+   "source": "doc:2016 - 3D Acoustic Field Intensity Probe Design and Measurements",
+   "pdf_sha256": "sha256:d4528d4fe83beeae348ab6a4a52fbb4b8897f7e8f6b62195076f128caf82e974",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2016 - A sound absorbing metasurface with coupled resonators": {
+   "source": "doc:2016 - A sound absorbing metasurface with coupled resonators",
+   "pdf_sha256": "sha256:1f98909fd5f8b00d5e097ac32649ae07c98b52aa1e81395bcf308a7b784013de",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2016 - Perfect and broadband acoustic absorption by critically coupled sub-wavelength resonators": {
+   "source": "doc:2016 - Perfect and broadband acoustic absorption by critically coupled sub-wavelength resonators",
+   "pdf_sha256": "sha256:85460ee8a71a28caae930193f4df947637cb794e7a5c8252c769efa7794f28fb",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Band": {
+   "source": "doc:2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Band",
+   "pdf_sha256": "sha256:502c66dcbc2eff953ad4d71db5e2204ff3e95a35f933e2cdcc6488fb3f1cccdb",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2017 - A low-frequency sound absorbing material with subwavelength thickness": {
+   "source": "doc:2017 - A low-frequency sound absorbing material with subwavelength thickness",
+   "pdf_sha256": "sha256:c7f397771de4e101c979b96676450a57e7313c44d775fe60c5c2c59da2c34fca",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2017 - Broadband liner impedance eduction for multimodal acoustic propagation in the presence of a mean flo": {
+   "source": "doc:2017 - Broadband liner impedance eduction for multimodal acoustic propagation in the presence of a mean flo",
+   "pdf_sha256": "sha256:9de6aaeca98aeecd9293fe70a6fce9ea3a21cd45d12aac17dc56a2728ce7c2f5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2017 - Metadiffusers Deep-subwavelength sound diffusers": {
+   "source": "doc:2017 - Metadiffusers Deep-subwavelength sound diffusers",
+   "pdf_sha256": "sha256:93f0b1bf1b6cd3690b24bec3da908eb67a163ce944b63d0a17395ad33fc2d3ff",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2017 - Optimal sound-absorbing structures": {
+   "source": "doc:2017 - Optimal sound-absorbing structures",
+   "pdf_sha256": "sha256:bd434b42f0b15c35b40d9fdd30202addc4989d61d59e488da1ce36f03bd935c5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2017 - Rainbow-trapping absorbers Broadband, perfect and asymmetric sound absorption by subwavelength pane": {
+   "source": "doc:2017 - Rainbow-trapping absorbers Broadband, perfect and asymmetric sound absorption by subwavelength pane",
+   "pdf_sha256": "sha256:b1e7cc7f036167ed07ffd814825105146abdeccc66b406b3976f383cd10d3980",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2018 - Acoustic perfect absorbers via spiral metasurfaces with embedded apertures": {
+   "source": "doc:2018 - Acoustic perfect absorbers via spiral metasurfaces with embedded apertures",
+   "pdf_sha256": "sha256:77ed9a44717071db7618a0bc8f583f2f84c97b2bda2fb83779181347eac0e907",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2018 - Broadband acoustic phased array with subwavelength active tube array": {
+   "source": "doc:2018 - Broadband acoustic phased array with subwavelength active tube array",
+   "pdf_sha256": "sha256:636d0ed84f4b4c5eae250f0efe3d5eb2b088cb551945bc29ca1ef6578d61c7a8",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2018 - Coupled Resonators for Sound Trapping and Absorption": {
+   "source": "doc:2018 - Coupled Resonators for Sound Trapping and Absorption",
+   "pdf_sha256": "sha256:41eaa3d244e183f739f32a3ed8f9f4086fea40cb7efb10fc103d67a4cbd815d7",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2018 - Multiband quasi-perfect low-frequency sound absorber based on double-channel Mie resonator": {
+   "source": "doc:2018 - Multiband quasi-perfect low-frequency sound absorber based on double-channel Mie resonator",
+   "pdf_sha256": "sha256:7a77dcad5fdbb07846e4c49c30bdbe23fae33d955f700c015fc2fce499e04592",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Acoustic perfect absorbers via Helmholtz resonators with embedded apertures": {
+   "source": "doc:2019 - Acoustic perfect absorbers via Helmholtz resonators with embedded apertures",
+   "pdf_sha256": "sha256:5a87db4690eb741b37c263be7e570d4ff3feea4481a75b8a8becf618315911ad",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Broadband Time-domain Impedance Boundary Modeling with the Discontinuous Galerkin Method for Room Ac": {
+   "source": "doc:2019 - Broadband Time-domain Impedance Boundary Modeling with the Discontinuous Galerkin Method for Room Ac",
+   "pdf_sha256": "sha256:2595d85a23d1548eae6579d808942305718bbb9c1dc9f669127a00012dec6b5f",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Broadband low-frequency sound absorption by periodic metamaterial resonators embedded in a porous la": {
+   "source": "doc:2019 - Broadband low-frequency sound absorption by periodic metamaterial resonators embedded in a porous la",
+   "pdf_sha256": "sha256:3f46b4744507fe1e179ddb69ab001447bdd76267fd263e57aaecda6c3eba6816",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Broadband ultra-thin acoustic metasurface absorber": {
+   "source": "doc:2019 - Broadband ultra-thin acoustic metasurface absorber",
+   "pdf_sha256": "sha256:f7db5b6a196d89b7f43b368ea38138d589748b8c4f1ab0b2a65779662426ffd5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Comparative Study and Design of Economical Sound Intensity Probe": {
+   "source": "doc:2019 - Comparative Study and Design of Economical Sound Intensity Probe",
+   "pdf_sha256": "sha256:ff3158e43fabaa71cc32fede6a95b692f34e46a82ea146e44441e1bcb4a4ec90",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Extreme low-frequency ultrathin acoustic absorbing metasurface": {
+   "source": "doc:2019 - Extreme low-frequency ultrathin acoustic absorbing metasurface",
+   "pdf_sha256": "sha256:350b421e9d6b0cdc8bad893baf0504651ad95d3651587409dc68a780b6ee6187",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Image Source Method Based Acoustic Simulation For 3-D Room Environment": {
+   "source": "doc:2019 - Image Source Method Based Acoustic Simulation For 3-D Room Environment",
+   "pdf_sha256": "sha256:04fd150cce6e2fed661448a613c8324bbf0d8323916aefce2540db75fc7faa6d",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated  Supplementary material ": {
+   "source": "doc:2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up chan",
+   "pdf_sha256": "sha256:a6dde8d9c1d31b8d5aff07b017eee47bae25eec7e34f0589fa1bbb9ed0418c02",
+   "by": "human",
+   "note": "附件，正文是《2019 - Low-frequency sound absorption of hybrid absorber bas》。PO 2026-08-13"
+  },
+  "2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up chan": {
+   "source": "doc:2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up chan",
+   "pdf_sha256": "sha256:144ad066c03ab2ec76b888b18cb53977af1f4b775f002fa399d0a1af7bff578a",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2019 - Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method": {
+   "source": "doc:2019 - Room acoustics modelling in the time-domain with the nodal discontinuous Galerkin method",
+   "pdf_sha256": "sha256:142dad4ac4eb23b347d5d2810bd641f08820d6fbcdc07a515ffa60c3e357325b",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - A case study on workstation-dependent acoustic characterization of open-plan offices": {
+   "source": "doc:2020 - A case study on workstation-dependent acoustic characterization of open-plan offices",
+   "pdf_sha256": "sha256:3048085078bc07f0b72372287e4d9345404b3131631e47743cc79c35f907d28e",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - A double porosity material for low frequency sound absorption": {
+   "source": "doc:2020 - A double porosity material for low frequency sound absorption",
+   "pdf_sha256": "sha256:68d0d200d88b00ccba5b96b6686e058df36a5baf5cc32c58ac87a25fd017fa5d",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - Frequency-dependent transmission boundary condition in the acoustic time-domain nodal discontinuous": {
+   "source": "doc:2020 - Frequency-dependent transmission boundary condition in the acoustic time-domain nodal discontinuous",
+   "pdf_sha256": "sha256:17be1f4bcccac79b177217d309c048c7fc8dadb14f209a69377147fca1291fa0",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels": {
+   "source": "doc:2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels",
+   "pdf_sha256": "sha256:6888071a06100661d6978066f19fbc218c134a4a9ec1de134e8ad4387684113e",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels Supplementary Material": {
+   "source": "doc:2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels",
+   "pdf_sha256": "sha256:af69796b61b7ceaaeef10a2cadfeaf09ba1744cfef939f07dbb8dccb0840b591",
+   "by": "human",
+   "note": "附件，正文是《2020 - Low-Frequency Broadband Acoustic Metasurface Absorbin》。PO 2026-08-13"
+  },
+  "2020 - Non-cuboid Iterative Room Optimizer": {
+   "source": "doc:2020 - Non-cuboid Iterative Room Optimizer",
+   "pdf_sha256": "sha256:e54e9fa12b8070fcb5b229d4c68d65b69e2aa98dbecc8cef7e572a8d2eddefd7",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - Numerical simulations of near-field head-related transfer functions Magnitude verification and vali": {
+   "source": "doc:2020 - Numerical simulations of near-field head-related transfer functions Magnitude verification and vali",
+   "pdf_sha256": "sha256:7b0e4df752c5c79a6cfb06020a85d431a7480ef4736bb6aaf92331d4f2ea2d08",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room ac": {
+   "source": "doc:2020 - Time-domain impedance boundary condition modeling with the discontinuous Galerkin method for room ac",
+   "pdf_sha256": "sha256:692966d99b50df409df8c29fdc5985e9a1d5dbc3cc1226a461a89bb9fa5acc21",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2020 - Ultra-broadband acoustic absorption of a thin microperforated panel metamaterial with multi-order re": {
+   "source": "doc:2020 - Ultra-broadband acoustic absorption of a thin microperforated panel metamaterial with multi-order re",
+   "pdf_sha256": "sha256:6283407d6d61842925bf67535bfaafa056524cc2ea51ac44853e7d445372ab3d",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - A benchmark for room acoustical simulation. Concept and database": {
+   "source": "doc:2021 - A benchmark for room acoustical simulation. Concept and database",
+   "pdf_sha256": "sha256:1c9b0501b3baa2bb5c4ca3ec64fdfb18df965a3c7fd0f15a5afd19701d6c0e9e",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - A machine-learning framework for acoustic design assessment in early design stages": {
+   "source": "doc:2021 - A machine-learning framework for acoustic design assessment in early design stages",
+   "pdf_sha256": "sha256:37db369c99a980e74457331efffc0aa62814575f51d25c25f50e2640ef22d775",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - Acoustic multi-layer Helmholtz resonance metamaterials with multiple adjustable absorption peaks": {
+   "source": "doc:2021 - Acoustic multi-layer Helmholtz resonance metamaterials with multiple adjustable absorption peaks",
+   "pdf_sha256": "sha256:716dbc74375030554b22200703f563825e37c1df555080874108c594ab1f34ae",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - An arbitrary high-order discontinuous Galerkin method with local time-stepping for linear acoustic w": {
+   "source": "doc:2021 - An arbitrary high-order discontinuous Galerkin method with local time-stepping for linear acoustic w",
+   "pdf_sha256": "sha256:0721140a6c7df8645f1fda389fa11dbb6ecc3f57dbd7d461d3517192508116e8",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - Comparison of measurement and prediction for acoustical treatments designed with Transfer Matrix Mod": {
+   "source": "doc:2021 - Comparison of measurement and prediction for acoustical treatments designed with Transfer Matrix Mod",
+   "pdf_sha256": "sha256:3a86a0f61f215225cd7eb26cc1442c61bb5527ad52125d34caf0b5c3d88bafcc",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - Estimation of locally reacting surface impedance at modal frequencies using an eigenvalue approximat": {
+   "source": "doc:2021 - Estimation of locally reacting surface impedance at modal frequencies using an eigenvalue approximat",
+   "pdf_sha256": "sha256:3fb7b6fd6397cfce99e80a2180b6cc558ebce7a788362e298f70693c27100bff",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - Experimental validation and uncertainty quantification in wave-based computational room acoustics": {
+   "source": "doc:2021 - Experimental validation and uncertainty quantification in wave-based computational room acoustics",
+   "pdf_sha256": "sha256:9afa02f605b97a0de36452194738d49fedcafa944625f2689f07a2365d5c95b0",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - Filter and correction for a hybrid sound field analysis of geometrical and wave-based acoustics": {
+   "source": "doc:2021 - Filter and correction for a hybrid sound field analysis of geometrical and wave-based acoustics",
+   "pdf_sha256": "sha256:fe4622f493690df0902479928649fddbe73cfe21e4c417d43ce30838bdab45af",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH1": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:5dc7203c047f9f66a7fd97b91dde58bf02cb066c8112f9245816f83323d36997",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH2": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:48e892ccef71628bdede54f72d6bad2eee93ddbe32cfe7a0e74b5553608d6057",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH3": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:b5b43dc5ba8934b961872cdac411bd9303e8dcc2c47c6ea1b194613e0cbafa00",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH4": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:d931854168c08a1471b79f3d1d5e4f0f95b5e622c6d27a4b97ff34769bbbb0e9",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH5": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:03a632d47ce6bd7433bfd089974bcd3a968a99012ebcabded33c01fbe20c0038",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH6": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:07c2d56c3593766c3a45ab24a2b4f29c4c430a3bec632d733f58629bb4121935",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Room acoustic modeling  with the TD_DG method_CH7": {
+   "source": "book:2021-roomacousticmodelingwiththetd_dgmethod",
+   "pdf_sha256": "sha256:9bdba6f14ab254d4d380b069006f8f6f2b2c2165904120ec6751e30257e4193c",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2021 - Wave-based room acoustic simulations of an open plan office 12th European Congress and Exposition o": {
+   "source": "doc:2021 - Wave-based room acoustic simulations of an open plan office 12th European Congress and Exposition o",
+   "pdf_sha256": "sha256:63eb7351bb8301cca0178fb971fcc420e357b946e8c58b2ae974d87971fefeb0",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2022 - A compact multifunctional metastructure for Low-frequency broadband sound absorption and crash energ": {
+   "source": "doc:2022 - A compact multifunctional metastructure for Low-frequency broadband sound absorption and crash energ",
+   "pdf_sha256": "sha256:b3680bbd0760e3a63dd4669bf79f51434da1f714b38f78ae7eb9ba17a088be63",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2022 - Broadband impedance modulation via non-local acoustic metamaterials": {
+   "source": "doc:2022 - Broadband impedance modulation via non-local acoustic metamaterials",
+   "pdf_sha256": "sha256:069894c5d20fa5868344422fae481701fc11fa37ce5e47a66bfb27c6bbc61d7e",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2022 - Broadband impedance modulation via non-local acoustic metamaterials_supplemental_file": {
+   "source": "doc:2022 - Broadband impedance modulation via non-local acoustic metamaterials",
+   "pdf_sha256": "sha256:c44c473ebd3ca26b62e7fdce3e56761c646f6b4bb74ead0aa06e5f597b674cd8",
+   "by": "human",
+   "note": "附件，正文是《2022 - Broadband impedance modulation via non-local acoustic》。PO 2026-08-13"
+  },
+  "2022 - Design of broadband Helmholtz resonator arrays using the radiation impedance method": {
+   "source": "doc:2022 - Design of broadband Helmholtz resonator arrays using the radiation impedance method",
+   "pdf_sha256": "sha256:883342bd56349dd32434d20d1290d6c0081bfce7b6d5cd5615e0c0d191761ea6",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2022 - Elimination of the Phase Mismatch Error in PP Probe Using Synchronous Measurement Technique": {
+   "source": "doc:2022 - Elimination of the Phase Mismatch Error in PP Probe Using Synchronous Measurement Technique",
+   "pdf_sha256": "sha256:ab0dd4533a03cb03f73e90f583207b04c7d19314972d19b16271d3139ae37616",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2022 - General extended-reacting porous materials modeling with the time-domain discontinuous Galerkin meth": {
+   "source": "doc:2022 - General extended-reacting porous materials modeling with the time-domain discontinuous Galerkin meth",
+   "pdf_sha256": "sha256:373764ba47ceb83a222cebb19110458b242d8c9ec1afd4db21ffa371bd053ee4",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2022 - Prediction of eigenfrequencies in non-rectangular rooms with machine learning": {
+   "source": "doc:2022 - Prediction of eigenfrequencies in non-rectangular rooms with machine learning",
+   "pdf_sha256": "sha256:949dc9b7817ccb83a550ce3799dea2dd0ab4f648df42eb0e3138d5d15067cf96",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - A Differentiable Image Source Model for Room Acoustics Optimization": {
+   "source": "doc:2023 - A Differentiable Image Source Model for Room Acoustics Optimization",
+   "pdf_sha256": "sha256:70ee1664ff1a1e294b9cebe8545fb655f5c4d927ca5f09a0395dbaa07af32f2e",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - A Review of Finite Element Methods for Room Acoustics": {
+   "source": "doc:2023 - A Review of Finite Element Methods for Room Acoustics",
+   "pdf_sha256": "sha256:ae2baa64523a90840a6d2d8ad23bc5bb5b40f63592d0116837904fc33eb39bc9",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - An Iterative Ray Tracing Algorithm to Increase Simulation Speed While Maintaining Overall Precision": {
+   "source": "doc:2023 - An Iterative Ray Tracing Algorithm to Increase Simulation Speed While Maintaining Overall Precision",
+   "pdf_sha256": "sha256:07692ac9b324d1b0889a2ba535fb109b1bb292e34c0ff092080b818dc7871eee",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - CHARACTERISATION OF SMALL ROOM ACOUSTICS FOR AUDIO PRODUCTION": {
+   "source": "doc:2023 - CHARACTERISATION OF SMALL ROOM ACOUSTICS FOR AUDIO PRODUCTION",
+   "pdf_sha256": "sha256:5cfa02fbe2aa352fc8c1473badda6d2625b09704139825d8f0df3cb3acaae37b",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - Development of a prototype of a low-cost sound intensity probe": {
+   "source": "doc:2023 - Development of a prototype of a low-cost sound intensity probe",
+   "pdf_sha256": "sha256:f00cb7ae58fe87e16f9494430e1761a8e30b1066cf59dd95587f9ece85a91f2d",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - Extended reacting boundary modeling of porous materials with thin coverings for time-domain room aco": {
+   "source": "doc:2023 - Extended reacting boundary modeling of porous materials with thin coverings for time-domain room aco",
+   "pdf_sha256": "sha256:f64ca83644e520a13e5e133f4442d0b20baf9b7d43ff6985e17522430442c220",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2023 - Perception-of-room-modes_CH1": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:926e9038832028983227ec634def00405e114630fadf65d7a074cf11030c05c5",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_CH2": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:f0a2d4153797757114fd4e6479f0eba7e3ebf0cb14d884a53807f235b8b7431f",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_CH3": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:9fbb1a8583b19ad60a249806dfb24696a0f377ac583935d095e7a42dbed8d071",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_CH4": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:9811f3db4dcfe2b2894faed40c0bf39e808e7fe9c3cd12426def07d0f461b1a8",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_CH7": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:f4a289a1a52df4679ffcef1e0acbb8858f64cabce4dc8b325929d0aeeead0a68",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_CH8": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:fa4952655e9230579801280306daf2046776ed4809c0af094a738151a5d205d4",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_Conclusions_CH9": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:e6095a92e05ade29a54204a8cb20b85528d03409b335fb9b35216a8ac811a066",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_Control of Room Modes_CH5": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:c4f10c1d337253cb4c7c97058158a72c5cbe998cbdade7d0905af21e7d2be9db",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Perception-of-room-modes_Subjective Perception of Modal Distribution_CH6": {
+   "source": "book:2023-perception-of-room-modes",
+   "pdf_sha256": "sha256:b4a187428f4d305e1726b9570771567ba2a2ce0f5d9a0c4e93f2272893845b62",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2023 - Ultra-broadband symmetrical acoustic coherent perfect absorbers designed by the causality principle": {
+   "source": "doc:2023 - Ultra-broadband symmetrical acoustic coherent perfect absorbers designed by the causality principle",
+   "pdf_sha256": "sha256:870c569a6b6d9b1ebd2926cd6e6fc3ca28491e9e2c6543725ffa309c5702c29d",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - A Compact Low-Frequency Acoustic Perfect Absorber Constructed with a Folded Slit": {
+   "source": "doc:2024 - A Compact Low-Frequency Acoustic Perfect Absorber Constructed with a Folded Slit",
+   "pdf_sha256": "sha256:f9e2d4c9709ee1b10ed2d4b475f0ac0ca5974e2b046a9e6e4fd921a3c31039ce",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - A hybrid room acoustic modeling approach combining image source, acoustic diffusion equation, and ti": {
+   "source": "doc:2024 - A hybrid room acoustic modeling approach combining image source, acoustic diffusion equation, and ti",
+   "pdf_sha256": "sha256:7186178e1bcc502241513708e21cf5a24c79ce7a3e13e372eb54b44c6de7d839",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures": {
+   "source": "doc:2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures",
+   "pdf_sha256": "sha256:55795d70cf9d0a8d549f85cf4582faff977285f7b80aca322045e1bc4810c610",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - An Open-Source Time-Domain Wave-Based Room Acoustic software in": {
+   "source": "doc:2024 - An Open-Source Time-Domain Wave-Based Room Acoustic software in",
+   "pdf_sha256": "sha256:5a6e471ccb00debd7c47aab2f18199c45d2b6ce00af3a382b0ffa6705c8b3aa0",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Bayesian Parameter Identification in Impedance Boundary Conditions for Helmholtz Problems": {
+   "source": "doc:2024 - Bayesian Parameter Identification in Impedance Boundary Conditions for Helmholtz Problems",
+   "pdf_sha256": "sha256:3901026cb906b776e3ce07e3bc8be16211d16c9583ce381d7f64ab8564403173",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Broadband sound absorbers via quality-factor modulation": {
+   "source": "doc:2024 - Broadband sound absorbers via quality-factor modulation",
+   "pdf_sha256": "sha256:66a4fc03784cb99abec65c5fd39f4cadbebb7a79993698a6f4884d8c3d4b8bea",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Design of the Helmholtz resonators assembly for optimizing the broadband sound absorption of acousti": {
+   "source": "doc:2024 - Design of the Helmholtz resonators assembly for optimizing the broadband sound absorption of acousti",
+   "pdf_sha256": "sha256:5db5d88ddbd0234ea6f5ba2df0b6c3c61e6977d18d7632e977feb86ee44bfa41",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Differentiable Acoustic Path Tracing Full Spectral Rendering": {
+   "source": "doc:2024 - Differentiable Acoustic Path Tracing Full Spectral Rendering",
+   "pdf_sha256": "sha256:ecb0fdcb8ea3b17382af88d0101eaf07dc5fdc574900d0d989a5a0cb16f8930f",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic abso": {
+   "source": "doc:2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic abso",
+   "pdf_sha256": "sha256:87b8db961f0f049e8d2dbc2b112c51ab03fdc63d271180e84e32a3b75fd8ca72",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - Hybrid porous Helmholtz resonator for low-frequency broadband absorption": {
+   "source": "doc:2024 - Hybrid porous Helmholtz resonator for low-frequency broadband absorption",
+   "pdf_sha256": "sha256:a275778e007fa55aeeaa25cb29a08b1f810a806b7452bc8d7932dc4b71cbe022",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2024 - JAX-SSO Differentiable Finite Element Analysis Solver for Structural Optimization and Seamless Inte": {
+   "source": "doc:2024 - JAX-SSO Differentiable Finite Element Analysis Solver for Structural Optimization and Seamless Inte",
+   "pdf_sha256": "sha256:5473a0ca064b054acf7f655623adf7013c757ad3eed8fb34ebcd3a308f1851ee",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - A method for extracting an average scattering coefficient for room acoustic modeling": {
+   "source": "doc:2025 - A method for extracting an average scattering coefficient for room acoustic modeling",
+   "pdf_sha256": "sha256:f742512b62622e0fa2e2a43ae18e7c3ea9393ecc9642fee094b9a09d3066f3f2",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Broadband Low-Frequency Near-Perfect Sound Absorber via Coupled Metasurfaces": {
+   "source": "doc:2025 - Broadband Low-Frequency Near-Perfect Sound Absorber via Coupled Metasurfaces",
+   "pdf_sha256": "sha256:211eb8af13fea5cb9c688ff407e00490240336ea3b7b6023cfe7e5e4becc3be7",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Broadband low-frequency sound absorption of multifunctional composite metastructure": {
+   "source": "doc:2025 - Broadband low-frequency sound absorption of multifunctional composite metastructure",
+   "pdf_sha256": "sha256:d96e91b09d48b7aec4f872329017d1c70ff1d246e48b091f1ff2012c3a06ce02",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Comparison of Impulse Response Generation Methods for a Simple Shoebox-Shaped Room": {
+   "source": "doc:2025 - Comparison of Impulse Response Generation Methods for a Simple Shoebox-Shaped Room",
+   "pdf_sha256": "sha256:e5d91749b8143935cce8c93ec8f48a1629ea2df3912b751ac1fcb570c93e0335",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro": {
+   "source": "doc:2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro",
+   "pdf_sha256": "sha256:574da14638ddc706ed23d3168657e67be3c659b2b905bfe2440acfdeef7dad68",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory": {
+   "source": "doc:2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory",
+   "pdf_sha256": "sha256:ca7cab41b41629841009b8b8b31de8751f0c1b6779782a47e2c6bf504dbc243b",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Differentiable Acoustic Radiance Transfer": {
+   "source": "doc:2025 - Differentiable Acoustic Radiance Transfer",
+   "pdf_sha256": "sha256:693e24a2c470422bd8714156cfdcfc92531cf889f00552ab1f06f460eb860e5d",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Differentiable Geometric Acoustic Path Tracing using Time-Resolved Path Replay Backpropagation": {
+   "source": "doc:2025 - Differentiable Geometric Acoustic Path Tracing using Time-Resolved Path Replay Backpropagation",
+   "pdf_sha256": "sha256:7d442d2c6dddd5ccb37334fd6daac66c40f0d6d433e7a114f4286b2e4d55bd00",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Differentiation Strategies for Acoustic Inverse Problems Admittance Estimation and Shape Optimizati": {
+   "source": "doc:2025 - Differentiation Strategies for Acoustic Inverse Problems Admittance Estimation and Shape Optimizati",
+   "pdf_sha256": "sha256:7400ba010693a8ab71384e6d74e0e1e3146362be31715cd06580b1dd7bbb775b",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - EVALUATING THE APPLICABILITY OF STATISTICAL REVERBERATION THEORY IN ROOMS WITH VARYING COMPACTNESS A": {
+   "source": "doc:2025 - EVALUATING THE APPLICABILITY OF STATISTICAL REVERBERATION THEORY IN ROOMS WITH VARYING COMPACTNESS A",
+   "pdf_sha256": "sha256:fb639f8c2651e9f6e61f83eed5b88f368d60162d51ce5cb0040cc6934c0ef979",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Improvement of Low Frequency Sound Absorption in a Room": {
+   "source": "doc:2025 - Improvement of Low Frequency Sound Absorption in a Room",
+   "pdf_sha256": "sha256:2ac8a16246e1152e976d2918ef395b48f9169432ac9a0e65df30072f07070aa3",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Incorporating extended neck Helmholtz resonators into an advanced multi-degree of freedom acoustic m": {
+   "source": "doc:2025 - Incorporating extended neck Helmholtz resonators into an advanced multi-degree of freedom acoustic m",
+   "pdf_sha256": "sha256:0aa2e9108eb0086029d7bfbf5bf5851fe8c034a97af550a332efbf216e12147c",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Modeling Nonuniform Energy Decay Through the Modal Decomposition of Acoustic Radiance Transfer": {
+   "source": "doc:2025 - Modeling Nonuniform Energy Decay Through the Modal Decomposition of Acoustic Radiance Transfer",
+   "pdf_sha256": "sha256:78ef61af82c19703d49b3e9ac97c23e1910b4f6cbbd3a71b512a74ba71e13614",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials": {
+   "source": "doc:2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials",
+   "pdf_sha256": "sha256:ced2f34b99fec3d3e866fceffef2be66c6928ca9e1b0ee6a0874fd6d8cffd45a",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Recent advancements in sound-absorbing materials": {
+   "source": "doc:2025 - Recent advancements in sound-absorbing materials",
+   "pdf_sha256": "sha256:32188f36c19e93f7fb4e11d0c7013a93c7266eb7049c5766c98c7573c87282bf",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped a": {
+   "source": "doc:2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped a",
+   "pdf_sha256": "sha256:8c837c46bea2d2642de4943fa236d0d00479005b78a7eedaeb02fa14387711b5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - Towards a community hub for open-source room acoustics software": {
+   "source": "doc:2025 - Towards a community hub for open-source room acoustics software",
+   "pdf_sha256": "sha256:3484f265a345e8a8b6a49c47754bac248c67d718386274c9a25958bbff6e66e5",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - jaxFMM An Adaptive, GPU-Parallel Implementation of the Fast Multipole Method in JAX": {
+   "source": "doc:2025 - jaxFMM An Adaptive, GPU-Parallel Implementation of the Fast Multipole Method in JAX",
+   "pdf_sha256": "sha256:9f23c063bcd9b5f1a62502f23212c28877beece491b808f3c998f0c4dce71005",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2025 - misuka An open-source differentiable room acoustic renderer": {
+   "source": "doc:2025 - misuka An open-source differentiable room acoustic renderer",
+   "pdf_sha256": "sha256:80b5fe6346a18d02c78b9c534c0fa3dad989e3abd5cf5194ac8ade5f734dfec1",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise": {
+   "source": "doc:2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise",
+   "pdf_sha256": "sha256:9d1880152230efaceb86dfe85374f7ee8c4557458b7a7b82f71cac1f049310ff",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - In situ estimation of the acoustic surface impedance using simulation-based inference": {
+   "source": "doc:2026 - In situ estimation of the acoustic surface impedance using simulation-based inference",
+   "pdf_sha256": "sha256:585b48abff59a0309a94d6d9eacb1a1b1c3c63b555934242360887b8f5cf6032",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - JAX-BEM Gradient-Based Acoustic Shape Optimisation via a Differentiable Boundary Element Method": {
+   "source": "doc:2026 - JAX-BEM Gradient-Based Acoustic Shape Optimisation via a Differentiable Boundary Element Method",
+   "pdf_sha256": "sha256:60de343d91a2f0e35b7c805e76a1219071ab42e560323248e82a53d1131ab669",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity": {
+   "source": "doc:2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity",
+   "pdf_sha256": "sha256:b3b58f747220c72e21aa282e19fc2fc958d480a1cd34ef178ba89bc75a613dcd",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials": {
+   "source": "doc:2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials",
+   "pdf_sha256": "sha256:bb8c34a43cd97a3a298fc1d38a10ee8fe67af283ca76643dbc9908808846e9ab",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - On Efficient Algorithm for Calculation of Acoustical Parameters in Rooms on the Basis of the Ray Tra": {
+   "source": "doc:2026 - On Efficient Algorithm for Calculation of Acoustical Parameters in Rooms on the Basis of the Ray Tra",
+   "pdf_sha256": "sha256:2bbbb32b0e1bd71423abf4539268b9fe54f0685cf12d8a810cae55210c945b73",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-": {
+   "source": "doc:2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-",
+   "pdf_sha256": "sha256:da79cc664279904a0b791648db0ec0db2f9a1d28e53c204d5cbf697600b3ebce",
+   "by": "human",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH01": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:3eec2ce721e32b70a3ff621d010b77b3c5d0f1260cc23cba7fdd62170598870c",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH02": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:9bcf4ebe14150f0ac1dbf3f92695739509130bc341341065bb55be4ef76b02e2",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH03": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:3bd95b56bdfac528d4c4e3942bdd573f5e608f39dc98ed06abd384c08cdceb75",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH04": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:7d7c9a751249e8b8068898cb9b342e31af9690f777b468867b89ede6ae03e951",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH05": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:ee694bc239201b45ffb3f7849616ef11b322169f5855a94813328c31e1f1034b",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH06": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:52a55cff131505688a47e3369df5b910eab2505751110c91e4a9f06b60fe1d84",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "2026 - hybrid computational framework for room-acoustic_CH07": {
+   "source": "book:2026-hybridcomputationalframeworkforroom-acoustic",
+   "pdf_sha256": "sha256:a98e215036ebbf86d22f61df432f7a97368623988b92f8072974d50019c2915a",
+   "by": "human",
+   "note": "_CH 切片，壓平前綴聚類"
+  },
+  "41598_2017_5710_MOESM1_ESM": {
+   "source": "doc:2017 - Metadiffusers Deep-subwavelength sound diffusers",
+   "pdf_sha256": "sha256:ba3b2c01e2bb9c081c376df2278479286e2ce3b3e108fd8101f84c929a666cb1",
+   "by": "human",
+   "note": "附件，正文是《2017 - Metadiffusers Deep-subwavelength sound diffusers》。PO 2026-08-13"
+  },
+  "A Conventions": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:1ff5d93b3d718ed0dc3aab8960c5de891a1d871c80e254d34c3ba63eb0043926",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "B General Linear Fluid Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:32bf4bea26819046fa39a976826ec37f771c9d56df2b576ed3436cd617e8c201",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "C Equivalent Networks": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:1c7dcb0e1de0393c9af127509ff736d889e4fbf370d7436d9c98db16ee08470f",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "D Reflection of Sound": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:da77859ff228ee3573aac1fb3ec10b136290da25dd2610f0c21521c281213564",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "E Scattering of Sound": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:b334286c702d304a6dfffe9dfa02b26df3ba2316bb2ffda32b369394734d15c0",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "F Radiation of Sound": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:0457c2df9b15f544313ec389d975bd79e5ab620fa191c752231a06dabe0f67b5",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "G Porous Absorbers": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:e0b355f9883993f5d959ebd34de4da9c4155652db711192ddcde9e43ebf7015f",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "H Compound Absorbers": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:b618b363afef921af00550adebf59dbc2cf4a8a1e8f68a8c192e9b9f29154e96",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "I Sound Transmission": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:29ea5f233e4280f6a8d0610125c2371bc6aecc781141a577860c73a31fd178b7",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "J Duct Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:8624ef374e7c4de7855527b8925167575ea179a99770c5ce2f5b6ab4c48b024b",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "K Muffler Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:81cc88579f70aec2939c378cd7dff0fbf51f488f892d16f4c24125a2d1683781",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "L Capsules and Cabins": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:9b583af3d4da1ffeb00d97b3acdcf95f96b5a5895056189d08f0a739d0ca71aa",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "M Room Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:f1b1b4745dcbe7e1334f48d6d1bf49ec116f792c42f39c77c76ae8bab8ad28c2",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "N Flow Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:c47dd663994c2379e09d7a70f33419508d6dde53790b3752c97bee7e8d55d56c",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "O Analytical and Numerical Methods in Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:f4dc3a601b0c724feba8f200d76cffa14e4ba56cc9444907e495efbe811dbd98",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "P Variational Principles in Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:4d2e44ace18d8efde5166faaca93e53c71d0df1e6ad627ebd35b8cc30461741d",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "Q Elasto-Acoustics": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:07e27c063f7042e09a66a053cc1c1d5a3ac08ecfd433527cd098ac868ac8ae42",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "R Ultrasound Absorption in Solids": {
+   "source": "book:a-r-handbook",
+   "pdf_sha256": "sha256:c9f859470a869a2a01883c279910b9d73953e39c238bb742737002bdea2fcd96",
+   "by": "human",
+   "note": "單字母章號 A–R，**待人核是不是同一本**"
+  }
+ }
+}
