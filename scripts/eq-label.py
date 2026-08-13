@@ -164,15 +164,29 @@ def cmd_control(eqs: list[dict], groups: list[dict], n: int) -> int:
     print(f"=== 裁判體檢：{len(panel)} 隻眼睛 × "
           f"（已知同一條 {len(same)} 組 ＋ 已知不同 {len(diff)} 組）===")
     print("⚠ **兩個方向都要看。** 只看「判同率」的話，一隻永遠回答 same 的模型會拿 100%。\n")
-    ok = True
+    ok, misses = True, []
     for eye in panel:
         res = eqjudge.control(eye, same, diff)
         print(res.line())
         print(f"{'':<14} → {'堪用' if res.usable else '**不堪用，不要拿它擴大樣本**'}"
               f"（模型 {eye.model}，家族 {eye.family}）\n")
         ok &= res.usable
+        if res.same_ok or res.same_wrong:      # 有跑起來的才算數
+            misses.append(set(res.same_misses))
     print("結論：" + ("三隻都堪用，可以往下做投票擴樣。" if ok else
                      "**有眼睛沒過體檢** —— 先處理它，不要用它的票。"))
+
+    # **三家獨立地打槍同一題，指的多半不是模型太嚴。**
+    if len(misses) >= 2:
+        agreed = sorted(set.intersection(*misses))
+        print(f"\n── 幾隻眼睛都說「不是同一條」的題號（已知同一條那組）：{agreed or '無'}")
+        if agreed:
+            print("   ⚠ 不同家族獨立地打槍同一題 —— **要先懷疑「骨架逐字相同就是同一條」**"
+                  "\n     這個假設有例外，那是關於 eq-dup 的發現，不是模型的問題。")
+            for i in agreed[:3]:
+                print(f"\n   題 {i}：")
+                for tag, tex in zip("AB", same[i], strict=True):
+                    print(f"     {tag}  {eqjudge._show(tex)[:150]}")
     return 0 if ok else 2
 
 

@@ -32,8 +32,9 @@ r"""問模型：這兩條公式是不是同一條。**先過負向控制才准�
 from __future__ import annotations
 
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .eyes import Eye
 from .judge import Ruling, ask_json
@@ -71,12 +72,21 @@ def _show(latex: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"\\tag\{[^}]*\}", "", t))[:1500]
 
 
-def ask_pair(a: str, b: str, eye: Eye, *, timeout: int = 120) -> Ruling:
-    """問一隻眼睛：這兩條是不是同一條。"""
+def ask_pair(a: str, b: str, eye: Eye, *, timeout: int = 120, tries: int = 3) -> Ruling:
+    """問一隻眼睛：這兩條是不是同一條。
+
+    ⚠ 限流要重試，**而且不能把它算成「模型判不出來」**。眼睛 A 只有一個供應商
+    （2026-08-13 實測），併發稍高就回 429 —— 那是基礎設施，不是鑑別力。
+    """
     user = f"=== EQUATION A ===\n{_show(a)}\n\n=== EQUATION B ===\n{_show(b)}"
-    return ask_json(SYSTEM, user, model=eye.model, host=eye.host,
-                    api_key=eye.api_key, timeout=timeout, provider=eye.provider,
-                    reasoning=eye.reasoning)
+    for attempt in range(tries):
+        r = ask_json(SYSTEM, user, model=eye.model, host=eye.host,
+                     api_key=eye.api_key, timeout=timeout, provider=eye.provider,
+                     reasoning=eye.reasoning)
+        if not r.error or ("429" not in r.error and "rate" not in r.error.lower()):
+            return r
+        time.sleep(2 ** attempt * 3)
+    return r
 
 
 @dataclass
@@ -92,6 +102,10 @@ class ControlResult:
     diff_abstain: int = 0
     errors: int = 0
     first_error: str = ""
+    # 「已知同一條」裡被判異的題號。**留著才問得出下一個問題**：
+    # 三隻不同家族的眼睛如果打槍的是同一批，那多半不是模型太嚴，
+    # 是「骨架一樣就是同一條」這個假設本身有例外 —— 而那是關於 eq-dup 的發現。
+    same_misses: list[int] = field(default_factory=list)
 
     @property
     def usable(self) -> bool:
@@ -117,17 +131,21 @@ class ControlResult:
 
 
 def control(eye: Eye, same: list[tuple[str, str]], diff: list[tuple[str, str]],
-            *, workers: int = 4) -> ControlResult:
-    """跑負向控制。`same`／`diff` 是 (latexA, latexB) 的清單。"""
-    out = ControlResult(eye=eye.name)
-    jobs = [("same", a, b) for a, b in same] + [("diff", a, b) for a, b in diff]
+            *, workers: int = 2) -> ControlResult:
+    """跑負向控制。`same`／`diff` 是 (latexA, latexB) 的清單。
 
-    def run(job: tuple[str, str, str]) -> tuple[str, Ruling]:
-        kind, a, b = job
-        return kind, ask_pair(a, b, eye)
+    ⚠ 併發預設壓到 2：眼睛 A 只有一個供應商，開 4 就 429（實測 15/20 失敗）。
+    """
+    out = ControlResult(eye=eye.name)
+    jobs = [("same", i, a, b) for i, (a, b) in enumerate(same)]
+    jobs += [("diff", i, a, b) for i, (a, b) in enumerate(diff)]
+
+    def run(job: tuple[str, int, str, str]) -> tuple[str, int, Ruling]:
+        kind, idx, a, b = job
+        return kind, idx, ask_pair(a, b, eye)
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        for kind, r in ex.map(run, jobs):
+        for kind, idx, r in ex.map(run, jobs):
             if r.error:
                 out.errors += 1
                 out.first_error = out.first_error or r.error
@@ -136,6 +154,8 @@ def control(eye: Eye, same: list[tuple[str, str]], diff: list[tuple[str, str]],
                 out.same_ok += r.says_same
                 out.same_wrong += r.says_different
                 out.same_abstain += not (r.says_same or r.says_different)
+                if r.says_different:
+                    out.same_misses.append(idx)
             else:
                 out.diff_ok += r.says_different
                 out.diff_wrong += r.says_same
