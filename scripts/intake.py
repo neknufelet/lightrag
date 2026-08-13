@@ -949,6 +949,43 @@ class SubprocessRunner:
         self.idle_timeout = _positive_float(environment.get("INTAKE_IDLE_TIMEOUT"), 7200.0)
         self.client = LightRAGClient(environment)
 
+    def clean_graph_labels(self, workspace: str, plan: Path) -> OperationResult:
+        """一批抽完之後清掉位置標記節點（`Chapter 1`／`Eq. 4.43`／`Table 9`）。
+
+        **為什麼要自動跑**：規則 2a（不要把 Figure N／Equation N 抽成節點）寫在
+        抽取提示詞裡，實測三次都沒守住，而且守不住的程度隨模型而變。所以每抽一批
+        就會長出一批新的 —— 2026-08-13 手動清掉 376 個，那些本來就不該需要人發現。
+
+        ⚠ **失敗不影響這一批的成敗**：文件已經進索引了，清不掉只是「還沒清」。
+        擋下整批等於用一個可以晚點做的事去否定一件已經做完的事。
+        `compat-check` 的 A-33 會在沒清乾淨時亮燈，所以漏掉不會沒人知道。
+
+        ⚠ `graph-clean` 自己會先確認 LightRAG 的 pipeline 閒著（抽取中改圖譜會跟
+        它搶同一批節點），所以這裡不重複判斷 —— 判準只能有一份。
+
+        ⚠ 計畫檔的路徑**由呼叫端給**：這支只知道 repo 與環境，資料根在哪是
+        `DataPaths` 的事。自己算一份就是同一件事兩個地方。
+        """
+        plan.parent.mkdir(parents=True, exist_ok=True)
+        script = str(self.repo / "scripts" / "graph-clean.py")
+        planned = self._run(
+            [self.python, script, "plan", "--workspace", workspace, "--out", str(plan)],
+            self.command_timeout)
+        if not planned.ok:
+            return planned
+        try:
+            names = json.loads(plan.read_text(encoding="utf-8")).get("certain") or []
+        except Exception as exc:                                  # noqa: BLE001
+            return OperationResult(False, "", f"讀不到清除計畫：{type(exc).__name__}: {exc}")
+        if not names:
+            return OperationResult(True, "沒有位置標記節點要清")
+        applied = self._run(
+            [self.python, script, "apply", "--plan", str(plan), "--yes"],
+            self.command_timeout)
+        if applied.ok:
+            return OperationResult(True, f"清掉 {len(names)} 個位置標記節點")
+        return applied
+
     def _run(self, command: list[str], timeout: float) -> OperationResult:
         try:
             completed = subprocess.run(
@@ -2339,6 +2376,7 @@ class IntakeApp:
             for job, admitted in survivors:
                 self._verify_one(job, admitted, verdicts.get(job.job_id))
         self._assert_staging_drained(len(staged))
+        self._clean_graph_labels()
 
     def _wait_one(self, job: Job, admitted: Path) -> bool:
         """等這一份 processed。回傳「還活著嗎」。失敗只影響它自己。"""
@@ -2382,6 +2420,22 @@ class IntakeApp:
         finally:
             if not settled:
                 self._release_inputs(job, admitted)
+
+    def _clean_graph_labels(self) -> None:
+        """一批收尾之後清位置標記。**不擋這一批** —— 見 `Runner.clean_graph_labels`。"""
+        try:
+            result = self.runner.clean_graph_labels(
+                self.workspace,
+                self.paths.records_dir / "graph-clean" / "intake-plan.json")
+        except Exception as exc:                                  # noqa: BLE001
+            LOGGER.error("清位置標記節點時出錯（不影響這一批）：%s: %s",
+                         type(exc).__name__, exc)
+            return
+        if result.ok:
+            LOGGER.info("清位置標記節點：%s", result.output or "完成")
+        else:
+            LOGGER.error("清位置標記節點失敗（不影響這一批，A-33 會亮燈）：%s",
+                         result.error or "沒有錯誤訊息")
 
     def _assert_staging_drained(self, batch_size: int) -> None:
         """一批收尾時**去看**暫存區空了沒，不是假設每一份都清掉了。
