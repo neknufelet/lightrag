@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+r"""公式比對的標註樣本：抽一批給人看，標完才有資格談門檻。
+
+## 這支在解什麼問題
+
+`eq-dup.py` 的 `--min-ratio` 目前是 `0.8`，而**那個數字沒有任何依據** ——
+它是隨手挑的排序起點。要讓它變成「0.8 以上就算同一條」這種判準，必須先有一批
+人看過的答案，否則就是拿一個猜的數字去裁決別人的公式。
+
+## 抽什麼
+
+```
+Tier A  5 組    對照組。骨架逐字相同，應該「一定是同一條」——
+                **這裡如果就錯了，底下整套都不用談。**
+Tier B  16 對   要決定門檻的那批。相似度分四段（0.80／0.85／0.90／0.95）各抽 4 對。
+```
+
+⚠ **確定性抽樣（等距取樣，不用亂數）。** 重跑要拿到同一批，否則標註對不回去 ——
+而「標註對不回去」會安靜地發生：檔案還在、只是指到別條公式了。
+
+⚠ 只取每一段的前 4 個會全部落在同一個角落（相似度最高的那頭），
+所以是**等距取樣**不是取前 N。
+
+## 這支不做的事
+
+不判對錯，也不訂門檻。產出是一份給人填的表；填完的答案凍結成
+`verdicts/eq-labels.json`，那才是權威。
+
+用法：
+    eq-label.py sample                 # 印出樣本（markdown）
+    eq-label.py sample --out FILE      # 寫檔
+"""
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import re
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mineru_common import load_env  # noqa: E402
+from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
+from pp.sources import DEFAULT_MAP_PATH, SourceMap, ledger_hashes  # noqa: E402
+
+REPO = Path(__file__).resolve().parent.parent
+
+_spec = importlib.util.spec_from_file_location("eq_dup", Path(__file__).parent / "eq-dup.py")
+assert _spec and _spec.loader
+eqdup = importlib.util.module_from_spec(_spec)
+sys.modules["eq_dup"] = eqdup
+_spec.loader.exec_module(eqdup)
+
+BANDS = ((0.95, 1.01), (0.90, 0.95), (0.85, 0.90), (0.80, 0.85))
+PER_BAND = 4
+TIER_A_SAMPLES = 5
+
+
+def spaced(seq: list, n: int) -> list:
+    """等距取 n 個。**不是取前 n 個** —— 那會全部落在同一個角落。"""
+    if len(seq) <= n:
+        return list(seq)
+    step = len(seq) / n
+    return [seq[int(i * step)] for i in range(n)]
+
+
+def display(latex: str) -> str:
+    """給人看的形狀：剝定界符與 `\\tag`、把 MinerU 逐 token 的空白壓掉。"""
+    t = re.sub(r"^\$\$|\$\$$", "", (latex or "").strip()).strip()
+    return re.sub(r"\s+", " ", re.sub(r"\\tag\{[^}]*\}", "", t))
+
+
+def _member_lines(eq: dict, labels: dict[str, str]) -> list[str]:
+    out = [f"- `{eq['doc'][:52]}` #{eq['item']}　常數 {eq['nums']}"]
+    if who := labels.get(eq["doc"]):
+        out.append(f"  《{who[:44]}》")
+    out.append(f"  ```latex\n  {display(eq['latex'])[:300]}\n  ```")
+    return out
+
+
+def render(eqs: list[dict], groups: list[dict], pairs: list[dict],
+           labels: dict[str, str]) -> str:
+    """樣本本文。`eqs` 只用來把 (doc, item) 換回 LaTeX。"""
+    text = {(e["doc"], e["item"]): e for e in eqs}
+    out: list[str] = ["## 第一部分：Tier A 是不是真的可信（對照組，"
+                      f"{TIER_A_SAMPLES} 組）\n",
+                      "骨架**逐字相同**才會進 Tier A，所以它應該是「一定同一條」。"
+                      "**如果這裡就錯了，底下整套都不用談。**\n"]
+    for i, g in enumerate(spaced(sorted(groups, key=lambda x: -x["size"]), TIER_A_SAMPLES), 1):
+        out.append(f"### A{i}　{g['size']} 處、{len(g['sources'])} 個來源"
+                   f"　係數{'一致' if g['constants_agree'] else '**不一致**'}\n")
+        for m in g["members"][:3]:
+            out += _member_lines(text[(m["doc"], m["item"])], labels)
+        if g["size"] > 3:
+            out.append(f"- …其餘 {g['size'] - 3} 處省略")
+        out.append("\n**標註：同一條 / 不是同一條**\n")
+
+    out.append(f"\n## 第二部分：Tier B 按相似度分層（{len(BANDS) * PER_BAND} 對）\n")
+    out.append("這是**要決定門檻的那批**。現在 `--min-ratio 0.8` 只是排序起點，"
+               "沒有任何依據說 0.8 以上就算同一條。\n")
+    n = 0
+    for lo, hi in BANDS:
+        inband = sorted([p for p in pairs if lo <= p["ratio"] < hi],
+                        key=lambda p: (-p["ratio"], p["a"]["doc"], p["a"]["item"]))
+        out.append(f"\n### 相似度 {lo:.2f}–{min(hi, 1.0):.2f}"
+                   f"（這一段共 {len(inband)} 對，抽 {PER_BAND} 對）\n")
+        for p in spaced(inband, PER_BAND):
+            n += 1
+            out.append(f"#### B{n}　相似度 {p['ratio']}　可比常數 "
+                       f"{eqdup.pair_evidence(p)} 個"
+                       f"　係數{'一致' if p['constants_agree'] else '**不一致**'}")
+            for side in ("a", "b"):
+                out += _member_lines(text[(p[side]["doc"], p[side]["item"])], labels)
+            out.append("\n**標註：同一條 / 不是同一條 / 看不出來**\n")
+    return "\n".join(out)
+
+
+def main() -> int:
+    env = load_env(REPO)
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--root", type=Path,
+                    default=Path(env.get("DATA_ROOT", str(DEFAULT_DATA_ROOT))))
+    ap.add_argument("--map", type=Path, default=DEFAULT_MAP_PATH)
+    ap.add_argument("--min-ratio", type=float, default=0.80)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("sample", help="抽一批給人標註")
+    p.add_argument("--out", type=Path)
+    a = ap.parse_args()
+
+    parsed = DataPaths(a.root).parsed_dir
+    if not parsed.is_dir():
+        sys.exit(f"找不到 {parsed}")
+    smap = SourceMap.load(a.map)
+    corpus = sorted(x.name.removesuffix(".pdf.mineru_raw") for x in parsed.glob("*.mineru_raw"))
+    rec = smap.reconcile(corpus, ledger_hashes(a.root))
+    eqs, skipped = eqdup.collect(parsed, smap)
+    if not eqs:
+        sys.exit(f"比對母體是空的 —— {rec.line()}")
+
+    smap_raw = json.loads(a.map.read_text(encoding="utf-8")) if a.map.is_file() else {}
+    labels = {d: (smap_raw.get("sources", {}).get(v.get("source"), {}) or {}).get("label", "")
+              for d, v in (smap_raw.get("documents") or {}).items()}
+    body = render(eqs, eqdup.tier_a(eqs), eqdup.tier_b(eqs, a.min_ratio), labels)
+    header = (f"<!-- {rec.line()}；排除 {len(skipped)} 份 -->\n\n")
+    if a.out:
+        a.out.write_text(header + body + "\n", encoding="utf-8")
+        print(f"寫出 {a.out}")
+    else:
+        print(header + body)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
