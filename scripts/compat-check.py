@@ -45,6 +45,19 @@ from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  #
 from pp.paths import DATA_ROOT_MARKER, DataPaths, configured_data_root  # noqa: E402
 from pp.sources import DEFAULT_MAP_PATH, SourceMap, ledger_hashes  # noqa: E402
 
+
+def _load_script(name: str, path: Path):  # noqa: ANN202
+    """載入檔名帶連字號的腳本（`import` 進不去）。**不要複製它們的邏輯過來** ——
+    判準只能有一份，抄一份就會漂移。"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, path)
+    if not (spec and spec.loader):
+        raise RuntimeError(f"載入不了 {path}")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
 POSTGRES_USER_DEFAULT = "deeptutor"
@@ -778,6 +791,43 @@ class Checker:
             """判準在模組層的 `data_root_state()` —— `main()` 在連容器**之前**
             也要跑同一份（見那裡的說明）。兩邊叫同一個函式，不各寫一份。"""
             return data_root_state()
+
+        @self.check("A-37", "soft", "Tier A 的等價類都審計過（骨架相同不等於同一條）")
+        def _() -> tuple[bool, str, dict]:
+            r"""**沒審過的組會安靜地從報告裡消失。**
+
+            2026-08-13 抓到：`#=\frac{#}{#}`（X 等於 Y 除以 Z）這種骨架不帶資訊，
+            兩條無關的公式會被判成同一條。三隻不同家族的模型全票確認，
+            人工複核確認模型是對的。於是 `eq-dup` 改成只採信審計過的組
+            —— 而**沒審過的一律排除**（少報不假報）。
+
+            方向是安全的，問題在於**沒有人會被告知**：語料一長出新的等價類，
+            Tier A 就會安靜縮水，而縮多少只有主動跑 `eq-dup` 才看得到。
+            跟 A-35 同一個形狀、同一個理由用 soft：不表示系統壞了，
+            表示「該補審計了」。
+
+            補的方式：`python3 scripts/eq-label.py audit --out <檔>`，
+            再把結果併進 `verdicts/eq-tier-a-audit.json`。
+            """
+            root = configured_data_root()
+            parsed = DataPaths(root).parsed_dir
+            if not parsed.is_dir():
+                return False, f"找不到解析成果目錄 {parsed}", {}
+            eq_dup = _load_script("eq_dup", REPO / "scripts" / "eq-dup.py")
+            smap = SourceMap.load(DEFAULT_MAP_PATH)
+            corpus = sorted(p.name.removesuffix(".pdf.mineru_raw")
+                            for p in parsed.glob("*.mineru_raw"))
+            smap.reconcile(corpus, ledger_hashes(root))
+            eqs, _skipped = eq_dup.collect(parsed, smap)
+            groups = eq_dup.tier_a(eqs)
+            _kept, tally = eq_dup.audited(
+                groups, eq_dup.load_audit(REPO / "verdicts" / "eq-tier-a-audit.json"))
+            if not tally["unaudited"]:
+                return True, (f"{len(groups)} 組都審過（同一條 {tally['same']}、"
+                              f"不是 {tally['different']}、模型分歧 {tally['uncertain']}）"), tally
+            return False, (
+                f"**{tally['unaudited']}/{len(groups)} 組沒審過，現在不計入報告**。"
+                f"跑 `eq-label.py audit` 補上"), tally
 
         @self.check("A-36", "hard", "釘住的供應商還在該模型的端點清單裡")
         def _() -> tuple[bool, str, dict]:

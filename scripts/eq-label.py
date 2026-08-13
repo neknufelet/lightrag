@@ -80,14 +80,20 @@ def _member_lines(eq: dict, labels: dict[str, str]) -> list[str]:
 
 
 def render(eqs: list[dict], groups: list[dict], pairs: list[dict],
-           labels: dict[str, str]) -> str:
-    """樣本本文。`eqs` 只用來把 (doc, item) 換回 LaTeX。"""
+           labels: dict[str, str], verdicts: dict[str, str] | None = None) -> str:
+    """樣本本文。`eqs` 只用來把 (doc, item) 換回 LaTeX。
+
+    第一部分**只放模型吵不定的那幾組** —— 全票的不用問人（2026-08-13 實測：
+    模型在「不是同一條」那個方向 100% 準、零次亂點頭）。把全票的也塞給人看，
+    是拿別人的時間去確認一件已經確定的事。
+    """
     text = {(e["doc"], e["item"]): e for e in eqs}
-    out: list[str] = ["## 第一部分：Tier A 是不是真的可信（對照組，"
-                      f"{TIER_A_SAMPLES} 組）\n",
-                      "骨架**逐字相同**才會進 Tier A，所以它應該是「一定同一條」。"
-                      "**如果這裡就錯了，底下整套都不用談。**\n"]
-    for i, g in enumerate(spaced(sorted(groups, key=lambda x: -x["size"]), TIER_A_SAMPLES), 1):
+    split = [g for g in groups if (verdicts or {}).get(g["skeleton"]) == "uncertain"]
+    out: list[str] = [f"## 第一部分：模型吵不定的 {len(split)} 組（只有這幾組需要你判）\n",
+                      "這幾組的骨架逐字相同，但**三隻模型投不出多數** —— "
+                      "有的說是同一條、有的說不是。全票的那些不放進來，"
+                      "問你等於拿你的時間去確認已經確定的事。\n"]
+    for i, g in enumerate(split, 1):
         out.append(f"### A{i}　{g['size']} 處、{len(g['sources'])} 個來源"
                    f"　係數{'一致' if g['constants_agree'] else '**不一致**'}\n")
         for m in g["members"][:3]:
@@ -267,6 +273,7 @@ def main() -> int:
     ap.add_argument("--root", type=Path,
                     default=Path(env.get("DATA_ROOT", str(DEFAULT_DATA_ROOT))))
     ap.add_argument("--map", type=Path, default=DEFAULT_MAP_PATH)
+    ap.add_argument("--audit", type=Path, default=REPO / "verdicts" / "eq-tier-a-audit.json")
     ap.add_argument("--min-ratio", type=float, default=0.80)
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("sample", help="抽一批給人標註")
@@ -295,7 +302,8 @@ def main() -> int:
     smap_raw = json.loads(a.map.read_text(encoding="utf-8")) if a.map.is_file() else {}
     labels = {d: (smap_raw.get("sources", {}).get(v.get("source"), {}) or {}).get("label", "")
               for d, v in (smap_raw.get("documents") or {}).items()}
-    body = render(eqs, eqdup.tier_a(eqs), eqdup.tier_b(eqs, a.min_ratio), labels)
+    verdicts = eqdup.load_audit(a.audit)
+    body = render(eqs, eqdup.tier_a(eqs), eqdup.tier_b(eqs, a.min_ratio), labels, verdicts)
     header = (f"<!-- {rec.line()}；排除 {len(skipped)} 份 -->\n\n")
     if a.out:
         a.out.write_text(header + body + "\n", encoding="utf-8")
