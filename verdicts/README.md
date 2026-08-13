@@ -17,6 +17,7 @@
 | `records/review/*.md` | 各族群的裁決材料，每份都有「定案」節 | 例：為什麼 `\mathfrak{O}` 在白名單上、C 的 91 個未覆蓋詞往哪併 |
 | `records/review/20260803-speedup-symbol3/` | `SPEEDUP` 與 `SYMBOL-3` 兩條線的工單與終審判定全文 | 15 份，含 fable 的設計單與 sol 的五份判定 |
 | `records/ledger/*.pdf.json` | 每份文件的三態體檢表 | 裡面的 `note` 欄記著 waiver 的原文與 120 個可疑實體名 |
+| `records/graph-clean/*.json` | `graph-clean.py apply` 刪掉的節點與它們的邊 | **是**。被刪的是 LLM 抽出來的，重跑要花錢；LightRAG 沒有 undo，這是唯一的回頭路 |
 | `source-map.json` | 哪幾份文件其實是同一個來源（人核） | **是**。判定過程在 `docs/source-review-20260813.md`；它記的是**關於文獻的知識**（某本學位論文的某一章就是庫裡的某篇期刊論文），砍掉重建也還是真的 |
 
 ## ⚠ `source-map.json` 是「程式會讀」的唯一例外
@@ -48,7 +49,8 @@
 cd ~/ghq/github.com/neknufelet/lightrag
 ssh florian-dker 'cd /data/lightrag && tar czf - \
   work/crops/*/verified work/crops/*/review.md \
-  records/review/*.md records/review/20260803-speedup-symbol3 records/ledger 2>/dev/null' \
+  records/review/*.md records/review/20260803-speedup-symbol3 records/ledger \
+  records/graph-clean 2>/dev/null' \
   | tar xzf - -C verdicts
 git status verdicts        # 有差就是 dker 上有新裁定，commit 它
 ```

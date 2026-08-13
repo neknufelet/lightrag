@@ -225,7 +225,13 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str]) -> int:
         return 2
 
     print(f"要刪 {len(planned)} 個節點（workspace={a.workspace!r}）。先備份：")
-    dest = DataPaths(configured_data_root()).crops_dir
+    # **備份要放 `records/`，不要放 `work/crops/`。**
+    #
+    # 2026-08-13 踩到：第一次實跑（刪 376 個）的備份寫進了 `crops_dir`，而
+    # `verdicts/README.md` 把 `work/crops/<doc>/crops` 列為「可再生、刻意不進版控」。
+    # 也就是說那份**唯一能還原被刪節點的東西**，被放在一個「隨時可以清掉」的目錄裡。
+    # 被刪掉的節點是 LLM 抽出來的，重跑要花錢，備份沒了就只剩重抽這條路。
+    dest = DataPaths(configured_data_root()).records_dir / "graph-clean"
     try:
         backup(rag, planned, dest)
     except RuntimeError as e:
