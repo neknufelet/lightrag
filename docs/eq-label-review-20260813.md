@@ -119,12 +119,10 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B1　相似度 0.9922　可比常數 1 個　係數一致
 - `2021 - Estimation of locally reacting surface impeda` #51　常數 ['1']
-  《doc:2021 - Estimation of locally reacting su》
   ```latex
   \frac { \partial p } { \partial n } = \frac { 1 } { c \xi } \frac { \partial p } { \partial t }
   ```
 - `2023 - A Review of Finite Element Methods for Room A` #36　常數 ['1']
-  《doc:2023 - A Review of Finite Element Method》
   ```latex
   \frac { \partial p } { \partial n } = - \frac { 1 } { c \zeta } \frac { \partial p } { \partial t }
   ```
@@ -133,12 +131,10 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B2　相似度 0.9744　可比常數 3 個　係數一致
 - `2019 - Broadband Time-domain Impedance Boundary Mode` #19　常數 ['1', '0', '0']
-  《doc:2019 - Broadband Time-domain Impedance B》
   ```latex
   \begin{array} { r } { \displaystyle \frac { \partial \boldsymbol { \nu } } { \partial t } + \frac { 1 } { \rho } \nabla p = 0 , } \\ { \displaystyle \frac { \partial p } { \partial t } + \rho c ^ { 2 } \nabla \cdot \boldsymbol { \nu } = 0 , } \end{array}
   ```
 - `2019 - Room acoustics modelling in the time-domain w` #23　常數 ['1', '0', '0']
-  《doc:2019 - Room acoustics modelling in the t》
   ```latex
   \begin{array} { r l } & { \displaystyle \frac { \partial \pmb { v } } { \partial t } + \frac { 1 } { \rho _ { 0 } } \nabla p = \pmb { 0 } , } \\ & { \displaystyle \frac { \partial p } { \partial t } + \rho _ { 0 } c _ { 0 } ^ { 2 } \nabla \cdot \pmb { v } = 0 , } \end{array}
   ```
@@ -147,7 +143,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B3　相似度 0.9655　可比常數 0 個　係數一致
 - `2019 - Acoustic perfect absorbers via Helmholtz reso` #62　常數 []
-  《doc:2019 - Acoustic perfect absorbers via He》
   ```latex
   Z _ { a 0 } = - \frac { j \rho _ { 0 } \omega l _ { a } } { \Psi _ { \nu } } .
   ```
@@ -161,12 +156,10 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B4　相似度 0.963　可比常數 0 個　係數一致
 - `2024 - A Compact Low-Frequency Acoustic Perfect Abso` #53　常數 []
-  《doc:2024 - A Compact Low-Frequency Acoustic 》
   ```latex
   H _ { 1 2 } = \frac { p _ { 2 } } { p _ { 1 } }
   ```
 - `2024 - A hybrid room acoustic modeling approach comb` #127　常數 []
-  《doc:2024 - A hybrid room acoustic modeling a》
   ```latex
   K _ { i } = \frac { B _ { i } } { B _ { t o t } } .
   ```
@@ -178,7 +171,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B5　相似度 0.9492　可比常數 0 個　係數一致
 - `2023 - A Review of Finite Element Methods for Room A` #34　常數 []
-  《doc:2023 - A Review of Finite Element Method》
   ```latex
   \frac { \partial p } { \partial n } = - \rho \frac { \partial v _ { n } } { \partial t } ,
   ```
@@ -197,7 +189,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
   A _ { \mathrm { a } } = { \frac { P _ { \mathrm { abs } } } { I _ { \mathrm { 0 } } } }
   ```
 - `2024 - A Compact Low-Frequency Acoustic Perfect Abso` #52　常數 []
-  《doc:2024 - A Compact Low-Frequency Acoustic 》
   ```latex
   H _ { R } = \frac { A _ { 2 R } } { A _ { 1 R } }
   ```
@@ -206,7 +197,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B7　相似度 0.9231　可比常數 0 個　係數一致
 - `2020 - Time-domain impedance boundary condition mode` #174　常數 []
-  《doc:2020 - Time-domain impedance boundary co》
   ```latex
   W _ { c } ( N ) = N _ { t i m e s t e p s } \cdot N _ { D O F } ,
   ```
@@ -225,7 +215,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
   b = \pi \frac { f _ { _ { 2 } } - f _ { _ { 1 } } } { t _ { _ { s } } }
   ```
 - `2025 - Omnidirectional sound wave absorption based o` #121　常數 []
-  《doc:2025 - Omnidirectional sound wave absorp》
   ```latex
   \alpha _ { 0 } = \frac { \alpha _ { \mathrm { max } } - \alpha _ { \mathrm { min } } } { \alpha _ { \mathrm { ave } } }
   ```
@@ -237,7 +226,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B9　相似度 0.8989　可比常數 0 個　係數一致
 - `2022 - Broadband impedance modulation via non-local ` #43　常數 []
-  《doc:2022 - Broadband impedance modulation vi》
   ```latex
   \begin{array} { r } { \mathrm { M } _ { \mathrm { E N _ { 1 } } } = \left( \begin{array} { c c c } { \cos ( k _ { \mathrm { E N _ { 1 } } } t _ { 1 } ) } & { \mathrm { j } \sin ( k _ { \mathrm { E N _ { 1 } } } t _ { 1 } ) Z _ { \mathrm { E N _ { 1 } } } / S _ { \mathrm { E N _ { 1 } } } } \\ { \mat
   ```
@@ -265,7 +253,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B11　相似度 0.871　可比常數 0 個　係數一致
 - `2025 - Study on the multi-low-frequency band gaps an` #148　常數 []
-  《doc:2025 - Study on the multi-low-frequency 》
   ```latex
   C _ { g } = C _ { g x } + C _ { g y } = a _ { x } { \frac { \partial \omega } { \partial x } } i + a _ { y } { \frac { \partial \omega } { \partial y } } j
   ```
@@ -279,7 +266,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B12　相似度 0.864　可比常數 0 個　係數一致
 - `2023 - A Review of Finite Element Methods for Room A` #34　常數 []
-  《doc:2023 - A Review of Finite Element Method》
   ```latex
   \frac { \partial p } { \partial n } = - \rho \frac { \partial v _ { n } } { \partial t } ,
   ```
@@ -338,7 +324,6 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
 
 #### B16　相似度 0.8125　可比常數 1 個　係數**不一致**
 - `2024 - Additively manufactured acoustic-mechanical m` #152　常數 ['2']
-  《doc:2024 - Additively manufactured acoustic-》
   ```latex
   A = \frac { 2 C _ { 1 2 1 2 } } { C _ { 1 1 1 1 } - C _ { 1 1 2 2 } }
   ```
@@ -349,3 +334,4 @@ summary: "eq-dup 的 --min-ratio 目前是 0.8，而那個數字沒有任何依�
   ```
 
 **標註：同一條 / 不是同一條 / 看不出來**
+
