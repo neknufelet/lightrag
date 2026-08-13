@@ -1,0 +1,142 @@
+r"""問模型：這兩條公式是不是同一條。**先過負向控制才准信。**
+
+## 為什麼需要它
+
+`eq-dup` 用骨架相似度找「同一條公式係數不一致」，而**相似度多少才算同一條，
+沒有依據** —— `--min-ratio 0.8` 是隨手挑的。要訂門檻就要有標註集，
+而人一次只標得動二十來題。模型可以把樣本擴大兩個數量級。
+
+## 為什麼不能直接信模型
+
+⚠ **一個永遠回答「same」的模型，在「這兩條是不是同一條」上會拿到 100% 的召回率，
+卻毫無用處。** 所以兩個方向都要量（這句話與作法照抄 `judge.py` 的負向控制，
+那支的檔頭把理由寫得很清楚）。
+
+⚠ **投票的模型必須來自不同家族。** 同家族的系統性誤讀會一起發生，
+投票就變成一個人投三票（理由見 `eyes.Eye.family`）。
+
+## 對照組從資料裡來，不用自己編
+
+```
+一定是同一條   Tier A 的成員兩兩配對 —— 骨架逐字相同、而且跨來源
+一定不是同一條 結構輪廓不同、相似度極低、又跨來源的兩條
+```
+
+**兩組都是現成的**，不需要人先標。模型在這兩組上的表現就是它的鑑別力。
+
+## 這支不做的事
+
+不訂門檻、不裁決。產出是「模型怎麼說」，而模型的說法**是啟發式**——
+照本專案的通則，啟發式的結果不得直接當數字報，要有權威訊號覆驗（人的標註）。
+"""
+from __future__ import annotations
+
+import re
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+
+from .eyes import Eye
+from .judge import Ruling, ask_json
+
+# 判準跟人拿到的那張表**逐字相同**（`docs/eq-label-review-20260813.md` 的開頭）——
+# 兩邊問不同的問題，答案就沒得比。
+SYSTEM = """You compare two LaTeX equations extracted from acoustics papers by a PDF parser.
+
+Your ONLY question: do these two express THE SAME physical relationship?
+
+Rules for judging:
+- Variable NAMES do not matter. Different papers use different symbols for the same
+  quantity (k / chi / k_1 for the same wavenumber; l / d / t for the same length).
+- Notation and formatting do not matter (\\sqrt{x} vs x^{1/2}, \\dfrac vs \\frac).
+- NUMERIC COEFFICIENTS may differ and the answer can still be "same": a coefficient
+  disagreement between two papers is exactly what we are looking for.
+- If one equation is a SPECIAL CASE of the other, a LIMIT of it, or the NEXT STEP in
+  a derivation, answer "different". Same topic is NOT the same relationship.
+- The parser is imperfect: subscripts may be lost, digits may be split ("3 2" = 32),
+  symbols may be misread. Do not answer "different" solely because of parser damage.
+
+These equations all come from acoustics papers and share vocabulary (impedance,
+density, wavenumber). Shared topic is NOT evidence of a match.
+
+Respond with JSON only:
+{"verdict": "same" | "different" | "uncertain",
+ "confidence": 0.0-1.0,
+ "evidence": ["the specific structural feature that decided it, quoted"]}
+
+Use "uncertain" when the extraction is too damaged to tell. Do not guess."""
+
+
+def _show(latex: str) -> str:
+    t = re.sub(r"^\$\$|\$\$$", "", (latex or "").strip()).strip()
+    return re.sub(r"\s+", " ", re.sub(r"\\tag\{[^}]*\}", "", t))[:1500]
+
+
+def ask_pair(a: str, b: str, eye: Eye, *, timeout: int = 120) -> Ruling:
+    """問一隻眼睛：這兩條是不是同一條。"""
+    user = f"=== EQUATION A ===\n{_show(a)}\n\n=== EQUATION B ===\n{_show(b)}"
+    return ask_json(SYSTEM, user, model=eye.model, host=eye.host,
+                    api_key=eye.api_key, timeout=timeout, provider=eye.provider)
+
+
+@dataclass
+class ControlResult:
+    """一隻眼睛在兩個對照組上的表現。**兩個方向都要有，缺一個就看不出亂點頭。**"""
+
+    eye: str
+    same_ok: int = 0            # 已知同一條 → 判同（對）
+    same_wrong: int = 0         # 已知同一條 → 判異（誤殺）
+    same_abstain: int = 0
+    diff_ok: int = 0            # 已知不同 → 判異（對）
+    diff_wrong: int = 0         # 已知不同 → 判同（**亂點頭，最致命**）
+    diff_abstain: int = 0
+    errors: int = 0
+    first_error: str = ""
+
+    @property
+    def usable(self) -> bool:
+        """兩個方向都要有鑑別力才算堪用。
+
+        門檻取 0.7 是**下限不是目標**：低於七成的話，投票結果比骨架相似度
+        還不可靠，那就不該拿它去擴大樣本。
+        """
+        n_s = self.same_ok + self.same_wrong + self.same_abstain
+        n_d = self.diff_ok + self.diff_wrong + self.diff_abstain
+        return (n_s and n_d and self.same_ok / n_s >= 0.7 and self.diff_ok / n_d >= 0.7)
+
+    def line(self) -> str:
+        n_s = self.same_ok + self.same_wrong + self.same_abstain
+        n_d = self.diff_ok + self.diff_wrong + self.diff_abstain
+        err = f"　⚠ 呼叫失敗 {self.errors}（{self.first_error[:60]}）" if self.errors else ""
+        return (f"{self.eye:<14} 已知同一條 {n_s} 組 → 判同 {self.same_ok}"
+                f"（{self.same_ok / max(n_s, 1):.0%}）、誤殺 {self.same_wrong}、"
+                f"棄權 {self.same_abstain}　｜　"
+                f"已知不同 {n_d} 組 → 判異 {self.diff_ok}"
+                f"（{self.diff_ok / max(n_d, 1):.0%}）、**亂點頭 {self.diff_wrong}**、"
+                f"棄權 {self.diff_abstain}{err}")
+
+
+def control(eye: Eye, same: list[tuple[str, str]], diff: list[tuple[str, str]],
+            *, workers: int = 4) -> ControlResult:
+    """跑負向控制。`same`／`diff` 是 (latexA, latexB) 的清單。"""
+    out = ControlResult(eye=eye.name)
+    jobs = [("same", a, b) for a, b in same] + [("diff", a, b) for a, b in diff]
+
+    def run(job: tuple[str, str, str]) -> tuple[str, Ruling]:
+        kind, a, b = job
+        return kind, ask_pair(a, b, eye)
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for kind, r in ex.map(run, jobs):
+            if r.error:
+                out.errors += 1
+                out.first_error = out.first_error or r.error
+                continue
+            if kind == "same":
+                out.same_ok += r.says_same
+                out.same_wrong += r.says_different
+                out.same_abstain += not (r.says_same or r.says_different)
+            else:
+                out.diff_ok += r.says_different
+                out.diff_wrong += r.says_same
+                out.diff_abstain += not (r.says_same or r.says_different)
+    return out

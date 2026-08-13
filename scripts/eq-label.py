@@ -116,6 +116,66 @@ def render(eqs: list[dict], groups: list[dict], pairs: list[dict],
     return "\n".join(out)
 
 
+def control_sets(eqs: list[dict], groups: list[dict],
+                 n: int = 12) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """兩個對照組，**都從資料裡來，不用人先標**。
+
+    ```
+    一定是同一條   Tier A 的成員兩兩配對 —— 骨架逐字相同、而且跨來源
+    一定不是同一條 骨架相似度極低、又跨來源的兩條
+    ```
+
+    ⚠ 「一定不是」那組刻意取**相似度極低**的：模型在這裡都會亂點頭的話，
+    它在 0.8～0.95 那段只會更糟，後面不用測。
+    """
+    text = {(e["doc"], e["item"]): e["latex"] for e in eqs}
+    same: list[tuple[str, str]] = []
+    for g in spaced(sorted(groups, key=lambda x: -x["size"]), n):
+        ms = g["members"]
+        a, b = ms[0], ms[-1]
+        same.append((text[(a["doc"], a["item"])], text[(b["doc"], b["item"])]))
+
+    from difflib import SequenceMatcher
+    pool = spaced(sorted(eqs, key=lambda e: (e["doc"], e["item"])), n * 6)
+    diff: list[tuple[str, str]] = []
+    for i, x in enumerate(pool):
+        for y in pool[i + 1:]:
+            if x["source"] == y["source"] or len(diff) >= n:
+                continue
+            if SequenceMatcher(None, x["skeleton"], y["skeleton"],
+                               autojunk=False).ratio() < 0.35:
+                diff.append((x["latex"], y["latex"]))
+                break
+    return same, diff[:n]
+
+
+def cmd_control(eqs: list[dict], groups: list[dict], n: int) -> int:
+    """模型投票之前的體檢。**沒過的不准拿去擴大樣本。**"""
+    from pp import eqjudge
+    from pp.eyes import assert_distinct, eye_c_from_env, eyes_from_env
+
+    env = load_env(REPO)
+    panel = [*eyes_from_env(env)]
+    if (third := eye_c_from_env(env)) is not None:
+        panel.append(third)
+    assert_distinct(panel)          # 同家族＝一個人投三票
+
+    same, diff = control_sets(eqs, groups, n)
+    print(f"=== 裁判體檢：{len(panel)} 隻眼睛 × "
+          f"（已知同一條 {len(same)} 組 ＋ 已知不同 {len(diff)} 組）===")
+    print("⚠ **兩個方向都要看。** 只看「判同率」的話，一隻永遠回答 same 的模型會拿 100%。\n")
+    ok = True
+    for eye in panel:
+        res = eqjudge.control(eye, same, diff)
+        print(res.line())
+        print(f"{'':<14} → {'堪用' if res.usable else '**不堪用，不要拿它擴大樣本**'}"
+              f"（模型 {eye.model}，家族 {eye.family}）\n")
+        ok &= res.usable
+    print("結論：" + ("三隻都堪用，可以往下做投票擴樣。" if ok else
+                     "**有眼睛沒過體檢** —— 先處理它，不要用它的票。"))
+    return 0 if ok else 2
+
+
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -126,6 +186,8 @@ def main() -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("sample", help="抽一批給人標註")
     p.add_argument("--out", type=Path)
+    c = sub.add_parser("control", help="裁判體檢：模型分不分得出來（沒過就不准用它的票）")
+    c.add_argument("-n", type=int, default=12, help="每個對照組幾題")
     a = ap.parse_args()
 
     parsed = DataPaths(a.root).parsed_dir
@@ -137,6 +199,9 @@ def main() -> int:
     eqs, skipped = eqdup.collect(parsed, smap)
     if not eqs:
         sys.exit(f"比對母體是空的 —— {rec.line()}")
+
+    if a.cmd == "control":
+        return cmd_control(eqs, eqdup.tier_a(eqs), a.n)
 
     smap_raw = json.loads(a.map.read_text(encoding="utf-8")) if a.map.is_file() else {}
     labels = {d: (smap_raw.get("sources", {}).get(v.get("source"), {}) or {}).get("label", "")

@@ -116,13 +116,33 @@ def ask(gt_text: str, html: str, caption: str = "", *,
     user = (f"CAPTION (from parser, may be empty): {caption[:200]}\n\n"
             f"=== REFERENCE (text layer) ===\n{gt_text[:6000]}\n\n"
             f"=== CANDIDATE (HTML transcription) ===\n{html[:6000]}")
-    body = json.dumps({
+    return ask_json(SYSTEM, user, model=model, host=host,
+                    api_key=api_key, timeout=timeout)
+
+
+def ask_json(system: str, user: str, *, model: str = DEFAULT_MODEL,
+             host: str = DEFAULT_HOST, api_key: str | None = None,
+             timeout: int = 120, effort: str = REASONING_EFFORT,
+             provider: str = "") -> Ruling:
+    """問一個模型、要回 `Ruling` 形狀的 JSON。**任何「同不同」的裁判都走這裡。**
+
+    ⚠ 從 `ask()` 抽出來的（2026-08-13），行為逐欄位不變。抽出來的理由是公式那條
+    路要用同一個出口 —— 再抄一份就是這個專案被咬過五次的「同一件事兩個地方」，
+    而且錯誤處理那三段（HTTP、空 content、解析失敗）是最容易抄漏的部分。
+
+    `provider` 給 OpenRouter 用：同一個模型 ID 會被路由到不同供應商，
+    而交叉驗證的前提是模型固定（理由見 `eyes.Eye.provider`）。
+    """
+    payload: dict = {
         "model": model, "temperature": 0, "max_tokens": MAX_TOKENS,
-        "reasoning_effort": REASONING_EFFORT,
+        "reasoning_effort": effort,
         "response_format": {"type": "json_object"},
-        "messages": [{"role": "system", "content": SYSTEM},
+        "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": user}],
-    }).encode()
+    }
+    if provider:
+        payload["provider"] = {"order": [provider], "allow_fallbacks": False}
+    body = json.dumps(payload).encode()
     req = urllib.request.Request(
         f"{host.rstrip('/')}/chat/completions", data=body,
         headers={"Content-Type": "application/json",
