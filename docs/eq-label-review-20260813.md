@@ -1,31 +1,22 @@
 ---
-title: 公式比對的標註集 — Tier A 對照 5 組、Tier B 分層 16 對
+title: 公式比對的標註集 — 19 題（模型吵不定的 3 組 ＋ Tier B 分層 16 對）
 date_created: 2026-08-13
 date_modified: 2026-08-13
 status: living
 kind: review
 supersedes: ""
 superseded_by: ""
-summary: "⛔ 這一版先別標，有廢題。Tier A 的『骨架逐字相同就是同一條』對低資訊骨架（X=Y/Z）不成立，62 組裡 19 組落在那個形狀 —— 三隻模型獨立打槍、人工複核確認模型是對的。判準修好後重出。原始目的仍然是：--min-ratio 那個 0.8 沒有依據，要標註集才能訂。"
+summary: "eq-dup 的 --min-ratio 目前是 0.8，那個數字沒有依據 —— 要標註集才能訂。第一部分只放三隻模型投不出多數的那幾組（全票的不問人），第二部分是 Tier B 按相似度分四段各抽四對。標完才有資格談門檻，也才有回歸基準。"
 ---
 
 # 公式比對的標註集（2026-08-13）
 
-> ## ⛔ 先別標 —— 這一版有廢題（2026-08-13 稍晚）
+> ## ✅ 這一版可以標了（2026-08-13 稍晚重出）
 >
-> **第一部分那些「骨架逐字相同」的題目，有一部分根本不是同一條公式。**
-> 三隻不同家族的模型獨立打槍了同一批，人工複核確認**模型是對的**：
->
-> ```
-> A_a = P_abs / I_0      吸收面積
-> κ   = ε_p / ε_v        一個比值
-> ```
->
-> 兩條的骨架都是 `#={\frac{#}{#}}`（X 等於 Y 除以 Z），但它們沒有關係。
-> Tier A 的 62 組裡有 19 組（31%）落在這種幾乎不帶資訊的形狀。
->
-> ⇒ **是工具的判準有洞，不是你要標的東西。** 修好之後這份會重出，那時候再標。
-> 現在標的話，你會在廢題上答「不是同一條」，而我從那個答案學不到任何東西。
+> 上一版第一部分有廢題 —— 那些「骨架逐字相同」的題目有一部分根本不是同一條公式
+> （`X = Y ÷ Z` 那種形狀）。判準已修：Tier A 現在只採信審計過的組，
+> 62 組裡排除了 11 組。**第一部分因此從 5 題縮成 3 題**，剩下的是
+> 三隻模型投不出多數、真的需要你判的那幾組。
 
 **每一項底下的「標註：」那一行是給你改的**，把不對的選項刪掉就好，
 看不出來就留「看不出來」——那是有效答案，不是逃避。
@@ -47,41 +38,36 @@ summary: "⛔ 這一版先別標，有廢題。Tier A 的『骨架逐字相同�
 
 ---
 
-## 第一部分：Tier A 是不是真的可信（對照組，5 組）
+## 第一部分：模型吵不定的 3 組（只有這幾組需要你判）
 
-骨架**逐字相同**才會進 Tier A，所以它應該是「一定同一條」。**如果這裡就錯了，底下整套都不用談。**
+這幾組的骨架逐字相同，但**三隻模型投不出多數** —— 有的說是同一條、有的說不是。全票的那些不放進來，問你等於拿你的時間去確認已經確定的事。
 
-### A1　9 處、8 個來源　係數一致
+### A1　2 處、2 個來源　係數**不一致**
 
-- `2019 - Broadband Time-domain Impedance Boundary Mode` #21　常數 ['0']
+- `2019 - Room acoustics modelling in the time-domain w` #129　常數 ['0', '2']
   ```latex
-  \frac { \partial \boldsymbol { q } } { \partial t } + \nabla \cdot \boldsymbol { F } ( \boldsymbol { q } ) = \frac { \partial \boldsymbol { q } } { \partial t } + A _ { j } \frac { \partial \boldsymbol { q } } { \partial x _ { j } } = 0 ,
+  \begin{array} { r } { p ( \pmb { x } , t = 0 ) = \mathrm { sin } ( - 2 \pi x ) , } \end{array}
   ```
-- `2019 - Room acoustics modelling in the time-domain w` #27　常數 ['0']
+- `2021 - An arbitrary high-order discontinuous Galerki` #158　常數 ['0', '0.5']
   ```latex
-  \frac { \partial \pmb q } { \partial t } + \nabla \cdot \pmb F ( \pmb q ) = \frac { \partial \pmb q } { \partial t } + A _ { j } \frac { \partial \pmb q } { \partial x _ { j } } = 0 ,
+  \begin{array} { r } { p ( x , t = 0 ) = \mathrm { sin } ( - 0 . 5 \pi x ) , } \end{array}
   ```
-- `2020 - Frequency-dependent transmission boundary con` #31　常數 ['0']
-  ```latex
-  \frac { \partial \pmb q } { \partial t } + \nabla \cdot \pmb F ( \pmb q ) = \frac { \partial \pmb q } { \partial t } + \pmb { A } _ { j } \frac { \partial \pmb q } { \partial x _ { j } } = 0 ,
-  ```
-- …其餘 6 處省略
 
 **標註：同一條 / 不是同一條**
 
 ### A2　3 處、3 個來源　係數一致
 
-- `2019 - Broadband Time-domain Impedance Boundary Mode` #38　常數 ['1', '1']
+- `2019 - Broadband Time-domain Impedance Boundary Mode` #74　常數 ['1', '100']
   ```latex
-  R ( \omega ) = \frac { Z _ { s } ( \omega ) - 1 } { Z _ { s } ( \omega ) + 1 } .
+  \varepsilon _ { \vartheta } ( f ) = \frac { 1 } { \pi } \big | \vartheta \big ( R _ { a n a } ( f ) \big ) - \vartheta \big ( R _ { n u m } ( f ) \big ) \big | \times 1 0 0 \% ,
   ```
-- `2020 - Time-domain impedance boundary condition mode` #53　常數 ['1', '1']
+- `2020 - Frequency-dependent transmission boundary con` #165　常數 ['1', '100']
   ```latex
-  R ( \omega ) = \frac { Z _ { s } ( \omega ) - 1 } { Z _ { s } ( \omega ) + 1 } .
+  \epsilon _ { \vartheta } ( f ) = \frac { 1 } { \pi } | \vartheta ( T _ { a n a } ( f ) ) - \vartheta ( T _ { n u m } ( f ) ) | \times 1 0 0 \% ,
   ```
-- `2024 - An Open-Source Time-Domain Wave-Based Room Ac` #34　常數 ['1', '1']
+- `2020 - Time-domain impedance boundary condition mode` #140　常數 ['1', '100']
   ```latex
-  R ( \omega ) = \frac { Z _ { s } ( \omega ) - 1 } { Z _ { s } ( \omega ) + 1 } .
+  \epsilon _ { \vartheta } ( f ) = \frac { 1 } { \pi } | \vartheta ( R _ { a n a } ( f ) ) - \vartheta ( R _ { n u m } ( f ) ) | \times 1 0 0 \% ,
   ```
 
 **標註：同一條 / 不是同一條**
@@ -95,32 +81,6 @@ summary: "⛔ 這一版先別標，有廢題。Tier A 的『骨架逐字相同�
 - `2015 - Determining Optimum Room Dimensions for Criti` #44　常數 []
   ```latex
   \delta _ { n } = \frac { c } { \omega _ { n } } \left( \frac { \mathcal { E } _ { n _ { x } } \overline { { \beta } } _ { x } } { L _ { x } } + \frac { \mathcal { E } _ { n _ { y } } \overline { { \beta } } _ { y } } { L _ { y } } + \frac { \mathcal { E } _ { n _ { y } } \overline { { \beta } } _ { 
-  ```
-
-**標註：同一條 / 不是同一條**
-
-### A4　2 處、2 個來源　係數一致
-
-- `2019 - Room acoustics modelling in the time-domain w` #60　常數 []
-  ```latex
-  \left( \boldsymbol { S } _ { j } ^ { k } \right) _ { m n } = \int _ { D ^ { k } } l _ { m } ^ { k } ( \boldsymbol { x } ) \frac { \partial l _ { n } ^ { k } ( \boldsymbol { x } ) } { \partial x _ { j } } \mathrm { d } \boldsymbol { x } \quad \in \mathbb { R } ^ { N _ { p } \times N _ { p } } ,
-  ```
-- `2023 - Extended reacting boundary modeling of porous` #150　常數 []
-  ```latex
-  ( \mathbf { S } _ { j } ^ { e } ) _ { m n } = \int _ { \varOmega ^ { e } } l _ { m } ^ { e } ( \mathbf { x } ) \frac { \partial l _ { n } ^ { e } ( \mathbf { x } ) } { \partial x _ { j } } \mathrm { d } \mathbf { x } \quad \in \mathbb { R } ^ { N _ { p } \times N _ { p } } ,
-  ```
-
-**標註：同一條 / 不是同一條**
-
-### A5　2 處、2 個來源　係數一致
-
-- `2022 - Broadband impedance modulation via non-local ` #131　常數 []
-  ```latex
-  F _ { \mathrm { no } } = \sum _ { i = 1 } ^ { N } F _ { \mathrm { ni } i } ,
-  ```
-- `2023 - An Iterative Ray Tracing Algorithm to Increas` #60　常數 []
-  ```latex
-  E _ { k } = \sum _ { j = 1 } ^ { N } i _ { j , k } e _ { j , k } ,
   ```
 
 **標註：同一條 / 不是同一條**
