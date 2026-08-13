@@ -22,6 +22,15 @@ r"""同一條公式在庫裡出現幾次，係數一不一致。
 ⚠ **短式子不丟，分桶。** `#=#` 這種瑣碎骨架另表列出並給數字（BASELINE 第 2 條：
 不得無聲消失），不是排除掉 —— 排除掉的那批裡有真重複。
 
+## Tier B 的排序：證據強度優先於相似度
+
+**「兩邊各有幾個常數可比」排在相似度前面。** 只有一個數字對不上的匹配，分不清是
+同一條公式的係數分歧還是兩條不同的公式碰巧長得像；五個常數只差一位就幾乎沒有
+別的解釋。2026-08-13 實跑：係數不一致的那批裡九成以上只有 0～1 個常數，
+按相似度排會讓它們整個佔滿前排，而驗收案例（Maa 那條，相似度只有 0.897）沉在下面。
+
+⚠ **這只改排序不改判準** —— 一對都沒少，`--min-ratio` 仍然是排序起點不是門檻。
+
 ## 「跨來源」不是「跨文件」
 
 同一本書的 §10.2 與 §10.8 重複一條公式，不算「兩篇文獻都這樣寫」。
@@ -90,6 +99,15 @@ def collect(parsed: Path) -> list[dict]:
     return out
 
 
+def pair_evidence(pair: dict) -> int:
+    """一對匹配有多少常數可比 —— **排序用的證據強度，不是判準。**
+
+    取兩邊的**小值**：一邊 5 個、一邊 1 個只有 1 個位置可比，而長度不同本身
+    就說明它們可能不是同一條式子。取大值會把這種弱匹配捧到前排。
+    """
+    return min(len(pair["a"]["nums"]), len(pair["b"]["nums"]))
+
+
 def first_difference(a: list[str], b: list[str]) -> int | None:
     """常數序列第一個差開的位置；長度不同也算差。"""
     for i, (x, y) in enumerate(zip(a, b, strict=False)):
@@ -149,7 +167,10 @@ def tier_b(eqs: list[dict], min_ratio: float) -> list[dict]:
                     "constants_agree": a["nums"] == b["nums"],
                     "first_diff": first_difference(a["nums"], b["nums"]),
                 })
-    pairs.sort(key=lambda p: (p["constants_agree"], -p["ratio"]))
+    # **證據強度優先於相似度。** 只按相似度排的話前排全是「只有一個數字對不上」的
+    # 弱匹配（2026-08-13 實跑：465 對裡 431 對只有 0～1 個常數），而五個常數只差
+    # 一位的強匹配沉在下面 —— 那正是這支存在的理由（Maa 那條）。
+    pairs.sort(key=lambda p: (p["constants_agree"], -pair_evidence(p), -p["ratio"]))
     return pairs
 
 
@@ -211,8 +232,9 @@ def main() -> int:
         print()
     for p in disagree_b[:a.show]:
         pos = p["first_diff"]
-        print(f"── Tier B　相似度 {p['ratio']}　常數第 {pos} 位差開"
-              if pos is not None else f"── Tier B　相似度 {p['ratio']}")
+        # 常數個數要印出來 —— 它是現在的第一排序鍵，看不到就沒辦法判斷排序對不對。
+        head = f"── Tier B　可比常數 {pair_evidence(p)} 個　相似度 {p['ratio']}"
+        print(f"{head}　常數第 {pos} 位差開" if pos is not None else head)
         print(f"     {p['a']['doc'][:44]:<46} #{p['a']['item']:<5} {p['a']['nums']}")
         print(f"     {p['b']['doc'][:44]:<46} #{p['b']['item']:<5} {p['b']['nums']}")
         print()
