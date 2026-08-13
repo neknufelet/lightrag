@@ -120,8 +120,54 @@ def first_difference(a: list[str], b: list[str]) -> int | None:
     return len(min(a, b, key=len)) if len(a) != len(b) else None
 
 
+def load_audit(path: Path) -> dict[str, str]:
+    """Tier A 的人／模型審計結果：骨架 → same／different／uncertain。"""
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {k: str(v.get("verdict", "uncertain"))
+            for k, v in (data.get("groups") or {}).items()}
+
+
+def audited(groups: list[dict], verdicts: dict[str, str]) -> tuple[list[dict], dict[str, int]]:
+    """把審計判定套到 Tier A 的組上。**過濾是獨立一步，不藏在 `tier_a()` 裡。**
+
+    ⚠ 藏進去的話，「沒傳審計檔」與「傳了一個空的審計檔」會有天差地遠的行為，
+    而兩者長得一模一樣 —— 那正是這個專案反覆踩到的形狀。
+    ⚠ 只有 `same` 留下。`different`／`uncertain`／沒審過**一律排除並分開報數**：
+    少報只是漏線索，假報會讓人去查一個不存在的分歧。
+    """
+    kept, tally = [], {"same": 0, "different": 0, "uncertain": 0, "unaudited": 0}
+    for g in groups:
+        v = verdicts.get(g["skeleton"], "unaudited")
+        tally[v if v in tally else "unaudited"] += 1
+        if v == "same":
+            kept.append(g)
+    return kept, tally
+
+
 def tier_a(eqs: list[dict]) -> list[dict]:
-    """骨架逐字相同的等價類，**且跨越一個以上的來源**。"""
+    r"""骨架逐字相同的等價類，**且跨越一個以上的來源**。
+
+    ⚠ **「骨架逐字相同」不等於「同一條公式」。** 2026-08-13 三隻不同家族的模型
+    獨立打槍同一批、人工複核確認模型是對的：
+
+    ```
+    A_a = P_abs / I_0     吸收面積
+    κ   = ε_p / ε_v       一個比值
+    ```
+
+    兩條的骨架都是 `#={\frac{#}{#}}`（X 等於 Y 除以 Z），但它們沒有關係。
+    62 組裡有 8 組是這種形狀（全票判異），另 3 組模型自己就分歧。
+
+    ⚠ **不用尺寸型的數字切。** 試過「結構命令 ≤1 且變數槽 ≤3」：8 組全中，
+    但**誤殺 4 組真的**，其中一組是 `\nabla^2#+#^2#=N`（亥姆霍茲方程式）。
+    `\frac` 到處都是而 `\nabla` 很罕見 —— 數量分不出這件事。
+    所以判定凍結成資料（`verdicts/eq-tier-a-audit.json`），跟來源登記同一個做法。
+
+    ⚠ 沒審過的一律排除並報數（`uncertain` 也是）。少報只是漏線索，
+    假報會讓人去查一個不存在的分歧。
+    """
     by_skel: dict[str, list[dict]] = defaultdict(list)
     for e in eqs:
         if not TRIVIAL.match(e["skeleton"]):
@@ -189,6 +235,8 @@ def main() -> int:
                          "在有標註集之前不要拿它當判準")
     ap.add_argument("--map", type=Path, default=DEFAULT_MAP_PATH,
                     help="來源登記檔（人核過的資料）")
+    ap.add_argument("--audit", type=Path, default=REPO / "verdicts" / "eq-tier-a-audit.json",
+                    help="Tier A 的審計判定（骨架相同不等於同一條）")
     ap.add_argument("--show", type=int, default=12)
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
@@ -205,7 +253,7 @@ def main() -> int:
     eqs, skipped = collect(parsed, smap)
 
     trivial = [e for e in eqs if TRIVIAL.match(e["skeleton"])]
-    groups = tier_a(eqs)
+    groups, tally = audited(tier_a(eqs), load_audit(a.audit))
     pairs = tier_b(eqs, a.min_ratio)
     disagree_a = [g for g in groups if not g["constants_agree"]]
     disagree_b = [p for p in pairs if not p["constants_agree"]]
@@ -227,8 +275,15 @@ def main() -> int:
     print(f"比對母體 {len({e['doc'] for e in eqs})} 份、{len(eqs)} 條公式"
           f"（其中 {len(trivial)} 條骨架瑣碎，另計不進比對）"
           f"、來源 {len({e['source'] for e in eqs})} 組\n")
-    print(f"Tier A（骨架逐字相同、跨來源）：{len(groups)} 組，"
+    print(f"Tier A（骨架逐字相同、跨來源、**審計過確實是同一條**）：{len(groups)} 組，"
           f"其中係數不一致 **{len(disagree_a)}** 組")
+    if dropped := {k: v for k, v in tally.items() if k != "same" and v}:
+        print(f"   ⚠ 排除 {sum(dropped.values())} 組不計入："
+              + "、".join(f"{k} {v}" for k, v in dropped.items())
+              + "　（骨架相同不等於同一條 —— `#=\\frac{#}{#}` 那種形狀）")
+        if tally["unaudited"]:
+            print(f"   ⚠ 其中 {tally['unaudited']} 組**從來沒審過**，"
+                  f"跑 `eq-label.py audit` 補上")
     print(f"Tier B（骨架相近、跨來源、成對）：{len(pairs)} 對，"
           f"其中係數不一致 **{len(disagree_b)}** 對")
     print("\n⚠ 這是「哪裡有分歧」不是「哪裡有錯」——"

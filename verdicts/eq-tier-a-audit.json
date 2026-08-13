@@ -1,0 +1,688 @@
+{
+ "version": 1,
+ "_": "Tier A 每一組是不是真的同一條公式。2026-08-13 由三隻不同家族的模型各自獨立判、多數決；票分歧的留 uncertain 給人判，**不當成通過**。審計工具 scripts/eq-label.py audit；為什麼不是用一個數字切，見 docs/tier-a-audit-20260813.md。",
+ "groups": {
+  "#=\\frac{N#}{#}": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 4,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#={\\frac{N#}{#}},": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}#{#(#,#=N)={#}(-N\\pi#),}\\end{#}": {
+   "verdict": "uncertain",
+   "votes": [
+    "different",
+    "same",
+    "different"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac{#}{N#}.": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{\\partial#}{\\partial#}+\\nabla\\cdot#(#)=\\frac{\\partial#}{\\partial#}+#\\frac{\\partial#}{\\partial#}=N,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 9,
+   "sources": 8,
+   "by": "panel:2026-08-13"
+  },
+  "#^#(#,#)=\\sum^{#}#^#(#^#,#)#^#(#),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 8,
+   "sources": 7,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac{#}{#}": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 6,
+   "sources": 4,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac{#}{#}.": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 5,
+   "sources": 4,
+   "by": "panel:2026-08-13"
+  },
+  "\\int(\\frac{\\partial#^#}{\\partial#}+\\nabla\\cdot#^#(#^#))#^#=\\int#\\cdot(#^#(#^#)-#^*)#^#,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 5,
+   "sources": 5,
+   "by": "panel:2026-08-13"
+  },
+  "#={\\frac{#}{#}}": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 4,
+   "sources": 3,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac{#\\pi}{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 4,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=N-|\\frac{#-#}{#+#}|^2,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 4,
+   "sources": 4,
+   "by": "panel:2026-08-13"
+  },
+  "#\\cdot#^*(#^-,#^+)=#(#^+#^{-1}#^-+#^-#^{-1}#^+),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 4,
+   "sources": 4,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=\\frac{#(#)\\cdot#(#)}{#(#)\\cdot#(#)},": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 4,
+   "sources": 4,
+   "by": "panel:2026-08-13"
+  },
+  "#<N#": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 3,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=\\frac{#(#)-N}{#(#)+N}.": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 3,
+   "sources": 3,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}{#}{#(#,#=N)}&=&{#^{\\frac{-{#}2}{#^2}(#-#)^2},}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "different"
+   ],
+   "size": 3,
+   "sources": 3,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=\\fracN\\pi|#(#(#))-#(#(#))|\\timesN\\%,": {
+   "verdict": "uncertain",
+   "votes": [
+    "different",
+    "same",
+    "different"
+   ],
+   "size": 3,
+   "sources": 3,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}{#}{#}&=&{[\\begin{#}{#}N&N&N&{\\frac{#}#}\\\\N&N&N&{\\frac{#}#}\\\\N&N&N&{\\frac{#}#}\\\\{#^2#}&{#^2#}&{#^2#}&N\\end{#}],}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "ERR",
+    "same"
+   ],
+   "size": 3,
+   "sources": 3,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}#{#=#+#,}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 3,
+   "sources": 3,
+   "by": "panel:2026-08-13"
+  },
+  "\\bar#=\\fracN{#}\\sum^#\\cdot#,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 3,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac#N\\sqrt{(\\frac{#}{#})^2+(\\frac{#}{#})^2+(\\frac{#}{#})^2}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{N#}{#}#\\frac{#}{#}#\\frac{N#}{#}-N": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(\\bar#,#)=\\sum^\\infty\\sum^\\infty\\sum^\\infty\\frac{#(\\bar#,\\bar#)}{(#^2-#^2-#N#)}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac#{#}(\\frac{#\\overline#}{#}+\\frac{#\\overline#}{#}+\\frac{#\\overline#}{#})": {
+   "verdict": "uncertain",
+   "votes": [
+    "different",
+    "different",
+    "uncertain"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=#^{|#|}#^{|#-1|}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "ERR"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\sum^#(#-#+#)^2": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=N\\sqrt{\\frac#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=N-|#|^2,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=-#\\frac{N#\\sin(\\frac{#}N)}{\\sqrt{(#-(#-N)#)#}}.": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}#{\\frac{\\partial#}{\\partial#}+\\fracN#\\nabla#=N,}\\\\{\\frac{\\partial#}{\\partial#}+#^2\\nabla\\cdot#=N,}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#^{-1}#=[\\begin{#}#N\\\\N\\\\{#^{#}(#)}\\\\{#^{#}(#)}\\end{#}]=[\\begin{#}#N\\\\N\\\\{\\frac{#(#)}{#}+#(#)}\\\\{\\frac{#(#)}{#}-#(#)}\\end{#}].": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#^{#}(#)=\\frac{#^-(#)}{#}+#^-(#),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#^{#}(#)=\\int^#^{#}(#)#(#-#)#.": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{\\partial#}{\\partial#}+#(#)=#^{#}(#),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{\\partial#^2}{\\partial#}+#^2(#)-#^1(#)=N.": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#^#=\\int#^#(#)#^#(#)#\\in#^{#\\times#},": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "(#^#)=\\int#^#(#)\\frac{\\partial#^#(#)}{\\partial#}#\\in#^{#\\times#},": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#^{#}=\\int#^{#}(#)#^{#}(#)#\\in#^{#\\times#},": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{#}{#}=#(#(#),#),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=#\\cdot{#}(#)\\cdot\\fracN#\\cdot\\fracN{#^2},": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=N\\log#|\\frac{#(#)}{#(#)}#|,": {
+   "verdict": "same",
+   "votes": [
+    "different",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}#{#(#)\\approx#+\\sum^#\\frac{#}{#+#}}\\\\{+\\sum^#\\fracNN(\\frac{#-#}{#-#+#}+\\frac{#+#}{#+#+#})}\\\\{=#+\\sum^#\\frac{#}{#+#}+\\sum^#\\frac{#+#+#}{(#+#)^2+#^2},}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}#{{#(#)\\approx#(#)+\\sum^#^{-#}{#}(#)}\\ ~}\\\\{{~+\\sum^#^{-#}(#\\cos(#)+#\\sin(#)){#}(#)},}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#={\\frac#{#}}.": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{\\partial\\tilde#}{\\partial#}=#(\\tilde#(#),#),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "ERR"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\begin{#}#{\\frac{\\partial#}{\\partial#}+\\fracN{#}\\nabla#=N,}\\\\{\\frac{\\partial#}{\\partial#}+#^2\\nabla\\cdot#=N,}\\end{#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\nabla^2#+#^2#=N,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac{N#}{#}(\\fracN{#}-\\fracN{#}),": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\sum^#,": {
+   "verdict": "different",
+   "votes": [
+    "different",
+    "different",
+    "different"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "\\frac{\\partial#}{\\partial#}+#\\frac{\\partial#}{\\partial#}+#\\frac{\\partial#}{\\partial#}+#\\frac{\\partial#}{\\partial#}+#=#,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=[\\begin{#}{#}N&N&N&{\\frac{#}#}\\\\N&N&N&{\\frac{#}#}\\\\N&N&N&{\\frac{#}#}\\\\{#^2#}&{#^2#}&{#^2#}&N\\end{#}],": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\fracNN[\\begin{#}{#}{-#}&{-N#}&{-N#}&{#}\\\\{-#}&{N#}&N&{#}\\\\{-#}&N&{N#}&{#}\\\\{#}&N&N&{#}\\end{#}],": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#\\fracN{N\\pi^2#}.\\int^\\infty\\ln#N-#(#)#.=#,": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=\\frac{#-#}{#+#}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#=N-|#|^2": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#,#)=[(N-\\bar#(#))\\cdot(N-\\bar#(#))]^{#/#\\cdot#},": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "ERR"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#,#)=[N-(N-\\bar#(#))^{#/#\\cdot#}]\\cdot(N-\\bar#(#))^{#/#\\cdot#}.": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#^2(#)=#^2(#)-#^2(#).": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=\\frac{\\int^\\infty#^2(#)#}{\\int^\\infty#^2(#)#},": {
+   "verdict": "same",
+   "votes": [
+    "different",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=\\frac{\\int^\\infty#^2(#)#}{\\int^\\infty#^2(#)#}.": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "same"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  },
+  "#(#)=\\frac{#(#)}{#(#)}": {
+   "verdict": "same",
+   "votes": [
+    "same",
+    "same",
+    "ERR"
+   ],
+   "size": 2,
+   "sources": 2,
+   "by": "panel:2026-08-13"
+  }
+ }
+}
