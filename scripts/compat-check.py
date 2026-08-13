@@ -43,6 +43,7 @@ from pp.extraction_profile import active_profile, profile_hash, read_record  # n
 from pp.graph_labels import CERTAIN_RE  # noqa: E402
 from pp.oracle import Oracle, OracleError, container_for, force_reparse_is_on  # noqa: E402
 from pp.paths import DATA_ROOT_MARKER, DataPaths, configured_data_root  # noqa: E402
+from pp.sources import DEFAULT_MAP_PATH, SourceMap, ledger_hashes  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 DATA_ROOT = configured_data_root()
@@ -777,6 +778,45 @@ class Checker:
             """判準在模組層的 `data_root_state()` —— `main()` 在連容器**之前**
             也要跑同一份（見那裡的說明）。兩邊叫同一個函式，不各寫一份。"""
             return data_root_state()
+
+        @self.check("A-35", "soft", "每份解析成果都登記了來源，而且檔案沒被換過")
+        def _() -> tuple[bool, str, dict]:
+            """**沒登記的文件會安靜地從公式交叉比對裡消失。**
+
+            `eq-dup.py` 判斷「這條公式有沒有第二個獨立來源這樣寫」，而來源查表查不到
+            的整份不進比對（`pp/sources.py`：少報不假報）。方向是安全的，
+            **問題在於沒有人會被告知**：報告表頭那行寫得出數字，但要有人去看。
+            2026-08-13 上線時 259 份全部登記，**下一批進來的預設會是 unknown** ——
+            那正是這條斷言存在的理由。
+
+            ⚠ **為什麼是 soft**：沒登記不表示系統壞了，表示「該補登記了」。
+            擋下部署沒有意義（跟 A-33 同一個理由），但沉默的話比對母體會一直縮，
+            而縮掉多少只有主動跑 `eq-dup` 才看得到 —— 那不算探針（鐵則第 6 條）。
+
+            ⚠ 雜湊**不在這裡算**，讀體檢表的 `pdf_sha256`。有權威來源時不得自己重算。
+            """
+            root = configured_data_root()
+            parsed = DataPaths(root).parsed_dir
+            if not parsed.is_dir():
+                return False, f"找不到解析成果目錄 {parsed}", {}
+            corpus = sorted(p.name.removesuffix(".pdf.mineru_raw")
+                            for p in parsed.glob("*.mineru_raw"))
+            smap = SourceMap.load(DEFAULT_MAP_PATH)
+            rec = smap.reconcile(corpus, ledger_hashes(root))
+            facts = {"corpus": rec.corpus, "usable": rec.usable,
+                     "unregistered": len(rec.unregistered),
+                     "hash_changed": len(rec.hash_changed),
+                     "no_ledger": len(rec.no_ledger), "stale": len(rec.stale)}
+            if rec.usable == rec.corpus:
+                return True, f"{rec.corpus} 份全部登記且雜湊對得上", facts
+            bad = rec.unregistered + rec.hash_changed + rec.no_ledger
+            return False, (
+                f"**{len(bad)}/{rec.corpus} 份不計入跨來源比對** —— "
+                f"未登記 {len(rec.unregistered)}、檔案換過 {len(rec.hash_changed)}、"
+                f"體檢表沒有 {len(rec.no_ledger)}。它們的公式在 `eq-dup` 裡看不見。"
+                f"先跑 `source-map.py check` 看清單，補進 `verdicts/source-map.json`"
+                f"（判定怎麼下看 `docs/source-review-20260813.md`）"
+            ), facts
 
     # ---------- 資料層（逐文件）----------
 
