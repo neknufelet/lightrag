@@ -287,57 +287,6 @@ def cmd_audit(eqs: list[dict], groups: list[dict], out: Path | None) -> int:
     return 0
 
 
-def cmd_review(eqs: list[dict], pairs: list[dict], min_ev: int, out: Path | None) -> int:
-    """讓模型先讀一遍「係數不一致」的配對，把不是同一條的濾掉。
-
-    ⚠ **模型只用來刪，不用來確認。** 2026-08-13 負向控制實測：三隻在「一定不是
-    同一條」那組 100% 答對、零次亂點頭，但「一定是」那個方向沒有獨立驗證過。
-    所以模型說「不是」可以信（那是它驗過的方向），說「是」只當成「還沒被刪掉」，
-    仍然要人看。
-    """
-    from pp import eqjudge
-    from pp.eyes import assert_distinct, eye_c_from_env, eyes_from_env
-
-    env = load_env(REPO)
-    panel = [*eyes_from_env(env)]
-    if (third := eye_c_from_env(env)) is not None:
-        panel.append(third)
-    assert_distinct(panel)
-    text = {(e["doc"], e["item"]): e["latex"] for e in eqs}
-
-    todo = [p for p in pairs
-            if not p["constants_agree"] and eqdup.pair_evidence(p) >= min_ev]
-    print(f"=== 讀「係數不一致」：{len(todo)} 對（可比常數 ≥{min_ev}）× {len(panel)} 隻眼睛 ===")
-    print("⚠ 模型說「不是」可以信（那是它驗過的方向）；說「是」只代表還沒被刪掉，仍要人看。\n")
-    rows = []
-    for i, p in enumerate(todo, 1):
-        a, b = text[(p["a"]["doc"], p["a"]["item"])], text[(p["b"]["doc"], p["b"]["item"])]
-        rulings = [eqjudge.ask_pair(a, b, eye) for eye in panel]
-        v = eqjudge.panel_verdict(rulings)
-        rows.append({"verdict": v, "ratio": p["ratio"],
-                     "evidence": eqdup.pair_evidence(p), "first_diff": p["first_diff"],
-                     "votes": [r.verdict if not r.error else "ERR" for r in rulings],
-                     "why": [e for r in rulings for e in (r.evidence or [])][:3],
-                     "a": p["a"], "b": p["b"]})
-        print(f"  [{i:>3}/{len(todo)}] {v:<10} 常數 {rows[-1]['evidence']} 個"
-              f"　{p['a']['doc'][:32]} ↔ {p['b']['doc'][:32]}")
-
-    live = [r for r in rows if r["verdict"] != "different"]
-    live.sort(key=lambda r: (-r["evidence"], -r["ratio"]))
-    print(f"\n── 模型刪掉 {len(rows) - len(live)} 對，剩 {len(live)} 對要人看")
-    for r in live:
-        print(f"\n  常數 {r['evidence']} 個　相似度 {r['ratio']}　第 {r['first_diff']} 位差開"
-              f"　票 {r['votes']}")
-        for s in ("a", "b"):
-            print(f"     {r[s]['doc'][:46]:<48} #{r[s]['item']:<5} {r[s]['nums']}")
-        for w in r["why"][:2]:
-            print(f"     └ {w[:110]}")
-    if out:
-        out.write_text(json.dumps(rows, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-        print(f"\n逐對結果寫到 {out}")
-    return 0
-
-
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -355,9 +304,6 @@ def main() -> int:
     c.add_argument("-n", type=int, default=12, help="每個對照組幾題")
     d = sub.add_parser("audit", help="讓模型把每組 Tier A 審一遍（量骨架具體度 × 是不是同一條）")
     d.add_argument("--out", type=Path)
-    r = sub.add_parser("review", help="讓模型先讀一遍係數不一致的配對，把不是同一條的濾掉")
-    r.add_argument("--min-evidence", type=int, default=2, help="至少幾個可比常數")
-    r.add_argument("--out", type=Path)
     a = ap.parse_args()
 
     parsed = DataPaths(a.root).parsed_dir
@@ -374,9 +320,6 @@ def main() -> int:
         return cmd_control(eqs, eqdup.tier_a(eqs), a.n)
     if a.cmd == "audit":
         return cmd_audit(eqs, eqdup.tier_a(eqs), a.out)
-    if a.cmd == "review":
-        kept, _dropped = eqdup.with_evidence(eqdup.tier_b(eqs, a.min_ratio))
-        return cmd_review(eqs, kept, a.min_evidence, a.out)
 
     smap_raw = json.loads(a.map.read_text(encoding="utf-8")) if a.map.is_file() else {}
     labels = {d: (smap_raw.get("sources", {}).get(v.get("source"), {}) or {}).get("label", "")
