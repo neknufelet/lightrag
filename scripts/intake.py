@@ -748,6 +748,32 @@ def _event_kind(event: Mapping[str, object]) -> str:
     return _MEASURED_TAIL.sub("", reason).strip()
 
 
+# MinerU 官方 API 的單檔頁數上限。2026-08-14 實際撞到的錯誤訊息：
+#   number of pages exceeds limit (200 pages), please split the file and try again
+MINERU_PAGE_LIMIT = 200
+
+
+def _too_many_pages(pdf: Path, limit: int) -> str | None:
+    """超過上限就回一句話，沒問題（或數不出來）回 `None`。
+
+    ⚠ **數不出來就放行。** `pdfinfo` 讀不到頁數的 PDF 仍然可能解析得動，
+    在這裡擋下等於用一個猜測否定一份可能沒問題的文件。
+    """
+    try:
+        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True,
+                             timeout=60, check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = re.search(r"^Pages:\s*(\d+)", out, re.M)
+    if not match:
+        return None
+    pages = int(match.group(1))
+    if pages <= limit:
+        return None
+    return (f"{pages} 頁，超過 MinerU 的上限 {limit} 頁 —— 送出去也會被退回。"
+            f"把它切成章節再進，或確認這本書是不是已經切好進過了")
+
+
 def _failure_reason(message: str) -> str:
     if "未知的項目型別" in message:
         tail = message.split("未知的項目型別", 1)[1].split("——", 1)[0].strip(" ：")
@@ -956,6 +982,10 @@ class SubprocessRunner:
         self.environment = dict(environment)
         self.python = sys.executable
         self.parse_timeout = _positive_float(environment.get("INTAKE_PARSE_TIMEOUT"), 1800.0)
+        # 外部服務的上限，**可以被環境覆寫** —— 它是別人家的規則，會變，
+        # 而寫死之後改了只能改程式（`MINERU_PAGE_LIMIT`）。
+        self.mineru_page_limit = int(_positive_float(
+            environment.get("MINERU_PAGE_LIMIT"), float(MINERU_PAGE_LIMIT)))
         self.command_timeout = _positive_float(environment.get("INTAKE_COMMAND_TIMEOUT"), 3600.0)
         self.poll_seconds = _positive_float(environment.get("INTAKE_POLL_SECONDS"), 5.0)
         self.index_timeout = _positive_float(environment.get("INTAKE_INDEX_TIMEOUT"), 86400.0)
@@ -1029,7 +1059,17 @@ class SubprocessRunner:
         return OperationResult(True, output)
 
     def parse(self, job: Job, source_pdf: Path) -> OperationResult:
-        del source_pdf
+        # **先數頁數再送出去。** MinerU 官方 API 的上限是 200 頁，超過直接退回：
+        #   `number of pages exceeds limit (200 pages), please split the file`
+        # 2026-08-14 撞到（`n.d. - Perception of room modes…` 225 頁）——
+        # 而那本書其實早就切成九章進庫了，這一份是重複丟進來的。
+        #
+        # ⚠ 檔案在本機、頁數用 `pdfinfo` 一秒就數得出來，卻要送出去、等遠端解析、
+        # 再讀一段英文錯誤訊息才知道 —— **能在本機判的不要拿去問外面的服務**。
+        # ⚠ 數不出來就放行：`pdfinfo` 讀不到頁數的 PDF 仍然可能解析得動，
+        #   在這裡擋下等於用一個猜測否定一份可能沒問題的文件。
+        if (over := _too_many_pages(source_pdf, self.mineru_page_limit)) is not None:
+            return OperationResult(False, "", over)
         command = [
             self.python, str(self.repo / "scripts" / "parse-only.py"),
             "--workspace", job_workspace(job), "--source-kind", "parsed",
