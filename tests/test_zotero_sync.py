@@ -330,3 +330,20 @@ def test_part_two_wins_the_file_that_says_part_two() -> None:
             _item("B", "LoudspeakerMeasurements and Their Relationship to "
                        "Listener Preferences: Part 2")]
     assert zsync.documents_in_kb(both, docs) == {"B"}
+
+
+def test_a_stale_lightrag_line_does_not_mask_a_working_one() -> None:
+    """**2026-08-14 實測。** 一筆文獻的「其他」欄位有兩行 `lightrag:`：
+
+        lightrag: n.d. - Perception of room modes ….pdf   ← 外掛早期寫的，檔案已不存在
+        lightrag: 2023 - Perception-of-room-modes_CH1.pdf  ← 拆成九章之後補的
+
+    只讀第一行的話，過期的那行把有效的擋住，整部論文被判成不在庫。
+    """
+    item = _item("A", "毫不相干的標題", [])
+    item["data"]["extra"] = ("lightrag: 已經不存在的舊檔名.pdf\n"
+                             "lightrag: 2023 - Perception-of-room-modes_CH1.pdf")
+    assert zsync.recorded_filenames(item) == [
+        "已經不存在的舊檔名.pdf", "2023 - Perception-of-room-modes_CH1.pdf"]
+    got = zsync.documents_in_kb([item], ["2023 - Perception-of-room-modes_CH1.pdf"])
+    assert got == {"A"}

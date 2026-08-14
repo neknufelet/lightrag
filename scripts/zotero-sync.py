@@ -230,10 +230,22 @@ def recorded_filename(item: dict[str, Any]) -> str | None:
        沒有的還是得靠比對。要提高覆蓋率是外掛那邊的事，不是把書目標題改成
        跟檔名一樣 —— 標題是出版社的正式名稱，遷就檔名等於把對的改成錯的。
     """
-    for line in (item["data"].get("extra") or "").splitlines():
-        if line.strip().lower().startswith("lightrag:"):
-            return line.split(":", 1)[1].strip() or None
-    return None
+    return next(iter(recorded_filenames(item)), None)
+
+
+def recorded_filenames(item: dict[str, Any]) -> list[str]:
+    """「其他」欄位裡**所有**的 `lightrag:` 行。
+
+    ⚠ **不能只取第一行。** 2026-08-14 實測：一筆文獻的第一行指向
+    `n.d. - Perception of room modes ….pdf`（外掛早期寫的，那個檔案後來被拆成
+    九章、名字不存在了），第二行才是現在有效的章節檔名。只讀第一行的話，
+    **過期的那行把對的擋住**，整部論文被判成不在庫。
+
+    這跟本檔的通則是同一件事：舊記錄可以留著，但不准推翻實況。
+    """
+    return [name for line in (item["data"].get("extra") or "").splitlines()
+            if line.strip().lower().startswith("lightrag:")
+            and (name := line.split(":", 1)[1].strip())]
 
 
 def note_candidates(name: str, body: str) -> list[str]:
@@ -401,8 +413,10 @@ def documents_in_kb(items: list[dict[str, Any]], kb_docs: list[str]) -> set[str]
     claims: dict[str, list[tuple[float, str]]] = {}
     for item in items:
         key, title = item["data"]["key"], item["data"].get("title", "")
-        if (exact := recorded_filename(item)) and exact in stored:
-            claims.setdefault(exact, []).append((2.0, key))   # 精確連結永遠贏
+        # 一筆可能有好幾行 `lightrag:`（舊的沒清、拆書後補的新的）——
+        # **任何一行對得上就算數**，過期的那些不該把有效的擋住。
+        if live := [f for f in recorded_filenames(item) if f in stored]:
+            claims.setdefault(live[0], []).append((2.0, key))  # 精確連結永遠贏
         elif (doc := best_match(title, index)) is not None:
             words = significant_words(title)
             claims.setdefault(doc, []).append(
