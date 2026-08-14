@@ -40,6 +40,7 @@ Linux／macOS／Git Bash／PowerShell 四種環境的指令完全一樣。
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -98,6 +99,16 @@ def _index(ws: str, doc: str) -> dict:
         items = json.loads((raw / "content_list.json").read_text())
     except Exception:                                        # noqa: BLE001
         return out
+    # ⚠ **`slug()` 會撞名，所以別名一定要帶文件指紋。**
+    #
+    # 2026-08-14 查證：`slug()` 截到 48 字，全庫 8 組共 30 份文件產生同一個 slug
+    # —— 最嚴重的是章節切片（`…_CH01`～`_CH07` 七章共用一個），以及正文與它的
+    # supplementary。撞名之後 `/images/<別名>` **拿到哪一篇的圖沒有保證**，
+    # 而它不會報錯：圖出得來、掛進卡片、來源是錯的。
+    #
+    # 指紋取文件全名的 sha1 前 6 碼：確定性（同一份永遠同一個）、
+    # 肉眼還讀得出是哪一篇（前面的 slug 還在）、而且不必掃全庫就能算。
+    disc = hashlib.sha1(doc.encode("utf-8")).hexdigest()[:6]  # noqa: S324
     sl, n = slug(doc), 0
     for it in items:
         p = it.get("img_path") or ""
@@ -109,7 +120,8 @@ def _index(ws: str, doc: str) -> dict:
         cap = it.get("image_caption") or it.get("chart_caption") or it.get("table_caption")
         if isinstance(cap, list):
             cap = " ".join(str(x) for x in cap if str(x).strip())
-        alias = f"{sl}-p{(page or 0) + 1:02d}-{n:02d}{Path(base).suffix or '.jpg'}"
+        alias = (f"{sl}-{disc}-p{(page or 0) + 1:02d}-{n:02d}"
+                 f"{Path(base).suffix or '.jpg'}")
         rec = {"hash": base, "alias": alias, "page": (page or 0) + 1,
                "caption": (cap or "").strip(), "type": it.get("type")}
         out["by_hash"][base] = rec
@@ -117,24 +129,47 @@ def _index(ws: str, doc: str) -> dict:
     return out
 
 
+class AmbiguousImage(LookupError):
+    """同一個名字對到多份文件的圖。**帶著候選清單，讓呼叫端說得出是哪幾篇。**"""
+
+    def __init__(self, name: str, docs: list[str]) -> None:
+        super().__init__(name)
+        self.name, self.docs = name, docs
+
+
 def find_image(ws: str, name: str) -> Path | None:
-    """雜湊名或可讀別名都能取到。別名要掃各文件的索引才對得回去。"""
+    """雜湊名或可讀別名都能取到。**對到多份就拒絕，不要挑第一個。**
+
+    ⚠ 舊版一找到就回傳，於是撞名的別名會拿到「掃描順序上第一個」的圖 ——
+    圖出得來、掛進卡片、**來源是錯的，而且不會有任何訊號**。
+    2026-08-14 查證全庫有 8 組撞名（30 份文件），最嚴重的是章節切片七章共用一個。
+
+    ⚠ 舊別名（沒有指紋那一版）仍然查得到，但只在**唯一**的時候回傳；
+    撞到就丟 `AmbiguousImage`，由呼叫端回 409 並列出是哪幾篇。
+    直接把舊別名判死會讓已經寫進卡片的引用整批失效，而其中大多數本來就不歧義。
+    """
     pdir = parsed_dir(ws)
     if not pdir.is_dir():
         return None
     if "/" in name or ".." in name:          # 路徑穿越
         return None
+    hits: list[tuple[Path, str]] = []
     for raw in pdir.glob("*.mineru_raw"):
+        doc = raw.name.removesuffix(".mineru_raw")
         direct = raw / "images" / name
         if direct.is_file():
-            return direct
-        idx = _index(ws, raw.name.removesuffix(".mineru_raw"))
-        rec = idx["by_alias"].get(name)
+            hits.append((direct, doc))
+            continue
+        rec = _index(ws, doc)["by_alias"].get(name)
         if rec:
             cand = raw / "images" / rec["hash"]
             if cand.is_file():
-                return cand
-    return None
+                hits.append((cand, doc))
+    if not hits:
+        return None
+    if len({d for _, d in hits}) > 1:
+        raise AmbiguousImage(name, sorted({d for _, d in hits}))
+    return hits[0][0]
 
 
 def lightrag(path: str, body: dict | None = None) -> dict:
@@ -302,7 +337,17 @@ class H(BaseHTTPRequestHandler):
                 return self._out(doc_summary(ws, rest), fmt, _doc_md)
 
             if kind == "images" and rest:
-                p = find_image(ws, rest)
+                try:
+                    p = find_image(ws, rest)
+                except AmbiguousImage as amb:
+                    # **拒絕，不要挑一個給他。** 給錯的圖比給不了圖糟得多：
+                    # 圖出得來、掛進卡片、來源是錯的，而且沒有任何訊號。
+                    return self._json({
+                        "error": f"圖片名稱 {amb.name} 對到 {len(amb.docs)} 份文件，無法判斷是哪一篇",
+                        "documents": amb.docs,
+                        "how": ("這是舊版沒有指紋的別名。用 /kb/{ws}/doc/<檔名> 取得該篇的 "
+                                "figures，裡面的 alias 帶指紋、不會歧義"),
+                    }, 409)
                 if not p:
                     return self._json({"error": f"找不到圖片 {rest}"}, 404)
                 return self._send(200, p.read_bytes(),
