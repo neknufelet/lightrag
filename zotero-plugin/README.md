@@ -9,7 +9,7 @@
 
 ```
 _toRaged   送出去了，還在路上   ← 這是你的待辦清單
-_RAGED     伺服器說它進去了
+_Raged     伺服器說它進去了
 ```
 
 送進收件匣**不等於**進了知識庫：中間還要解析、過規格、抽取，而且可能被擋下來
@@ -59,7 +59,7 @@ Zotero 比對這個值，比執行中的版本小就**直接拒裝**，而且訊
 |---|---|---|
 | `extensions.zotero.lightrag.server` | `http://100.87.88.7:9710` | 審核台的網址（Tailscale 內網） |
 | `extensions.zotero.lightrag.tag` | `_toRaged` | 送出成功之後打的標籤 |
-| `extensions.zotero.lightrag.doneTag` | `_RAGED` | 確認進知識庫之後換成的標籤 |
+| `extensions.zotero.lightrag.doneTag` | `_Raged` | 確認進知識庫之後換成的標籤 |
 | `extensions.zotero.lightrag.intervalMinutes` | `10` | 自動對帳的間隔 |
 
 ## 檔名記在「其他」欄位
