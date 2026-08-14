@@ -306,3 +306,27 @@ def test_the_exact_link_wins_over_a_merely_similar_title() -> None:
     exact = _item("B", "毫不相干的標題")
     exact["data"]["extra"] = f"lightrag: {docs[0]}"
     assert zsync.documents_in_kb([similar, exact], docs) == {"B"}
+
+
+def test_an_exact_title_beats_a_longer_one_that_merely_contains_it() -> None:
+    """**涵蓋率分不出的那一種。** 短標題被兩份 100% 涵蓋，其中一份是它本人。
+
+    只看涵蓋率會並列、於是兩個都不要（那篇因此被標成「不在庫」）。
+    交集比聯集分得出來：4/4 對 4/12。
+    """
+    index = [(zsync.kb_words("2014 - Acoustic coherent perfect absorbers.pdf"), "exact"),
+             (zsync.kb_words("2023 - Ultra-broadband symmetrical acoustic coherent "
+                             "perfect absorbers designed by the causality principle.pdf"),
+              "longer")]
+    assert zsync.best_match("Acoustic coherent perfect absorbers", index) == "exact"
+
+
+def test_part_two_wins_the_file_that_says_part_two() -> None:
+    """庫裡只有 Part 2。Part 1 也很像，但 Part 2 才是精確的那個。"""
+    docs = ["1986 - LoudspeakerMeasurements and Their Relationship to "
+            "Listener Preferences Part 2.pdf"]
+    both = [_item("A", "LoudspeakerMeasurements and Their Relationship to "
+                       "Listener Preferences: Part 1"),
+            _item("B", "LoudspeakerMeasurements and Their Relationship to "
+                       "Listener Preferences: Part 2")]
+    assert zsync.documents_in_kb(both, docs) == {"B"}

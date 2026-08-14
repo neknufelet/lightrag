@@ -191,15 +191,32 @@ def score(left: frozenset[str], right: frozenset[str]) -> float:
     return ratio if ratio >= MIN_OVERLAP else 0.0
 
 
+def jaccard(left: frozenset[str], right: frozenset[str]) -> float:
+    """兩邊的重疊佔聯集多少 —— 用來分辨「剛好一樣」與「被包含在裡面」。
+
+    涵蓋率分不出這兩件事：`Acoustic coherent perfect absorbers`（4 個詞）
+    同時被下面兩份 100% 涵蓋，於是並列、兩個都不要 ——
+
+        2014 - Acoustic coherent perfect absorbers.pdf                 ← 就是它
+        2023 - Ultra-broadband symmetrical acoustic coherent perfect … ← 另一篇
+
+    交集比聯集就分得出來：前者 4/4，後者 4/12。
+    """
+    union = left | right
+    return len(left & right) / len(union) if union else 0.0
+
+
 def best_match[T](needle: str, haystack: list[tuple[frozenset[str], T]]) -> T | None:
-    """找最像的一個。**並列就回 None** —— 分不出來時不要猜。"""
+    """找最像的一個。**兩個判準都並列才回 None** —— 分不出來時不要猜。"""
     words = significant_words(needle)
-    ranked = sorted(((s, value) for other, value in haystack
-                     if (s := score(words, other)) > 0),
-                    key=lambda pair: -pair[0])
-    if not ranked or (len(ranked) > 1 and ranked[0][0] == ranked[1][0]):
+    ranked = sorted(((score(words, other), jaccard(words, other), value)
+                     for other, value in haystack if score(words, other) > 0),
+                    key=lambda row: (-row[0], -row[1]))
+    if not ranked:
         return None
-    return ranked[0][1]
+    if len(ranked) > 1 and ranked[0][:2] == ranked[1][:2]:
+        return None
+    return ranked[0][2]
 
 
 def recorded_filename(item: dict[str, Any]) -> str | None:
@@ -387,9 +404,10 @@ def documents_in_kb(items: list[dict[str, Any]], kb_docs: list[str]) -> set[str]
         if (exact := recorded_filename(item)) and exact in stored:
             claims.setdefault(exact, []).append((2.0, key))   # 精確連結永遠贏
         elif (doc := best_match(title, index)) is not None:
+            words = significant_words(title)
             claims.setdefault(doc, []).append(
-                (max(score(significant_words(title), words)
-                     for words, name in index if name == doc), key))
+                (max(score(words, other) + jaccard(words, other)
+                     for other, name in index if name == doc), key))
 
     winners: set[str] = set()
     for holders in claims.values():
