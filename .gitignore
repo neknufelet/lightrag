@@ -20,3 +20,8 @@ __pycache__/
 
 # Zotero 外掛的 .xpi **要進版控**：`update.json` 的 update_link 指著它，
 # 那是 Zotero 檢查更新時會去抓的網址。忽略掉的話那個連結是死的。
+
+# `zotero-sync.py apply` 的還原點。**每次 apply 都整份覆蓋**，進版控只會製造
+# 240 KB 的 diff 噪音，而它要防的（寫壞了要救回來）只需要「上一次的那份」。
+# ⚠ 這跟 verdicts/ 其他東西不一樣：那些是人工判定、不可再生；這份是機器產物。
+/verdicts/zotero-tags-backup.json
