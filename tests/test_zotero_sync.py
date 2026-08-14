@@ -347,3 +347,28 @@ def test_a_stale_lightrag_line_does_not_mask_a_working_one() -> None:
         "已經不存在的舊檔名.pdf", "2023 - Perception-of-room-modes_CH1.pdf"]
     got = zsync.documents_in_kb([item], ["2023 - Perception-of-room-modes_CH1.pdf"])
     assert got == {"A"}
+
+
+# ── 人工指名的筆記 ────────────────────────────────────────────────────────
+
+def test_a_named_note_counts_as_deeply_read() -> None:
+    """筆記標題是縮寫時比對配不上，`obsidian:` 是那條明確的路。
+
+    2026-08-14 實測：PO 確認對得上的四篇裡三篇被擋，而且是被**兩個不同的
+    門檻**擋的（共同詞 3 < 4；涵蓋率 0.833 < 0.85）。放寬任何一個都會把
+    `M Room Acoustics` 那類誤判放回來。
+    """
+    item = _item("A", "Rainbow-trapping absorbers: Broadband, perfect and "
+                      "asymmetric sound absorption by subwavelength panels")
+    item["data"]["extra"] = "obsidian: Jimenez 2017 - Rainbow-trapping absorbers"
+    (change,) = zsync.plan_changes(
+        [item], [], [], {"Jimenez 2017 - Rainbow-trapping absorbers": ""}, prune=False)
+    assert change.now == (zsync.DEEP_READ,)
+
+
+def test_a_named_note_that_does_not_exist_proves_nothing() -> None:
+    """**這條是上一條的安全帶。** 指名一個不存在的筆記，就成了一個永遠為真、
+    沒有人驗得了的斷言 —— 而那正是這整支程式要消滅的東西。"""
+    item = _item("A", "某篇論文的標題夠長可以比對")
+    item["data"]["extra"] = "obsidian: 這篇筆記不存在"
+    assert zsync.plan_changes([item], [], [], {"別的筆記": ""}, prune=False) == []

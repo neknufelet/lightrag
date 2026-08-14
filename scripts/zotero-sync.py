@@ -248,6 +248,30 @@ def recorded_filenames(item: dict[str, Any]) -> list[str]:
             and (name := line.split(":", 1)[1].strip())]
 
 
+def recorded_notes(item: dict[str, Any]) -> list[str]:
+    """「其他」欄位裡的 `obsidian:` 行 —— 指名這篇的筆記叫什麼。
+
+    ```
+    obsidian: Jimenez 2017 - Rainbow-trapping absorbers
+    ```
+
+    ⚠ **為什麼需要它，而不是把比對門檻放寬。** 筆記標題是刻意的縮寫，
+       跟知識庫的長檔名是兩種分佈。2026-08-14 實測，PO 確認對得上的四篇裡
+       有三篇被擋，而且是被**兩個不同的門檻**擋的：
+
+       ```
+       Ren 2022 / Jimenez 2017    涵蓋率 1.000，共同詞只有 3（門檻 4）
+       Zhang 2016                 共同詞 5，涵蓋率 0.833（門檻 0.85）
+       ```
+
+       放寬任何一個都會把 `M Room Acoustics` 那類誤判放回來。與其為了少數
+       例外把判準改鬆，不如給例外一條明確的路 —— 跟 `lightrag:` 同一招。
+    """
+    return [name for line in (item["data"].get("extra") or "").splitlines()
+            if line.strip().lower().startswith("obsidian:")
+            and (name := line.split(":", 1)[1].strip())]
+
+
 def note_candidates(name: str, body: str) -> list[str]:
     """一篇筆記裡可能指向論文的字串。
 
@@ -447,6 +471,10 @@ def plan_changes(items: list[dict[str, Any]], children: list[dict[str, Any]],
         for candidate in note_candidates(name, body):
             if (hit := best_match(candidate, title_index)) is not None:
                 read.add(hit["data"]["key"])
+    # 人工指名的筆記 —— 比對擋掉的那些例外走這條（見 `recorded_notes`）。
+    # ⚠ 指名的筆記**必須真的存在**，不然就成了一個永遠為真、沒人驗得了的斷言。
+    read |= {item["data"]["key"] for item in items
+             if any(n in notes for n in recorded_notes(item))}
     in_kb = documents_in_kb(items, kb_docs)
 
     changes: list[Change] = []
