@@ -829,6 +829,70 @@ class Checker:
                 f"**{tally['unaudited']}/{len(groups)} 組沒審過，現在不計入報告**。"
                 f"跑 `eq-label.py audit` 補上"), tally
 
+        @self.check("A-38", "soft", "知識庫裡的每份文件都有 Zotero 條目認領")
+        def _() -> tuple[bool, str, dict]:
+            """**標籤歪掉不會有任何訊號 —— 這條就是那個訊號。**
+
+            Zotero 的 `_Raged` 應該等於「這篇在知識庫裡」。它靠比對維持，而比對
+            會被三件事打敗（2026-08-14 全部實測到）：
+
+            ```
+            拆書        一本論文在 Zotero 是一筆、在知識庫是 7～9 個章節檔
+            縮寫        檔名 `TD_DG` vs 標題 `time-domain discontinuous Galerkin`
+            檔名黏字    `Preferences:Part 2` 進檔名變成 `PreferencesPart 2`
+            ```
+
+            打敗之後標籤只是**安靜地說錯**，沒有人會發現。所以反過來查：
+            知識庫裡有沒有哪份文件**沒有任何 Zotero 條目認領**。
+
+            書的章節（`0xxxx_`、`M Room Acoustics` 那種單字母開頭）本來就沒有
+            獨立的 Zotero 條目，不算數。基準值是 2026-08-14 收乾淨之後量到的；
+            **超過就是有新的沒接上**，補的方式是在那筆文獻的「其他」欄位寫一行
+            `lightrag: <知識庫裡的檔名>`（跟外掛送檔案時寫的同一條）。
+
+            ⚠ 這條要 `ZOTERO_API_KEY`。金鑰不在時**明講沒跑**，不要靜靜放行 ——
+               「不能驗證卻回報通過」正是這個專案反覆踩到的形狀。
+            """
+            # 2026-08-14 收乾淨之後的實測值：附件與同名上下集各佔一部分。
+            baseline = 6
+            if not os.environ.get("ZOTERO_API_KEY"):
+                return False, ("沒有 `ZOTERO_API_KEY`，**這條沒跑**。"
+                               "要納入每日體檢就把它加進 `.env`"), {}
+            sync = _load_script("zotero_sync", REPO / "scripts" / "zotero-sync.py")
+            items = sync.zotero_items(os.environ["ZOTERO_API_KEY"])
+            docs = sync.kb_documents(self.ws)
+            claimed = sync.documents_in_kb(items, docs)
+            owned = {f for i in items if i["data"]["key"] in claimed
+                     for f in sync.recorded_filenames(i)}
+            index = [(sync.kb_words(d), d) for d in docs]
+            owned |= {d for i in items if i["data"]["key"] in claimed
+                      and (d := sync.best_match(i["data"].get("title", ""), index))}
+
+            # ⚠ **以「作品」計數，不以檔案計數。** 一本拆成九章的論文只需要一條
+            #    連結（任一章都證明整部進庫了），逐檔算會把另外八章報成漏接。
+            #    分組用人工核過的來源登記，不要在這裡重造一套章節命名規則。
+            smap = SourceMap.load(DEFAULT_MAP_PATH)
+            parsed = DataPaths(configured_data_root()).parsed_dir
+            smap.reconcile(sorted(p.name.removesuffix(".pdf.mineru_raw")
+                                  for p in parsed.glob("*.mineru_raw")),
+                           ledger_hashes(configured_data_root()))
+            works: dict[str, bool] = {}
+            for doc in docs:
+                if re.match(r"^(\d{5}_|[A-Z] )", doc):
+                    continue                      # 書的章節本來就沒有 Zotero 條目
+                work = smap.source_of(doc.removesuffix(".pdf")) or doc
+                works[work] = works.get(work, False) or doc in owned
+            loose = sorted(w for w, ok in works.items() if not ok)
+            facts = {"knowledge_base": len(docs), "works": len(works),
+                     "unclaimed": len(loose), "baseline": baseline}
+            if len(loose) <= baseline:
+                return True, (f"{len(works)} 部作品裡有 {len(loose)} 部沒人認領"
+                              f"（基準 {baseline}，都是附件或同名上下集）"), facts
+            return False, (
+                f"**{len(loose)} 部作品沒有 Zotero 條目認領**（基準 {baseline}）—— "
+                f"標籤對這幾部是錯的而且不會有人發現。補法是在那筆文獻的「其他」"
+                f"欄位寫 `lightrag: <檔名>`。例：{loose[0][:52]}"), facts
+
         @self.check("A-36", "hard", "釘住的供應商還在該模型的端點清單裡")
         def _() -> tuple[bool, str, dict]:
             """**A-29 驗的是金鑰有效，不是「程式實際會走的那條路打得到」。**
