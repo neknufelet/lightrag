@@ -1,0 +1,29 @@
+{
+  "doc": "2020 - A case study on workstation-dependent acoustic characterization of open-plan offices.pdf",
+  "pdf_sha256": "sha256:3048085078bc07f0b72372287e4d9345404b3131631e47743cc79c35f907d28e",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 4 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.01485148514851485,
+      "threshold": 0.1,
+      "note": "3/202 個字串比對有鑑別力的實體接不回原文（總計 202 個：符號型 0 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

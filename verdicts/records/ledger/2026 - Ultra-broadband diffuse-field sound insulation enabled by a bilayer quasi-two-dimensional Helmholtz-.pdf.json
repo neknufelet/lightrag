@@ -1,0 +1,29 @@
+{
+  "doc": "2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-.pdf",
+  "pdf_sha256": "sha256:da79cc664279904a0b791648db0ec0db2f9a1d28e53c204d5cbf697600b3ebce",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "unverifiable",
+      "note": "共 4 張：0 張待修、1 張待查 —— 兩雙眼睛沒把握的轉錄不會自動寫入，要人看一眼",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.011494252873563218,
+      "threshold": 0.1,
+      "note": "3/261 個字串比對有鑑別力的實體接不回原文（總計 267 個：符號型 6 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

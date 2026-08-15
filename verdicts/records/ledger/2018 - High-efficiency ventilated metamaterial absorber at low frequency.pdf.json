@@ -1,0 +1,16 @@
+{
+  "doc": "2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+  "pdf_sha256": "sha256:971146250527991d94e2fe34cd3c4991f30a45c9b87846e061a3eb46095e867d",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:28:23+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:28:23+08:00"
+    }
+  }
+}

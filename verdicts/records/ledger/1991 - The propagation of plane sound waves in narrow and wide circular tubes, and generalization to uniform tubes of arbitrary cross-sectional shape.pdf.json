@@ -1,0 +1,16 @@
+{
+  "doc": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+  "pdf_sha256": "sha256:6f5f05c761adbece457ef67d69ac7ff58a2a85386938e9ca69476c7528b1c853",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T16:13:32+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T16:13:32+08:00"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "doc": "2020 - Frequency-dependent transmission boundary condition in the acoustic time-domain nodal discontinuous.pdf",
+  "pdf_sha256": "sha256:17be1f4bcccac79b177217d309c048c7fc8dadb14f209a69377147fca1291fa0",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.03271028037383177,
+      "threshold": 0.1,
+      "note": "7/214 個字串比對有鑑別力的實體接不回原文（總計 217 個：符號型 3 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

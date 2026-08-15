@@ -1,0 +1,29 @@
+{
+  "doc": "F Radiation of Sound.pdf",
+  "pdf_sha256": "sha256:0457c2df9b15f544313ec389d975bd79e5ab620fa191c752231a06dabe0f67b5",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "unverifiable",
+      "note": "共 4 張：2 張待修、0 張待查 —— 兩雙眼睛沒把握的轉錄不會自動寫入，要人看一眼",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.0019723865877712033,
+      "threshold": 0.1,
+      "note": "1/507 個字串比對有鑑別力的實體接不回原文（總計 621 個：符號型 114 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

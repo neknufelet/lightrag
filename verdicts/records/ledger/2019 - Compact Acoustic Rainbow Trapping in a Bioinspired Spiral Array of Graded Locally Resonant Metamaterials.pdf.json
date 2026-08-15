@@ -1,0 +1,16 @@
+{
+  "doc": "2019 - Compact Acoustic Rainbow Trapping in a Bioinspired Spiral Array of Graded Locally Resonant Metamaterials.pdf",
+  "pdf_sha256": "sha256:62d864b7262dbab8c6e4d2d5857dd115f041beee2711bedfea5b1e082b3a2429",
+  "gates": {
+    "pp.preflight": {
+      "state": "fail",
+      "note": "參考文獻消音比例異常（32.4%）",
+      "at": "2026-08-14T15:28:07+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:28:07+08:00"
+    }
+  }
+}

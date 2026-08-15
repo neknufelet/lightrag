@@ -1,0 +1,16 @@
+{
+  "doc": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+  "pdf_sha256": "sha256:035534f367362b35277521d8bb95373653c291364e42f7778d4081916a02b816",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T16:18:20+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T16:18:20+08:00"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "doc": "2024 - A hybrid room acoustic modeling approach combining image source, acoustic diffusion equation, and ti.pdf",
+  "pdf_sha256": "sha256:7186178e1bcc502241513708e21cf5a24c79ce7a3e13e372eb54b44c6de7d839",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 9 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.04482758620689655,
+      "threshold": 0.1,
+      "note": "13/290 個字串比對有鑑別力的實體接不回原文（總計 293 個：符號型 3 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

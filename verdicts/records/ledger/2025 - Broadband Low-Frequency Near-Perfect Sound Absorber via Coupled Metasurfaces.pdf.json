@@ -1,0 +1,29 @@
+{
+  "doc": "2025 - Broadband Low-Frequency Near-Perfect Sound Absorber via Coupled Metasurfaces.pdf",
+  "pdf_sha256": "sha256:211eb8af13fea5cb9c688ff407e00490240336ea3b7b6023cfe7e5e4becc3be7",
+  "gates": {
+    "pp.preflight": {
+      "state": "unverifiable",
+      "note": "機械判定擋下：參考文獻消音比例異常（31.6%）　—— 人工看過後放行，文件已進知識庫",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.0,
+      "threshold": 0.1,
+      "note": "0/90 個字串比對有鑑別力的實體接不回原文（總計 90 個：符號型 0 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "doc": "2024 - Ultra-broadband sound absorption via a parallel composite structure consisting of perforated panel resonators with tube bundles and porous material.pdf",
+  "pdf_sha256": "sha256:72162e9f07f51e12d6bde939ddbda8512ec01f5efb3d6a869698c08c21cf89ff",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:35:53+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:35:53+08:00"
+    }
+  }
+}

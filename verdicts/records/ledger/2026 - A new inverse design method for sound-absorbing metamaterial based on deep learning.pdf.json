@@ -1,0 +1,16 @@
+{
+  "doc": "2026 - A new inverse design method for sound-absorbing metamaterial based on deep learning.pdf",
+  "pdf_sha256": "sha256:f0bfb64bd3b0cd6cce7d7e60a640504952e2b2c90ac16fd94c3157cedcf3c13a",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T12:58:08+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 5 張，沒有待修或待查的",
+      "at": "2026-08-14T12:58:08+08:00"
+    }
+  }
+}

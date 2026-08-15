@@ -1,0 +1,29 @@
+{
+  "doc": "1986 - LoudspeakerMeasurementsand Their Relationship to Listener PreferencesPart 2.pdf",
+  "pdf_sha256": "sha256:ff6e27f8da314a454c43b6247868251e76a45c6be2fef42cd8c2844af6910a2b",
+  "gates": {
+    "pp.preflight": {
+      "state": "unverifiable",
+      "note": "機械判定擋下：頁面尺寸不一致　—— 人工看過後放行，文件已進知識庫",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "unverifiable",
+      "note": "計畫沒有產出表格那一段（多半是計畫半路失敗） —— 有沒有待修的表**不知道**，不能當成沒有",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.007444168734491315,
+      "threshold": 0.1,
+      "note": "3/403 個字串比對有鑑別力的實體接不回原文（總計 404 個：符號型 1 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

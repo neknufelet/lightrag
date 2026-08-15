@@ -1,0 +1,16 @@
+{
+  "doc": "2023 - Coiled-up structure with porous material lining for enhanced sound absorption.pdf",
+  "pdf_sha256": "sha256:f6b7496be5a44a67c56d32e8472e812e34acf2c243e3227d4cb13d106ef0ae2b",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:38:12+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:38:12+08:00"
+    }
+  }
+}

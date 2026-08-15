@@ -1,0 +1,16 @@
+{
+  "doc": "2024 - Accelerated design of low-frequency broadband sound absorber with deep learning approach.pdf",
+  "pdf_sha256": "sha256:f84c73712dbcb891325886e61c37abb1b2fcd6f0b3820f944ef7c3fb8666fb05",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:35:09+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:35:09+08:00"
+    }
+  }
+}

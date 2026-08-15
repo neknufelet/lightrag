@@ -1,0 +1,16 @@
+{
+  "doc": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+  "pdf_sha256": "sha256:f964ed830d4d87734c851836e7bbdac5b3e619470386a71346048cdbaba4455b",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:26:16+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 4 張，沒有待修或待查的",
+      "at": "2026-08-14T15:26:16+08:00"
+    }
+  }
+}

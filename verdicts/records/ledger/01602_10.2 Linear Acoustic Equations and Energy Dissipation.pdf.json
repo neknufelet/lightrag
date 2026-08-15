@@ -1,0 +1,29 @@
+{
+  "doc": "01602_10.2 Linear Acoustic Equations and Energy Dissipation.pdf",
+  "pdf_sha256": "sha256:bb864dc4e1eccaa1a2f0874827d5fe6007aa0344ec0c716a3874fc6315f417ff",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.022222222222222223,
+      "threshold": 0.1,
+      "note": "1/45 個字串比對有鑑別力的實體接不回原文（總計 50 個：符號型 5 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

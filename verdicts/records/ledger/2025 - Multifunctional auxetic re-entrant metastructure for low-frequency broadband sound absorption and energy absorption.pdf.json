@@ -1,0 +1,16 @@
+{
+  "doc": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf",
+  "pdf_sha256": "sha256:0c2bdf9b7d5d80740b4922ccd370195829b7c3bd5d8a530cd54248b51964fd98",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:40:36+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 6 張，沒有待修或待查的",
+      "at": "2026-08-14T15:40:36+08:00"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "doc": "2023 - Perception-of-room-modes_CH3.pdf",
+  "pdf_sha256": "sha256:9fbb1a8583b19ad60a249806dfb24696a0f377ac583935d095e7a42dbed8d071",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.0,
+      "threshold": 0.1,
+      "note": "0/84 個字串比對有鑑別力的實體接不回原文（總計 84 個：符號型 0 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

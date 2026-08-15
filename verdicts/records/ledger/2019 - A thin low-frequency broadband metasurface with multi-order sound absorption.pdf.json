@@ -1,0 +1,16 @@
+{
+  "doc": "2019 - A thin low-frequency broadband metasurface with multi-order sound absorption.pdf",
+  "pdf_sha256": "sha256:e451fa49f9f1d1d073312a457a8fa8418f1ca4bee3bedde20cb369565d678f7e",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:27:05+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:27:05+08:00"
+    }
+  }
+}

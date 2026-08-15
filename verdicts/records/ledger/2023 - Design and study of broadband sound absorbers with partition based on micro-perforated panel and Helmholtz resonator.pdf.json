@@ -1,0 +1,16 @@
+{
+  "doc": "2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator.pdf",
+  "pdf_sha256": "sha256:f9c24c7e442625abf8c7dc5778d8001c59ce2254127433237611a0d4b4be4332",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:33:35+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T15:33:35+08:00"
+    }
+  }
+}

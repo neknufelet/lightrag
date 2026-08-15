@@ -1,0 +1,16 @@
+{
+  "doc": "2021 - A low-frequency sound absorber based on micro-slit and coiled cavity.pdf",
+  "pdf_sha256": "sha256:b9f80d8b57818493b8e9a42eb9f4847adfd0a072da8468906e2854652137070c",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T13:26:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T13:26:06+08:00"
+    }
+  }
+}

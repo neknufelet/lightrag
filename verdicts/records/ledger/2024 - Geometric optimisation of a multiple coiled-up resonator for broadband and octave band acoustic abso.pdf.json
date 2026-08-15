@@ -1,0 +1,29 @@
+{
+  "doc": "2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic abso.pdf",
+  "pdf_sha256": "sha256:87b8db961f0f049e8d2dbc2b112c51ab03fdc63d271180e84e32a3b75fd8ca72",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.023255813953488372,
+      "threshold": 0.1,
+      "note": "4/172 個字串比對有鑑別力的實體接不回原文（總計 175 個：符號型 3 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

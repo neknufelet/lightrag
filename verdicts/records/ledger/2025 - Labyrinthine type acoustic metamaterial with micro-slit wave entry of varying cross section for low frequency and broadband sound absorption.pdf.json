@@ -1,0 +1,16 @@
+{
+  "doc": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+  "pdf_sha256": "sha256:dd176462a99bf38170e79f16b61ffeb56e0fb5d18e752e083dec3421ffe4d0a9",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T13:26:28+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T13:26:28+08:00"
+    }
+  }
+}

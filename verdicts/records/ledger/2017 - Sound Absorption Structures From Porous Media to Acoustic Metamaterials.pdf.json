@@ -1,0 +1,16 @@
+{
+  "doc": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+  "pdf_sha256": "sha256:b086a782636a697b22b966f61679a5a3547bf9c9224b1d75f72f8f6af7299825",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:27:14+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:27:14+08:00"
+    }
+  }
+}

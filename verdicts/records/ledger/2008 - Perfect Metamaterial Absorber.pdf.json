@@ -1,0 +1,16 @@
+{
+  "doc": "2008 - Perfect Metamaterial Absorber.pdf",
+  "pdf_sha256": "sha256:cdf688e214b4e76b1c6aabd34d2c0881536301abdf08ba3da857a9a80d8d7f6c",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:25:45+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:25:45+08:00"
+    }
+  }
+}

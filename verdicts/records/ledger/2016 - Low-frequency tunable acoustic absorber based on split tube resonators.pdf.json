@@ -1,0 +1,16 @@
+{
+  "doc": "2016 - Low-frequency tunable acoustic absorber based on split tube resonators.pdf",
+  "pdf_sha256": "sha256:68558995fa41e968a423be8fe924304808df0d0ca40f35f5b565481a4e0944a1",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:25:53+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:25:53+08:00"
+    }
+  }
+}

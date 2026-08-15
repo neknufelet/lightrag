@@ -1,0 +1,16 @@
+{
+  "doc": "2014 - Ultrathin low-frequency sound absorbing panels based on coplanar spiral tubes or coplanar Helmholtz resonators.pdf",
+  "pdf_sha256": "sha256:75f4dc2bbcd8d53129209fe2da6edd79fe3c82d0e82156e8fdb5d8daa82728c7",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:25:50+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:25:50+08:00"
+    }
+  }
+}

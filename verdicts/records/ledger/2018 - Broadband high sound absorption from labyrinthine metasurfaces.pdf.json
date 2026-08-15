@@ -1,0 +1,16 @@
+{
+  "doc": "2018 - Broadband high sound absorption from labyrinthine metasurfaces.pdf",
+  "pdf_sha256": "sha256:5587b2896253abaf3fe4cedfbec8be2e4fb9a0d8ae9ff2353f86cf57bf337cdf",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:27:07+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:27:07+08:00"
+    }
+  }
+}

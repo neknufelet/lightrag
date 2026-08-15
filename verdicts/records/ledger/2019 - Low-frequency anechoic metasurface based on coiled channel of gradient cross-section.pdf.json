@@ -1,0 +1,16 @@
+{
+  "doc": "2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section.pdf",
+  "pdf_sha256": "sha256:111bd996f2149a14df7a41beddb2b4227840d4f45adb50912175cdb3f8c23780",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:28:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:28:06+08:00"
+    }
+  }
+}

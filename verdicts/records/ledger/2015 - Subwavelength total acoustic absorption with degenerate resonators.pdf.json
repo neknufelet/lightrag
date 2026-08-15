@@ -1,0 +1,29 @@
+{
+  "doc": "2015 - Subwavelength total acoustic absorption with degenerate resonators.pdf",
+  "pdf_sha256": "sha256:b4d35ce8045654891e49b22e244a92822e06558cfaab783691693d0ff58726d5",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.0297029702970297,
+      "threshold": 0.1,
+      "note": "3/101 個字串比對有鑑別力的實體接不回原文（總計 102 個：符號型 1 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "doc": "2026 - Tunable acoustic metasurface for low-frequency broadband absorption via asymmetric adjustable apertures.pdf",
+  "pdf_sha256": "sha256:92bfd1e19fc38f119048939767c373c852fcaf2062c2d5ee027a71a1751016bc",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T12:57:29+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T12:57:29+08:00"
+    }
+  }
+}

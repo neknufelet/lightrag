@@ -1,0 +1,16 @@
+{
+  "doc": "2017 - Asymmetric absorber with multiband and broadband for low-frequency sound.pdf",
+  "pdf_sha256": "sha256:67fb50090129fb1cb7bd173ecc892fed4a0b665efeda31941f1993ad8673818f",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:26:46+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:26:46+08:00"
+    }
+  }
+}

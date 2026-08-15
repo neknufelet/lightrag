@@ -16,26 +16,26 @@
     },
     "pp.preflight": {
       "state": "pass",
-      "note": "postprocess.py plan/apply 對 20 份全部通過 preflight（型別、layout 頁序、page_size 一致、source_content_hash 對得上）；0 份被擋。2026-08-02",
-      "at": "2026-08-02T16:32:20+08:00"
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "pp.tables": {
       "state": "pass",
-      "note": "4 張表，table_body 皆非空（缺鍵 0、空殼 0、圖片型待查 0），無待修補目標。",
-      "at": "2026-08-02T16:32:20+08:00"
+      "note": "共 4 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "pp.equations": {
       "state": "pass",
       "value": 0.0,
-      "note": "§8.3 符號無關的位置封閉掃描：accent 類 token（\\hat/\\bar/\\widehat/\\tilde）站在 frac 首位或行內除法算子位置、且非 \\partial 的疑似 ∂ 誤讀 0 處；九記號家族本來就 0 命中。（判準由「掃不到那九個記號」升級為「位置上封閉」。）",
-      "at": "2026-08-02T18:26:31+08:00"
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "extract.grounding": {
       "state": "pass",
-      "value": 0.01825,
-      "threshold": 0.05,
-      "note": "**本值為 2026-08-03 修正後重測。** 首次寫入時 extract-check.py 的三句 SQL 都沒帶 workspace 條件，v155 與 v2 的列混在一起、又因兩邊 file_path 是同一批 PDF 檔名而被併成同一列——數字看起來完全正常（大約兩倍）且不報錯。已修（腳本加 --workspace，預設讀 .env），修完拿 v155 重跑得到 3.2%，與 CLAUDE.md 記載的歷史值逐位元相同，偵測器本身因此獲得驗證。 1.8%（5/274 個字串比對有鑑別力的實體；符號型 29 個驗不了、總計 303 個）。v155 同份 1.4%。1.8%（5/274）過門檻。可疑含 `Mechl, F.`／`Mechl, F. P.`（domain_fact：Mechel 被讀成 Mechl）與 `P. DAntonio`（D'Antonio 的撇號被吃掉）—— 參考文獻的字面變形。",
-      "at": "2026-08-03T01:59:23+08:00"
+      "value": 0.0,
+      "threshold": 0.1,
+      "note": "0/142 個字串比對有鑑別力的實體接不回原文（總計 144 個：符號型 2 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "extract.format": {
       "state": "pass",

@@ -16,26 +16,26 @@
     },
     "pp.preflight": {
       "state": "pass",
-      "note": "postprocess.py plan/apply 對 20 份全部通過 preflight（型別、layout 頁序、page_size 一致、source_content_hash 對得上）；0 份被擋。2026-08-02",
-      "at": "2026-08-02T16:32:22+08:00"
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "pp.tables": {
       "state": "pass",
-      "note": "8 張表，table_body 皆非空（缺鍵 0、空殼 0、圖片型待查 0），無待修補目標。",
-      "at": "2026-08-02T16:32:22+08:00"
+      "note": "共 8 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "pp.equations": {
       "state": "pass",
       "value": 0.0,
-      "note": "翻綠（原 fail）。partial-family-r2 §8 定案套用完成：R3 的 4 處 `\\hat{\\mathcal{O}}`（#567，式 42 p45）→ `\\partial`，依據裁圖 crops/gporous-0567-p45-hat_mathcal_O-46.png 上的 `T ∂²u₃(P₂)/∂x₃²`、`S ∂²u₁(P₂)/∂x₃²` 逐處對上，經 verified 裁定檔與 apply 寫入。**封閉掃描重跑（補了 §5 的兩個盲點：錨點放寬到裸 token、「接任何算子單元後」）**：本份 `\\hat`／`\\widehat` 站在算子位置者 **0 處**。殘留只剩已定案真符號 —— `\\tilde{\\rho}` 30 處＋`\\widetilde{\\rho}` 3 處（同一個 ρ̃，兩種 LaTeX 拼法）、`\\mathfrak{n}`／`\\mathfrak{a}`／`\\boldsymbol{\\mathfrak{n}}` 各 1 處（花體普通符號，與 §8 允許清單的 `\\mathfrak{O}` 同類）。無新 token。判準沿 §8.4 第 1 條：「驗了、通過」才翻綠。",
-      "at": "2026-08-02T21:17:08+08:00"
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "extract.grounding": {
-      "state": "fail",
-      "value": 0.06407,
-      "threshold": 0.05,
-      "note": "**本值為 2026-08-03 修正後重測。** 首次寫入時 extract-check.py 的三句 SQL 都沒帶 workspace 條件，v155 與 v2 的列混在一起、又因兩邊 file_path 是同一批 PDF 檔名而被併成同一列——數字看起來完全正常（大約兩倍）且不報錯。已修（腳本加 --workspace，預設讀 .env），修完拿 v155 重跑得到 3.2%，與 CLAUDE.md 記載的歷史值逐位元相同，偵測器本身因此獲得驗證。 6.4%（28/437 個字串比對有鑑別力的實體；符號型 151 個驗不了、總計 588 個）。v155 同份 2.7%。**>5% 標黃：6.4%（28/437）。v155 2.7%（12）→ v2 6.4%（28）。形狀＝「Bessel 函數符號→概念命名」**，與 K Muffler 同一族的邊界效應：`I0`／`I3`／`K1`／`K2`／`K3`／`C7`／`C9`／`Coefficient C3/C4/C14/C15` 與模型替它們展開的全名（`Modified Bessel Function Of The First Kind I0` 等 13 個變體）。本份已判掉 151 個符號型；係數表那幾個 chunk 散文比例夠高而沒被判成符號型。另有 domain_fact 的 `Mechl`（Mechel 被讀成 Mechl）。**不是幻覺。**",
-      "at": "2026-08-03T01:59:23+08:00"
+      "state": "pass",
+      "value": 0.026217228464419477,
+      "threshold": 0.1,
+      "note": "14/534 個字串比對有鑑別力的實體接不回原文（總計 623 個：符號型 89 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
     },
     "extract.format": {
       "state": "pass",

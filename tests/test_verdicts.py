@@ -28,7 +28,10 @@ BASELINE = {
     # 現役的 dker 版收成 `<idx>.html`、repo 舊版留成 `<idx>.alt-repo-20260802.html`
     # 等 PO 裁（`_curated()` 只讀 stem 全是數字的檔，帶後綴的那兩個不會被載入）。
     "verified": 180,      # work/crops/<doc>/verified/*.html|txt
-    "ledger": 20,         # records/ledger/*.pdf.json
+    # 2026-08-16：20 → 322。dker 上有 318 份，git 裡只有 20 份 —— 這個目錄的
+    # 備份一直只做到 6%，而 `note` 欄是大段人寫的判定理由（waiver 的原文），
+    # 重跑不出來。322 ＝ dker 的 318 ＋ repo 獨有的 4 份（語料被清掉的舊文件）。
+    "ledger": 322,        # records/ledger/*.pdf.json
     "review_md": 5,       # records/review/*.md（各族群的定案）
     "review_bundle": 27,  # records/review/20260803-speedup-symbol3/
     "doc_review": 1,      # work/crops/<doc>/review.md

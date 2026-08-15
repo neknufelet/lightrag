@@ -1,0 +1,16 @@
+{
+  "doc": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+  "pdf_sha256": "sha256:2ad66dad31aa39b396cfd181993647856b26d744d8d30460e5cc6801e83900ac",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:26:25+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:26:25+08:00"
+    }
+  }
+}

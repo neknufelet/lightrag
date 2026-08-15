@@ -1,0 +1,16 @@
+{
+  "doc": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf",
+  "pdf_sha256": "sha256:59cd10916f5bdba70cb79c97a399661ed85d1d42d5a008dc70c116cf316015a8",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:29:47+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:29:47+08:00"
+    }
+  }
+}

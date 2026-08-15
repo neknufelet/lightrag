@@ -1,0 +1,16 @@
+{
+  "doc": "2024 - Broadband low-frequency sound absorption via Helmholtz resonators with porous material lining.pdf",
+  "pdf_sha256": "sha256:3684ca7c4485d12102a2e912842ad0b98818e0a83fff2a17303bcbf9be0a591c",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:36:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:36:06+08:00"
+    }
+  }
+}

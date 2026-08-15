@@ -1,0 +1,29 @@
+{
+  "doc": "2012 -Combined wave and ray based room acoustic simulations of small rooms_CH7.pdf",
+  "pdf_sha256": "sha256:07d7fbc22a2e73f8e428ef5b8fd619c9083808a6c21402a2feb1bfd58e138c5c",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.03323262839879154,
+      "threshold": 0.1,
+      "note": "11/331 個字串比對有鑑別力的實體接不回原文（總計 334 個：符號型 3 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

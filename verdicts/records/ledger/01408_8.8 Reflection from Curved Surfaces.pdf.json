@@ -1,0 +1,29 @@
+{
+  "doc": "01408_8.8 Reflection from Curved Surfaces.pdf",
+  "pdf_sha256": "sha256:18a7568dd10f022735518de2f14c4e8f0787569a4b8cb4d4eb66c05cbf5c12e5",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.041666666666666664,
+      "threshold": 0.1,
+      "note": "3/72 個字串比對有鑑別力的實體接不回原文（總計 80 個：符號型 8 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

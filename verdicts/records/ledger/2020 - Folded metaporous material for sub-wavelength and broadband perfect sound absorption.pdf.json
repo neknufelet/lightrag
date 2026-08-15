@@ -1,0 +1,16 @@
+{
+  "doc": "2020 - Folded metaporous material for sub-wavelength and broadband perfect sound absorption.pdf",
+  "pdf_sha256": "sha256:4cfb8d8cf3bd6aff30ec54b6431fe25026d0b875d5eb24806169022ce5f7e514",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:28:34+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:28:34+08:00"
+    }
+  }
+}

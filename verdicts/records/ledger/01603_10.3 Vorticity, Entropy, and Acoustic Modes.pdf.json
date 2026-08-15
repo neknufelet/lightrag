@@ -1,0 +1,29 @@
+{
+  "doc": "01603_10.3 Vorticity, Entropy, and Acoustic Modes.pdf",
+  "pdf_sha256": "sha256:b681e05177e4844d2ea1cbea6b42bd3173033d12495f8575729cc40455732664",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.047619047619047616,
+      "threshold": 0.1,
+      "note": "2/42 個字串比對有鑑別力的實體接不回原文（總計 53 個：符號型 11 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

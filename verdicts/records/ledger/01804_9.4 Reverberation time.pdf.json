@@ -1,0 +1,29 @@
+{
+  "doc": "01804_9.4 Reverberation time.pdf",
+  "pdf_sha256": "sha256:350c9a16c0b5edd1d8d4544355ec8301a67c2826654213dee7dc1454b9d62a09",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.0,
+      "threshold": 0.1,
+      "note": "0/77 個字串比對有鑑別力的實體接不回原文（總計 77 個：符號型 0 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

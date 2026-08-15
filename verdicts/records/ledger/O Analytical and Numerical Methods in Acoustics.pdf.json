@@ -1,0 +1,29 @@
+{
+  "doc": "O Analytical and Numerical Methods in Acoustics.pdf",
+  "pdf_sha256": "sha256:f4dc3a601b0c724feba8f200d76cffa14e4ba56cc9444907e495efbe811dbd98",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.01014760147601476,
+      "threshold": 0.1,
+      "note": "11/1084 個字串比對有鑑別力的實體接不回原文（總計 1223 個：符號型 139 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

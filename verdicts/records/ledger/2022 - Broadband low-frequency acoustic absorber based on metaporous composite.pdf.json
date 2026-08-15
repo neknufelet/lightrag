@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Broadband low-frequency acoustic absorber based on metaporous composite.pdf",
+  "pdf_sha256": "sha256:d379742cceda6631d42db84cdb123c009a1f42944b93e072161294d3f26a4324",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:30:54+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:30:54+08:00"
+    }
+  }
+}

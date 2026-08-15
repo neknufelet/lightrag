@@ -1,0 +1,29 @@
+{
+  "doc": "01407_8.7 Source Above an Interface.pdf",
+  "pdf_sha256": "sha256:60ac5c4ed58b9d6c5fe8635800f2a7ef006e8631e0f66e669e26e5276bb1ca06",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.02702702702702703,
+      "threshold": 0.1,
+      "note": "2/74 個字串比對有鑑別力的實體接不回原文（總計 78 個：符號型 4 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

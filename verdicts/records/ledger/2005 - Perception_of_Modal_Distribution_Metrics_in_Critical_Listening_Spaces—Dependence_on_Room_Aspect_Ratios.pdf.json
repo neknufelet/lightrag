@@ -1,0 +1,29 @@
+{
+  "doc": "2005 - Perception_of_Modal_Distribution_Metrics_in_Critical_Listening_Spaces—Dependence_on_Room_Aspect_Ratios.pdf",
+  "pdf_sha256": "sha256:e2d380deef4dc3d7a2670ce01b925ecd60a8e9e460fe5ebf60c5250a63916907",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 9 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.008,
+      "threshold": 0.1,
+      "note": "2/250 個字串比對有鑑別力的實體接不回原文（總計 251 個：符號型 1 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

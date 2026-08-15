@@ -1,0 +1,16 @@
+{
+  "doc": "2025 - Reconfigurable modular acoustic metamaterial for broadband sound absorption.pdf",
+  "pdf_sha256": "sha256:5c1ff6b93d6a11d27c1da718a0d34fd04e6e591f61c32d9fd31fa577da41e7ae",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:38:55+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:38:55+08:00"
+    }
+  }
+}

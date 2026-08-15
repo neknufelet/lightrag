@@ -1,0 +1,29 @@
+{
+  "doc": "2023 - A Differentiable Image Source Model for Room Acoustics Optimization.pdf",
+  "pdf_sha256": "sha256:70ee1664ff1a1e294b9cebe8545fb655f5c4d927ca5f09a0395dbaa07af32f2e",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.00819672131147541,
+      "threshold": 0.1,
+      "note": "1/122 個字串比對有鑑別力的實體接不回原文（總計 123 個：符號型 1 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

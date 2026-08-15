@@ -1,0 +1,16 @@
+{
+  "doc": "2020 - The acoustic black hole A review of theory and applications.pdf",
+  "pdf_sha256": "sha256:dbcd4ee4f1a4808227854bbad853074becb8f5076e47b33f3f2a3721978ad35a",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:31:25+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:31:25+08:00"
+    }
+  }
+}

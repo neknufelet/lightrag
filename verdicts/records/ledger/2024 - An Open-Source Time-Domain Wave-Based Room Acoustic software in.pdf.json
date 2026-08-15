@@ -1,0 +1,29 @@
+{
+  "doc": "2024 - An Open-Source Time-Domain Wave-Based Room Acoustic software in.pdf",
+  "pdf_sha256": "sha256:5a6e471ccb00debd7c47aab2f18199c45d2b6ce00af3a382b0ffa6705c8b3aa0",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.0,
+      "threshold": 0.1,
+      "note": "0/63 個字串比對有鑑別力的實體接不回原文（總計 63 個：符號型 0 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

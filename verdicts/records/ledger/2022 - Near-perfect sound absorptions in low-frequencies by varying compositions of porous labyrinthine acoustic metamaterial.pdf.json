@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial.pdf",
+  "pdf_sha256": "sha256:af983fcd8adef2436ff0a5ebf0b8398abd0920b4601f860c6161877915bc99b0",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:33:44+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:33:44+08:00"
+    }
+  }
+}

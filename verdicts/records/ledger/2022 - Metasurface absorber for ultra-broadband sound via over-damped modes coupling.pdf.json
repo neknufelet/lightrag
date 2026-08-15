@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Metasurface absorber for ultra-broadband sound via over-damped modes coupling.pdf",
+  "pdf_sha256": "sha256:30fafd22ad3cca7df0e318e85058c143301585c53e86e97e74946538c30b22e9",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:32:05+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T15:32:05+08:00"
+    }
+  }
+}

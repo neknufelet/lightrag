@@ -1,0 +1,16 @@
+{
+  "doc": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf",
+  "pdf_sha256": "sha256:ca9f8a466b817998d2646b80960931fbdc087b3b2fc6ee6d4ddc066e9846b2b5",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:38:10+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 5 張，沒有待修或待查的",
+      "at": "2026-08-14T15:38:10+08:00"
+    }
+  }
+}

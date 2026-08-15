@@ -1,0 +1,16 @@
+{
+  "doc": "2020 - Acoustic impedance regulation of Helmholtz resonators for perfect sound absorption via roughened embedded necks.pdf",
+  "pdf_sha256": "sha256:e0bf64e870308a984d857673f4516ba1e2e3220c7cf4bb39b510657159bd4295",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:28:19+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:28:19+08:00"
+    }
+  }
+}

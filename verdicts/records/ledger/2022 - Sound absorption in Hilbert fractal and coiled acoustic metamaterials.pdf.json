@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Sound absorption in Hilbert fractal and coiled acoustic metamaterials.pdf",
+  "pdf_sha256": "sha256:de0d6f6dfaebf1dc3bbd3a0c846143ae13b2f270e1fd5cc5b5b3f7a8838edb90",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:31:52+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:31:52+08:00"
+    }
+  }
+}

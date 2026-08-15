@@ -1,0 +1,29 @@
+{
+  "doc": "Q Elasto-Acoustics.pdf",
+  "pdf_sha256": "sha256:07e27c063f7042e09a66a053cc1c1d5a3ac08ecfd433527cd098ac868ac8ae42",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "unverifiable",
+      "note": "共 9 張：1 張待修、0 張待查 —— 兩雙眼睛沒把握的轉錄不會自動寫入，要人看一眼",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.011204481792717087,
+      "threshold": 0.1,
+      "note": "8/714 個字串比對有鑑別力的實體接不回原文（總計 822 個：符號型 108 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

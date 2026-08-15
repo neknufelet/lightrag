@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Acoustic metamaterial for highly efficient low-frequency impedance modulation by extensible design.pdf",
+  "pdf_sha256": "sha256:a1d73fe62422b6ef6d41d14dce1a43b93e2380355d9ff93269913e34dd83090b",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:30:49+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:30:49+08:00"
+    }
+  }
+}

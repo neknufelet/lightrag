@@ -1,0 +1,16 @@
+{
+  "doc": "2012 - Low frequency sound propagation in activated carbon.pdf",
+  "pdf_sha256": "sha256:2b57c7d85ff555c27822b1c193dd50f8cc7d9d3a1a1b58a2e3f28fcbcc637b37",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T13:16:15+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T13:16:15+08:00"
+    }
+  }
+}

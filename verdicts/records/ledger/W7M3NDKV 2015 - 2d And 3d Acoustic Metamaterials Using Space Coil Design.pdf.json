@@ -1,0 +1,16 @@
+{
+  "doc": "W7M3NDKV 2015 - 2d And 3d Acoustic Metamaterials Using Space Coil Design.pdf",
+  "pdf_sha256": "sha256:4aa0a63e62e11ea9a025104e45208925b09900020099425346c2bd32535b337a",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-15T22:02:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-15T22:02:06+08:00"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "doc": "2008 - Prediction of energy decay in room impulse responses simulated with an image-source model.pdf",
+  "pdf_sha256": "sha256:beeb00b701031f2858aa9620ded959a882b671f73ccd9e673fc43bc96f2aacdc",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 4 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.013605442176870748,
+      "threshold": 0.1,
+      "note": "2/147 個字串比對有鑑別力的實體接不回原文（總計 152 個：符號型 5 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

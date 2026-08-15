@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+  "pdf_sha256": "sha256:2158b2ec6bc2d7139c948de4a1dbc28878ce4be926143ae11cd29e2fc611ff36",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:31:40+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:31:40+08:00"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "doc": "2026 - Broadband sound absorption performance of parallel gyroid-type triply periodic minimal surface micro-perforated plate sandwich structures.pdf",
+  "pdf_sha256": "sha256:b3ee2b5936234a8ea3a543b799653cbc0d130533e6039196a45211ee4adc4d7a",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T12:56:21+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T12:56:21+08:00"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "doc": "2017 - Perfect absorption of low-frequency sound waves by critically coupled subwavelength resonant system.pdf",
+  "pdf_sha256": "sha256:bafb10dedffc14dc898ce559f935fe674a8590fb7652a802e15998ed2980972d",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:26:26+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:26:26+08:00"
+    }
+  }
+}

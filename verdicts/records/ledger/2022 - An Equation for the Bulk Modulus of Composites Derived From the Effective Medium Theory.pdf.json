@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - An Equation for the Bulk Modulus of Composites Derived From the Effective Medium Theory.pdf",
+  "pdf_sha256": "sha256:8057c0ccc2bb48fae955649561d9791982f34bcd800c25ef08c344c990d80325",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T16:13:31+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T16:13:31+08:00"
+    }
+  }
+}

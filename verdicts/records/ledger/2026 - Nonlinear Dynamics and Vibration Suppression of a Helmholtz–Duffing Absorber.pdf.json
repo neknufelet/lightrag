@@ -1,0 +1,16 @@
+{
+  "doc": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+  "pdf_sha256": "sha256:22207af7577fbebce8c39026152c5fadae0d6ff870eabb811caae3dbc2645621",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T12:56:01+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T12:56:01+08:00"
+    }
+  }
+}

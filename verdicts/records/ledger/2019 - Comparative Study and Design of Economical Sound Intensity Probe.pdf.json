@@ -1,0 +1,29 @@
+{
+  "doc": "2019 - Comparative Study and Design of Economical Sound Intensity Probe.pdf",
+  "pdf_sha256": "sha256:ff3158e43fabaa71cc32fede6a95b692f34e46a82ea146e44441e1bcb4a4ec90",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.011695906432748537,
+      "threshold": 0.1,
+      "note": "2/171 個字串比對有鑑別力的實體接不回原文（總計 171 個：符號型 0 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "doc": "2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory.pdf",
+  "pdf_sha256": "sha256:ca7cab41b41629841009b8b8b31de8751f0c1b6779782a47e2c6bf504dbc243b",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 6 張，沒有待修或待查的",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "pp.equations": {
+      "state": "pass",
+      "value": 0.0,
+      "note": "∂ 誤讀探針（上下同形＋行內斜線）命中 0 處",
+      "at": "2026-08-12T20:24:06+08:00"
+    },
+    "extract.grounding": {
+      "state": "pass",
+      "value": 0.007633587786259542,
+      "threshold": 0.1,
+      "note": "1/131 個字串比對有鑑別力的實體接不回原文（總計 133 個：符號型 2 驗不了、來源不見 0）",
+      "at": "2026-08-12T20:24:06+08:00"
+    }
+  }
+}

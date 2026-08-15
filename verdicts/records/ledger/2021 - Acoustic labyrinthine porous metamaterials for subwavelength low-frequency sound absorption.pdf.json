@@ -1,0 +1,16 @@
+{
+  "doc": "2021 - Acoustic labyrinthine porous metamaterials for subwavelength low-frequency sound absorption.pdf",
+  "pdf_sha256": "sha256:ee8a8345669b2cbe6b60f6ab5444735f63df24dd5f2961125d43d324530314c2",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:31:13+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 0 張，沒有待修或待查的",
+      "at": "2026-08-14T15:31:13+08:00"
+    }
+  }
+}

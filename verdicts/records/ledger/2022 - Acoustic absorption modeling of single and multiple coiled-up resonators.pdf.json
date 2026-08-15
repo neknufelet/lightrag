@@ -1,0 +1,16 @@
+{
+  "doc": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+  "pdf_sha256": "sha256:38f15629066f1e751676efbadb67dd28d7c7b7d2d203384dfa6caf36fda25a6a",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:30:02+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 6 張，沒有待修或待查的",
+      "at": "2026-08-14T15:30:02+08:00"
+    }
+  }
+}

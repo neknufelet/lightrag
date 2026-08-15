@@ -1,0 +1,16 @@
+{
+  "doc": "1994 - A Finite Element Method for the Free Vibration of Air in Ducts and Rooms with Absorbing Walls.pdf",
+  "pdf_sha256": "sha256:be07e9da9fcbf6dfa05ea8f6dc976cd50c9a745bb5ff5d559a636353265e26e2",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T16:13:20+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 4 張，沒有待修或待查的",
+      "at": "2026-08-14T16:13:20+08:00"
+    }
+  }
+}

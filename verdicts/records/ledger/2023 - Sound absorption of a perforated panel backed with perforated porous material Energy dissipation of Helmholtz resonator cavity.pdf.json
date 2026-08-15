@@ -1,0 +1,16 @@
+{
+  "doc": "2023 - Sound absorption of a perforated panel backed with perforated porous material Energy dissipation of Helmholtz resonator cavity.pdf",
+  "pdf_sha256": "sha256:c7713576dc08da2275afee70b16f805923ec0bf9b76c6e8b850a8881fa5b16f0",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:35:01+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 2 張，沒有待修或待查的",
+      "at": "2026-08-14T15:35:01+08:00"
+    }
+  }
+}

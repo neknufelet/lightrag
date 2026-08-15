@@ -1,0 +1,16 @@
+{
+  "doc": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf",
+  "pdf_sha256": "sha256:19252a3964b155379d80e30757ed445c27927683d5c497a5ad67dbf29acf7385",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:29:51+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 3 張，沒有待修或待查的",
+      "at": "2026-08-14T15:29:51+08:00"
+    }
+  }
+}

@@ -75,18 +75,26 @@ git status verdicts        # 有差就是 dker 上有新裁定，commit 它
 
 要反向確認 dker 有沒有比 repo 舊（例如 dker 被重建過）：
 
+**危險的方向只有一個：dker 上有而 repo 沒有** —— 那是還沒備份的人工成果。
+反過來（repo 比 dker 多）是正常的，repo 是存檔：文件被刪掉之後它的體檢表留著，
+待裁的舊版裁定檔也留著。所以比的是清單差集，不是兩個總數：
+
 ```bash
-ssh florian-dker 'cd /data/lightrag && find work/crops/*/verified records/ledger -type f | wc -l'
-find verdicts/work/crops/*/verified verdicts/records/ledger -type f \
-  -not -name '*.alt-repo-*' | wc -l
+comm -23 \
+  <(ssh florian-dker 'cd /data/lightrag && find work/crops/*/verified records/ledger -type f | sort') \
+  <(find verdicts/work/crops/*/verified verdicts/records/ledger -type f | sed 's|^verdicts/||' | sort)
 ```
 
-兩個數字必須相同。不同就先查清楚哪一邊多，**不要直接覆蓋** —— 人工裁定沒有第二份。
+**印不出任何東西才是通過。** 印出來的每一行都是只活在一顆磁碟上的人工判定，
+`git add` 它。查清楚之前**不要往 dker 覆蓋** —— 人工裁定沒有第二份。
 
-⚠ `-not -name '*.alt-repo-*'` 那一條是必要的：repo 會比 dker 多出「兩邊都有而內容
-不同、等 PO 裁」的舊版（目前 2 個）。它們刻意只存在 repo，**不同步到 dker**——
-現役那一份永遠是不帶後綴的 `<idx>.html`。`_curated()` 只讀 stem 全是數字的檔，
-所以就算誤同步過去也不會被載入，但數字會對不上而製造一次假警報。
+> ⚠ **2026-08-16 更正：舊版寫的是「兩個數字必須相同」，那條判準本身是錯的。**
+> 當天實測 496（dker）vs 198（repo），而且差距不是事故——是 repo 的體檢表
+> 只同步過 20/318。**一個永遠會叫的判準等於沒有判準**，沒有人會為它停下來。
+> 補齊後是 496 vs 500，差的 4 份是語料被清掉的舊文件的體檢表，repo 當存檔留著；
+> 另外 2 個 `.alt-repo-*` 是等 PO 裁的舊版裁定檔，**刻意只存在 repo、不同步到
+> dker**（`_curated()` 只讀 stem 全是數字的檔，誤同步過去也不會被載入）。
+> 上面那條差集指令對這兩種正常差異都不會叫。
 
 ## 為什麼不讓程式直接讀這裡
 

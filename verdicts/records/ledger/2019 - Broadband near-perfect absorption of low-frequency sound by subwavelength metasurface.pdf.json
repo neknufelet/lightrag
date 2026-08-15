@@ -1,0 +1,16 @@
+{
+  "doc": "2019 - Broadband near-perfect absorption of low-frequency sound by subwavelength metasurface.pdf",
+  "pdf_sha256": "sha256:05daa44842fae14b3523637e3b9f97ee4b5fc56b60db4def7c23900426ce5490",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T15:27:51+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T15:27:51+08:00"
+    }
+  }
+}

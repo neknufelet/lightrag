@@ -1,0 +1,16 @@
+{
+  "doc": "2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies.pdf",
+  "pdf_sha256": "sha256:d97bd903e16e3ddb99f2181d7e0dc4890130cee93640a408b4e3a9577b470a4b",
+  "gates": {
+    "pp.preflight": {
+      "state": "pass",
+      "note": "機械計畫判定 clean",
+      "at": "2026-08-14T12:56:46+08:00"
+    },
+    "pp.tables": {
+      "state": "pass",
+      "note": "共 1 張，沒有待修或待查的",
+      "at": "2026-08-14T12:56:46+08:00"
+    }
+  }
+}
