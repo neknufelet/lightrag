@@ -79,12 +79,64 @@ var LightRAGReconcile = (function () {
     return 'pending';
   }
 
+  // ── 用 key 查（0.3.2 起）────────────────────────────────────────────────
+
+  var KEY_PREFIX = /^([23456789ABCDEFGHIJKLMNPQRSTUVWXYZ]{8})\s/;
+
+  /**
+   * 這一筆文獻的每一份檔案各在哪一節。
+   *
+   * **為什麼改用 key 而不是檔名。** 記在「其他」欄位的檔名是伺服器當時回的
+   * 那一個，之後只要它改名（同名加序號、重新命名、遷移）對帳就斷了，而且
+   * **斷掉的樣子是「查不到」** —— 跟「被刪掉了」長得一模一樣，沒有人分得出來。
+   * key 是 Zotero 給的，不會因為伺服器那邊做了什麼而變。
+   *
+   * ⚠ **一筆文獻可能有好幾份檔案**（拆章的書、正文＋附件）。它們共用同一個
+   *    key，所以這裡回的是一組節名，由 `decideByKey` 決定整筆算什麼。
+   */
+  function sectionsForKey(index, key) {
+    var found = [];
+    if (!index || !key) return found;
+    for (var filename in index) {
+      var m = KEY_PREFIX.exec(filename);
+      if (m && m[1] === key) found.push(index[filename]);
+    }
+    return found;
+  }
+
+  /**
+   * 整筆文獻算什麼 —— 拿它底下所有檔案的節名決定。
+   *
+   * ```
+   * 一份都找不到          missing   （還沒送、或送的檔案沒帶 key）
+   * 有任何一份 failed     failed    壞掉的要浮出來，不能被其他份蓋掉
+   * 全部 completed        done
+   * 其餘                  pending   還有份在跑
+   * ```
+   *
+   * ⚠ **「全部」才算 done。** 七章的書進了六章不是「進去了」——
+   *    那一章的內容查詢時找不到，而標籤會說它在。
+   */
+  function decideByKey(index, key) {
+    var found = sectionsForKey(index, key);
+    if (!found.length) return 'missing';
+    for (var i = 0; i < found.length; i++) {
+      if (found[i] === 'failed') return 'failed';
+    }
+    for (var j = 0; j < found.length; j++) {
+      if (found[j] !== 'completed') return 'pending';
+    }
+    return 'done';
+  }
+
   return {
     recordFilename: recordFilename,
     readFilename: readFilename,
     existingFilename: existingFilename,
     buildIndex: buildIndex,
     decide: decide,
+    decideByKey: decideByKey,
+    sectionsForKey: sectionsForKey,
   };
 })();
 

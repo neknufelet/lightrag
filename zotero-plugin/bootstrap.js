@@ -246,13 +246,21 @@ async function reconcile({ manual }) {
   const problems = [];
 
   for (const item of items) {
-    const filename = LightRAGReconcile.readFilename(item.getField('extra'));
-    if (!filename) {
-      counts.unrecorded += 1;
-      problems.push(titleOf(item) + ' —— 沒記到檔名，重送一次就會有');
-      continue;
+    // **先用 key 查**（0.3.2 起）。key 是 Zotero 給的，不會因為伺服器那邊
+    // 改名而變 —— 而記在「其他」欄位的檔名會，斷掉的樣子還跟「被刪掉了」
+    // 一模一樣，沒有人分得出來。
+    let verdict = LightRAGReconcile.decideByKey(index, item.key);
+    if (verdict === 'missing') {
+      // 找不到帶這個 key 的檔案 ＝ 那份是舊外掛送的（檔名沒有 key）。
+      // **遷移期間兩種並存**，所以退回用檔名查，不要直接判成沒進去。
+      const filename = LightRAGReconcile.readFilename(item.getField('extra'));
+      if (!filename) {
+        counts.unrecorded += 1;
+        problems.push(titleOf(item) + ' —— 沒記到檔名，重送一次就會有');
+        continue;
+      }
+      verdict = LightRAGReconcile.decide(index, filename);
     }
-    const verdict = LightRAGReconcile.decide(index, filename);
     counts[verdict] += 1;
     if (verdict === 'done') {
       item.removeTag(sentTag);

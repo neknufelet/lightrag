@@ -111,3 +111,67 @@ test('狀態長得不對時不能爆掉，也不能亂猜', () => {
   assert.deepStrictEqual(buildIndex({ sections: { completed: 'not-a-list' } }), {});
   assert.strictEqual(decide({}, 'X.pdf'), 'missing');
 });
+
+// ── 用 key 查（0.3.2 起）──────────────────────────────────────────────────
+
+const { decideByKey, sectionsForKey } = require('../lib/reconcile.js');
+
+const idx = (pairs) => {
+  const o = {};
+  for (const [name, section] of pairs) o[name] = section;
+  return o;
+};
+
+test('一份檔案：進了就是 done', () => {
+  const i = idx([['APLAMD5P 2021 - X.pdf', 'completed']]);
+  assert.strictEqual(decideByKey(i, 'APLAMD5P'), 'done');
+});
+
+test('**七章的書要七章都進去才算進去**', () => {
+  // 進了六章不是「進去了」—— 那一章的內容查詢時找不到，而標籤會說它在。
+  const i = idx([
+    ['APLAMD5P 2021 - X_CH1.pdf', 'completed'],
+    ['APLAMD5P 2021 - X_CH2.pdf', 'completed'],
+    ['APLAMD5P 2021 - X_CH3.pdf', 'in_progress'],
+  ]);
+  assert.strictEqual(decideByKey(i, 'APLAMD5P'), 'pending');
+});
+
+test('全部進去了才 done', () => {
+  const i = idx([
+    ['APLAMD5P 2021 - X_CH1.pdf', 'completed'],
+    ['APLAMD5P 2021 - X_CH2.pdf', 'completed'],
+  ]);
+  assert.strictEqual(decideByKey(i, 'APLAMD5P'), 'done');
+});
+
+test('壞掉的要浮出來，不能被其他份蓋掉', () => {
+  const i = idx([
+    ['APLAMD5P 2021 - X_CH1.pdf', 'completed'],
+    ['APLAMD5P 2021 - X_CH2.pdf', 'failed'],
+  ]);
+  assert.strictEqual(decideByKey(i, 'APLAMD5P'), 'failed');
+});
+
+test('**查不到就是 missing，絕不當成 done**', () => {
+  // 被刪掉、被重置、還沒送都落在這裡。判成 done 是唯一會製造假象的錯法。
+  assert.strictEqual(decideByKey(idx([['QFSXG2HE 2021 - X.pdf', 'completed']]),
+                                 'APLAMD5P'), 'missing');
+  assert.strictEqual(decideByKey({}, 'APLAMD5P'), 'missing');
+  assert.strictEqual(decideByKey(null, 'APLAMD5P'), 'missing');
+});
+
+test('別筆文獻的檔案不算數 —— 前綴要完全相同，不是開頭像', () => {
+  const i = idx([
+    ['APLAMD5PX 2021 - 九碼不是 key.pdf', 'completed'],
+    ['APLAMD5 2021 - 七碼也不是.pdf', 'completed'],
+    ['APLAMD5Pfoo.pdf', 'completed'],          // 後面沒有空白
+  ]);
+  assert.strictEqual(decideByKey(i, 'APLAMD5P'), 'missing');
+});
+
+test('沒帶 key 的舊檔名不會被誤認', () => {
+  const i = idx([['2021 - Room acoustic modeling.pdf', 'completed']]);
+  assert.strictEqual(decideByKey(i, 'APLAMD5P'), 'missing');
+  assert.deepStrictEqual(sectionsForKey(i, 'APLAMD5P'), []);
+});
