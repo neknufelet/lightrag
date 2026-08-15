@@ -311,12 +311,30 @@ function show(headline, summary, problems) {
       window.addDescription('…還有 ' + (problems.length - 10) + ' 筆，詳見偵錯輸出');
     }
     window.show();
+
     // 有問題就不要太快關掉，讓人有時間讀。
+    const ms = problems.length ? 30000 : 6000;
+
+    // ⚠ **`startCloseTimer()` 在實機上沒生效**（2026-08-15 PO 回報視窗一直掛著；
+    //    呼叫方式是照 Zotero 文件寫的，原因沒查明 —— coder 這台沒有 Zotero，
+    //    驗不了）。所以不倚賴它：自己拿主視窗的 setTimeout 關。
+    //    兩個都留著 —— 內建的那個哪天有效就更早關，重複關掉是無害的。
     try {
-      window.startCloseTimer(problems.length ? 30000 : 6000);
+      window.startCloseTimer(ms);
     } catch (e) {
-      // 關不掉不該讓「已經送出去了」變成一個錯誤。點一下還是關得掉。
-      log('自動關閉設不起來（點一下可以關）：' + e);
+      log('內建的自動關閉設不起來：' + e);
+    }
+    try {
+      Zotero.getMainWindow().setTimeout(function () {
+        try {
+          window.close();
+        } catch (e) {
+          log('關視窗失敗：' + e);
+        }
+      }, ms);
+    } catch (e) {
+      // 連計時器都掛不上的話，點一下還是關得掉（Zotero 的預設行為）。
+      log('自己的關閉計時器掛不上：' + e);
     }
   } catch (e) {
     // 畫面掛了不該把已經做完的事情變成失敗 —— 結果本身已經進 debug log 了。
