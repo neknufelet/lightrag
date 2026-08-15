@@ -5,14 +5,32 @@
 差了 16 倍——代價不是資料損失，是**高估風險**，差點為此改變整個重建計畫。
 （教訓寫在 `cairn/irreproducible-claims.md`。）
 
+> ⚠ **2026-08-16 實測：上面那句「163 個 `.txt` 可再生」對其中 19 個是錯的。**
+> 拿 apply 之前的原文跑現行 `latex_fix.fix_one`，與裁定檔逐字比對
+> （`N Flow Acoustics.pdf`，157 個 `.txt`）：
+>
+> ```
+> 真的改了內容的裁定檔：19 個
+>   現行 latex_fix 重現得出來：0
+>   重現不出來：19
+> ∂ 誤讀 \hat { \sigma }          規則跑之前 5 處 → 跑之後 5 處
+> ∂ 誤讀 \hat { \mathcal { O } }  規則跑之前 7 處 → 跑之後 7 處
+> ∂ 誤讀 \hat { \partial }        規則跑之前 1 處 → 跑之後 1 處
+> ```
+>
+> 其餘 138 個確實與現值一致或只差空白（那部分原判是對的）。
+> **判準的教訓**：「檔頭寫著機械套用」是**檔案自己的宣稱**，不是驗證。
+> 要判可不可再生，得真的把規則跑一次比對輸出——這次跑了，答案是修不掉。
+> 未測：`G Porous Absorbers` 的 5 個與 `C Equivalent Networks` 的 1 個。
+
 進 git 之後 GitHub 就是異地備份，`/data` 底下那些可再生的東西可以放心清掉。
 
 ## 裡面是什麼
 
 | 路徑 | 內容 | 不可再生？ |
 |---|---|---|
-| `work/crops/<doc>/verified/*.html` | 人工裁定的表格轉錄（10 張） | **是**。空表格是 MinerU 的上限，兩雙眼睛也讀不出來，只能人看裁圖打出來 |
-| `work/crops/<doc>/verified/*.txt` | LaTeX 修正（163 處） | **否**。檔頭寫著「機械套用」，來自 `scripts/pp/rules/latex_fix.py`（確定性、不呼叫模型）。留著是當「規則重跑有沒有產出同樣結果」的對照組 |
+| `work/crops/<doc>/verified/*.html` | 人工裁定的表格轉錄（15 張，另 2 個 `.alt-repo-*` 是待裁的舊版） | **是**。空表格是 MinerU 的上限，兩雙眼睛也讀不出來，只能人看裁圖打出來 |
+| `work/crops/<doc>/verified/*.txt` | LaTeX 修正（163 處） | **19 個是、其餘否**。見上面那格 2026-08-16 的實測：現行 `latex_fix` 對那 19 個一處都修不掉。其餘留著當「規則重跑有沒有產出同樣結果」的對照組 |
 | `work/crops/<doc>/review.md` | 該份文件的裁決過程 | 「為什麼這格這樣判」的理由 |
 | `records/review/*.md` | 各族群的裁決材料，每份都有「定案」節 | 例：為什麼 `\mathfrak{O}` 在白名單上、C 的 91 個未覆蓋詞往哪併 |
 | `records/review/20260803-speedup-symbol3/` | `SPEEDUP` 與 `SYMBOL-3` 兩條線的工單與終審判定全文 | 15 份，含 fable 的設計單與 sol 的五份判定 |
@@ -59,10 +77,16 @@ git status verdicts        # 有差就是 dker 上有新裁定，commit 它
 
 ```bash
 ssh florian-dker 'cd /data/lightrag && find work/crops/*/verified records/ledger -type f | wc -l'
-find verdicts/work/crops/*/verified verdicts/records/ledger -type f | wc -l
+find verdicts/work/crops/*/verified verdicts/records/ledger -type f \
+  -not -name '*.alt-repo-*' | wc -l
 ```
 
 兩個數字必須相同。不同就先查清楚哪一邊多，**不要直接覆蓋** —— 人工裁定沒有第二份。
+
+⚠ `-not -name '*.alt-repo-*'` 那一條是必要的：repo 會比 dker 多出「兩邊都有而內容
+不同、等 PO 裁」的舊版（目前 2 個）。它們刻意只存在 repo，**不同步到 dker**——
+現役那一份永遠是不帶後綴的 `<idx>.html`。`_curated()` 只讀 stem 全是數字的檔，
+所以就算誤同步過去也不會被載入，但數字會對不上而製造一次假警報。
 
 ## 為什麼不讓程式直接讀這裡
 

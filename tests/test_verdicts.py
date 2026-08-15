@@ -23,7 +23,11 @@ VERDICTS = ROOT / "verdicts"
 # 2026-08-07 從 dker 的 /data/lightrag 拉進版控時的實際檔數。
 # 新增裁定之後把數字往上調，並在 commit 訊息說明多的是哪幾份。
 BASELINE = {
-    "verified": 173,      # work/crops/<doc>/verified/*.html|txt
+    # 2026-08-16：173 → 180。dker 上有 5 個裁定檔（C 的 #380 #434 #453 #476 #524）
+    # 從來沒進過版控，只活在一顆磁碟上；另外 #466／#525 兩張兩邊都有而內容不同，
+    # 現役的 dker 版收成 `<idx>.html`、repo 舊版留成 `<idx>.alt-repo-20260802.html`
+    # 等 PO 裁（`_curated()` 只讀 stem 全是數字的檔，帶後綴的那兩個不會被載入）。
+    "verified": 180,      # work/crops/<doc>/verified/*.html|txt
     "ledger": 20,         # records/ledger/*.pdf.json
     "review_md": 5,       # records/review/*.md（各族群的定案）
     "review_bundle": 27,  # records/review/20260803-speedup-symbol3/
