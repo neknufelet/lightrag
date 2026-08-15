@@ -1,0 +1,311 @@
+{
+ "workspace": "acoustics_v2",
+ "certain": [],
+ "suspect": [
+  {
+   "name": "Case 0",
+   "entity_type": "concept"
+  },
+  {
+   "name": "case 1",
+   "entity_type": "other"
+  },
+  {
+   "name": "Case 1",
+   "entity_type": "concept"
+  },
+  {
+   "name": "case 2",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Case 2",
+   "entity_type": "concept"
+  },
+  {
+   "name": "case 4",
+   "entity_type": "other"
+  },
+  {
+   "name": "case 6",
+   "entity_type": "other"
+  },
+  {
+   "name": "case I",
+   "entity_type": "event"
+  },
+  {
+   "name": "Case I",
+   "entity_type": "other"
+  },
+  {
+   "name": "case II",
+   "entity_type": "event"
+  },
+  {
+   "name": "Case II",
+   "entity_type": "other"
+  },
+  {
+   "name": "case III",
+   "entity_type": "event"
+  },
+  {
+   "name": "Case III",
+   "entity_type": "other"
+  },
+  {
+   "name": "configuration 1",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #10",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #11",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #12",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #13",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #14",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #15",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #16",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #17",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #18",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #19",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration 2",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration #20",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration 3",
+   "entity_type": "concept"
+  },
+  {
+   "name": "configuration 4",
+   "entity_type": "concept"
+  },
+  {
+   "name": "mode 1",
+   "entity_type": "concept"
+  },
+  {
+   "name": "mode 2",
+   "entity_type": "concept"
+  },
+  {
+   "name": "mode 3",
+   "entity_type": "concept"
+  },
+  {
+   "name": "model 1",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Model 1",
+   "entity_type": "concept"
+  },
+  {
+   "name": "model 2",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Model 2",
+   "entity_type": "concept"
+  },
+  {
+   "name": "model 3",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Model 3",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Model 4",
+   "entity_type": "concept"
+  },
+  {
+   "name": "part 1",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "part 2",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "part I",
+   "entity_type": "concept"
+  },
+  {
+   "name": "part II",
+   "entity_type": "concept"
+  },
+  {
+   "name": "part III",
+   "entity_type": "concept"
+  },
+  {
+   "name": "phase 1",
+   "entity_type": "event"
+  },
+  {
+   "name": "phase 2",
+   "entity_type": "event"
+  },
+  {
+   "name": "phase 3",
+   "entity_type": "event"
+  },
+  {
+   "name": "Region 1",
+   "entity_type": "other"
+  },
+  {
+   "name": "Region 2",
+   "entity_type": "other"
+  },
+  {
+   "name": "region I",
+   "entity_type": "concept"
+  },
+  {
+   "name": "region II",
+   "entity_type": "concept"
+  },
+  {
+   "name": "region III",
+   "entity_type": "concept"
+  },
+  {
+   "name": "sample 1",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Sample 1",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "sample 2",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Sample 2",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "sample 3",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Sample 3",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "sample 4",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Sample 4",
+   "entity_type": "other"
+  },
+  {
+   "name": "Sample I",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Sample II",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "sample X",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Sample X",
+   "entity_type": "artifact"
+  },
+  {
+   "name": "Type I",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Type II",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone 1",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone 2",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone i",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone I",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Zone I",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone II",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Zone II",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone III",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Zone III",
+   "entity_type": "concept"
+  },
+  {
+   "name": "zone IV",
+   "entity_type": "concept"
+  },
+  {
+   "name": "Zone IV",
+   "entity_type": "concept"
+  }
+ ],
+ "certain_re": "^(equation|eqn|eq|formula|figure|fig|table|tab|section|sec|appendix|chapter|reference|ref)[\\s._\\-#]*([0-9]+(\\.[0-9]+)*([a-z](-[a-z])?)?|[ivxIVX]+)[)]?\\s*$"
+}

@@ -1,0 +1,59 @@
+{
+ "entities": {
+  "Table 16": {
+   "truncate": "",
+   "entity_id": "Table 16",
+   "file_path": "C Equivalent Networks.pdf",
+   "source_id": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-135<SEP>doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-136",
+   "created_at": 1786813023,
+   "description": "A table referenced as the baseline for the changes described in the input text.",
+   "entity_type": "content"
+  },
+  "Table 17": {
+   "truncate": "",
+   "entity_id": "Table 17",
+   "file_path": "C Equivalent Networks.pdf",
+   "source_id": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-139<SEP>doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-141",
+   "created_at": 1786813023,
+   "description": "A table referenced in the input text, to which changes are made in the updated formulation.",
+   "entity_type": "content"
+  },
+  "Table 21": {
+   "truncate": "",
+   "entity_id": "Table 21",
+   "file_path": "C Equivalent Networks.pdf",
+   "source_id": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-141",
+   "created_at": 1786813023,
+   "description": "The table that the input text is part of, as indicated by the section context.",
+   "entity_type": "content"
+  }
+ },
+ "relations": [
+  {
+   "source": "Table 16",
+   "target": "equivalent network",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "baseline for changes",
+    "truncate": "",
+    "file_path": "C Equivalent Networks.pdf",
+    "source_id": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-136",
+    "created_at": 1786813044,
+    "description": "The changes are relative to the equivalent network as presented in Table 16."
+   }
+  },
+  {
+   "source": "Table 17",
+   "target": "Table 21",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "changes,comparison",
+    "truncate": "",
+    "file_path": "C Equivalent Networks.pdf",
+    "source_id": "doc-0fbd361148d2c16f7b6244eedfcfdbde-chunk-141",
+    "created_at": 1786813046,
+    "description": "Table 21 lists changes relative to Table 17, including updates to symbols and formulas."
+   }
+  }
+ ]
+}

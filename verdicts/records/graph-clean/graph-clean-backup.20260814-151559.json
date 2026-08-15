@@ -1,0 +1,120 @@
+{
+ "entities": {
+  "Fig. 11": {
+   "truncate": "",
+   "entity_id": "Fig. 11",
+   "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+   "source_id": "doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+   "created_at": 1786691497,
+   "description": "Screenshots of the three-dimensional computer-generated models, showing the labyrinthine cavity section and the outer panel with embedded micro-slits.",
+   "entity_type": "content"
+  },
+  "Fig. 12": {
+   "truncate": "",
+   "entity_id": "Fig. 12",
+   "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+   "source_id": "doc-430ae5274e630896683ad44dd97c9486-chunk-008<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+   "created_at": 1786691497,
+   "description": "Plot showing comparison of analytical and numerical values of absorption coefficient for the proposed metamaterial and conventional ones.",
+   "entity_type": "content"
+  },
+  "Table I": {
+   "truncate": "",
+   "entity_id": "Table I",
+   "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+   "source_id": "doc-c1a862b21eba2aa8e3500dad9d38f46e-chunk-001<SEP>doc-7a524d9785b1e0d4de4eace68c2b22b7-chunk-003<SEP>doc-c10df1177d78839a8cc89ebc32659d9f-chunk-002<SEP>doc-6cf3a91de2141deba50a62aadc932829-chunk-003<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-002<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-007<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-009<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-30249e0029d0c26f2f2c22cccba6cc9d-chunk-008<SEP>doc-06172c147c5e3bf7cfb37a0ef71d4a86-chunk-007<SEP>doc-b22dfe5cacb0aba0bfc1051bae014870-chunk-008<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-bb410125e1030329819b215004deb02d-chunk-013<SEP>doc-eb5b0782a0292a358a216146c1010d14-chunk-010<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-003<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-004<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+   "created_at": 1786691497,
+   "description": "A table listing the geometry of the labyrinthine section, referenced in the input text.",
+   "entity_type": "content"
+  },
+  "Table II": {
+   "truncate": "",
+   "entity_id": "Table II",
+   "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+   "source_id": "doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-30249e0029d0c26f2f2c22cccba6cc9d-chunk-008<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-bb410125e1030329819b215004deb02d-chunk-016<SEP>doc-bb410125e1030329819b215004deb02d-chunk-018<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+   "created_at": 1786691497,
+   "description": "A table listing the peak magnitude of absorption coefficient, frequency at peak, and frequency range at α=0.5 for configurations (a), (b), and (c).",
+   "entity_type": "content"
+  }
+ },
+ "relations": [
+  {
+   "source": "3D Computer Aided Design (CAD) model",
+   "target": "Fig. 11",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shown in,visualization",
+    "truncate": "",
+    "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+    "source_id": "doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+    "created_at": 1786691501,
+    "description": "The screenshots of the 3D CAD models are shown in Fig. 11."
+   }
+  },
+  {
+   "source": "Fig. 12",
+   "target": "absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "compared in,visualization",
+    "truncate": "",
+    "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+    "source_id": "doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+    "created_at": 1786691501,
+    "description": "Fig. 12 shows the comparison of analytical and numerical values of absorption coefficient for the proposed and conventional metamaterials."
+   }
+  },
+  {
+   "source": "Table I",
+   "target": "labyrinthine cavity unit cells",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "geometry,referenced in",
+    "truncate": "",
+    "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+    "source_id": "doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+    "created_at": 1786691501,
+    "description": "The labyrinthine section has the same geometry as listed in Table I."
+   }
+  },
+  {
+   "source": "Table II",
+   "target": "config. (a): uniform slit of d_f = 0.4 mm and length l_f = 3 mm",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "listed in,performance data",
+    "truncate": "",
+    "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+    "source_id": "doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+    "created_at": 1786691501,
+    "description": "The performance metrics for config. (a) are listed in Table II."
+   }
+  },
+  {
+   "source": "Table II",
+   "target": "config. (b): uniform slit of d_f = 0.4 mm and length l_f = 5.5 mm",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "listed in,performance data",
+    "truncate": "",
+    "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+    "source_id": "doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+    "created_at": 1786691501,
+    "description": "The performance metrics for config. (b) are listed in Table II."
+   }
+  },
+  {
+   "source": "Table II",
+   "target": "config. (c): modified slit with length l_f = 3 mm and sinusoidally varying width with amplitude A = 0.4 mm",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "listed in,performance data",
+    "truncate": "",
+    "file_path": "2025 - Labyrinthine type acoustic metamaterial with micro-slit wave entry of varying cross section for low frequency and broadband sound absorption.pdf",
+    "source_id": "doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011",
+    "created_at": 1786691501,
+    "description": "The performance metrics for config. (c) are listed in Table II."
+   }
+  }
+ ]
+}

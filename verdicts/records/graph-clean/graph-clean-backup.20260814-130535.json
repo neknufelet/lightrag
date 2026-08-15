@@ -1,0 +1,396 @@
+{
+ "entities": {
+  "Figure 15": {
+   "truncate": "",
+   "entity_id": "Figure 15",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-022<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-023",
+   "created_at": 1786683662,
+   "description": "A figure showing the variation of U_2 for each absorber as frequency detuning level increases.<SEP>A figure in the paper showing the variation of U2 with increasing frequency detuning level. It is referenced in the input text but was not extracted as an entity in the previous response.",
+   "entity_type": "content"
+  },
+  "Figure 16": {
+   "truncate": "",
+   "entity_id": "Figure 16",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-022<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-023",
+   "created_at": 1786683662,
+   "description": "Surface maps for optimal TMD, cubic NES, bistable NES, and HDA showing dependence on detuning factor and acceleration amplitude.<SEP>A figure in the paper showing surface maps of the maximum relative kinetic energy E_rel,max on the (η, A_g) plane for different optimal absorbers. It is referenced in the input text but was not extracted as an entity in the previous response.",
+   "entity_type": "content"
+  },
+  "Figure 25": {
+   "truncate": "",
+   "entity_id": "Figure 25",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-031",
+   "created_at": 1786683663,
+   "description": "A figure showing pronounced 2:1 subharmonic resonance maps for different damping scaling factors.",
+   "entity_type": "other"
+  },
+  "Figure 26": {
+   "truncate": "",
+   "entity_id": "Figure 26",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-031",
+   "created_at": 1786683663,
+   "description": "A figure showing pronounced 2:1 subharmonic resonance maps for different quadratic stiffness scaling factors.",
+   "entity_type": "other"
+  },
+  "Figure 3": {
+   "truncate": "",
+   "entity_id": "Figure 3",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-8e2f9e38afea1d2792d8e540c821a73e-chunk-008<SEP>doc-606442899a6e2e51579ab4e1c7456724-chunk-003<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-007",
+   "created_at": 1786683662,
+   "description": "Figure showing the definition of positive direction where u_a > 0.",
+   "entity_type": "other"
+  },
+  "Figure 8": {
+   "truncate": "",
+   "entity_id": "Figure 8",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-63c725230d6346f9a5e771eb0d360608-chunk-010<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-005<SEP>doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-014",
+   "created_at": 1786683662,
+   "description": "A figure showing the variation of U1 for each absorber as the frequency detuning level |Δ| increases.",
+   "entity_type": "other"
+  },
+  "Figure 9": {
+   "truncate": "",
+   "entity_id": "Figure 9",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-014",
+   "created_at": 1786683662,
+   "description": "A figure with surface maps (a)-(d) showing the dependence of tdiss on detuning factor η and initial velocity for the optimal TMD, cubic NES, bistable NES, and HDA.",
+   "entity_type": "other"
+  },
+  "Section 2": {
+   "truncate": "",
+   "entity_id": "Section 2",
+   "file_path": "2026 - Tunable acoustic metasurface for low-frequency broadband absorption via asymmetric adjustable apertures.pdf",
+   "source_id": "doc-751dda1b0a63a8c56d6a1d7a2321e3ee-chunk-011",
+   "created_at": 1786683621,
+   "description": "A section of the paper that presents the geometrical configuration and theoretical model on which the metasurface with adjustable apertures is based.",
+   "entity_type": "other"
+  },
+  "Table 1": {
+   "truncate": "",
+   "entity_id": "Table 1",
+   "file_path": "2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies.pdf<SEP>2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+   "source_id": "doc-59b754c08b59562bfbfccea045ee62a6-chunk-016<SEP>doc-f8a6ed23676968ebde9cdcb6db9effd7-chunk-007<SEP>doc-63c725230d6346f9a5e771eb0d360608-chunk-004<SEP>doc-363fb0fa40fea77f89fa28be2f9b69e2-chunk-004<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-004<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-007<SEP>doc-e712fb13badfe09e64d1f13b0797e68e-chunk-002<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-1a8f19ad08ee37ee2a80f906927859d4-chunk-004<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-017<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-006<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-007<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-002<SEP>doc-695dd978dd918b4aa71369a6841ceaed-chunk-012<SEP>doc-08c5c4033102c01b185be24492549b4d-chunk-003<SEP>doc-b55451a32b05a6ab7f1f863bf974eb51-chunk-007<SEP>doc-82ff838bdd962c8690907a4e7e0fe520-chunk-004<SEP>doc-f447664a32a96fa279824b444c5489f3-chunk-026<SEP>doc-f447664a32a96fa279824b444c5489f3-chunk-031<SEP>doc-f447664a32a96fa279824b444c5489f3-chunk-042<SEP>doc-1cd3751658013c96b7aa9da415fca333-chunk-013<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-014",
+   "created_at": 1786683662,
+   "description": "A table summarizing representative designs from each category in terms of performance metrics.<SEP>A table summarizing the optimization results under different frequency detuning levels for the absorbers.",
+   "entity_type": "other"
+  },
+  "Table 2": {
+   "truncate": "",
+   "entity_id": "Table 2",
+   "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf<SEP>2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+   "source_id": "doc-59b754c08b59562bfbfccea045ee62a6-chunk-016<SEP>doc-f8a6ed23676968ebde9cdcb6db9effd7-chunk-008<SEP>doc-363fb0fa40fea77f89fa28be2f9b69e2-chunk-004<SEP>doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-e712fb13badfe09e64d1f13b0797e68e-chunk-002<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-017<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-006<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-007<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-013<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-4f49dfa6cf88fe7b12050769e4e04b50-chunk-004<SEP>doc-b55451a32b05a6ab7f1f863bf974eb51-chunk-007<SEP>doc-430ae5274e630896683ad44dd97c9486-chunk-008<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-022<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011",
+   "created_at": 1786683674,
+   "description": "A table summarizing optimization results under different frequency detuning levels.<SEP>A table presenting comparative analysis of thickness-to-wavelength ratio, operating frequency band, and bandwidth of the current structure versus classic sound-absorbing metamaterials.",
+   "entity_type": "content"
+  },
+  "Table 3": {
+   "truncate": "",
+   "entity_id": "Table 3",
+   "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-007<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-007<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-005<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-021<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-008<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-003<SEP>doc-4f49dfa6cf88fe7b12050769e4e04b50-chunk-008<SEP>doc-695dd978dd918b4aa71369a6841ceaed-chunk-016<SEP>doc-606442899a6e2e51579ab4e1c7456724-chunk-003<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011",
+   "created_at": 1786683674,
+   "description": "A table detailing the model parameters used in the analysis.",
+   "entity_type": "content"
+  },
+  "Table 5": {
+   "truncate": "",
+   "entity_id": "Table 5",
+   "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+   "source_id": "doc-63c725230d6346f9a5e771eb0d360608-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-087<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-103<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-104<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-013<SEP>doc-a7478d95d95f512c0e984166583202d5-chunk-008<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-005<SEP>doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-013",
+   "created_at": 1786683674,
+   "description": "A table in the paper listing the structural geometric parameters for the two types of MOS.",
+   "entity_type": "other"
+  },
+  "Table 7": {
+   "truncate": "",
+   "entity_id": "Table 7",
+   "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+   "source_id": "doc-991a02cb0f0b243b875e528d0278426c-chunk-126<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-016<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-017<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-018",
+   "created_at": 1786683674,
+   "description": "A table providing detailed structural parameter information for the studied structures.<SEP>A table listing related parameters of the two MOS structures discussed in the text.",
+   "entity_type": "content"
+  }
+ },
+ "relations": [
+  {
+   "source": "Figure 15",
+   "target": "U2",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "variation,visualization",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-023",
+    "created_at": 1786683668,
+    "description": "Figure 15 illustrates the variation of U2 with increasing frequency detuning level."
+   }
+  },
+  {
+   "source": "Figure 15",
+   "target": "overall performance metric",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "variation,visualization",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-022",
+    "created_at": 1786683667,
+    "description": "Figure 15 shows the variation of U_2 for each absorber as frequency detuning level increases."
+   }
+  },
+  {
+   "source": "Figure 16",
+   "target": "maximum relative kinetic energy",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "dependence,visualization",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-022",
+    "created_at": 1786683667,
+    "description": "Figure 16 shows surface maps of maximum relative kinetic energy for different absorbers."
+   }
+  },
+  {
+   "source": "Figure 16",
+   "target": "maximum relative kinetic energy (E_rel,max)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "surface map,visualization",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-023",
+    "created_at": 1786683668,
+    "description": "Figure 16 presents surface maps of the maximum relative kinetic energy E_rel,max on the (η, A_g) plane for the optimal absorbers."
+   }
+  },
+  {
+   "source": "2:1 subharmonic resonance",
+   "target": "Figure 25",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "displays,shows",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-031",
+    "created_at": 1786683668,
+    "description": "Figure 25 shows the pronounced 2:1 subharmonic resonance maps for different damping scaling factors."
+   }
+  },
+  {
+   "source": "2:1 subharmonic resonance",
+   "target": "Figure 26",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "displays,shows",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-031",
+    "created_at": 1786683668,
+    "description": "Figure 26 shows the pronounced 2:1 subharmonic resonance maps for different quadratic stiffness scaling factors."
+   }
+  },
+  {
+   "source": "Figure 3",
+   "target": "positive direction",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows definition",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-007",
+    "created_at": 1786683667,
+    "description": "Figure 3 shows the definition of positive direction where u_a > 0."
+   }
+  },
+  {
+   "source": "Figure 8",
+   "target": "U1",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "variation,visualization",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-014",
+    "created_at": 1786683667,
+    "description": "Figure 8 shows the variation of U1 for each absorber as the frequency detuning level |Δ| increases."
+   }
+  },
+  {
+   "source": "Figure 9",
+   "target": "tdiss",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "dependence,visualization",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-014",
+    "created_at": 1786683667,
+    "description": "Figure 9 plots surface maps showing the dependence of tdiss on detuning factor η and initial velocity for the optimal absorbers."
+   }
+  },
+  {
+   "source": "Section 2",
+   "target": "acoustic metasurface with adjustable apertures",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "based on",
+    "truncate": "",
+    "file_path": "2026 - Tunable acoustic metasurface for low-frequency broadband absorption via asymmetric adjustable apertures.pdf",
+    "source_id": "doc-751dda1b0a63a8c56d6a1d7a2321e3ee-chunk-011",
+    "created_at": 1786683642,
+    "description": "The metasurface with adjustable apertures is designed based on the geometrical configuration presented in Section 2, with an additional structural element for aperture adjustment."
+   }
+  },
+  {
+   "source": "Table 1",
+   "target": "effective absorption band",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "metrics,summarizes",
+    "truncate": "",
+    "file_path": "2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies.pdf",
+    "source_id": "doc-1cd3751658013c96b7aa9da415fca333-chunk-013",
+    "created_at": 1786683631,
+    "description": "Table 1 summarizes representative designs in terms of effective absorption band and other metrics."
+   }
+  },
+  {
+   "source": "Table 1",
+   "target": "frequency detuning level",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "results,summary",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-014",
+    "created_at": 1786683667,
+    "description": "Table 1 summarizes the optimization results under different frequency detuning levels."
+   }
+  },
+  {
+   "source": "Table 1",
+   "target": "normalized thickness t/lambda_min",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "metrics,summarizes",
+    "truncate": "",
+    "file_path": "2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies.pdf",
+    "source_id": "doc-1cd3751658013c96b7aa9da415fca333-chunk-013",
+    "created_at": 1786683631,
+    "description": "Table 1 summarizes representative designs in terms of normalized thickness t/lambda_min."
+   }
+  },
+  {
+   "source": "Table 1",
+   "target": "peak or band-averaged absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "metrics,summarizes",
+    "truncate": "",
+    "file_path": "2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies.pdf",
+    "source_id": "doc-1cd3751658013c96b7aa9da415fca333-chunk-013",
+    "created_at": 1786683631,
+    "description": "Table 1 summarizes representative designs in terms of peak or band-averaged absorption coefficient."
+   }
+  },
+  {
+   "source": "Figure 5(c)",
+   "target": "Table 2",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "transforms data from",
+    "truncate": "",
+    "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+    "source_id": "doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011",
+    "created_at": 1786683680,
+    "description": "Figure 5(c) transforms the data from Table 2 into a scatter plot."
+   }
+  },
+  {
+   "source": "Table 2",
+   "target": "Type Il MOS",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,used in",
+    "truncate": "",
+    "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+    "source_id": "doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011",
+    "created_at": 1786683680,
+    "description": "Type Il MOS is used in Table 2 for comparison."
+   }
+  },
+  {
+   "source": "Table 2",
+   "target": "overall performance metric",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "results,summary",
+    "truncate": "",
+    "file_path": "2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber.pdf",
+    "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-022",
+    "created_at": 1786683667,
+    "description": "Table 2 summarizes optimization results including U_2 values for different absorbers under various detuning levels."
+   }
+  },
+  {
+   "source": "Table 5",
+   "target": "structural geometric parameters",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "contains,lists",
+    "truncate": "",
+    "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+    "source_id": "doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-013",
+    "created_at": 1786683680,
+    "description": "Table 5 contains the structural geometric parameters for the two types of MOS."
+   }
+  },
+  {
+   "source": "MOS structure",
+   "target": "Table 7",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "provides parameters",
+    "truncate": "",
+    "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+    "source_id": "doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-018",
+    "created_at": 1786683681,
+    "description": "Table 7 provides the related parameters of the two MOS structures."
+   }
+  },
+  {
+   "source": "Table 7",
+   "target": "double-layer overlapping structure",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "parameter specification",
+    "truncate": "",
+    "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+    "source_id": "doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-017",
+    "created_at": 1786683680,
+    "description": "Detailed structural parameter information for the double-layer overlapping structure is given in Table 7."
+   }
+  },
+  {
+   "source": "Table 7",
+   "target": "triple-layer overlapping structure",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "parameter specification",
+    "truncate": "",
+    "file_path": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+    "source_id": "doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-017",
+    "created_at": 1786683680,
+    "description": "Detailed structural parameter information for the triple-layer overlapping structure is given in Table 7."
+   }
+  }
+ ]
+}

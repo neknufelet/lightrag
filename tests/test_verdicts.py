@@ -35,6 +35,10 @@ BASELINE = {
     "review_md": 5,       # records/review/*.md（各族群的定案）
     "review_bundle": 27,  # records/review/20260803-speedup-symbol3/
     "doc_review": 1,      # work/crops/<doc>/review.md
+    # 2026-08-16 新增這一格。README 早就把它列為不可再生（被刪的節點是 LLM 抽出來
+    # 的，重跑要花錢，而 LightRAG 沒有 undo —— 這是唯一的回頭路），**但守衛沒有在
+    # 看它**：08-14 的四份與 08-16 的一份都不在版控裡，跟體檢表同一個洞。
+    "graph_clean": 6,     # records/graph-clean/graph-clean-backup.*.json
 }
 
 
@@ -51,6 +55,9 @@ def _actual() -> dict[str, int]:
         "review_md": _count(records / "review", "*.md"),
         "review_bundle": _count(records / "review" / "20260803-speedup-symbol3", "*"),
         "doc_review": _count(crops, "*/review.md"),
+        # 只數 backup —— `plan --out` 的輸出也落在同一個目錄，而那個是可再生的，
+        # 數進來會讓基準隨「有沒有人剛好跑過 plan」浮動。
+        "graph_clean": _count(records / "graph-clean", "graph-clean-backup.*.json"),
     }
 
 

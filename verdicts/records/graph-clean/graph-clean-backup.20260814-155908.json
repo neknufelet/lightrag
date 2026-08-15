@@ -1,0 +1,2167 @@
+{
+ "entities": {
+  "Eq. 4": {
+   "truncate": "",
+   "entity_id": "Eq. 4",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+   "created_at": 1786693974,
+   "description": "An equation representing the entropy-to-budget mapping.",
+   "entity_type": "other"
+  },
+  "Equation 10a": {
+   "truncate": "",
+   "entity_id": "Equation 10a",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+   "created_at": 1786693895,
+   "description": "An equation that defines the dynamic tortuosity α(ω), expressing the effects of air viscosity on the effective mass density.",
+   "entity_type": "concept"
+  },
+  "Equation 10b": {
+   "truncate": "",
+   "entity_id": "Equation 10b",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+   "created_at": 1786693895,
+   "description": "An equation that defines the thermal tortuosity α_τ(ω), reflecting the influence of thermal conduction on the effective bulk modulus.",
+   "entity_type": "concept"
+  },
+  "Equation 12": {
+   "truncate": "",
+   "entity_id": "Equation 12",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+   "created_at": 1786693895,
+   "description": "An equation that expresses the surface impedance Z(ω) of a porous layer in terms of effective parameters: Z(ω) = i√(ρ_e B_e) cot(ωd√(ρ_e/B_e)).<SEP>An equation predicting the absorption spectrum of glass wool as a function of static permeability.",
+   "entity_type": "concept"
+  },
+  "Equation 13": {
+   "truncate": "",
+   "entity_id": "Equation 13",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-015<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+   "created_at": 1786693896,
+   "description": "Equation providing the effective mass for perforated panels.<SEP>An equation predicting the absorption spectrum of MPP as a function of pore diameter.",
+   "entity_type": "other"
+  },
+  "Equation 17": {
+   "truncate": "",
+   "entity_id": "Equation 17",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-012<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The equation for the Green function that yields an approximation near the antiresonance frequency.<SEP>The equation for DM (likely dynamic mass density) that is similar to the impedance formula for the metamaterial.",
+   "entity_type": "other"
+  },
+  "Equation 27": {
+   "truncate": "",
+   "entity_id": "Equation 27",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-012",
+   "created_at": 1786693896,
+   "description": "The equation defining the impedance Z of the sealed cell, which must be satisfied in subwavelength thin air layers.",
+   "entity_type": "other"
+  },
+  "Equation 28": {
+   "truncate": "",
+   "entity_id": "Equation 28",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-012",
+   "created_at": 1786693896,
+   "description": "The equation for the imaginary part of the Green function of the composite structure, which exhibits a peak at the total absorption condition.",
+   "entity_type": "other"
+  },
+  "Equation 30": {
+   "truncate": "",
+   "entity_id": "Equation 30",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-011<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-013<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+   "created_at": 1786693896,
+   "description": "An equation used to calculate the solid curves for panels e, f, and g, representing the impedance and absorption coefficient of the hybrid absorber.<SEP>Equation providing the impedance Z, used to predict absorption spectra.<SEP>An equation predicting the absorption spectrum of metamaterial DM hybrid resonant absorbers as a function of dissipative parameter.",
+   "entity_type": "other"
+  },
+  "Equation 33": {
+   "truncate": "",
+   "entity_id": "Equation 33",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The equation referenced for consistency of the oscillator strength α_n for FP channels.",
+   "entity_type": "other"
+  },
+  "Equation 36": {
+   "truncate": "",
+   "entity_id": "Equation 36",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-018<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+   "created_at": 1786693896,
+   "description": "An equation representing the causality relation that relates absorption bandwidth and sample thickness.<SEP>A causal constraint equation used to evaluate the minimum sample thickness for a given absorption spectrum, central to assessing causal optimality.<SEP>The equation from which d_min is evaluated, referenced in the context of determining the unique value of φ.",
+   "entity_type": "other"
+  },
+  "Equation 37": {
+   "truncate": "",
+   "entity_id": "Equation 37",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The impedance formula for an acoustic metamaterial with multiple resonances, given by Z = iρ0d/ω (Σ_n α_n/(Ω_n^2 - ω^2 - 2iβω))^{-1}.",
+   "entity_type": "other"
+  },
+  "Equation 38": {
+   "truncate": "",
+   "entity_id": "Equation 38",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+   "created_at": 1786693896,
+   "description": "An equation used to evaluate the surface impedance Z for the idealized BOMA model.<SEP>The integral form of the impedance for a continuum distribution of resonances, with lower cutoff Ω_1.",
+   "entity_type": "other"
+  },
+  "Equation 39": {
+   "truncate": "",
+   "entity_id": "Equation 39",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The limit expression showing that the imaginary part of the integrand approaches πμ(Ω)δ(ω^2 - Ω^2).",
+   "entity_type": "other"
+  },
+  "Equation 40": {
+   "truncate": "",
+   "entity_id": "Equation 40",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The simplified impedance expression Z ≈ 2ρ0d/(πμ(ω)) after applying the Dirac delta function.",
+   "entity_type": "other"
+  },
+  "Equation 41": {
+   "truncate": "",
+   "entity_id": "Equation 41",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+   "created_at": 1786693896,
+   "description": "An equation referenced in the text that relates the mode density μ to the air impedance and thickness for a BOMA.<SEP>The relation μ(ω) = α(ω)D(ω) = 2ρ0d/(πZ(ω)).",
+   "entity_type": "other"
+  },
+  "Equation 42": {
+   "truncate": "",
+   "entity_id": "Equation 42",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The differential equation dΩ/dn = πα(Ω)Z(Ω)/(2ρ0d) for the mode distribution.",
+   "entity_type": "other"
+  },
+  "Equation 43": {
+   "truncate": "",
+   "entity_id": "Equation 43",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The differential equation dΩ/dn = (2φ/N)(Z(Ω)/Z0)Ω after substituting α for FP channels.",
+   "entity_type": "other"
+  },
+  "Equation 44": {
+   "truncate": "",
+   "entity_id": "Equation 44",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+   "created_at": 1786693896,
+   "description": "The expression for Z(ω) in terms of the target absorption spectrum A(ω): Z(ω) = Z0[2 - A(ω) + 2√(1 - A(ω))]/A(ω).",
+   "entity_type": "other"
+  },
+  "Equation 45": {
+   "truncate": "",
+   "entity_id": "Equation 45",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+   "created_at": 1786693896,
+   "description": "An equation giving the surface impedance Z for the idealized BOMA as a function of frequency and cutoff frequency.",
+   "entity_type": "other"
+  },
+  "Equation 46": {
+   "truncate": "",
+   "entity_id": "Equation 46",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+   "created_at": 1786693896,
+   "description": "An equation giving the absorption coefficient A for the idealized BOMA as a function of frequency and cutoff frequency.",
+   "entity_type": "other"
+  },
+  "Equation 49": {
+   "truncate": "",
+   "entity_id": "Equation 49",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-022",
+   "created_at": 1786693896,
+   "description": "An equation used to set the parameter beta to 7.1 Hz for predicting the renormalized impedance.",
+   "entity_type": "concept"
+  },
+  "Equation 51": {
+   "truncate": "",
+   "entity_id": "Equation 51",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-022",
+   "created_at": 1786693896,
+   "description": "An equation referenced in the text that defines the impedance and includes terms for the renormalized Green function and coupling contributions.",
+   "entity_type": "concept"
+  },
+  "Equation 9": {
+   "truncate": "",
+   "entity_id": "Equation 9",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-022",
+   "created_at": 1786693895,
+   "description": "An equation in the effective medium theory that calculates the effective mass density and bulk modulus of a porous medium, based on parameters such as porosity, flow resistivity, tortuosity, and characteristic lengths. Its validity was confirmed by the experiment of Allard et al.<SEP>An equation that provides the effective density of the sponge as a function of frequency.",
+   "entity_type": "concept"
+  },
+  "Fig. 1": {
+   "truncate": "",
+   "entity_id": "Fig. 1",
+   "file_path": "2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+   "source_id": "doc-ebedb1973127f7bde592187516769b91-chunk-004<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-009<SEP>doc-b22dfe5cacb0aba0bfc1051bae014870-chunk-008<SEP>doc-dfd39482a9fca9beb7de7245f5b00031-chunk-004<SEP>doc-77f927ea51d86223a4015b58c98fa526-chunk-006<SEP>doc-b2d5870145234167b87c86fddbd7e26b-chunk-000",
+   "created_at": 1786693994,
+   "description": "A figure showing the geometry of the VMA, including a schematic cross section and details of an absorption unit.",
+   "entity_type": "other"
+  },
+  "Fig. 10": {
+   "truncate": "",
+   "entity_id": "Fig. 10",
+   "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf<SEP>2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf<SEP>2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+   "source_id": "doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-c714fbab64f32786eb604645fc417c39-chunk-009<SEP>doc-cfc7024b25aef25884837379d26e8fec-chunk-007<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+   "created_at": 1786693895,
+   "description": "A figure showing the photograph of the optimal single-layer HREN and the predicted and measured sound absorption coefficients, with good agreement.<SEP>A figure showing sound absorption spectra of the designed supercell under normal and oblique incidences.<SEP>A figure showing the analytical and experimental absorption coefficient of the DR with tubes assembled in series, including 3D CAD sections of the geometry.",
+   "entity_type": "content"
+  },
+  "Fig. 11": {
+   "truncate": "",
+   "entity_id": "Fig. 11",
+   "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf<SEP>2014 - Homogenization scheme for acoustic metamaterials.pdf<SEP>2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator.pdf",
+   "source_id": "doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011<SEP>doc-c714fbab64f32786eb604645fc417c39-chunk-009<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012<SEP>doc-b858cf9de8e02f10222625b2e81b633c-chunk-006",
+   "created_at": 1786693715,
+   "description": "A figure depicting the contour of reflection coefficient in the complex frequency plane of the optimal single-layer absorber.<SEP>A figure showing the effective parameters of the decorated-membrane structure as functions of frequency.<SEP>A figure in the paper showing that the optimization results vary for different target bands.",
+   "entity_type": "other"
+  },
+  "Fig. 11a": {
+   "truncate": "",
+   "entity_id": "Fig. 11a",
+   "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+   "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+   "created_at": 1786693895,
+   "description": "A figure illustrating the effect of the A2/A1 ratio on the resonance frequencies and absorption peaks of the DR with tubes in series.",
+   "entity_type": "content"
+  },
+  "Fig. 11b": {
+   "truncate": "",
+   "entity_id": "Fig. 11b",
+   "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+   "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+   "created_at": 1786693895,
+   "description": "A figure showing the influence of the length of tube 2 on the frequency bandwidth and double resonances.",
+   "entity_type": "content"
+  },
+  "Fig. 12": {
+   "truncate": "",
+   "entity_id": "Fig. 12",
+   "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf<SEP>2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+   "source_id": "doc-430ae5274e630896683ad44dd97c9486-chunk-008<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+   "created_at": 1786693895,
+   "description": "A figure comparing calculated and experimental transmission and reflection coefficients.<SEP>A figure showing the analytical and experimental absorption coefficient of the MR in parallel, including 3D CAD sections of the geometry.",
+   "entity_type": "content"
+  },
+  "Fig. 2": {
+   "truncate": "",
+   "entity_id": "Fig. 2",
+   "file_path": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf<SEP>2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf<SEP>2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+   "source_id": "doc-7a524d9785b1e0d4de4eace68c2b22b7-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-002<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-dfd39482a9fca9beb7de7245f5b00031-chunk-004<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-004<SEP>doc-87d7e3c24e7d37fd492bc2489825e281-chunk-003<SEP>doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-005<SEP>doc-b2d5870145234167b87c86fddbd7e26b-chunk-000",
+   "created_at": 1786693994,
+   "description": "A figure showing theoretical predictions and numerical simulations of sound absorption coefficients and relative acoustic impedance for metastructures with different W1.<SEP>A figure showing the sound absorption coefficients for metastructures with different w1 values, including UCCC for comparison.<SEP>Figure presenting the PARISM algorithm, showing initialization steps and an overview.<SEP>A figure showing simulated absorption results for the VMA with one layer and two layers.",
+   "entity_type": "other"
+  },
+  "Fig. 3": {
+   "truncate": "",
+   "entity_id": "Fig. 3",
+   "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf<SEP>2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf<SEP>2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf<SEP>2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+   "source_id": "doc-c10df1177d78839a8cc89ebc32659d9f-chunk-002<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-007<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-006<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-007<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-009<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-002<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008<SEP>doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004<SEP>doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-005",
+   "created_at": 1786693994,
+   "description": "A figure showing the effective parameters of the layered lattice as functions of frequency, with band gaps shaded in gray.<SEP>A figure showing sound absorption coefficients under different W1 and complex frequency plane plots.<SEP>An illustration showing the two panel designs: a panel with variable-height BLMs and a panel with equal-height BLMs.<SEP>Figure illustrating angles of reflections with surfaces in reflection paths of image sources.",
+   "entity_type": "other"
+  },
+  "Fig. 4": {
+   "truncate": "",
+   "entity_id": "Fig. 4",
+   "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf<SEP>2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf<SEP>2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-1a8f19ad08ee37ee2a80f906927859d4-chunk-004<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-010<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-009<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-002<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-eb5b0782a0292a358a216146c1010d14-chunk-010<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-004<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008<SEP>doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+   "created_at": 1786693994,
+   "description": "A figure showing intensity transmission coefficients for samples with one, five, and ten layers, comparing homogenization predictions with simulations.<SEP>A figure showing absorption spectrum varying with perforated diameter d and plate thickness t0.<SEP>A figure showing the mean and standard deviations of room acoustical parameters from PARISM.",
+   "entity_type": "other"
+  },
+  "Fig. 5": {
+   "truncate": "",
+   "entity_id": "Fig. 5",
+   "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf<SEP>2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-eb5b0782a0292a358a216146c1010d14-chunk-010<SEP>doc-8656500d4b1f5971f40e3857e33de83c-chunk-002<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+   "created_at": 1786693994,
+   "description": "A figure showing transmission through a five-layer sample at three frequencies, illustrating differences between effective fields and actual motions inside the unit cell.<SEP>A figure showing the absorption coefficient and impedance of the ceiling used in comparisons.",
+   "entity_type": "other"
+  },
+  "Fig. 6": {
+   "truncate": "",
+   "entity_id": "Fig. 6",
+   "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf<SEP>2010 - Diffuse Reverberation Model for Efficient Image-Source Simulation of Room Impulse Responses.pdf<SEP>2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-ebedb1973127f7bde592187516769b91-chunk-004<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-6e99642530d02122eb343dec991ff319-chunk-007<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-006<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-8656500d4b1f5971f40e3857e33de83c-chunk-002<SEP>doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006<SEP>doc-b431eb6ac8342fb96e8b471bb146d20f-chunk-008<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+   "created_at": 1786693994,
+   "description": "An illustration showing sound pressure and velocity contour plots for the absorption peaks of six quasi-perfect sound-absorbing BLM units.<SEP>A figure in the present work demonstrating the performance of the EDC prediction method.<SEP>A figure showing simulation results comparing ISM and FEM frequency responses.",
+   "entity_type": "other"
+  },
+  "Fig. 7": {
+   "truncate": "",
+   "entity_id": "Fig. 7",
+   "file_path": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf",
+   "source_id": "doc-2b92a55d7db8032eba931c411bbe01bc-chunk-009<SEP>doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-ebedb1973127f7bde592187516769b91-chunk-004<SEP>doc-6e99642530d02122eb343dec991ff319-chunk-007<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-8656500d4b1f5971f40e3857e33de83c-chunk-002<SEP>doc-4c1c7a97c0c4cc31ee31afcb8329e8b3-chunk-005",
+   "created_at": 1786693534,
+   "description": "A figure showing distributions of sound pressure, particle vibration velocity, and energy dissipation density at resonance of a single re-entrant sound absorber.",
+   "entity_type": "content"
+  },
+  "Fig. 9": {
+   "truncate": "",
+   "entity_id": "Fig. 9",
+   "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf<SEP>2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+   "source_id": "doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-3b77f5c6525823a2d94dcd5bfd9db70f-chunk-011<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-016<SEP>doc-430ae5274e630896683ad44dd97c9486-chunk-008<SEP>doc-c714fbab64f32786eb604645fc417c39-chunk-009<SEP>doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+   "created_at": 1786693711,
+   "description": "A figure showing the iteration history of the optimization, where the average absorption coefficient increases fast initially then becomes steady.<SEP>A figure showing the geometry and dimensions of a sub-cell and a supercell for broadband sound absorption.",
+   "entity_type": "content"
+  },
+  "Figure 1": {
+   "truncate": "",
+   "entity_id": "Figure 1",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-695dd978dd918b4aa71369a6841ceaed-chunk-012<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+   "created_at": 1786693896,
+   "description": "A figure showing the structure of glass wool, referenced as the first example.",
+   "entity_type": "content"
+  },
+  "Figure 2": {
+   "truncate": "",
+   "entity_id": "Figure 2",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-44860f11547c92c039c55ba2dd4ad41f-chunk-003<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-017<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-005<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-007",
+   "created_at": 1786693973,
+   "description": "A figure illustrating the structure of MPP, referenced as the second example.<SEP>A figure with a right panel visualizing the response-level error taxonomy.<SEP>A figure in the paper visualizing the efficiency Pareto and failure-mode breakdown. Note: this is a position marker and should not be extracted as an entity per the rules, but it was incorrectly included in the previous response as a relationship target. This correction removes it.",
+   "entity_type": "content"
+  },
+  "Figure 4": {
+   "truncate": "",
+   "entity_id": "Figure 4",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-011<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+   "created_at": 1786693974,
+   "description": "A figure plotting the isotonic-regression mapping from draft entropy to predicted thinking budget.<SEP>A figure illustrating the entropy-to-budget mapping.",
+   "entity_type": "other"
+  },
+  "Figure 6g": {
+   "truncate": "",
+   "entity_id": "Figure 6g",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+   "created_at": 1786693896,
+   "description": "A figure showing the absorption coefficient greater than 0.99 at 152 Hz.",
+   "entity_type": "content"
+  },
+  "Figure 7c": {
+   "truncate": "",
+   "entity_id": "Figure 7c",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+   "created_at": 1786693896,
+   "description": "A figure showing the experimental setup with an aluminum-reflecting wall behind a DM.",
+   "entity_type": "content"
+  },
+  "Figure 7g": {
+   "truncate": "",
+   "entity_id": "Figure 7g",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+   "created_at": 1786693896,
+   "description": "A figure showing the absorption spectrum predicted by Equation 30 confirmed by experimental data.",
+   "entity_type": "content"
+  },
+  "Figure 9": {
+   "truncate": "",
+   "entity_id": "Figure 9",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-93a849cf496130e26d178fca057c7455-chunk-014<SEP>doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+   "created_at": 1786693896,
+   "description": "A figure containing plots of minimum sample thickness versus parameters and absorption spectra for various structures, illustrating causal optimality.",
+   "entity_type": "content"
+  },
+  "Reference 26": {
+   "truncate": "",
+   "entity_id": "Reference 26",
+   "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+   "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+   "created_at": 1786693896,
+   "description": "A reference reporting experiments that corroborated the existence of the hybrid resonance.",
+   "entity_type": "content"
+  },
+  "Section 3": {
+   "truncate": "",
+   "entity_id": "Section 3",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+   "created_at": 1786693974,
+   "description": "A section in the paper where artifact creators are cited.",
+   "entity_type": "other"
+  },
+  "Section 5.2": {
+   "truncate": "",
+   "entity_id": "Section 5.2",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-005",
+   "created_at": 1786693973,
+   "description": "A section in the paper containing error analysis. Note: this is a position marker and should not be extracted as an entity per the rules, but it was incorrectly included in the previous response as a relationship target. This correction removes it.",
+   "entity_type": "other"
+  },
+  "Table 1": {
+   "truncate": "",
+   "entity_id": "Table 1",
+   "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf<SEP>2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial.pdf<SEP>2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator.pdf<SEP>2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-59b754c08b59562bfbfccea045ee62a6-chunk-016<SEP>doc-f8a6ed23676968ebde9cdcb6db9effd7-chunk-007<SEP>doc-63c725230d6346f9a5e771eb0d360608-chunk-004<SEP>doc-363fb0fa40fea77f89fa28be2f9b69e2-chunk-004<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-004<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-007<SEP>doc-e712fb13badfe09e64d1f13b0797e68e-chunk-002<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-1a8f19ad08ee37ee2a80f906927859d4-chunk-004<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-017<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-006<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-007<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-002<SEP>doc-695dd978dd918b4aa71369a6841ceaed-chunk-012<SEP>doc-08c5c4033102c01b185be24492549b4d-chunk-003<SEP>doc-b55451a32b05a6ab7f1f863bf974eb51-chunk-007<SEP>doc-82ff838bdd962c8690907a4e7e0fe520-chunk-004<SEP>doc-f447664a32a96fa279824b444c5489f3-chunk-026<SEP>doc-f447664a32a96fa279824b444c5489f3-chunk-031<SEP>doc-f447664a32a96fa279824b444c5489f3-chunk-042<SEP>doc-1cd3751658013c96b7aa9da415fca333-chunk-013<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-014<SEP>doc-c714fbab64f32786eb604645fc417c39-chunk-009<SEP>doc-8774908466b3723a90c592ff9715ddcb-chunk-005<SEP>doc-b858cf9de8e02f10222625b2e81b633c-chunk-006<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-003<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-005<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+   "created_at": 1786693973,
+   "description": "A table listing the geometric parameters r_n^(1), E^(1), r_n^(2), E^(2), and resonance frequencies f_r for units 1-9 of the optimal single-layer HREN.<SEP>A table listing geometrical parameters of the folded slit for PLAMs with different fold numbers.<SEP>A table in the paper showing the optimization results of MPPHR, referenced in the text.<SEP>A table listing the most reliable expressions of the five parameters needed by the JCA model.<SEP>A table reporting routing signals in open-ended math/code settings.<SEP>A table in the paper summarizing the main comparison across models and benchmarks. Note: this is a position marker and should not be extracted as an entity per the rules, but it was incorrectly included in the previous response as a relationship target. This correction removes it.",
+   "entity_type": "other"
+  },
+  "Table 11": {
+   "truncate": "",
+   "entity_id": "Table 11",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-641f46656f7e45c43c03512a2b894771-chunk-006<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-010",
+   "created_at": 1786693973,
+   "description": "A table in the paper that contrasts unanimity at K=2 and K=3 with K=3 majority voting on MATH-500.",
+   "entity_type": "content"
+  },
+  "Table 12": {
+   "truncate": "",
+   "entity_id": "Table 12",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-010",
+   "created_at": 1786693973,
+   "description": "A table in the paper that reports a sweep over K ∈ {1, 2, 3, 4} with a strict budget cap of 4096 thinking tokens.",
+   "entity_type": "content"
+  },
+  "Table 13": {
+   "truncate": "",
+   "entity_id": "Table 13",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+   "created_at": 1786693974,
+   "description": "A table reporting routing signals on multiple-choice benchmarks.",
+   "entity_type": "other"
+  },
+  "Table 14": {
+   "truncate": "",
+   "entity_id": "Table 14",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+   "created_at": 1786693974,
+   "description": "A table reporting the effect of thinking-budget cap on accuracy.",
+   "entity_type": "other"
+  },
+  "Table 15": {
+   "truncate": "",
+   "entity_id": "Table 15",
+   "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+   "created_at": 1786693974,
+   "description": "A table reporting the effect of draft sampling temperature on accuracy.",
+   "entity_type": "other"
+  },
+  "Table 2": {
+   "truncate": "",
+   "entity_id": "Table 2",
+   "file_path": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf<SEP>2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial.pdf<SEP>2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-59b754c08b59562bfbfccea045ee62a6-chunk-016<SEP>doc-f8a6ed23676968ebde9cdcb6db9effd7-chunk-008<SEP>doc-363fb0fa40fea77f89fa28be2f9b69e2-chunk-004<SEP>doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-e712fb13badfe09e64d1f13b0797e68e-chunk-002<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-017<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-006<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-007<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-013<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-4f49dfa6cf88fe7b12050769e4e04b50-chunk-004<SEP>doc-b55451a32b05a6ab7f1f863bf974eb51-chunk-007<SEP>doc-430ae5274e630896683ad44dd97c9486-chunk-008<SEP>doc-93a849cf496130e26d178fca057c7455-chunk-022<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011<SEP>doc-4c1c7a97c0c4cc31ee31afcb8329e8b3-chunk-005<SEP>doc-8774908466b3723a90c592ff9715ddcb-chunk-005<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-006<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-005<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+   "created_at": 1786693973,
+   "description": "A table listing the dimensions (da and lq) for units 1 through 8 of the single re-entrant sound absorber.<SEP>A table listing JCA parameters of the porous matrix that were varied in the study.<SEP>A table reporting the geometric dimensions of the SR samples, including resonance frequency, diameter, inlet hole side length, tube length, and thickness.<SEP>A table in the paper containing supervised-router rows with cross-validation results.<SEP>A table in the paper comparing DART against baselines on Qwen3-8B. Note: this is a position marker and should not be extracted as an entity per the rules, but it was incorrectly included in the previous response as a relationship target. This correction removes it.",
+   "entity_type": "other"
+  },
+  "Table 3": {
+   "truncate": "",
+   "entity_id": "Table 3",
+   "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf<SEP>2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf<SEP>2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-007<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-007<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-005<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-021<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-008<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-003<SEP>doc-4f49dfa6cf88fe7b12050769e4e04b50-chunk-008<SEP>doc-695dd978dd918b4aa71369a6841ceaed-chunk-016<SEP>doc-606442899a6e2e51579ab4e1c7456724-chunk-003<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011<SEP>doc-cfc7024b25aef25884837379d26e8fec-chunk-007<SEP>doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-006<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-005",
+   "created_at": 1786693973,
+   "description": "A table listing geometrical parameters of subwavelength HRs, target frequencies of sub-cells, and resonance frequencies of subwavelength HRs obtained from each design step.<SEP>A table detailing the optimized geometric parameters of nine units with side lengths of 50 and 100 mm.<SEP>A table giving the geometric dimensions of the DR and MR samples.<SEP>A table in the paper reporting mean total generation tokens on Qwen3-8B. Note: this is a position marker and should not be extracted as an entity per the rules, but it was incorrectly included in the previous response as a relationship target. This correction removes it.",
+   "entity_type": "other"
+  },
+  "Table 4": {
+   "truncate": "",
+   "entity_id": "Table 4",
+   "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf<SEP>2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-363fb0fa40fea77f89fa28be2f9b69e2-chunk-013<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-021<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-013<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-004<SEP>doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-4f49dfa6cf88fe7b12050769e4e04b50-chunk-008<SEP>doc-c7c7d7760a2750b3e5530da477bcfb11-chunk-008<SEP>doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-007",
+   "created_at": 1786693973,
+   "description": "A table displaying the parameters of the equal-height and variable-height BLM units at different scales.<SEP>A table summarizing the analytical and experimental peak frequencies for the DR with tubes assembled in series.<SEP>A table comparing two-stage and one-phase AT measurement protocols at matched budgets on MATH-500.",
+   "entity_type": "content"
+  },
+  "Table 5": {
+   "truncate": "",
+   "entity_id": "Table 5",
+   "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-63c725230d6346f9a5e771eb0d360608-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-087<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-103<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-104<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-013<SEP>doc-a7478d95d95f512c0e984166583202d5-chunk-008<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-005<SEP>doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-013<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-007",
+   "created_at": 1786693973,
+   "description": "A table presenting the comparison between analytical and experimental results for the DR sample with coiled tubes coupled in series.<SEP>A table showing the iso-accuracy comparison, placing DART's reduction at 5.7-fold fewer tokens.",
+   "entity_type": "content"
+  },
+  "Table 6": {
+   "truncate": "",
+   "entity_id": "Table 6",
+   "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf<SEP>2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+   "source_id": "doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-008<SEP>doc-991a02cb0f0b243b875e528d0278426c-chunk-119<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-016<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-078ccd207848cb6c51625f3246c149f0-chunk-003<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-008",
+   "created_at": 1786693973,
+   "description": "A table presenting the comparison between analytical and experimental absorption peak frequencies for the MR absorber.<SEP>A table summarizing training and deployment constraints of adaptive reasoning routers.",
+   "entity_type": "other"
+  },
+  "Table I": {
+   "truncate": "",
+   "entity_id": "Table I",
+   "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf<SEP>2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section.pdf<SEP>2010 - Diffuse Reverberation Model for Efficient Image-Source Simulation of Room Impulse Responses.pdf<SEP>2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+   "source_id": "doc-c1a862b21eba2aa8e3500dad9d38f46e-chunk-001<SEP>doc-7a524d9785b1e0d4de4eace68c2b22b7-chunk-003<SEP>doc-c10df1177d78839a8cc89ebc32659d9f-chunk-002<SEP>doc-6cf3a91de2141deba50a62aadc932829-chunk-003<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-002<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-007<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-009<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-30249e0029d0c26f2f2c22cccba6cc9d-chunk-008<SEP>doc-06172c147c5e3bf7cfb37a0ef71d4a86-chunk-007<SEP>doc-b22dfe5cacb0aba0bfc1051bae014870-chunk-008<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-bb410125e1030329819b215004deb02d-chunk-013<SEP>doc-eb5b0782a0292a358a216146c1010d14-chunk-010<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-003<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-004<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008<SEP>doc-a49d76a1851003835b28f4613494684e-chunk-005<SEP>doc-b431eb6ac8342fb96e8b471bb146d20f-chunk-008<SEP>doc-b2d5870145234167b87c86fddbd7e26b-chunk-000",
+   "created_at": 1786693994,
+   "description": "A table listing the eigenmode parameters omega_i, rho_i, and boundary displacements phi_i(±a) for the unit cell.<SEP>A table presenting the representative tunable frequency range (within alpha_peak > 99%) of EGCS, LGCS, and UCS absorbers with various N.<SEP>A table in the paper providing typical numerical values for objective acoustic parameters computed for two example RIRs, along with just-noticeable difference (JND) thresholds.<SEP>A table listing geometric parameters of the VMA for demonstration, including L=90, a=35, b=45, w_ch=1.6, w_gap=1.6, w_wa=2.",
+   "entity_type": "other"
+  },
+  "Table II": {
+   "truncate": "",
+   "entity_id": "Table II",
+   "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+   "source_id": "doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-30249e0029d0c26f2f2c22cccba6cc9d-chunk-008<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-bb410125e1030329819b215004deb02d-chunk-016<SEP>doc-bb410125e1030329819b215004deb02d-chunk-018<SEP>doc-05ba13fe44f670ab97ee9e96a3fb65d6-chunk-011<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-009",
+   "created_at": 1786693994,
+   "description": "A table in the paper that lists the absorption and scattering coefficients for the surfaces of the irregular room for different cases.",
+   "entity_type": "other"
+  },
+  "Table III": {
+   "truncate": "",
+   "entity_id": "Table III",
+   "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+   "source_id": "doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-013<SEP>doc-30249e0029d0c26f2f2c22cccba6cc9d-chunk-008<SEP>doc-bb410125e1030329819b215004deb02d-chunk-018<SEP>doc-dfd39482a9fca9beb7de7245f5b00031-chunk-004<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+   "created_at": 1786693601,
+   "description": "A table containing the relevant parameters for Eq. (20), including eigenfrequencies, densities, displacements, and dissipation coefficients.",
+   "entity_type": "other"
+  }
+ },
+ "relations": [
+  {
+   "source": "Eq. 4",
+   "target": "entropy-to-budget mapping",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "mapping,represents",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Eq. 4 represents the entropy-to-budget mapping."
+   }
+  },
+  {
+   "source": "Equation 10a",
+   "target": "dynamic tortuosity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,effective medium,viscosity",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+    "created_at": 1786693923,
+    "description": "Equation 10a defines the dynamic tortuosity α(ω)."
+   }
+  },
+  {
+   "source": "Equation 10b",
+   "target": "thermal tortuosity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,effective medium,thermal conduction",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+    "created_at": 1786693922,
+    "description": "Equation 10b defines the thermal tortuosity α_τ(ω)."
+   }
+  },
+  {
+   "source": "Equation 12",
+   "target": "glass wool",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "predicts absorption spectrum",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Equation 12 predicts the absorption spectrum of glass wool, used in the causal integral to assess optimality."
+   }
+  },
+  {
+   "source": "Equation 12",
+   "target": "surface impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,impedance,porous layer",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+    "created_at": 1786693922,
+    "description": "Equation 12 provides the expression for the surface impedance Z(ω) of a porous layer."
+   }
+  },
+  {
+   "source": "Equation 13",
+   "target": "MPP",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "predicts absorption spectrum",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Equation 13 predicts the absorption spectrum of MPP, used in the causal integral to assess optimality."
+   }
+  },
+  {
+   "source": "Equation 13",
+   "target": "effective mass",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "corresponds to",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-015",
+    "created_at": 1786693930,
+    "description": "The effective mass in a narrow-neck HR corresponds to that shown in Equation 13."
+   }
+  },
+  {
+   "source": "Equation 17",
+   "target": "gc",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "approximation",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-012",
+    "created_at": 1786693930,
+    "description": "Equation 17 provides an approximation for the Green function near the antiresonance frequency."
+   }
+  },
+  {
+   "source": "Equation 17",
+   "target": "impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "analogous,similar to",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693931,
+    "description": "Equation 17 for DM is similar to the impedance formula for the acoustic metamaterial."
+   }
+  },
+  {
+   "source": "Equation 27",
+   "target": "Z",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "defines",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-012",
+    "created_at": 1786693930,
+    "description": "Equation 27 defines the impedance Z of the sealed cell."
+   }
+  },
+  {
+   "source": "Equation 28",
+   "target": "gc",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "defines imaginary part",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-012",
+    "created_at": 1786693930,
+    "description": "Equation 28 gives the imaginary part of the Green function gc."
+   }
+  },
+  {
+   "source": "Equation 30",
+   "target": "Figure 7g",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "confirms,prediction",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+    "created_at": 1786693930,
+    "description": "Figure 7g shows the absorption spectrum predicted by Equation 30 confirmed by experimental data."
+   }
+  },
+  {
+   "source": "Equation 30",
+   "target": "absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "absorption,calculation",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-011",
+    "created_at": 1786693930,
+    "description": "Equation 30 is used to calculate the absorption coefficient for the hybrid absorber."
+   }
+  },
+  {
+   "source": "Equation 30",
+   "target": "impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "formula,provides",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+    "created_at": 1786693930,
+    "description": "Equation 30 provides the formula for impedance Z."
+   }
+  },
+  {
+   "source": "Equation 30",
+   "target": "metamaterial DM hybrid resonant absorbers",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "predicts absorption spectrum",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Equation 30 predicts the absorption spectrum of metamaterial DM hybrid resonant absorbers, used in the causal integral."
+   }
+  },
+  {
+   "source": "Equation 33",
+   "target": "oscillator strength",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "consistent with,referenced by",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 33 is referenced to ensure consistency of the oscillator strength α_n for FP channels."
+   }
+  },
+  {
+   "source": "Equation 36",
+   "target": "causal optimality",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "defines,evaluates",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Equation 36 defines the causal integral used to evaluate causal optimality by computing minimum sample thickness."
+   }
+  },
+  {
+   "source": "Equation 36",
+   "target": "causality relation",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "represents",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+    "created_at": 1786693931,
+    "description": "Equation 36 represents the causality relation."
+   }
+  },
+  {
+   "source": "Equation 36",
+   "target": "minimum thickness",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "determines,evaluates",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 36 is used to evaluate the minimum thickness d_min."
+   }
+  },
+  {
+   "source": "Equation 37",
+   "target": "Equation 38",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "converts,derived from",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693931,
+    "description": "Equation 38 is derived from Equation 37 by converting the sum to an integral for a continuum distribution."
+   }
+  },
+  {
+   "source": "Equation 37",
+   "target": "acoustic metamaterial",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "defines,describes",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 37 defines the impedance of the acoustic metamaterial with multiple resonances."
+   }
+  },
+  {
+   "source": "Equation 38",
+   "target": "Equation 39",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "simplifies,used in",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 39 provides the limit expression used to simplify Equation 38."
+   }
+  },
+  {
+   "source": "Equation 38",
+   "target": "Equation 40",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "derived from,simplifies",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 40 is derived from Equation 38 using the Dirac delta function."
+   }
+  },
+  {
+   "source": "Equation 38",
+   "target": "lower cutoff",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "sets limit,used in",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "The lower cutoff Ω_1 is set in the integral of Equation 38 to exclude zero frequency."
+   }
+  },
+  {
+   "source": "Equation 40",
+   "target": "Equation 41",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "derived from,equivalent to",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 41 is derived from Equation 40, expressing μ(ω) in terms of Z(ω)."
+   }
+  },
+  {
+   "source": "Equation 41",
+   "target": "Equation 42",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "derived from,leads to",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 42 is derived from Equation 41, giving the differential equation for mode distribution."
+   }
+  },
+  {
+   "source": "Equation 42",
+   "target": "Equation 43",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "derived from,substitutes",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 43 is derived from Equation 42 by substituting the expression for α for FP channels."
+   }
+  },
+  {
+   "source": "Equation 44",
+   "target": "target absorption spectrum",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "relates to,uses",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-018",
+    "created_at": 1786693930,
+    "description": "Equation 44 relates the impedance Z(ω) to the target absorption spectrum A(ω)."
+   }
+  },
+  {
+   "source": "Equation 45",
+   "target": "surface impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "defines",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+    "created_at": 1786693930,
+    "description": "Equation 45 defines the surface impedance Z for the idealized BOMA."
+   }
+  },
+  {
+   "source": "Equation 46",
+   "target": "absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "defines",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-019",
+    "created_at": 1786693930,
+    "description": "Equation 46 defines the absorption coefficient A for the idealized BOMA."
+   }
+  },
+  {
+   "source": "Equation 49",
+   "target": "beta",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "parameter,setting",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-022",
+    "created_at": 1786693931,
+    "description": "Equation 49 is used to set the parameter beta to 7.1 Hz for the impedance prediction."
+   }
+  },
+  {
+   "source": "Equation 51",
+   "target": "renormalized Green function",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,renormalization",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-022",
+    "created_at": 1786693931,
+    "description": "Equation 51 provides the basis for deriving the renormalized Green function g_n^(e) by combining terms and ignoring small contributions."
+   }
+  },
+  {
+   "source": "Equation 9",
+   "target": "effective bulk modulus",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,effective medium,porous media",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+    "created_at": 1786693923,
+    "description": "Equation 9 is used to calculate the effective bulk modulus of a porous medium."
+   }
+  },
+  {
+   "source": "Equation 9",
+   "target": "effective mass density",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,effective medium,porous media",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-004",
+    "created_at": 1786693922,
+    "description": "Equation 9 is used to calculate the effective mass density of a porous medium."
+   }
+  },
+  {
+   "source": "Equation 9",
+   "target": "rho_sponge",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,effective density",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-022",
+    "created_at": 1786693931,
+    "description": "Equation 9 defines the effective density of the sponge rho_sponge as a function of frequency."
+   }
+  },
+  {
+   "source": "Fig. 1",
+   "target": "ventilated metamaterial absorber (VMA)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depicts",
+    "truncate": "",
+    "file_path": "2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+    "source_id": "doc-b2d5870145234167b87c86fddbd7e26b-chunk-000",
+    "created_at": 1786694018,
+    "description": "Fig. 1 depicts the geometry of the VMA."
+   }
+  },
+  {
+   "source": "DR with tubes assembled in series",
+   "target": "Fig. 10",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,illustration",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Fig. 10 shows the analytical and experimental absorption coefficient of the DR with tubes assembled in series."
+   }
+  },
+  {
+   "source": "Fig. 10",
+   "target": "optimal single-layer HREN",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depicts,shows performance of",
+    "truncate": "",
+    "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf",
+    "source_id": "doc-c714fbab64f32786eb604645fc417c39-chunk-009",
+    "created_at": 1786693539,
+    "description": "Fig. 10 shows the photograph and sound absorption coefficients of the optimal single-layer HREN, with good agreement between predictions and measurements."
+   }
+  },
+  {
+   "source": "Fig. 10",
+   "target": "supercell",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows absorption spectra of",
+    "truncate": "",
+    "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+    "source_id": "doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+    "created_at": 1786693733,
+    "description": "Fig. 10 shows sound absorption spectra of the designed supercell."
+   }
+  },
+  {
+   "source": "Fig. 11",
+   "target": "MPPHR",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "results,target bands",
+    "truncate": "",
+    "file_path": "2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator.pdf",
+    "source_id": "doc-b858cf9de8e02f10222625b2e81b633c-chunk-006",
+    "created_at": 1786693733,
+    "description": "Fig. 11 shows that the optimization results of MPPHR vary for different target bands."
+   }
+  },
+  {
+   "source": "Fig. 11",
+   "target": "effective impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Fig. 11 shows the variation of the effective impedance with frequency."
+   }
+  },
+  {
+   "source": "Fig. 11",
+   "target": "effective wave vector",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Fig. 11 shows the variation of the effective wave vector with frequency."
+   }
+  },
+  {
+   "source": "Fig. 11",
+   "target": "effective-mass density",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Fig. 11 shows the variation of the effective-mass density with frequency."
+   }
+  },
+  {
+   "source": "Fig. 11",
+   "target": "optimal single-layer HREN",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depicts analysis of,illustrates",
+    "truncate": "",
+    "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf",
+    "source_id": "doc-c714fbab64f32786eb604645fc417c39-chunk-009",
+    "created_at": 1786693539,
+    "description": "Fig. 11 depicts the contour of reflection coefficient in the complex frequency plane of the optimal single-layer absorber."
+   }
+  },
+  {
+   "source": "DR with tubes assembled in series",
+   "target": "Fig. 11a",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "behavior,illustration",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Fig. 11a illustrates the effect of the A2/A1 ratio on the resonance frequencies and absorption peaks of the DR with tubes in series."
+   }
+  },
+  {
+   "source": "DR with tubes assembled in series",
+   "target": "Fig. 11b",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "behavior,illustration",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Fig. 11b shows the influence of the length of tube 2 on the frequency bandwidth and double resonances."
+   }
+  },
+  {
+   "source": "Fig. 12",
+   "target": "MR in parallel",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,illustration",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Fig. 12 shows the analytical and experimental absorption coefficient of the MR in parallel."
+   }
+  },
+  {
+   "source": "Fig. 12",
+   "target": "reflection coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Fig. 12 shows the reflection coefficient as a function of frequency."
+   }
+  },
+  {
+   "source": "Fig. 12",
+   "target": "transmission coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Fig. 12 shows the transmission coefficient as a function of frequency."
+   }
+  },
+  {
+   "source": "Fig. 2",
+   "target": "PARISM algorithm",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "overview,presentation",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-005",
+    "created_at": 1786694019,
+    "description": "Fig. 2 presents the PARISM algorithm, showing initialization steps and an overview."
+   }
+  },
+  {
+   "source": "Fig. 2",
+   "target": "metastructure with UCĆC",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depiction,parameters",
+    "truncate": "",
+    "file_path": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf",
+    "source_id": "doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004",
+    "created_at": 1786693658,
+    "description": "The metastructure with UCĆC is depicted in Fig. 2 with specified parameters."
+   }
+  },
+  {
+   "source": "Fig. 2",
+   "target": "sound absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustration,parametric study",
+    "truncate": "",
+    "file_path": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf",
+    "source_id": "doc-87d7e3c24e7d37fd492bc2489825e281-chunk-003",
+    "created_at": 1786693658,
+    "description": "Fig. 2 shows sound absorption coefficients for metastructures with different w1 values, including UCCC for comparison."
+   }
+  },
+  {
+   "source": "Fig. 2",
+   "target": "ventilated metamaterial absorber (VMA)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows results for",
+    "truncate": "",
+    "file_path": "2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+    "source_id": "doc-b2d5870145234167b87c86fddbd7e26b-chunk-000",
+    "created_at": 1786694018,
+    "description": "Fig. 2 shows simulated absorption results for the VMA."
+   }
+  },
+  {
+   "source": "Fig. 3",
+   "target": "effective parameters",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "displays",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008",
+    "created_at": 1786693609,
+    "description": "Fig. 3 displays the effective parameters as functions of frequency."
+   }
+  },
+  {
+   "source": "Fig. 3",
+   "target": "equal-height BLM panel",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates,shows",
+    "truncate": "",
+    "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf",
+    "source_id": "doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006",
+    "created_at": 1786693744,
+    "description": "Fig. 3 illustrates the panel with equal-height BLMs, one of the two proposed designs."
+   }
+  },
+  {
+   "source": "Fig. 3",
+   "target": "metastructure with IMCC",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depiction,dimensions",
+    "truncate": "",
+    "file_path": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf",
+    "source_id": "doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004",
+    "created_at": 1786693658,
+    "description": "The dimensions of the metastructure with IMCC are given in the caption of Fig. 3."
+   }
+  },
+  {
+   "source": "Fig. 3",
+   "target": "reflection path",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "angles,illustration",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-005",
+    "created_at": 1786694018,
+    "description": "Fig. 3 illustrates angles of reflections with surfaces in reflection paths of image sources."
+   }
+  },
+  {
+   "source": "Fig. 3",
+   "target": "variable-height BLM panel",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates,shows",
+    "truncate": "",
+    "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf",
+    "source_id": "doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006",
+    "created_at": 1786693745,
+    "description": "Fig. 3 illustrates the panel with variable-height BLMs, one of the two proposed designs."
+   }
+  },
+  {
+   "source": "Fig. 4",
+   "target": "PARISM",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates,results of",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+    "created_at": 1786694019,
+    "description": "Fig. 4 shows the mean and standard deviations of room acoustical parameters from PARISM."
+   }
+  },
+  {
+   "source": "Fig. 4",
+   "target": "perforated diameter d",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depiction,variation",
+    "truncate": "",
+    "file_path": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf",
+    "source_id": "doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004",
+    "created_at": 1786693658,
+    "description": "Fig. 4(a) presents the absorption spectrum varying with perforated diameter d."
+   }
+  },
+  {
+   "source": "Fig. 4",
+   "target": "plate thickness t0",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "depiction,variation",
+    "truncate": "",
+    "file_path": "2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity.pdf",
+    "source_id": "doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004",
+    "created_at": 1786693658,
+    "description": "Fig. 4(b) presents the absorption spectrum varying with plate thickness t0."
+   }
+  },
+  {
+   "source": "Fig. 4",
+   "target": "transmission coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008",
+    "created_at": 1786693609,
+    "description": "Fig. 4 shows the intensity transmission coefficients for different sample lengths."
+   }
+  },
+  {
+   "source": "Fig. 5",
+   "target": "absorbing ceiling",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates,property of",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+    "created_at": 1786694022,
+    "description": "Fig. 5 shows the absorption coefficient and impedance of the ceiling."
+   }
+  },
+  {
+   "source": "Fig. 5",
+   "target": "effective fields",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008",
+    "created_at": 1786693609,
+    "description": "Fig. 5 illustrates the differences between effective fields and actual motions inside the unit cell."
+   }
+  },
+  {
+   "source": "EDC prediction method",
+   "target": "Fig. 6",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "demonstration,performance",
+    "truncate": "",
+    "file_path": "2010 - Diffuse Reverberation Model for Efficient Image-Source Simulation of Room Impulse Responses.pdf",
+    "source_id": "doc-b431eb6ac8342fb96e8b471bb146d20f-chunk-008",
+    "created_at": 1786693982,
+    "description": "The performance of the EDC prediction method is also demonstrated in Fig. 6 of the present work."
+   }
+  },
+  {
+   "source": "Fig. 6",
+   "target": "finite element method",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison with,illustrates",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+    "created_at": 1786694019,
+    "description": "Fig. 6 shows simulation results comparing ISM and FEM frequency responses."
+   }
+  },
+  {
+   "source": "Fig. 6",
+   "target": "image source method",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison with,illustrates",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-007",
+    "created_at": 1786694019,
+    "description": "Fig. 6 shows simulation results comparing ISM and FEM frequency responses."
+   }
+  },
+  {
+   "source": "Fig. 6",
+   "target": "sound pressure and velocity contour plots",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "contains,shows",
+    "truncate": "",
+    "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf",
+    "source_id": "doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006",
+    "created_at": 1786693745,
+    "description": "Fig. 6 shows the sound pressure and velocity contour plots for the absorption peaks of six quasi-perfect sound-absorbing BLM units."
+   }
+  },
+  {
+   "source": "Fig. 7",
+   "target": "energy dissipation density distribution",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shown in",
+    "truncate": "",
+    "file_path": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf",
+    "source_id": "doc-4c1c7a97c0c4cc31ee31afcb8329e8b3-chunk-005",
+    "created_at": 1786693542,
+    "description": "The energy dissipation density distribution at resonance is shown in Fig. 7(c)."
+   }
+  },
+  {
+   "source": "Fig. 7",
+   "target": "particle vibration velocity distribution",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shown in",
+    "truncate": "",
+    "file_path": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf",
+    "source_id": "doc-4c1c7a97c0c4cc31ee31afcb8329e8b3-chunk-005",
+    "created_at": 1786693542,
+    "description": "The particle vibration velocity distribution at resonance is shown in Fig. 7(b)."
+   }
+  },
+  {
+   "source": "Fig. 7",
+   "target": "sound pressure distribution",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shown in",
+    "truncate": "",
+    "file_path": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf",
+    "source_id": "doc-4c1c7a97c0c4cc31ee31afcb8329e8b3-chunk-005",
+    "created_at": 1786693542,
+    "description": "The sound pressure distribution at resonance is shown in Fig. 7(a)."
+   }
+  },
+  {
+   "source": "Fig. 9",
+   "target": "optimal single-layer HREN",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates,shows optimization of",
+    "truncate": "",
+    "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf",
+    "source_id": "doc-c714fbab64f32786eb604645fc417c39-chunk-009",
+    "created_at": 1786693539,
+    "description": "Fig. 9 shows the iteration history of the optimization process for the optimal single-layer HREN."
+   }
+  },
+  {
+   "source": "Fig. 9",
+   "target": "sub-cell",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows geometry of",
+    "truncate": "",
+    "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+    "source_id": "doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+    "created_at": 1786693733,
+    "description": "Fig. 9 shows the geometry and dimensions of a sub-cell."
+   }
+  },
+  {
+   "source": "Fig. 9",
+   "target": "supercell",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows geometry of",
+    "truncate": "",
+    "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+    "source_id": "doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+    "created_at": 1786693733,
+    "description": "Fig. 9 shows the geometry and dimensions of a supercell."
+   }
+  },
+  {
+   "source": "Figure 1",
+   "target": "glass wool",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows structure",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Figure 1 shows the structure of glass wool, referenced as the first example."
+   }
+  },
+  {
+   "source": "Figure 2",
+   "target": "MPP",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "shows structure",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Figure 2 illustrates the structure of MPP, referenced as the second example."
+   }
+  },
+  {
+   "source": "Figure 2",
+   "target": "false accepts",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "error taxonomy,visualization",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-007",
+    "created_at": 1786693981,
+    "description": "Figure 2's right panel visualizes the error taxonomy including false accepts."
+   }
+  },
+  {
+   "source": "Figure 4",
+   "target": "MATH-500 calibration data",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "data,plot",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+    "created_at": 1786693989,
+    "description": "Figure 4 uses MATH-500 calibration data to plot draft entropy vs. actual thinking tokens."
+   }
+  },
+  {
+   "source": "Figure 4",
+   "target": "entropy-to-budget mapping",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates,mapping",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Figure 4 illustrates the entropy-to-budget mapping."
+   }
+  },
+  {
+   "source": "Figure 4",
+   "target": "isotonic-regression mapping",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "plot,visualization",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+    "created_at": 1786693989,
+    "description": "Figure 4 plots the isotonic-regression mapping from draft entropy to predicted thinking budget."
+   }
+  },
+  {
+   "source": "Figure 6g",
+   "target": "absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "high absorption,shows",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+    "created_at": 1786693930,
+    "description": "Figure 6g shows an absorption coefficient greater than 0.99 at 152 Hz."
+   }
+  },
+  {
+   "source": "Figure 7c",
+   "target": "aluminum-reflecting wall",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "setup,shows",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+    "created_at": 1786693930,
+    "description": "Figure 7c shows the experimental setup with an aluminum-reflecting wall behind a DM."
+   }
+  },
+  {
+   "source": "Figure 9",
+   "target": "causal optimality",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-017",
+    "created_at": 1786693930,
+    "description": "Figure 9 plots minimum sample thickness and absorption spectra, illustrating causal optimality for various structures."
+   }
+  },
+  {
+   "source": "Reference 26",
+   "target": "hybrid resonance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "corroborated,existence",
+    "truncate": "",
+    "file_path": "2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials.pdf",
+    "source_id": "doc-6088fd42b8da3b6639743b101a640650-chunk-013",
+    "created_at": 1786693930,
+    "description": "Experiments reported in Reference 26 corroborated the existence of the hybrid resonance."
+   }
+  },
+  {
+   "source": "Section 3",
+   "target": "artifact creators",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "attribution,citation",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+    "created_at": 1786693989,
+    "description": "Section 3 cites the original artifact creators."
+   }
+  },
+  {
+   "source": "MPPHR",
+   "target": "Table 1",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "optimization,results",
+    "truncate": "",
+    "file_path": "2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator.pdf",
+    "source_id": "doc-b858cf9de8e02f10222625b2e81b633c-chunk-006",
+    "created_at": 1786693733,
+    "description": "Table 1 shows the optimization results of MPPHR."
+   }
+  },
+  {
+   "source": "PLAM",
+   "target": "Table 1",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists parameters for",
+    "truncate": "",
+    "file_path": "2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial.pdf",
+    "source_id": "doc-8774908466b3723a90c592ff9715ddcb-chunk-005",
+    "created_at": 1786693646,
+    "description": "Table 1 lists geometrical parameters for PLAMs with different fold numbers."
+   }
+  },
+  {
+   "source": "Table 1",
+   "target": "optimal single-layer HREN",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "documents,lists parameters of",
+    "truncate": "",
+    "file_path": "2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks.pdf",
+    "source_id": "doc-c714fbab64f32786eb604645fc417c39-chunk-009",
+    "created_at": 1786693539,
+    "description": "Table 1 lists the geometric parameters and resonance frequencies of the optimal single-layer HREN's units."
+   }
+  },
+  {
+   "source": "Table 11",
+   "target": "majority voting",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,routing strategies",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-010",
+    "created_at": 1786693989,
+    "description": "Table 11 contrasts majority voting at K=3 with unanimity."
+   }
+  },
+  {
+   "source": "Table 11",
+   "target": "unanimity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,routing strategies",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-010",
+    "created_at": 1786693989,
+    "description": "Table 11 contrasts unanimity at K=2 and K=3 with K=3 majority voting."
+   }
+  },
+  {
+   "source": "K",
+   "target": "Table 12",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "hyperparameter,sweep",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-010",
+    "created_at": 1786693989,
+    "description": "Table 12 reports a sweep over K values from 1 to 4."
+   }
+  },
+  {
+   "source": "Table 12",
+   "target": "strict budget cap of 4096 thinking tokens",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "budget,constraint",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-010",
+    "created_at": 1786693989,
+    "description": "Table 12 uses a strict budget cap of 4096 thinking tokens."
+   }
+  },
+  {
+   "source": "ARC-Challenge",
+   "target": "Table 13",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "benchmark,reports",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Table 13 reports routing signals on ARC-Challenge."
+   }
+  },
+  {
+   "source": "GPQA-D",
+   "target": "Table 13",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "benchmark,reports",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Table 13 reports routing signals on GPQA-D."
+   }
+  },
+  {
+   "source": "MMLU-Pro",
+   "target": "Table 13",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "benchmark,reports",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Table 13 reports routing signals on MMLU-Pro."
+   }
+  },
+  {
+   "source": "Table 14",
+   "target": "thinking-budget cap",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "budget,sweeps",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Table 14 sweeps the thinking-budget cap for each query."
+   }
+  },
+  {
+   "source": "Table 15",
+   "target": "draft sampling temperature",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "sweeps,temperature",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-011",
+    "created_at": 1786693989,
+    "description": "Table 15 sweeps the draft sampling temperature."
+   }
+  },
+  {
+   "source": "5-fold cross-validation",
+   "target": "Table 2",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "results,validation",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-012",
+    "created_at": 1786693989,
+    "description": "Table 2 presents results from 5-fold cross-validation for supervised-router rows."
+   }
+  },
+  {
+   "source": "JCA parameters",
+   "target": "Table 2",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists",
+    "truncate": "",
+    "file_path": "2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial.pdf",
+    "source_id": "doc-8774908466b3723a90c592ff9715ddcb-chunk-005",
+    "created_at": 1786693646,
+    "description": "Table 2 lists JCA parameters that were varied in the study."
+   }
+  },
+  {
+   "source": "Table 2",
+   "target": "single re-entrant sound absorber",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "dimensions listed in",
+    "truncate": "",
+    "file_path": "2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption.pdf",
+    "source_id": "doc-4c1c7a97c0c4cc31ee31afcb8329e8b3-chunk-005",
+    "created_at": 1786693542,
+    "description": "The dimensions of the single re-entrant sound absorber are listed in Table 2."
+   }
+  },
+  {
+   "source": "Table 2",
+   "target": "single resonator (SR)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "reports dimensions",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-006",
+    "created_at": 1786693917,
+    "description": "Table 2 reports the geometric dimensions of the SR samples."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "double resonator (DR)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "reports dimensions",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-006",
+    "created_at": 1786693916,
+    "description": "Table 3 reports the geometric dimensions of the DR samples."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "multi-resonator metamaterial (MR)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "reports dimensions",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-006",
+    "created_at": 1786693917,
+    "description": "Table 3 reports the geometric dimensions of the MR samples."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "optimized geometric parameters",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "contains,details",
+    "truncate": "",
+    "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf",
+    "source_id": "doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006",
+    "created_at": 1786693744,
+    "description": "Table 3 details the optimized geometric parameters of nine units with side lengths of 50 and 100 mm."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "resonance frequency",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists values of",
+    "truncate": "",
+    "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+    "source_id": "doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+    "created_at": 1786693736,
+    "description": "Table 3 lists the resonance frequency of each subwavelength HR."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "subwavelength HR",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists parameters of",
+    "truncate": "",
+    "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+    "source_id": "doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+    "created_at": 1786693733,
+    "description": "Table 3 lists the geometrical parameters of subwavelength HRs."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "target frequency",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists values of",
+    "truncate": "",
+    "file_path": "2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces.pdf",
+    "source_id": "doc-cfc7024b25aef25884837379d26e8fec-chunk-007",
+    "created_at": 1786693733,
+    "description": "Table 3 lists the target frequency of each sub-cell."
+   }
+  },
+  {
+   "source": "BLM unit",
+   "target": "Table 4",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "displays,shows",
+    "truncate": "",
+    "file_path": "2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces.pdf",
+    "source_id": "doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006",
+    "created_at": 1786693764,
+    "description": "Table 4 displays the parameters of the equal-height and variable-height BLM units at different scales."
+   }
+  },
+  {
+   "source": "DR with tubes assembled in series",
+   "target": "Table 4",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "data,summary",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Table 4 summarizes the analytical and experimental peak frequencies for the DR with tubes assembled in series."
+   }
+  },
+  {
+   "source": "MATH-500",
+   "target": "Table 4",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,data",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-007",
+    "created_at": 1786693981,
+    "description": "Table 4 reports matched-budget comparisons on MATH-500."
+   }
+  },
+  {
+   "source": "DART",
+   "target": "Table 5",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,token reduction",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-007",
+    "created_at": 1786693982,
+    "description": "Table 5 shows DART's reduction at 5.7-fold fewer tokens compared to AT."
+   }
+  },
+  {
+   "source": "DR sample with coiled tubes coupled in series",
+   "target": "Table 5",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "data,summary",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Table 5 presents the comparison between analytical and experimental results for the DR sample with coiled tubes coupled in series."
+   }
+  },
+  {
+   "source": "DART",
+   "target": "Table 6",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "summarized in",
+    "truncate": "",
+    "file_path": "2026 - DART Draft-Agreement Routing for Training-Free Adaptive Thinking Budgets in Hybrid Reasoning Models.pdf",
+    "source_id": "doc-a015ad679e6d87e5ebc1632b51357288-chunk-008",
+    "created_at": 1786693989,
+    "description": "DART's deployment constraints are summarized in Table 6."
+   }
+  },
+  {
+   "source": "MR in parallel",
+   "target": "Table 6",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "data,summary",
+    "truncate": "",
+    "file_path": "2022 - Acoustic absorption modeling of single and multiple coiled-up resonators.pdf",
+    "source_id": "doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-009",
+    "created_at": 1786693917,
+    "description": "Table 6 presents the comparison between analytical and experimental absorption peak frequencies for the MR absorber."
+   }
+  },
+  {
+   "source": "EGCS absorber",
+   "target": "Table I",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "presents,tunable frequency range",
+    "truncate": "",
+    "file_path": "2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section.pdf",
+    "source_id": "doc-a49d76a1851003835b28f4613494684e-chunk-005",
+    "created_at": 1786693896,
+    "description": "Table I presents the representative tunable frequency range of EGCS absorbers with various N."
+   }
+  },
+  {
+   "source": "LGCS absorber",
+   "target": "Table I",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "presents,tunable frequency range",
+    "truncate": "",
+    "file_path": "2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section.pdf",
+    "source_id": "doc-a49d76a1851003835b28f4613494684e-chunk-005",
+    "created_at": 1786693896,
+    "description": "Table I presents the representative tunable frequency range of LGCS absorbers with various N."
+   }
+  },
+  {
+   "source": "Table I",
+   "target": "UCS absorber",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "presents,tunable frequency range",
+    "truncate": "",
+    "file_path": "2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section.pdf",
+    "source_id": "doc-a49d76a1851003835b28f4613494684e-chunk-005",
+    "created_at": 1786693896,
+    "description": "Table I presents the representative tunable frequency range of UCS absorbers with various N."
+   }
+  },
+  {
+   "source": "Table I",
+   "target": "boundary displacements phi_i(±a)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008",
+    "created_at": 1786693609,
+    "description": "Table I lists the boundary displacements phi_i(±a) for each eigenmode."
+   }
+  },
+  {
+   "source": "Table I",
+   "target": "objective acoustic parameters",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "comparison,values",
+    "truncate": "",
+    "file_path": "2010 - Diffuse Reverberation Model for Efficient Image-Source Simulation of Room Impulse Responses.pdf",
+    "source_id": "doc-b431eb6ac8342fb96e8b471bb146d20f-chunk-008",
+    "created_at": 1786693981,
+    "description": "Table I provides typical numerical values for the objective acoustic parameters computed for two example RIRs."
+   }
+  },
+  {
+   "source": "Table I",
+   "target": "ventilated metamaterial absorber (VMA)",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "lists parameters for",
+    "truncate": "",
+    "file_path": "2018 - High-efficiency ventilated metamaterial absorber at low frequency.pdf",
+    "source_id": "doc-b2d5870145234167b87c86fddbd7e26b-chunk-000",
+    "created_at": 1786694018,
+    "description": "Table I lists geometric parameters for the VMA."
+   }
+  },
+  {
+   "source": "Table II",
+   "target": "absorption coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "data,listing",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-009",
+    "created_at": 1786694022,
+    "description": "Table II lists the absorption coefficients for the surfaces of the irregular room."
+   }
+  },
+  {
+   "source": "Table II",
+   "target": "scattering coefficient",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "data,listing",
+    "truncate": "",
+    "file_path": "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf",
+    "source_id": "doc-f979c79208f05a10c750f60abc63bbfa-chunk-009",
+    "created_at": 1786694022,
+    "description": "Table II lists the scattering coefficients for the surfaces of the irregular room for different cases."
+   }
+  },
+  {
+   "source": "G_00",
+   "target": "Table III",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "provides parameters for",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Table III provides the relevant parameters for Eq. (20), which includes G_00."
+   }
+  },
+  {
+   "source": "G_11",
+   "target": "Table III",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "provides parameters for",
+    "truncate": "",
+    "file_path": "2014 - Homogenization scheme for acoustic metamaterials.pdf",
+    "source_id": "doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-012",
+    "created_at": 1786693610,
+    "description": "Table III provides the relevant parameters for Eq. (20), which includes G_11."
+   }
+  }
+ ]
+}

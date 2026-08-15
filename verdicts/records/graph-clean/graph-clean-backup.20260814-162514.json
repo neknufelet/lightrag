@@ -1,0 +1,643 @@
+{
+ "entities": {
+  "equation 10": {
+   "truncate": "",
+   "entity_id": "equation 10",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-f447664a32a96fa279824b444c5489f3-chunk-150<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (10) is the momentum equation after eliminating pressure and density fluctuation.",
+   "entity_type": "other"
+  },
+  "equation 11": {
+   "truncate": "",
+   "entity_id": "equation 11",
+   "file_path": "2024 - Broadband acoustic metamaterial absorber.pdf<SEP>1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-7c31e29c1e93d2be6d224e16307662d0-chunk-003<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "The formula for calculating the surface impedance of the metamaterial as the parallel combination of subunit impedances.<SEP>Equation (11) is the heat conduction equation after eliminating pressure and density fluctuation.",
+   "entity_type": "other"
+  },
+  "equation 12": {
+   "truncate": "",
+   "entity_id": "equation 12",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (12) defines kinematic viscosity and thermal diffusivity.",
+   "entity_type": "other"
+  },
+  "equation 13": {
+   "truncate": "",
+   "entity_id": "equation 13",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (13) gives the relation for ideal gases between specific heats and thermodynamic variables.",
+   "entity_type": "other"
+  },
+  "equation 14": {
+   "truncate": "",
+   "entity_id": "equation 14",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9945815519104e55fdb76555ab3597e8-chunk-070<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (14) is the simplified momentum equation using kinematic viscosity and adiabatic sound speed.",
+   "entity_type": "other"
+  },
+  "equation 15": {
+   "truncate": "",
+   "entity_id": "equation 15",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9945815519104e55fdb76555ab3597e8-chunk-070<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (15) is the simplified heat conduction equation using thermal diffusivity.",
+   "entity_type": "other"
+  },
+  "equation 16": {
+   "truncate": "",
+   "entity_id": "equation 16",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9945815519104e55fdb76555ab3597e8-chunk-070<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (16) defines the adiabatic sound speed in terms of pressure and density.",
+   "entity_type": "other"
+  },
+  "Equation 3.14": {
+   "truncate": "",
+   "entity_id": "Equation 3.14",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation referenced in the text for calculating the complex equivalent characteristic impedance.",
+   "entity_type": "other"
+  },
+  "Equation 3.15": {
+   "truncate": "",
+   "entity_id": "Equation 3.15",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation referenced in the text for calculating the complex equivalent wave number.",
+   "entity_type": "other"
+  },
+  "Equation 3.46": {
+   "truncate": "",
+   "entity_id": "Equation 3.46",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation providing a rule of thumb for using the limp frame model based on the bulk modulus ratio.",
+   "entity_type": "other"
+  },
+  "Equation 3.47": {
+   "truncate": "",
+   "entity_id": "Equation 3.47",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation presenting the Johnson et al. model for effective density.",
+   "entity_type": "other"
+  },
+  "Equation 3.48": {
+   "truncate": "",
+   "entity_id": "Equation 3.48",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation for approximating the static flow resistivity from the effective density.",
+   "entity_type": "other"
+  },
+  "Equation 3.49": {
+   "truncate": "",
+   "entity_id": "Equation 3.49",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation for deriving the tortuosity from the effective density.",
+   "entity_type": "other"
+  },
+  "Equation 3.50": {
+   "truncate": "",
+   "entity_id": "Equation 3.50",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation for deriving the viscous characteristic length from the effective density.",
+   "entity_type": "other"
+  },
+  "Equation 3.51": {
+   "truncate": "",
+   "entity_id": "Equation 3.51",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation for deriving the thermal characteristic length from the effective density.",
+   "entity_type": "other"
+  },
+  "Equation 3.9": {
+   "truncate": "",
+   "entity_id": "Equation 3.9",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+   "created_at": 1786695594,
+   "description": "An equation referenced in the text for the transfer matrix.",
+   "entity_type": "other"
+  },
+  "equation 6": {
+   "truncate": "",
+   "entity_id": "equation 6",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (6) expresses the continuity equation relating density fluctuation and velocity divergence.",
+   "entity_type": "other"
+  },
+  "equation 7": {
+   "truncate": "",
+   "entity_id": "equation 7",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (7) is the heat conduction equation relating temperature fluctuation to pressure and density fluctuations.",
+   "entity_type": "other"
+  },
+  "equation 8": {
+   "truncate": "",
+   "entity_id": "equation 8",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+   "created_at": 1786695574,
+   "description": "Equation (8) is the equation of state relating pressure to temperature and density fluctuations.",
+   "entity_type": "other"
+  },
+  "Fig. 4": {
+   "truncate": "",
+   "entity_id": "Fig. 4",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-1a8f19ad08ee37ee2a80f906927859d4-chunk-004<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-010<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-009<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-002<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-eb5b0782a0292a358a216146c1010d14-chunk-010<SEP>doc-44860f11547c92c039c55ba2dd4ad41f-chunk-004<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008<SEP>doc-87d7e3c24e7d37fd492bc2489825e281-chunk-004<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-007<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-007<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-008",
+   "created_at": 1786695574,
+   "description": "A figure showing the argument of Q1 as a function of frequency for several tube radii, with a dashed curve indicating the maximum extent of the regime.<SEP>A figure showing the magnitude of the term r_w(m^2 - λ_1)^{1/2} for several tube radii, with a dashed curve indicating the limit r_w f^{3/2} = 10^6 cm s^{-3/2}.",
+   "entity_type": "content"
+  },
+  "Fig. 5": {
+   "truncate": "",
+   "entity_id": "Fig. 5",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-eb5b0782a0292a358a216146c1010d14-chunk-010<SEP>doc-8656500d4b1f5971f40e3857e33de83c-chunk-002<SEP>doc-fec6c533b6a655ee27d99e97b84b4d37-chunk-008<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-007<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-008",
+   "created_at": 1786695574,
+   "description": "A figure comparing the propagation constant m to three terms in Kirchhoff's theory, plotting |m|^2 as a function of frequency for various tube radii.",
+   "entity_type": "other"
+  },
+  "Fig. 6": {
+   "truncate": "",
+   "entity_id": "Fig. 6",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-010<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-ebedb1973127f7bde592187516769b91-chunk-004<SEP>doc-78797036fe6c3f854caa4d673d8661a1-chunk-014<SEP>doc-6e99642530d02122eb343dec991ff319-chunk-007<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-005<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-006<SEP>doc-f5d789d59119440214bee8878d6aa417-chunk-011<SEP>doc-8656500d4b1f5971f40e3857e33de83c-chunk-002<SEP>doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006<SEP>doc-b431eb6ac8342fb96e8b471bb146d20f-chunk-008<SEP>doc-f979c79208f05a10c750f60abc63bbfa-chunk-007<SEP>doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-010",
+   "created_at": 1786695574,
+   "description": "A sketch of a possible tube geometry for which the generalized theory would be appropriate.",
+   "entity_type": "other"
+  },
+  "Figure 7.1": {
+   "truncate": "",
+   "entity_id": "Figure 7.1",
+   "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+   "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-020",
+   "created_at": 1786695594,
+   "description": "A sketch of the impedance tube configuration using two microphones close to the surface at each side of the sample.",
+   "entity_type": "data"
+  },
+  "Section II": {
+   "truncate": "",
+   "entity_id": "Section II",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-013",
+   "created_at": 1786695574,
+   "description": "A section of the paper that presents known solutions for narrow and wide tube regimes.",
+   "entity_type": "content"
+  },
+  "Section III": {
+   "truncate": "",
+   "entity_id": "Section III",
+   "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+   "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-013",
+   "created_at": 1786695574,
+   "description": "A section of the paper that provides a procedure for determining propagation characteristics of sound in uniform tubes of arbitrary cross-sectional shape.",
+   "entity_type": "content"
+  },
+  "Table 3": {
+   "truncate": "",
+   "entity_id": "Table 3",
+   "file_path": "1994 - A Finite Element Method for the Free Vibration of Air in Ducts and Rooms with Absorbing Walls.pdf",
+   "source_id": "doc-ec3800cd425001fb1ae7cad11beb263a-chunk-009<SEP>doc-e207558569298c3ab97517c9af9f2c16-chunk-007<SEP>doc-9be22241b1e7c0cfe5543316e6ad56c6-chunk-007<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-005<SEP>doc-1141f9b0a9c721dffb609a363198c4e5-chunk-008<SEP>doc-06cea9ded569d8d26b5d408fe15a25d9-chunk-005<SEP>doc-e4ee5878aba8ae6ffdaa16e840d98e78-chunk-021<SEP>doc-ab30a3185938418076ab15381109c8d5-chunk-008<SEP>doc-641f46656f7e45c43c03512a2b894771-chunk-003<SEP>doc-2b9646915fa614b71142b33c0593dfd2-chunk-003<SEP>doc-4f49dfa6cf88fe7b12050769e4e04b50-chunk-008<SEP>doc-695dd978dd918b4aa71369a6841ceaed-chunk-016<SEP>doc-606442899a6e2e51579ab4e1c7456724-chunk-003<SEP>doc-ff06e9e9c7a0363f8c4298a4c45dfaba-chunk-011<SEP>doc-cfc7024b25aef25884837379d26e8fec-chunk-007<SEP>doc-ab9ccb5132cdbdfe859d048b1d463539-chunk-006<SEP>doc-aeee1fb8c6bcf61300ea08a47e69aa25-chunk-006<SEP>doc-a015ad679e6d87e5ebc1632b51357288-chunk-005<SEP>doc-b9891f42093b802c6c3a26169142698e-chunk-003",
+   "created_at": 1786695544,
+   "description": "A table presenting results for axial and tangential modes, including frequencies and decay rates.",
+   "entity_type": "other"
+  }
+ },
+ "relations": [
+  {
+   "source": "equation 10",
+   "target": "velocity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "momentum equation,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (10) is the momentum equation governing the velocity field."
+   }
+  },
+  {
+   "source": "equation 11",
+   "target": "excess temperature",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "heat conduction,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (11) is the heat conduction equation governing the excess temperature."
+   }
+  },
+  {
+   "source": "equation 11",
+   "target": "surface impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,formula",
+    "truncate": "",
+    "file_path": "2024 - Broadband acoustic metamaterial absorber.pdf",
+    "source_id": "doc-7c31e29c1e93d2be6d224e16307662d0-chunk-003",
+    "created_at": 1786695559,
+    "description": "The surface impedance is calculated by equation 11, which sums the inverse impedances of subunits."
+   }
+  },
+  {
+   "source": "equation 12",
+   "target": "kinematic viscosity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (12) defines kinematic viscosity as the ratio of dynamic viscosity to density."
+   }
+  },
+  {
+   "source": "equation 12",
+   "target": "thermal diffusivity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (12) defines thermal diffusivity as the ratio of thermal conductivity to density times specific heat at constant volume."
+   }
+  },
+  {
+   "source": "equation 13",
+   "target": "ideal gas",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "relation,specific heats",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (13) gives the relation for ideal gases between the difference of specific heats and thermodynamic variables."
+   }
+  },
+  {
+   "source": "adiabatic sound speed",
+   "target": "equation 14",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "relation,sound speed",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (14) uses the adiabatic sound speed in the momentum equation."
+   }
+  },
+  {
+   "source": "equation 15",
+   "target": "thermal diffusivity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "heat conduction,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (15) uses the thermal diffusivity in the heat conduction equation."
+   }
+  },
+  {
+   "source": "adiabatic sound speed",
+   "target": "equation 16",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (16) defines the adiabatic sound speed in terms of pressure and density."
+   }
+  },
+  {
+   "source": "Equation 3.14",
+   "target": "complex equivalent characteristic impedance",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.14 is used to calculate the complex equivalent characteristic impedance."
+   }
+  },
+  {
+   "source": "Equation 3.15",
+   "target": "complex equivalent wave number",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.15 is used to calculate the complex equivalent wave number."
+   }
+  },
+  {
+   "source": "Equation 3.46",
+   "target": "bulk modulus ratio",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "equation,rule of thumb",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.46 provides the rule of thumb for using the limp frame model based on the bulk modulus ratio."
+   }
+  },
+  {
+   "source": "Equation 3.47",
+   "target": "Johnson et al. model",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.47 presents the Johnson et al. model for effective density."
+   }
+  },
+  {
+   "source": "Equation 3.48",
+   "target": "static flow resistivity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.48 is used to approximate the static flow resistivity."
+   }
+  },
+  {
+   "source": "Equation 3.49",
+   "target": "tortuosity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.49 is used to derive the tortuosity."
+   }
+  },
+  {
+   "source": "Equation 3.50",
+   "target": "viscous characteristic length",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.50 is used to derive the viscous characteristic length."
+   }
+  },
+  {
+   "source": "Equation 3.51",
+   "target": "thermal characteristic length",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "calculation,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.51 is used to derive the thermal characteristic length."
+   }
+  },
+  {
+   "source": "Equation 3.9",
+   "target": "transfer matrix",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "definition,equation",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-012",
+    "created_at": 1786695603,
+    "description": "Equation 3.9 defines the transfer matrix used with effective quantities."
+   }
+  },
+  {
+   "source": "equation 6",
+   "target": "velocity",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "continuity equation,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (6) relates the density fluctuation to the divergence of velocity."
+   }
+  },
+  {
+   "source": "equation 7",
+   "target": "excess temperature",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "heat conduction,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (7) relates the excess temperature to pressure and density fluctuations."
+   }
+  },
+  {
+   "source": "equation 8",
+   "target": "pressure",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "equation of state,relation",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-002",
+    "created_at": 1786695579,
+    "description": "Equation (8) expresses pressure in terms of excess temperature and density fluctuation."
+   }
+  },
+  {
+   "source": "Fig. 4",
+   "target": "Kirchhoff's theory",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-008",
+    "created_at": 1786695579,
+    "description": "Fig. 4 illustrates a term in Kirchhoff's theory, r_w(m^2 - λ_1)^{1/2}, for various tube radii."
+   }
+  },
+  {
+   "source": "Fig. 4",
+   "target": "argument of Q1",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "confirmation,visualization",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-007",
+    "created_at": 1786695579,
+    "description": "Fig. 4 shows the argument of Q1 as a function of frequency for several tube radii, confirming it is small within the regime."
+   }
+  },
+  {
+   "source": "Fig. 5",
+   "target": "propagation constant m",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "compares",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-008",
+    "created_at": 1786695580,
+    "description": "Fig. 5 compares the propagation constant m to other terms in Kirchhoff's theory."
+   }
+  },
+  {
+   "source": "Fig. 6",
+   "target": "tubes of arbitrary cross-sectional shape",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "illustrates",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-010",
+    "created_at": 1786695579,
+    "description": "Fig. 6 sketches a possible tube geometry with arbitrary cross-sectional shape for which the generalized theory is appropriate."
+   }
+  },
+  {
+   "source": "Figure 7.1",
+   "target": "impedance tube",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "configuration,sketch",
+    "truncate": "",
+    "file_path": "n.d. - Evaluation of impedance tube methods - A two microphone in-situ method for road surfaces and the three microphone transfer function method for porous materials.pdf",
+    "source_id": "doc-cac6b9e71d1e0d388a7292ce5f8adb5c-chunk-020",
+    "created_at": 1786695603,
+    "description": "Figure 7.1 is a sketch of the impedance tube configuration using two microphones close to the surface at each side of the sample."
+   }
+  },
+  {
+   "source": "Section II",
+   "target": "narrow tube regime",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "presents solution",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-013",
+    "created_at": 1786695580,
+    "description": "Section II presents the known solution for the narrow tube regime."
+   }
+  },
+  {
+   "source": "Section II",
+   "target": "wide tube regime",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "presents solution",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-013",
+    "created_at": 1786695580,
+    "description": "Section II presents the known solution for the wide tube regime."
+   }
+  },
+  {
+   "source": "Section III",
+   "target": "general procedure",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "provides",
+    "truncate": "",
+    "file_path": "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf",
+    "source_id": "doc-9f4e8fd52a6c585516dc42c662ef3b07-chunk-013",
+    "created_at": 1786695580,
+    "description": "Section III provides the general procedure."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "axial modes",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "frequencies,results",
+    "truncate": "",
+    "file_path": "1994 - A Finite Element Method for the Free Vibration of Air in Ducts and Rooms with Absorbing Walls.pdf",
+    "source_id": "doc-b9891f42093b802c6c3a26169142698e-chunk-003",
+    "created_at": 1786695551,
+    "description": "Table 3 lists frequencies and decay rates for axial modes."
+   }
+  },
+  {
+   "source": "Table 3",
+   "target": "tangential modes",
+   "properties": {
+    "weight": 1.0,
+    "keywords": "frequencies,results",
+    "truncate": "",
+    "file_path": "1994 - A Finite Element Method for the Free Vibration of Air in Ducts and Rooms with Absorbing Walls.pdf",
+    "source_id": "doc-b9891f42093b802c6c3a26169142698e-chunk-003",
+    "created_at": 1786695551,
+    "description": "Table 3 lists frequencies and decay rates for tangential modes."
+   }
+  }
+ ]
+}
