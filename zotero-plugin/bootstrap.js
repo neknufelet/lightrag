@@ -25,6 +25,7 @@
 
 var LightRAGFilename;    // lib/filename.js
 var LightRAGReconcile;   // lib/reconcile.js
+var LightRAGPickPDF;     // lib/pickpdf.js
 
 var pluginID = null;
 var registeredMenus = [];
@@ -74,7 +75,30 @@ async function sendOne(item, tag) {
     attachment = item;
     parent = Zotero.Items.get(item.parentItemID) || item;
   } else if (item.isRegularItem && item.isRegularItem()) {
-    attachment = await item.getBestAttachment();
+    // ⚠ **不用 `getBestAttachment()`。** 它是 Zotero 的啟發式，挑到哪一個
+    //   我們不知道 —— 而 2026-08-14 實測 PO 的庫裡 155 筆文獻有兩個 PDF，
+    //   其中 96 筆是「原文 + 中文翻譯」。挑錯就是把中文餵進英文語料，
+    //   而且它會一路解析、抽取、進圖譜，看起來一切正常。
+    const pdfs = [];
+    for (const id of item.getAttachments()) {
+      const child = Zotero.Items.get(id);
+      if (child && child.isPDFAttachment && child.isPDFAttachment()) pdfs.push(child);
+    }
+    const verdict = LightRAGPickPDF.choose(pdfs.map(a => ({
+      title: a.getField ? a.getField('title') : '',
+      tags: a.getTags ? a.getTags() : [],
+      _item: a,
+    })));
+    if (!verdict.pick) {
+      const names = verdict.candidates.map(c => c.title || '(無標題)').join('、');
+      return {
+        state: 'skip',
+        detail: verdict.reason === 'none'
+          ? '沒有 PDF 附件'
+          : '分不出要送哪一個，請自己確認：' + names,
+      };
+    }
+    attachment = verdict.pick._item;
   }
   if (!attachment || !attachment.isPDFAttachment || !attachment.isPDFAttachment()) {
     return { state: 'skip', detail: '沒有 PDF 附件' };
@@ -363,6 +387,7 @@ async function startup({ id, rootURI }) {
   pluginID = id;
   Services.scriptloader.loadSubScript(rootURI + 'lib/filename.js');
   Services.scriptloader.loadSubScript(rootURI + 'lib/reconcile.js');
+  Services.scriptloader.loadSubScript(rootURI + 'lib/pickpdf.js');
   // `onMainWindowLoad` 只對「之後才開的視窗」觸發，所以已經開著的要自己補。
   for (const win of Zotero.getMainWindows()) {
     insertFTL(win);
