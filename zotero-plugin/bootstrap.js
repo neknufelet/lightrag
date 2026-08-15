@@ -86,7 +86,10 @@ async function sendOne(item, tag) {
     return { state: 'skip', detail: '附件的檔案不在本機' };
   }
 
+  // ⚠ key 取**父層文獻**的，不是附件的。同一筆文獻的多個附件（原文、翻譯、
+  //   章節）應該共用同一個身分 —— 那正是「這幾個檔案是同一部作品」的依據。
   const filename = LightRAGFilename.buildFilename({
+    key: parent.key,
     date: parent.getField ? parent.getField('date') : '',
     title: parent.getField ? parent.getField('title') : '',
   });

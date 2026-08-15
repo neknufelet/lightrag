@@ -3,8 +3,8 @@
     "lightrag-inbox@neknufelet": {
       "updates": [
         {
-          "version": "0.2.1",
-          "update_link": "https://github.com/neknufelet/lightrag/raw/master/zotero-plugin/lightrag-inbox-0.2.1.xpi",
+          "version": "0.3.0",
+          "update_link": "https://github.com/neknufelet/lightrag/raw/master/zotero-plugin/lightrag-inbox-0.3.0.xpi",
           "applications": {
             "zotero": {
               "strict_min_version": "8.0"

@@ -123,6 +123,14 @@ TRUNCATED_AT: Final[int] = 95
 NOTE_TITLE: Final[re.Pattern[str]] = re.compile(
     r"^(?:draft_)?[A-Za-zÀ-ɏ&\-']+\s+\d{4}\s*[-–]\s*(?P<title>.+)$")
 
+# 外掛 0.3.0 起，送進來的檔名最前面是 Zotero 的 item key（8 碼，
+# 字元集刻意排除 0/1/O）。**帶了 key 的檔案不必比對** —— 那是精確的身分，
+# 而比對是猜的。這個樣式同時給兩件事用：
+#   `kb_words()`   把前綴剝掉再比對（給還沒帶 key 的舊檔案）
+#   `key_of()`     直接讀出身分（給帶了 key 的新檔案）
+ZOTERO_KEY_PREFIX: Final[re.Pattern[str]] = re.compile(
+    r"^(?P<key>[23456789A-HJ-NP-Z]{8})\s+")
+
 
 # ── 比對 ──────────────────────────────────────────────────────────────────
 
@@ -157,6 +165,7 @@ def kb_words(filename: str) -> frozenset[str]:
        （`… part 1 - theoretical and`），而半個字永遠對不上任何標題。
     """
     stem = re.sub(r"\.pdf$", "", filename, flags=re.IGNORECASE)
+    stem = ZOTERO_KEY_PREFIX.sub("", stem)                # 外掛 0.3.0 起帶的 key
     stem = re.sub(r"^\d{4}\s*-\s*", "", stem)
     stem = re.sub(r"^\d{5}_", "", stem)
     words = [w for w in re.findall(r"[a-z0-9]+",
@@ -434,9 +443,20 @@ def documents_in_kb(items: list[dict[str, Any]], kb_docs: list[str]) -> set[str]
     """
     stored = set(kb_docs)
     index = [(kb_words(doc), doc) for doc in kb_docs]
+    # 檔名自己帶著 key（外掛 0.3.0 起）—— 這是最強的訊號，連「一份檔案最多
+    # 屬於一筆文獻」的仲裁都不必參加：一部作品的每一份都該掛在同一筆上。
+    by_key: dict[str, list[str]] = {}
+    for doc in kb_docs:
+        if match := ZOTERO_KEY_PREFIX.match(doc):
+            by_key.setdefault(match.group("key"), []).append(doc)
+
     claims: dict[str, list[tuple[float, str]]] = {}
+    stamped: set[str] = set()
     for item in items:
         key, title = item["data"]["key"], item["data"].get("title", "")
+        if key in by_key:
+            stamped.add(key)
+            continue
         # 一筆可能有好幾行 `lightrag:`（舊的沒清、拆書後補的新的）——
         # **任何一行對得上就算數**，過期的那些不該把有效的擋住。
         if live := [f for f in recorded_filenames(item) if f in stored]:
@@ -447,7 +467,7 @@ def documents_in_kb(items: list[dict[str, Any]], kb_docs: list[str]) -> set[str]
                 (max(score(words, other) + jaccard(words, other)
                      for other, name in index if name == doc), key))
 
-    winners: set[str] = set()
+    winners: set[str] = set(stamped)
     for holders in claims.values():
         holders.sort(key=lambda pair: -pair[0])
         if len(holders) == 1 or holders[0][0] > holders[1][0]:

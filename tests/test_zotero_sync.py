@@ -372,3 +372,52 @@ def test_a_named_note_that_does_not_exist_proves_nothing() -> None:
     item = _item("A", "某篇論文的標題夠長可以比對")
     item["data"]["extra"] = "obsidian: 這篇筆記不存在"
     assert zsync.plan_changes([item], [], [], {"別的筆記": ""}, prune=False) == []
+
+
+# ── 檔名自己帶 key（外掛 0.3.0 起）────────────────────────────────────────
+
+def test_a_stamped_filename_needs_no_matching_at_all() -> None:
+    """**這條是整個新設計的目的。** 檔名帶著 key，比對就退場了。
+
+    標題完全對不上也沒關係 —— key 是身分，標題只是給人看的。
+    """
+    item = _item("APLAMD5P", "完全對不上的標題")
+    got = zsync.documents_in_kb([item], ["APLAMD5P 2021 - Room acoustic modeling.pdf"])
+    assert got == {"APLAMD5P"}
+
+
+def test_every_part_of_a_split_work_hangs_on_the_same_item() -> None:
+    """一本拆成七章的書，七個檔案都帶同一個 key —— 不必再登記「它們是同一本」。
+
+    今天欠 57 份未登記來源，就是因為登記是一個獨立於進料的人工動作。
+    """
+    docs = [f"APLAMD5P 2021 - Room acoustic modeling_CH{n}.pdf" for n in range(1, 8)]
+    assert zsync.documents_in_kb([_item("APLAMD5P", "隨便什麼標題")], docs) == {"APLAMD5P"}
+
+
+def test_the_key_prefix_is_not_treated_as_words_of_the_title() -> None:
+    """前綴要在比對前剝掉，否則它會變成八個「字」影響相似度。"""
+    words = zsync.kb_words("APLAMD5P 2021 - Broadband ultra-thin acoustic metasurface.pdf")
+    assert "aplamd5p" not in words
+    assert "broadband" in words
+
+
+def test_something_that_merely_looks_like_a_key_is_not_one() -> None:
+    """Zotero 的 key 沒有 0、1、O，而且剛好 8 碼。
+
+    寬鬆一點就會把正常的檔名開頭誤認成身分 —— 那比認不出來嚴重得多，
+    因為它會把一份文件掛到不存在的文獻上。
+    """
+    for bad in ("ABCDEFG 2021 - x.pdf",        # 7 碼
+                "ABCDEFGHI 2021 - x.pdf",      # 9 碼
+                "ABCDEF0P 2021 - x.pdf",       # 含 0
+                "ABCDEF1P 2021 - x.pdf",       # 含 1
+                "ABCDEFOP 2021 - x.pdf",       # 含 O
+                "abcdefgh 2021 - x.pdf"):      # 小寫
+        assert zsync.ZOTERO_KEY_PREFIX.match(bad) is None, bad
+
+
+def test_an_unstamped_document_still_falls_back_to_matching() -> None:
+    """**遷移期間兩種檔名會並存。** 舊的沒有 key，還是得靠比對活著。"""
+    item = _item("B", "Broadband ultra-thin acoustic metasurface absorber")
+    assert zsync.documents_in_kb([item], KB) == {"B"}

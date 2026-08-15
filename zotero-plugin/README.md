@@ -62,10 +62,38 @@ Zotero 比對這個值，比執行中的版本小就**直接拒裝**，而且訊
 | `extensions.zotero.lightrag.doneTag` | `_Raged` | 確認進知識庫之後換成的標籤 |
 | `extensions.zotero.lightrag.intervalMinutes` | `10` | 自動對帳的間隔 |
 
+## 檔名帶著 Zotero 的 key（0.3.0 起）
+
+```
+APLAMD5P 2021 - Room acoustic modeling with the TD-DG method.pdf
+└──┬───┘
+Zotero 的 item key，8 碼，Zotero 自動給的
+```
+
+**為什麼要這樣。** 同一篇文獻在三個系統裡沒有共同的名字：Zotero 有 item key、
+知識庫有檔名、Obsidian 有筆記名，互不攜帶對方的識別碼。於是「這三個是不是同一篇」
+只能拿標題去猜 —— 2026-08-14 一天內這個猜法被八種情形各打敗一次（拆書、縮寫、
+截斷、空白不一致、標點黏字、上下集、短吃長、前綴相同），而**每修好一種，
+下一批文件就長出新的一種**。
+
+檔名是唯一已經天然流過每一站的東西（進料台 → 解析快取的鍵 → LightRAG 的
+`file_path` → 檢索回傳的 `doc` → kbapi 的圖片別名），所以身分放這裡等於零改管線。
+
+⚠ **key 放最前面。** 2026-08-14 實測：Zotero 自己重新命名附件時會把名字砍在
+110–111 字，而且**一律砍尾巴**（翻譯本 `…_zh-TW_dual.pdf` 是先砍到 110 再接後綴，
+證明頭部沒被動）。放頭部就對截尾免疫。
+
+⚠ **key 取父層文獻的，不是附件的。** 同一筆文獻的原文、翻譯、章節共用同一個身分
+—— 那正是「這幾個檔案是同一部作品」的依據。
+
+⚠ **key 不合格就退回無前綴的舊格式，不擋送出。** 每一筆 Zotero 文獻都有 key，
+走到那條路是程式錯誤；但擋住送出會讓使用者的工作流當場停掉。沒前綴的檔案由
+伺服器端的 `compat-check` 抓出來。
+
 ## 檔名記在「其他」欄位
 
 ```
-lightrag: 2026 - Nonlinear Dynamics and Vibration Suppression ....pdf
+lightrag: APLAMD5P 2021 - Room acoustic modeling with the TD-DG method.pdf
 ```
 
 對帳靠它。**記的是伺服器實際存成的名字，不是我們算的** —— 同名時它會加序號。
