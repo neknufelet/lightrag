@@ -80,7 +80,13 @@ services:
       - ${INPUTS_DIR:-${DATA_ROOT:-/data/lightrag}/inputs}:/app/data/inputs
       # LightRAG 的 archive_source 仍只認容器內的 __parsed__；把這個子 mount
       # 導到獨立工作區，宿主就不會把解析快取混在索引入口裡。
-      - ${DATA_ROOT:-/data/lightrag}/work/parsed:/app/data/inputs/${WORKSPACE}/__parsed__
+      #
+      # ⚠ **`PARSED_DIR` 要能單獨設**，跟上面的 `RAG_STORAGE_DIR` 同一個理由：
+      #   遷移時第二個 stack 要指到改過名的那份解析成果（`work/parsed-v3`），
+      #   而舊 stack 仍然指著 `work/parsed`。寫死的話兩座會共用同一份，
+      #   改名動作一做舊庫就找不到自己的快取了。
+      #   預設維持原路徑，既有的 stack 不受影響。
+      - ${PARSED_DIR:-${DATA_ROOT:-/data/lightrag}/work/parsed}:/app/data/inputs/${WORKSPACE}/__parsed__
       # 抽取規則（唯讀）。走官方的 prompt profile 機制，**不 fork 映像** ——
       # 映像仍以 digest 釘選，換版時這份規則原封不動跟著走。
       # 內容與理由見 prompts/entity_type/acoustics.yml；由 PROMPT_DIR 與
