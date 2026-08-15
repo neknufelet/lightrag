@@ -33,10 +33,19 @@ var LightRAGPickPDF = (function () {
   // BabelDOC（翻譯工具）自己打的標籤。機器打的，所以一致。
   var TRANSLATED_TAG = 'BabelDOC_translated';
 
-  // 實測到的四種翻譯命名法：`PDF_ZHT`、`zht_PDF`、`_zh-TW_dual`、`_zh-TW_translation`。
+  // 實測到的翻譯命名法（2026-08-15 掃全庫 2241 個附件）：
+  //
+  //     PDF_ZHT / zht_PDF          最常見
+  //     …_zh-TW_dual.pdf           BabelDOC 的雙語對照版
+  //     …_zh-TW_translation.pdf    純翻譯
+  //     …zh-TW.mono.pdf            BabelDOC 的單語版，**點號分隔**
+  //     deepseek-mono / -dual      標題只寫工具名，**連字號分隔**
+  //
+  // ⚠ `mono`／`dual` 前面要有分隔號（`-_.`）才算。沒這個限制的話
+  //    `… Digital Monogr.pdf`（專著）會被誤判成翻譯本而不送。
   // ⚠ 這張表是**猜**的那一半，新的寫法出現時會漏 —— 所以它只是標籤的補漏，
   //    不是主要依據。漏掉的後果是那筆落到「要問人」，不是靜靜送錯。
-  var TRANSLATED_NAME = /(_?zht|zh-?tw|_dual|_translation|翻譯)/i;
+  var TRANSLATED_NAME = /(_?zht|zh-?tw|[-_.]dual\b|[-_.]mono\b|_translation|翻譯)/i;
 
   function isTranslation(att) {
     var a = att || {};
@@ -45,7 +54,12 @@ var LightRAGPickPDF = (function () {
       var name = typeof tags[i] === 'string' ? tags[i] : (tags[i] && tags[i].tag);
       if (name === TRANSLATED_TAG) return true;
     }
-    return TRANSLATED_NAME.test(String(a.title == null ? '' : a.title));
+    // ⚠ **標題與檔名都要看。** 2026-08-15 實測：6 個附件的標題看不出是翻譯
+    //    （`deepseek-mono`、`電子書`），證據只在檔名裡（`….zh-TW.mono.pdf`）。
+    //    只看標題的話那些會被當成原文送出去 —— 而且不會有任何訊號。
+    var blob = String(a.title == null ? '' : a.title) + ' '
+             + String(a.filename == null ? '' : a.filename);
+    return TRANSLATED_NAME.test(blob);
   }
 
   /**

@@ -84,3 +84,49 @@ test('標籤可以是字串或物件 —— Zotero 兩種都給得出來', () =>
   assert.ok(isTranslation(pdf('X', [{ tag: 'BabelDOC_translated' }])));
   assert.ok(!isTranslation(pdf('X', [{ tag: 'Absorption' }, 'Coiling Space'])));
 });
+
+// ── 檔名裡才看得出來的（0.3.5 起）────────────────────────────────────────
+//
+// 2026-08-15 掃全庫 2241 個附件，找出 6 個「標題看不出、檔名才看得出」的。
+// 下面用的是真實資料，不是編的。
+
+test('**標題看不出、檔名看得出的翻譯本**', () => {
+  // 只看標題的話這 5 個會被當成原文送出去，而且不會有任何訊號。
+  const real = [
+    ['deepseek-mono',
+     '2020 - A double porosity material for low frequency sound absorption.no_watermark.zh-TW.mono.pdf'],
+    ['deepseek-dual',
+     '2022 - In situ acoustic characterization of a locally reacting porous material.no_watermark.zh-TW.dual.pdf'],
+    ['Introduction to the special issue on sound absorption and diffusion-deepseek-mono',
+     '2026 - Introduction to the special issue.no_watermark.zh-TW.mono.pdf'],
+    ['電子書',
+     '羅勃特.T.清崎著 ; MTS翻譯團隊譯 - 2022 - 富爸爸, 窮爸爸.pdf'],
+  ];
+  for (const [title, filename] of real) {
+    assert.ok(isTranslation({ title, filename, tags: [] }),
+              `沒認出是翻譯：${title}`);
+  }
+});
+
+test('連字號與點號分隔的 mono／dual 都要認得，不只底線', () => {
+  for (const name of ['x-mono.pdf', 'x_mono.pdf', 'x.mono.pdf',
+                      'x-dual.pdf', 'x_dual.pdf', 'x.mono.pdf']) {
+    assert.ok(isTranslation({ title: name, tags: [] }), `沒認出：${name}`);
+  }
+});
+
+test('**`Monograph` 不是 mono** —— 分隔號的限制就是為了這個', () => {
+  // 真實案例：`Pleban - 2022 - New techniques … Digital Monogr.pdf`
+  assert.ok(!isTranslation({
+    title: 'PDF',
+    filename: 'Pleban - 2022 - New techniques and methods for noise. Digital Monogr.pdf',
+    tags: [],
+  }), '把專著誤判成翻譯本了');
+  assert.ok(!isTranslation({ title: 'Monolithic absorber design', tags: [] }));
+  assert.ok(!isTranslation({ title: 'Dualism in acoustic modelling', tags: [] }));
+});
+
+test('沒有 filename 欄位也不能爆掉 —— 舊呼叫端只給 title', () => {
+  assert.ok(isTranslation({ title: 'PDF_ZHT' }));
+  assert.ok(!isTranslation({ title: 'PDF' }));
+});

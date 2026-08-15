@@ -84,8 +84,11 @@ async function sendOne(item, tag) {
       const child = Zotero.Items.get(id);
       if (child && child.isPDFAttachment && child.isPDFAttachment()) pdfs.push(child);
     }
+    // ⚠ **檔名一定要一起給。** 實測 6 個附件的標題看不出是翻譯
+    //   （`deepseek-mono`、`電子書`），證據只在檔名裡（`….zh-TW.mono.pdf`）。
     const verdict = LightRAGPickPDF.choose(pdfs.map(a => ({
       title: a.getField ? a.getField('title') : '',
+      filename: a.attachmentFilename || '',
       tags: a.getTags ? a.getTags() : [],
       _item: a,
     })));
