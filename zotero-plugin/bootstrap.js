@@ -298,7 +298,11 @@ function titleOf(item) {
 
 function show(headline, summary, problems) {
   try {
-    const window = new Zotero.ProgressWindow();
+    // ⚠ `closeOnClick` 是**唯一保證關得掉的方式**。2026-08-15 PO 回報那個視窗
+    //    「一直掛在那邊不會自己消失」—— `startCloseTimer()` 有呼叫，但在他的
+    //    Zotero 上沒生效（原因未查明，這台沒有 Zotero 驗不了）。計時器留著當
+    //    好路徑，點一下關掉當保證：**沒有出路的視窗比沒有視窗糟**。
+    const window = new Zotero.ProgressWindow({ closeOnClick: true });
     window.changeHeadline(headline);
     window.addDescription(summary);
     // 問題**逐條列出來**，不要只給一個數字 —— 數字看不出來要去修哪一筆。
@@ -307,8 +311,13 @@ function show(headline, summary, problems) {
       window.addDescription('…還有 ' + (problems.length - 10) + ' 筆，詳見偵錯輸出');
     }
     window.show();
-    // 有問題就不要自己關掉，讓人有時間讀。
-    window.startCloseTimer(problems.length ? 30000 : 6000);
+    // 有問題就不要太快關掉，讓人有時間讀。
+    try {
+      window.startCloseTimer(problems.length ? 30000 : 6000);
+    } catch (e) {
+      // 關不掉不該讓「已經送出去了」變成一個錯誤。點一下還是關得掉。
+      log('自動關閉設不起來（點一下可以關）：' + e);
+    }
   } catch (e) {
     // 畫面掛了不該把已經做完的事情變成失敗 —— 結果本身已經進 debug log 了。
     log('結果視窗顯示失敗：' + e);
