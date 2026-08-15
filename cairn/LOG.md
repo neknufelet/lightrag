@@ -41,7 +41,16 @@ TYPE_MISMATCH 0，註解宣告的頁碼與 `page_idx` 逐檔對得上。
 
 ⚠ 順手量到另一個同型的洞：**體檢表 dker 318 份、git 只有 20 份**，而 `note` 欄
 是大段人寫的判定理由。README 的反向對照指令（「兩個數字必須相同」）今天實測
-496 vs 198，早就對不上了。
+496 vs 198，早就對不上了。補齊到 322，並把那條判準改成只看危險的方向
+（「dker 有而 repo 沒有」的差集）——**一個永遠會叫的判準等於沒有判準**，
+這就是 20/318 擺了那麼久沒人停下來的原因。
+
+**兩個懸了三天的門檻同日定案**（[ADR-0007](../docs/decisions/0007-parse-gate-thresholds.md)）：
+`parse.coverage` 超標記 `pass`＋note、會叫但不擋；`parse.checks` 只有 ERROR 記
+`fail`。當天實跑的母體是 317 份（不是 08-13 那個 259）：
+`parse-check` OK 32／WARN 283（89%）／ERROR 2、`coverage-check` 超標 15。
+ERROR 從 3 掉到 2 正是被上面那次合併修掉的——**ERROR 是修得動的，所以拿它當
+擋的判準合理；WARN 283 份不是**。
 
 ## 2026-08-15（六）· 外掛 0.3.5（取自 commit 訊息與 CHANGELOG，非本次實測）
 
