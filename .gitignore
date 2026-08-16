@@ -18,6 +18,11 @@ inputs/
 .DS_Store
 __pycache__/
 
+# uv 建出來的環境（2026-08-17 起）。**產物不是原始碼** —— 鎖在
+# `uv.lock` 裡，兩台機器各自 `uv sync` 重建。進版控會讓 dker 的
+# `工作區乾淨` 檢查天天紅，而且它裝的是本機架構的二進位檔。
+.venv/
+
 # Zotero 外掛的 .xpi **要進版控**：`update.json` 的 update_link 指著它，
 # 那是 Zotero 檢查更新時會去抓的網址。忽略掉的話那個連結是死的。
 

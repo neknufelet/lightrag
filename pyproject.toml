@@ -1,0 +1,45 @@
+# lightrag 的相依鎖定 —— 2026-08-17 導入。
+#
+# **在此之前沒有這個檔，而那是對的。** 全部腳本一共 import 45 個模組，其中
+# 43 個是標準函式庫；真正外面來的只有 `yaml` 一個，dker 上 apt 早就裝好了。
+# 一個套件不值得一整套依賴管理。
+#
+# **改變的是切章工具搬進來**（`scripts/chapters/`）：它要 PyMuPDF —— 一個帶
+# C 程式的大套件，而且版本會咬人。實測 coder 的系統 python 是 1.27.2、
+# dker 的 apt 只到 1.23.7。**「我在 coder 上驗過了」正是這個 repo 一再避開的
+# 那句話**（CLAUDE.md：凡是關於跑著的系統的陳述一律附 dker 的實跑輸出），
+# 而版本漂移會讓那句話在無聲中變成假的。
+#
+# ⚠ **不宣告 `lightrag` 自己。** `parse-only.py` 與 `pp/apply.py` 匯入的
+# `lightrag.parser.external.mineru` 只存在**容器裡**（dker 的系統 python
+# 實測 `ModuleNotFoundError`），那幾支是走 `docker exec` 跑的。把它寫進來
+# 會讓 uv 去 PyPI 抓一個同名但不是這個東西的套件。
+#
+# **執行期不需要 uv。** `uv sync` 產生 `.venv/`，之後 systemd 與 shell 腳本
+# 直接叫 `.venv/bin/python`。dker 只在部署時用到 uv，跑的時候不用 —— 服務
+# 啟動不依賴一個會上網的工具。
+[project]
+name = "lightrag-acoustics"
+version = "0"
+description = "聲學知識庫的工具腳本（不是套件，不發佈）"
+requires-python = ">=3.12"
+dependencies = [
+    # deploy-stack.py 讀 compose.yaml 用。dker 的 apt 版是 6.0.1。
+    "pyyaml>=6.0",
+    # 切章工具開 PDF、取目錄、寫子檔用（`import fitz`）。
+    "pymupdf>=1.24",
+]
+
+[dependency-groups]
+dev = [
+    # `run-tests.sh` 的兩個入口都要它（`test_gates.py` 不需要，但 pytest 收集
+    # 不到它，所以那支是另外跑的）。
+    "pytest>=8.0",
+    # pre-commit 掛的 linter。設定在 ruff.toml，不在這裡。
+    "ruff>=0.14",
+]
+
+# 這個 repo 是一堆腳本，不是可安裝的套件 —— 沒有 `import lightrag_acoustics`
+# 這種用法。宣告 false，uv 就只建環境、不試著 build 它。
+[tool.uv]
+package = false
