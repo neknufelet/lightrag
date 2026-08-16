@@ -415,9 +415,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 0,
-  "title_fired": false,
+  "title_fired": true,
   "title_held": 0,
-  "title_mute": 0
+  "title_mute": 2
  },
  "2019 - Image Source Method Based Acoustic Simulation For 3-D Room Environment.pdf": {
   "charts_convert": 0,
@@ -541,9 +541,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 5,
-  "title_fired": false,
-  "title_held": 0,
-  "title_mute": 0
+  "title_fired": true,
+  "title_held": 3,
+  "title_mute": 6
  },
  "2020 - Ultra-broadband acoustic absorption of a thin microperforated panel metamaterial with multi-order re.pdf": {
   "charts_convert": 0,
@@ -667,9 +667,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 2,
-  "title_fired": false,
-  "title_held": 0,
-  "title_mute": 0
+  "title_fired": true,
+  "title_held": 4,
+  "title_mute": 3
  },
  "2023 - Ultra-broadband symmetrical acoustic coherent perfect absorbers designed by the causality principle.pdf": {
   "charts_convert": 0,
@@ -688,9 +688,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 1,
-  "title_fired": false,
-  "title_held": 0,
-  "title_mute": 0
+  "title_fired": true,
+  "title_held": 2,
+  "title_mute": 3
  },
  "2024 - A Compact Low-Frequency Acoustic Perfect Absorber Constructed with a Folded Slit.pdf": {
   "charts_convert": 0,
@@ -709,9 +709,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 2,
-  "title_fired": false,
-  "title_held": 0,
-  "title_mute": 0
+  "title_fired": true,
+  "title_held": 3,
+  "title_mute": 6
  },
  "2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures.pdf": {
   "charts_convert": 0,
@@ -856,9 +856,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 1,
-  "title_fired": false,
-  "title_held": 0,
-  "title_mute": 0
+  "title_fired": true,
+  "title_held": 3,
+  "title_mute": 7
  },
  "2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro.pdf": {
   "charts_convert": 0,
@@ -1024,9 +1024,9 @@
   "repairable": 0,
   "review": 0,
   "tables_total": 6,
-  "title_fired": false,
+  "title_fired": true,
   "title_held": 0,
-  "title_mute": 0
+  "title_mute": 5
  },
  "2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity.pdf": {
   "charts_convert": 0,
@@ -1148,7 +1148,7 @@
   "ratio": 0.0,
   "refs_mute": 0,
   "repairable": 0,
-  "review": 1,
+  "review": 0,
   "tables_total": 57,
   "title_fired": true,
   "title_held": 2,
