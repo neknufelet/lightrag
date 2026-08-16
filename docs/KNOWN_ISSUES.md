@@ -36,6 +36,8 @@ summary: "已知但決定不修（或暫緩）的問題，附各自的理由。�
 | KI-013 | 低 | `100.87.88.7` 的 `nvidia-smi` 壞了（driver/library mismatch） | 2026-08-03 | — |
 | KI-014 | 低 | TurboQuant 不適用（查過了） | 2026-08-03 | ADR-0002 |
 | KI-015 | 中 | 期刊推薦／封面頁列出**別人的論文**（IOP `You may also like`、AIP `ARTICLES YOU MAY BE INTERESTED IN`） | 2026-08-09 | — |
+| KI-016 | **高** | 外掛：對 PDF 附件那一列按送出會**繞過選片規則**，中文翻譯本會被直接送進庫 | 2026-08-16 | — |
+| KI-017 | 中 | 目錄頁已經混進知識庫（2/317）。沒有任何規則管目錄／版權頁 | 2026-08-16 | — |
 
 > 嚴重度：**高** = 功能無法運作 / **中** = 有 workaround / **低** = 不影響主流程
 
@@ -167,3 +169,68 @@ AIP   2019 - Low-frequency sound absorption …      `ARTICLES YOU MAY BE INTERE
 —— 形狀與 `reference_section` 完全一樣，可以直接抄那條的區段邏輯。
 ⚠ 抄的時候連「消到下一個同級或更高級標題、不是消到結尾」一起抄，
 那一條是被 2017 那篇的補充材料逼出來的。
+
+---
+
+## KI-016 外掛：點 PDF 附件那一列送出會繞過選片規則（2026-08-16）
+
+**嚴重度高，而且今天才第一次被寫下來。** PO 在 2026-08-15 的交接裡口頭提過，
+但 `KNOWN_ISSUES.md` 與 `CHANGELOG.md` 都沒有這一條 —— 這次讀程式碼才確認位置。
+
+`zotero-plugin/bootstrap.js` 的 `sendOne()`（71–105 行）：
+
+```javascript
+if (item.isPDFAttachment && item.isPDFAttachment()) {
+    attachment = item;                       // ← 直接用，沒過 choose()
+    parent = Zotero.Items.get(item.parentItemID) || item;
+} else if (item.isRegularItem && item.isRegularItem()) {
+    ...
+    const verdict = LightRAGPickPDF.choose(...);   // ← 選片規則只在這裡跑
+```
+
+⇒ 在 Zotero 條目清單裡**展開文獻、對底下某一份 PDF 附件那一列按送出**，
+`choose()` 整段不會執行。過濾中文翻譯本、認 `title === 'PDF'` 那些規則全部跳過，
+**你點到哪一份就送哪一份**。
+
+**為什麼還沒修**：0.3.5 那一輪的重點是「選對片、帶 key」，這條路徑當時沒被想到。
+修法不難（那一支也走一次 `choose()`，或至少在偵測到翻譯樣式時擋下來問一句），
+但要重跑外掛的 50 條測試 —— 而 **dker 沒有 node**，測試只跑得動在 coder 上。
+
+⚠ **這條的代價是不可見的**：送錯了不會報錯，中文翻譯本會安安靜靜進庫，
+然後被公式比對當成一個獨立來源。
+
+---
+
+## KI-017 目錄頁會混進知識庫，沒有規則管它（2026-08-16）
+
+`scripts/pp/rules/` 底下真正的消音規則只有三條，**沒有一條的判準提到目錄**：
+
+| 規則 | 管什麼 | 管目錄？ | 管版權頁／前言？ |
+|---|---|---|---|
+| `layout_noise.py` | 每頁重現的頁眉頁腳 | 否 | 否 |
+| `reference_section.py` | References／Bibliography／Acknowledgements | 否 | 否 |
+| `title_block.py` | 標題頁的作者／單位／出版資訊 | 否 | 只消單行的出版資訊，不是整頁前言 |
+
+（`title_block.py` 的樣式裡有 `view\s+table\s+of\s+contents`，但那是在認期刊頁上
+「View Table of Contents」那一行連結文字，不是整個目錄頁。）
+
+**已經在發生，不是理論風險。** 掃全部 317 份找「三個點以上接頁碼」的樣式，
+命中 2 份，而且逐份確認過那些內容**真的在餵進知識庫的 `blocks.jsonl` 裡**：
+
+```
+2019 - Comparative Study and Design of Economical Sound Intensity Probe   26 處
+   blocks.jsonl 第 6 筆  heading='Table of Contents'
+   'List of figures.  List of tables.. . vii  Acknowledgements.. . viii  1 Introduction.. ….1'
+2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials   1 處
+   blocks.jsonl 第 32 筆 heading='Indexes'
+   'Cumulative Index of Contributing Authors, Volumes 43–47 .......... 481'
+```
+
+**為什麼現在只有 0.6%**：送進來的多半是**已經拆好的單章**或期刊論文，本來就沒有
+目錄頁。⚠ **這個比例會隨「整本書送進來」直接跳到接近 100%** —— 見
+`docs/whole-book-intake-20260816.md` 的討論。
+
+⚠ 另一個沒人驗過的相依：`title_block.py` 刻意**對教科書章節不開火**
+（判準是「第一項必須是 `text_level == 1` 而且在第 0 頁」，拆好的單章第一項通常
+是半句話）。**整本書送進來時第一頁是真正的書名頁，這條規則會第一次開火 ——
+而沒有人驗過它那時候會消掉什麼。**
