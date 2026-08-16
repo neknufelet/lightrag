@@ -5,6 +5,18 @@ set -u
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_DIR" || exit 2
 
+# ── 跑哪一個 python（2026-08-17 起）───────────────────────────────────────
+# `uv sync` 建出來的環境。**不 fallback 到系統 python3** —— 那台上沒有 PyMuPDF，
+# 切章的測試會 ImportError，而「用錯環境跑出來的綠」比紅燈更糟。
+# 環境沒建起來是腳本前提不成立（exit 2），不是測試失敗（1）也不是驗不了（3）。
+PY="$REPO_DIR/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+  # ⚠ 反引號要跳脫，否則雙引號裡的 `uv sync` 會被 shell 當成指令去跑。
+  echo "run-tests: 找不到 $PY —— 這台還沒跑過 \`uv sync\`。" >&2
+  echo "  裝法：cd $REPO_DIR && uv sync --frozen" >&2
+  exit 2
+fi
+
 # pytest 裝了沒，要先分開問。
 #
 # 2026-08-07 實測：dker 上沒有 pytest，於是 `python3 -m pytest` 回非零，這支就報
@@ -12,22 +24,22 @@ cd "$REPO_DIR" || exit 2
 # 事長成同一句話，紅燈落地在 /data/lightrag/checks/ 裡沒有人看得懂。
 #
 # 「驗不了」不是「失敗」也不是「通過」（鐵則 7 那一族）。
-if ! python3 -c "import pytest" 2>/dev/null; then
-  echo "驗不了：這台沒有裝 pytest（python3 -c 'import pytest' 失敗）。" >&2
-  echo "  這不是測試失敗，是測試根本沒跑。裝法：apt install python3-pytest" >&2
+if ! "$PY" -c "import pytest" 2>/dev/null; then
+  echo "驗不了：這個環境沒有 pytest（\`uv sync\` 沒裝到 dev 群組？）。" >&2
+  echo "  這不是測試失敗，是測試根本沒跑。修法：cd $REPO_DIR && uv sync --frozen" >&2
   echo "  test_gates.py 不需要 pytest，下面仍會跑。" >&2
   pytest_rc=0
   pytest_unavailable=1
 else
-  echo "== python3 -m pytest tests/ -q =="
+  echo "== .venv/bin/python -m pytest tests/ -q =="
   pytest_rc=0
   pytest_unavailable=0
-  python3 -m pytest tests/ -q || pytest_rc=$?
+  "$PY" -m pytest tests/ -q || pytest_rc=$?
 fi
 
-echo "== python3 tests/test_gates.py =="
+echo "== .venv/bin/python tests/test_gates.py =="
 gates_rc=0
-python3 tests/test_gates.py || gates_rc=$?
+"$PY" tests/test_gates.py || gates_rc=$?
 
 # Zotero 外掛的檔名那支是 JavaScript，只有 node 跑得動。
 # dker 上沒有 node —— 同樣走「驗不了 ≠ 失敗」那條路，不要讓它變成紅燈。

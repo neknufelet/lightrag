@@ -218,11 +218,32 @@ def test_compat_a21_token_with_margin_stays_green(
 
 
 def test_run_tests_entry_names_both_non_collecting_test_paths() -> None:
+    """兩個入口都要被叫到 —— pytest 收集不到 `test_gates.py`，缺一個那半就靜靜不跑。
+
+    ⚠ **2026-08-17 換了直譯器，意圖沒換。** 原本斷言 `python3 -m pytest …`，
+    現在走 `uv sync` 建的 `.venv/bin/python`（PyMuPDF 只在那裡面）。
+    """
     source = (SCRIPTS / "run-tests.sh").read_text(encoding="utf-8")
 
-    assert "python3 -m pytest tests/ -q" in source
-    assert "python3 tests/test_gates.py" in source
+    assert '"$PY" -m pytest tests/ -q' in source
+    assert '"$PY" tests/test_gates.py' in source
     assert "pytest_rc=0" in source and "gates_rc=0" in source
+
+
+def test_entry_points_use_the_locked_venv_not_system_python() -> None:
+    """⚠ **不准偷偷 fallback 回系統 python3。**
+
+    dker 的系統 python 沒有 PyMuPDF（切章工具要它），而「用錯環境跑出來的綠」
+    比紅燈更難查 —— 那正是 2026-08-17 才修掉的「跑著的是舊碼」同一族。
+    環境沒建起來要當場停（exit 2），不是往下跑。
+    """
+    for name in ("run-tests.sh", "daily-check.sh"):
+        src = (SCRIPTS / name).read_text(encoding="utf-8")
+        assert 'PY="$REPO_DIR/.venv/bin/python"' in src, f"{name} 沒有指向 .venv"
+        assert 'if [ ! -x "$PY" ]' in src, f"{name} 沒有在環境缺席時停下來"
+        # 只看真正會被執行的行（開頭就是 python3），註解裡提到 python3 是說明不是呼叫。
+        calls = [ln for ln in src.splitlines() if ln.strip().startswith("python3 ")]
+        assert not calls, f"{name} 還有直接叫系統 python3 的行：{calls}"
 
 
 def test_daily_check_wires_test_entry_into_check_red_path() -> None:

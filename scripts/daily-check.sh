@@ -18,6 +18,17 @@ CHECK_DIR=/data/lightrag/checks
 cd "$REPO_DIR"
 mkdir -p "$CHECK_DIR"
 
+# ── 跑哪一個 python（2026-08-17 起）───────────────────────────────────────
+# `uv sync` 建出來的環境。**不要 fallback 到系統 python3** —— 那台上沒有
+# PyMuPDF，切章相關的東西會 ImportError，而「跑了但用錯環境」比「沒跑」更難查。
+# 底下的腳本用 `sys.executable` 開子行程，所以只要這裡對，整條鏈都對。
+PY="$REPO_DIR/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+  echo "daily-check: 找不到 $PY —— 這台還沒跑過 \`uv sync\`。" >&2
+  echo "  這不是檢查紅燈，是環境沒建起來。裝法：cd $REPO_DIR && uv sync --frozen" >&2
+  exit 2
+fi
+
 if [ "${1:-}" = "--selftest" ]; then
   echo "2026-08-07 起沒有通知管道（ntfy 已拆）。紅綠狀態一律看 $CHECK_DIR。" >&2
   exit 0
@@ -32,7 +43,7 @@ ts=$(date +%Y%m%dT%H%M%S)
 # 真的紅燈 fresh_rc=2「跑著的是舊碼」就埋在那一片紅裡沒有人看出來。
 # 判準只有那一份，審核台橫幅也讀它 —— 兩邊各寫一份會打架而且沒人會發現。
 
-python3 scripts/compat-check.py --json \
+"$PY" scripts/compat-check.py --json \
   > "$CHECK_DIR/compat-$ts.json" 2> "$CHECK_DIR/compat-$ts.err"
 compat_rc=$?
 
@@ -40,7 +51,7 @@ compat_rc=$?
 # 那個 rc 沒有被留下來，於是 latest.json 裡**根本沒有 canary 這一欄** ——
 # canary 紅了只會出現在 stderr（進 journal），任何讀 latest.json 的人都看不到。
 # 2026-08-16 實測到：那天 canary 是紅的，而 latest.json 看起來只有四個紅燈。
-python3 scripts/postprocess.py canary > "$CHECK_DIR/canary-$ts.txt" 2>&1
+"$PY" scripts/postprocess.py canary > "$CHECK_DIR/canary-$ts.txt" 2>&1
 canary_rc=$?
 
 # ── SCANNER-1：∂ 誤讀探針（2026-08-03 加入）────────────────────────────
@@ -49,7 +60,7 @@ canary_rc=$?
 # rc: 0 與基準相同／2 漂移／3 沒有基準檔（未設定，不是通過也不是失敗）。
 # ⚠ 它回 3（沒有基準檔）在 check-levels.py 裡**刻意留在「擋」那一態**，跟
 # tests 的 3 不同 —— 那不是「這台驗不了」，是「有人要去建一份基準」，做得完。
-python3 scripts/scan-partial.py > "$CHECK_DIR/scan-$ts.txt" 2>&1
+"$PY" scripts/scan-partial.py > "$CHECK_DIR/scan-$ts.txt" 2>&1
 scan_rc=$?
 
 # ── 解析品質：碎字元（2026-08-10 加入）──────────────────────────────────
@@ -63,7 +74,7 @@ scan_rc=$?
 # 提醒的紅」那一條，以及新庫設計文件第一層的裁決「尺不改，但紅燈只印警告不擋」）。
 # 實跑母體 317 份：OK 32／WARN 283（89%）／ERROR 2 —— 它量的是**語料內容**，
 # 不是系統壞掉，而 ERROR 那兩份是修得動的個案，不該讓整張儀表板天天紅。
-python3 scripts/parse-check.py > "$CHECK_DIR/parse-$ts.txt" 2>&1
+"$PY" scripts/parse-check.py > "$CHECK_DIR/parse-$ts.txt" 2>&1
 parse_rc=$?
 
 # ── 漏字比對：**只記錄，不進紅燈**（2026-08-10 加入）────────────────────
@@ -76,7 +87,7 @@ parse_rc=$?
 # skill，查過的結論記進 tests/verified-findings.json，工具下次會自己印出來。
 # ⚠ 2026-08-17 起它**不再是被靜靜丟掉**：check-levels.py 明確標成 warn 並印出來。
 # 原本「算進 latest.json 但不算 status」的做法看不出是刻意的還是漏掉的。
-python3 scripts/coverage-check.py --json \
+"$PY" scripts/coverage-check.py --json \
   > "$CHECK_DIR/coverage-$ts.json" 2> "$CHECK_DIR/coverage-$ts.err"
 coverage_rc=$?
 
@@ -88,20 +99,20 @@ coverage_rc=$?
 # 這支腳本本身是「誰會報錯」的答案，但**觸發它的 timer 原本不在版控裡**——
 # /etc 掉了或有人手改了，腳本還在、排程沒了，看起來一切正常。
 # 探針本身要有探針（鐵則 6）。rc: 0 一致／2 缺檔、內容不符、或沒 enabled。
-python3 scripts/systemd-units.py verify > "$CHECK_DIR/units-$ts.txt" 2>&1
+"$PY" scripts/systemd-units.py verify > "$CHECK_DIR/units-$ts.txt" 2>&1
 units_rc=$?
 
 # ── 部署一致性：stack 那份 compose 有沒有跟 repo 一致 ──────────────────
 # 這支 2026-08-08 之前**沒有任何人呼叫**（deploy-stack.py 檔頭自己寫了「執行者
 # 目前是弱的」）。寫好的檢查沒被呼叫，等於沒寫。
-python3 scripts/deploy-stack.py verify > "$CHECK_DIR/deploy-$ts.txt" 2>&1
+"$PY" scripts/deploy-stack.py verify > "$CHECK_DIR/deploy-$ts.txt" 2>&1
 deploy_rc=$?
 
 # ── 部署新鮮度：跑著的是不是最新的碼 ───────────────────────────────────
 # 檔案放對了不代表跑著的是它。2026-08-08 實測 dker 落後 origin 3 個 commit
 # （含一個 fix(intake)），而容器 healthy、端點會回應、測試也過 —— 跑舊碼
 # **完全沒有外顯症狀**。三條：落後 origin／工作區被手改／容器比它該跑的碼舊。
-python3 scripts/deploy-stack.py freshness > "$CHECK_DIR/fresh-$ts.txt" 2>&1
+"$PY" scripts/deploy-stack.py freshness > "$CHECK_DIR/fresh-$ts.txt" 2>&1
 fresh_rc=$?
 # ⚠ 2026-08-17 這一盞真的抓到東西：`lightrag-intake.service` 08-14 啟動、載入的
 # 4 個檔 08-16 23:35 改過，**跑著的是舊碼**（前一晚才接上的接地檢查與 graph-clean
@@ -145,7 +156,7 @@ commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
 # 掛掉會留下一個空檔 —— 而審核台讀到空檔會報 unreadable，看起來像「檢查壞了」
 # 而不是「上一次的結果還在」。寫壞不如不寫。
 tmp_latest="$CHECK_DIR/latest.json.tmp"
-python3 scripts/check-levels.py \
+"$PY" scripts/check-levels.py \
   --at "$ts" --commit "$commit" --detail "$CHECK_DIR/compat-$ts.json" \
   --rc "compat=$compat_rc"   --report "compat=$CHECK_DIR/compat-$ts.json" \
   --rc "canary=$canary_rc"   --report "canary=$CHECK_DIR/canary-$ts.txt" \

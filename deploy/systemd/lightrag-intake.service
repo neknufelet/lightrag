@@ -18,7 +18,11 @@ Requires=docker.service
 Type=simple
 User=@USER@
 WorkingDirectory=@REPO@
-ExecStart=/usr/bin/python3 @REPO@/scripts/intake.py --port 9710 --workspace @WORKSPACE@ --source @DATA_ROOT@/inbox
+# ⚠ **跑 `.venv` 裡的 python，不是系統的**（2026-08-17 起）。系統 python 沒有
+# PyMuPDF（切章工具要它），而 intake.py 用 `sys.executable` 開子行程 —— 這一行
+# 指到哪，整條鏈就跟到哪。環境是 `uv sync --frozen` 建的；沒建起來服務就起不來，
+# 那是想要的（比起用錯環境安靜跑）。
+ExecStart=@REPO@/.venv/bin/python @REPO@/scripts/intake.py --port 9710 --workspace @WORKSPACE@ --source @DATA_ROOT@/inbox
 Restart=on-failure
 RestartSec=10
 # 標準輸出進 journal，`journalctl -u lightrag-intake -f` 看得到即時狀況。
