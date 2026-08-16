@@ -193,7 +193,7 @@ Postgres 的 doc_status           317 列
 - **Obsidian 筆記庫**（WebDAV 在 NAS 上）與知識庫的關係 —— 那是第四張圖
 - **Zotero 條目與知識庫的對應**（key 怎麼串起來）—— 同上
 - **重建時新舊兩座庫怎麼並存** —— 設計還沒批准，畫了會變
-- **檢查站站在哪裡** —— 那是第三張圖
+- ✅ **檢查站站在哪裡** —— 已經畫了：[who-guards-what.md](who-guards-what.md)
 
 ---
 

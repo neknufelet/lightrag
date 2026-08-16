@@ -169,8 +169,7 @@ flowchart LR
 ## 這張圖沒畫什麼
 
 - **看圖的模型（三隻眼）** 怎麼互相比對、什麼時候叫第三隻 —— 那是另一張圖
-- **檢查站站在哪裡**（parse-check／coverage-check／extract-check／canary／compat-check）
-  —— 那是第三張圖，而且要標出「哪些真的在跑、哪些寫了沒人叫」
+- ✅ **檢查站站在哪裡** —— 已經畫了：[who-guards-what.md](who-guards-what.md)
 - **東西存在哪台機器上**、哪些進版控 —— 那是第二張圖
 - **重建（藍綠切換）的流程** —— 設計還沒批准，畫了會變
 
