@@ -3735,6 +3735,10 @@ a:hover{text-decoration:underline}
    東西上，而實際上問題在檢查本身沒有在跑。 */
 .banner.bad{border-left-color:var(--blocked)}
 .banner.stale{border-left-color:var(--line);color:var(--ink-3)}
+/* .quiet 提醒的紅與「驗不了」。它們天天都在（parse／coverage 量的是語料內容，
+   tests 在這台永遠驗不了），用警示色就是把「一個永遠會叫的判準」搬個地方重來。
+   但也不能讓它們消失 —— 灰色一行，看得到、不搶注意力。 */
+.banner.quiet{border-left-color:var(--line);color:var(--ink-3);font-size:12px}
 .banner .stamp{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
 
 /* ── 版面：佇列 ｜ 判斷 ────────────────────────────── */
@@ -4050,7 +4054,12 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     # 會被淹沒；其餘四種狀態都要出現在最上面。
     checks = state.get("checks") if isinstance(state.get("checks"), dict) else {}
     cs = str(checks.get("state") or "")
-    if cs and cs != "ok":
+    # ⚠ `daily-check.sh` 寫的是 `pass`，不是 `ok` —— 兩個都是綠。
+    # 2026-08-17 之前 status **從來沒有 pass 過**（任何非零都算失敗），所以這個
+    # 洞一直沒被踩到；紅燈分三態之後 pass 變成常態，不修的話橫幅會天天用警示色
+    # 喊「每日檢查 pass（…）：未指明」。改 A 讓 B 安靜失效的那一族。
+    green = {"ok", "pass"}
+    if cs and cs not in green:
         age = checks.get("age_s")
         age_txt = f"{age / 3600:.0f} 小時前" if isinstance(age, (int, float)) else "時間不明"
         tone = ""
@@ -4075,6 +4084,20 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
                       if commit else
                       " <span class='stamp'>（這筆結果沒有記版本，是舊格式）</span>")
         warn_html += f"<div class='banner{tone}'>🔔 {_esc(msg)}{stamp_html}</div>"
+
+    # 綠燈底下仍然有「提醒的紅」與「驗不了」。判準在 `check-levels.py`，這裡只
+    # 負責讓它們**看得到但不喊** —— 消失就變回「靜靜丟掉」，喊就變回天天紅。
+    def _list(key: str) -> list[str]:
+        got = checks.get(key)
+        return [str(x) for x in got] if isinstance(got, list) else []
+
+    parts = [f"{label} {len(items)}：{'、'.join(items)}"
+             for label, items in (("提醒", _list("warnings")),
+                                  ("驗不了", _list("unverified"))) if items]
+    if parts and cs in green | {"fail"}:
+        warn_html += ("<div class='banner quiet'>"
+                      f"每日檢查另有 {_esc('；'.join(parts))}"
+                      "（知道就好，不擋流程）</div>")
 
     # 預設只展開「等你看」—— 那是唯一需要你動腦的一節。其餘收起來，
     # 使用者展開過的會被 sessionStorage 記住（見 JS）。

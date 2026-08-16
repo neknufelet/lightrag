@@ -132,6 +132,49 @@ def test_light_missing_from_levels_is_treated_as_blocking(tmp_path: Path) -> Non
     assert got["unverified"] == ["tests_rc"]
 
 
+# ── 橫幅畫出來長什麼樣 ─────────────────────────────────────────────────────
+
+def _banners(checks: dict) -> list[str]:
+    import re
+
+    from intake import render_html
+    html = render_html({"checks": checks})
+    return re.findall(r"<div class='banner[^>]*>.*?</div>", html)
+
+
+BASE = {"at": "20260817T000000", "age_s": 60.0, "commit": "6af2c80",
+        "detail": "/checks/compat-x.json"}
+
+
+def test_pass_is_green_and_does_not_paint_a_red_banner() -> None:
+    """⚠ `daily-check.sh` 寫的是 `pass` 不是 `ok`，而橫幅原本只在 `ok` 時隱藏。
+
+    2026-08-17 之前 status **從來沒有 pass 過**（任何非零都算失敗），所以這個
+    洞一直沒被踩到。紅燈分三態之後 pass 變成常態 —— 不修的話橫幅會天天用
+    警示色喊「每日檢查 pass（…）：未指明」，等於把被換掉的那個形狀原樣搬過來。
+    """
+    got = _banners({**BASE, "state": "pass", "failing": []})
+    assert got == [], f"全綠不該有橫幅，卻畫了 {got}"
+
+
+def test_warnings_are_visible_but_not_alarming() -> None:
+    """提醒與驗不了天天都在：消失就是靜靜丟掉，用警示色就是天天紅。"""
+    got = _banners({**BASE, "state": "pass", "failing": [],
+                    "warnings": ["compat_rc", "parse_rc"],
+                    "unverified": ["tests_rc"]})
+    assert len(got) == 1
+    assert "banner quiet" in got[0], "提醒不該用警示色"
+    assert "compat_rc" in got[0] and "tests_rc" in got[0], "指名道姓，不要只說有幾個"
+    assert "bad" not in got[0]
+
+
+def test_a_blocking_red_still_shouts_and_keeps_the_quiet_line() -> None:
+    got = _banners({**BASE, "state": "fail", "failing": ["fresh_rc"],
+                    "warnings": ["parse_rc"], "unverified": ["tests_rc"]})
+    assert any("banner bad" in b and "fresh_rc" in b for b in got), "真紅燈要喊"
+    assert any("banner quiet" in b for b in got), "提醒不得被紅燈吃掉"
+
+
 def test_old_result_without_levels_falls_back_to_shouting(tmp_path: Path) -> None:
     """升級當下 `latest.json` 還是上一輪那份，沒有 `levels`。寧可多叫，不可漏叫。"""
     app = _app(tmp_path)
