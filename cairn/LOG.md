@@ -47,6 +47,51 @@ dker 實跑收尾：`status: pass`、`EXIT=0`、`blocking []`、`warnings 3`、
 （`2026 - DART …`，job 說 indexed、解析包不存在）還在表上；處置要 `--move`，
 是會動檔案的決定，留給 PO。
 
+### 同日稍晚：導入 uv、把切章工具搬進來，而「有測試」那句話是我沒查就講的
+
+**PO 裁決：用 uv，切章工具直接搬。** 兩件事都做完，三段各自驗過。
+
+**為什麼以前沒有 uv 是對的**：實測全部腳本 import 45 個模組、43 個是標準函式庫，
+真正外面來的只有 `yaml`，dker 的 apt 早就有。**改變的是 PyMuPDF** —— 切章工具要它，
+而它是帶 C 程式、版本會咬人的大套件：
+
+```
+coder 系統 python  1.27.2      dker apt 可裝  1.23.7      uv 鎖定  1.28.2（兩台一樣）
+```
+
+⚠ 差點多做一步：以為 dker 要裝 uv，實查發現 `~/.local/bin/uv` **本來就在**，
+只是非互動 ssh 沒載入 PATH。`command -v uv` 說「沒有」不等於沒有。
+
+**執行期不依賴 uv**：`uv sync` 建 `.venv`，systemd 與 shell 腳本直接叫
+`.venv/bin/python`。底下都用 `sys.executable` 開子行程，所以只改三個進入點就整條鏈
+跟著走。**刻意不 fallback 系統 python** —— 用錯環境跑出來的綠比紅燈難查。
+
+**⚠ 我講錯了一件事，當天就被自己的驗證打臉。** 先前說「2678 行測試會跟著來，
+以後改英文關鍵字有安全網」——**只數了行數沒去跑它**。實跑 vibevoice-v2 的測試：
+
+```
+7 errors during collection
+ERROR tests/golden/test_split_plan.py - FileNotFoundError: _reference/… 不存在
+```
+
+那些是「v2 跟 v1 行為一致」的比對測試，比對對象是 v1 原始碼，而那份碼已從 repo
+刪除。**能跑的只有 6 個。** ⇒ 搬的是碼，不是安全網；安全網重寫（19 個，測的是
+「lightrag 需要它做到什麼」，判準取自庫裡實物：五碼前綴 `01405_`、砍 80 字）。
+
+搬進來 1277 行（`scripts/chapters/`），刪掉 EPUB 的 265 行與 vibevoice 音檔命名的
+231 行 —— lightrag 只有 PDF。它已經在生產跑過：庫裡 88 份五碼前綴的檔案就是它切的。
+
+**順帶釘住一個洞**：附錄基底 900 ＝ 第 9 章（9×100），而 `appendix_idx` 從 0 起算，
+所以第一個附錄就撞第 9 章。**碼裡是真的，語料裡還沒咬到**（88 份裡 `008xx`／`009xx`
+一份都沒有）。改基底會動到已切好的檔名，是決定不是順手修，先讓它可見。
+
+⚠ 途中被 `guard-command.py` 擋一次（管線後面接 `$?`），**擋對了**。
+⚠ 自己寫錯一次：錯誤訊息裡的反引號寫在雙引號中，shell 會真的去執行 `uv sync`。
+
+dker 收尾：`uv sync --frozen` 兩台版本一致、`systemd-units verify` 先報不一致
+（repo 改了 /etc 沒改，守衛有效）、裝上、重啟，`ps` 確認跑的是 `.venv/bin/python`、
+審核台 HTTP 200、`daily-check` `status: pass`／`EXIT=0`。
+
 ## 2026-08-16（日）· 人工裁定合成一份，並發現「可再生」那句話是錯的
 
 **PO 記的是「15 張手工表格散在兩邊」，逐檔量出來比那個大：**
