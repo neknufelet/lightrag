@@ -24,6 +24,7 @@ summary: "當前真相：一份 PDF 經過哪些關卡、每一關動的是什�
 ## 全景
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize':'19px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 60, 'padding': 12}}}%%
 flowchart TD
     subgraph IN["① 進門"]
         Z["Zotero 外掛<br/>（選片 → 帶 item key → 上傳）"]
@@ -140,6 +141,7 @@ PDF 與 AI 快取都留著，所以**不會重新付 MinerU**，沒改到的段�
 ## 人在哪裡出現
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize':'19px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 60, 'padding': 12}}}%%
 flowchart LR
     A(["👤 放行<br/>「這份要不要進」"]) --> B(["👤 看圖打字<br/>「MinerU 讀錯了，正確的長這樣」"])
     B --> C(["👤 裁定<br/>「兩個版本不同，用哪一個」"])

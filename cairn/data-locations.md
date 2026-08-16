@@ -23,6 +23,7 @@ summary: "當前真相：每一類資料的現役副本在哪、備份在哪、�
 ## 一、三個地方，誰是權威
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize':'19px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 60, 'padding': 12}}}%%
 flowchart LR
     subgraph CODER["florian-coder（工作台）"]
         direction TB
@@ -81,6 +82,7 @@ LightRAG 的容器。凡是關於跑著的系統的陳述，一律要附 dker �
 ## 二、核心那張圖：死了救不救得回來
 
 ```mermaid
+%%{init: {'themeVariables': {'fontSize':'19px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 60, 'padding': 12}}}%%
 flowchart TB
     subgraph DANGER["🔴 不可再生 × 只有一份　＝　危險"]
         D1["🔑 .env（73 個鍵）<br/>只在 dker，同台另有 4 個 .bak"]
