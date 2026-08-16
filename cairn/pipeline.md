@@ -168,6 +168,7 @@ flowchart LR
 
 ## 這張圖沒畫什麼
 
+- ✅ **一份文件長出哪些檔** —— [document-files.md](document-files.md)　**腳本誰叫誰** —— [script-map.md](script-map.md)
 - **看圖的模型（三隻眼）** 怎麼互相比對、什麼時候叫第三隻 —— 那是另一張圖
 - ✅ **檢查站站在哪裡** —— 已經畫了：[who-guards-what.md](who-guards-what.md)
 - **東西存在哪台機器上**、哪些進版控 —— 那是第二張圖

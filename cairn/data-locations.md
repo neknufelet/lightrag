@@ -190,6 +190,7 @@ Postgres 的 doc_status           317 列
 
 ## 五、這張圖沒畫什麼
 
+- ✅ **一份文件長出哪些檔** —— [document-files.md](document-files.md)
 - **Obsidian 筆記庫**（WebDAV 在 NAS 上）與知識庫的關係 —— 那是第四張圖
 - **Zotero 條目與知識庫的對應**（key 怎麼串起來）—— 同上
 - **重建時新舊兩座庫怎麼並存** —— 設計還沒批准，畫了會變
