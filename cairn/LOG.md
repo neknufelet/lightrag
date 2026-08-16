@@ -59,6 +59,31 @@ TYPE_MISMATCH 0，註解宣告的頁碼與 `page_idx` 逐檔對得上。
 ERROR 從 3 掉到 2 正是被上面那次合併修掉的——**ERROR 是修得動的，所以拿它當
 擋的判準合理；WARN 283 份不是**。
 
+### 同日稍晚：三邊同步，零停機；順帶抓到一個「證據被自己刪掉」的 bug
+
+push → dker pull → `deploy-stack install` → `docker compose up -d` 全套走完。
+**四個容器一個都沒重建**，因為那次 compose 改動只是把寫死的路徑換成帶預設值的
+變數（`${PARSED_DIR:-…/work/parsed}`），而 `PARSED_DIR` 沒設、`DATA_ROOT=/data/lightrag`
+—— 算出來與舊值逐字相同，docker 判定設定沒變。`fresh_rc` 與 `deploy_rc` 都轉綠。
+
+⚠ 途中被 `guard-command.py` 擋了兩次，**兩次都擋對**：把 `$?` 接在管線後面、
+以及 `docker compose config`（會把 `.env` 的值全部展開印出來）。
+第三張圖剛寫完「整份清單裡只有這一支是**擋**，其餘全是**叫**」，當場示範兩次。
+
+**手動重跑每日體檢，冒出一個早上沒有的紅燈：canary 規則漂移。**
+追下去是兩件事：
+
+一、**漂移本身是我造成的，而且是想要的** —— `C Equivalent Networks.pdf` 的
+`review: 1 → 0`，因為那張留待人工確認的表當天判完了。⚠ 但 `--update` 會同時
+把一堆「尚未納入基準」的新文件整批吃進去，那是 NEXT 明文禁止的，所以沒動。
+
+二、**紅燈訊息指著一個不存在的檔案。** `daily-check.sh` 的保留步驟把不同前綴的
+檔名混在一起 `sort`，而 `canary-` 字母序排在其餘七種之前 —— 總數一碰到 120 的
+上限，**第一個被刪的永遠是 canary，而且是同一輪剛寫好的那一份**。
+實測：清理前 121、清理後正好 120，被刪的就是它。所以 `checks/` 底下
+**一個 canary 檔都沒有**。⚠ 而且 `latest.json` 根本沒有 canary 欄位 ——
+**紅燈是真的，證據被自己刪了，而且機器讀不到它紅過。**
+
 ## 2026-08-15（六）· 外掛 0.3.5（取自 commit 訊息與 CHANGELOG，非本次實測）
 
 送出的檔名帶 Zotero item key 並放最前面、外掛自己決定送哪個 PDF（跳過中文翻譯本，

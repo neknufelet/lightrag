@@ -157,6 +157,35 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
 
   要**逐條確認漂移都是想要的**再 `--update`，不要整批認可。
 
+  **2026-08-16 現況**：1 處漂移 ＋ 一堆「新增」。漂移是
+  `C Equivalent Networks.pdf` 的 `review: 1 → 0` —— **那是當天合併人工裁定造成的，
+  而且是想要的**（原本留待人工確認的那張表判完了）。⚠ 但 `--update` 會同時把
+  那一堆「新增」整批吃進基準，正是上面那句話禁止的事。**要分開處理。**
+
+- ⬜ 🔴 **`canary` 的報告檔被同一支腳本刪掉**　→ 紅燈訊息指得到東西
+
+  2026-08-16 實測：`daily-check.sh` 報
+  「canary 規則漂移 → `/data/lightrag/checks/canary-<ts>.txt`」，
+  **而那個檔案不存在**。原因在同一支腳本的保留步驟（第 150–155 行）：
+
+  ```
+  find … \( -name 'compat-2*' -o -name 'canary-2*' -o … \) | sort | head -n -120 | xargs rm
+  ```
+
+  它把**不同前綴的檔名混在一起排序**，而 `canary-` 字母序排在
+  `compat-`／`coverage-`／`deploy-`／`fresh-`／`parse-`／`scan-`／`units-` **全部之前**。
+  ⇒ 一旦總數碰到 120 的上限，**第一個被刪的永遠是 canary，而且是剛寫好的那一份**。
+  當天實測：清理前 121 個、清理後正好 120 個，被刪的就是那一份。
+  ⇒ 所以 `checks/` 底下**一個 canary 檔都沒有**，而紅燈訊息一直指著它。
+
+  ⚠ 這是「檢查自己壞掉」那一族，而且形狀特別惡劣：**紅燈是真的、證據被自己刪了。**
+
+- ⬜ `latest.json` 沒有 `canary` 欄位　→ 機器讀得到 canary 的結果
+
+  2026-08-16 實測：`latest.json` 記了 compat／scan／units／deploy／fresh／tests／
+  parse／coverage 八個 rc，**就是沒有 canary**。canary 失敗只出現在 stderr 的
+  訊息裡（進 journal），**任何讀 `latest.json` 的人都看不到它紅了**。
+
 - ⬜ `docs/NEXT.md` 超過交接檔行數上限　→ `standards-check` 的 VERIFY-9-A02 回綠
 
   `standards-check` 唯一的 hard 失敗，而它不在每日排程裡。
