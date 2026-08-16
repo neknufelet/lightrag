@@ -33,6 +33,7 @@ import argparse
 import hashlib
 import json
 import sys
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 
@@ -60,6 +61,55 @@ ABBR = {g: g.split(".")[1][:5] for g in GATES}
 
 STATES = ("pass", "fail", "unverifiable")
 MARK = {"pass": "  o  ", "fail": " FAIL", "unverifiable": " 驗不了", None: "   -  "}
+
+# 接地率超過此值就判 fail。**這是這個門檻唯一的家。**
+#
+# 2026-08-16 搬到這裡：原本 `ledger-backfill.py` 的 `--threshold` 預設與
+# `extract-check.py` 的 `T_UNGROUNDED` 各有一份，值剛好都是 0.10。**兩份同值的
+# 常數不是「一致」，是「還沒漂」** —— 改了其中一個，總表會說 ⚠ 而體檢表說 pass，
+# 兩邊打架而且沒有人會發現。這個專案已經被「兩條路」咬過（十二道閘門）。
+#
+# 值不變（2026-08-16 全庫 317 份實測：中位 0.76%、95% 6.84%、最高 15.56%；
+# 10% 會讓 6 份判 fail，約 1.9%）。鐵則第 5 條：門檻用量的不要用調的 ——
+# 這次的量沒有提供「10% 是錯的」的理由，所以只搬家不改值。
+GROUNDING_SUSPECT_RATIO = 0.10
+
+
+def grounding_entry(
+    stats: Mapping[str, int], threshold: float = GROUNDING_SUSPECT_RATIO,
+) -> tuple[str, str, float | None]:
+    """`extract-check` 的一份逐份統計 →（三態, 理由, 比率）。**純函式。**
+
+    **住在這裡而不是某支腳本裡**，是因為它有三個呼叫端（進料的批次收尾、手動
+    回填、測試），而帶連字號的腳本檔名 `import` 不動 —— 放在那裡只會逼每個
+    呼叫端各自 `spec_from_file_location` 一份，然後慢慢長成三份判準。
+
+    ⚠ **分母只算「字串比對有鑑別力」的那些**（接得回原文的 ＋ 可疑的）。
+    - 符號型（來源 chunk 全是表格／公式）算進分母會稀釋比例，而一份幾乎全是
+      公式的文件永遠不會超標 —— 那正是最需要被看的那種。
+    - 來源 chunk 找不到的是**簿記問題不是幻覺**，兩邊都不算；算成可疑的話，
+      索引重建期間的一次不一致會在表上看起來像模型在編東西。
+
+    分母 0 ⇒ **沒得驗**，不是通過。
+    """
+    total = int(stats.get("total") or 0)
+    ok = int(stats.get("ok") or 0)
+    missing = int(stats.get("missing_chunk") or 0)
+    symbolic = int(stats.get("symbolic") or 0)
+    suspect = total - ok - missing - symbolic
+    denom = ok + suspect
+
+    if denom <= 0:
+        if total == 0:
+            return "unverifiable", "這份沒有抽出任何實體 —— 沒東西可驗", None
+        return ("unverifiable",
+                f"全部 {total} 個實體的來源都是表格／公式（符號型 {symbolic}、"
+                f"來源不見 {missing}），字串比對沒有鑑別力", None)
+
+    ratio = suspect / denom
+    note = (f"{suspect}/{denom} 個字串比對有鑑別力的實體接不回原文"
+            f"（總計 {total} 個：符號型 {symbolic} 驗不了、來源不見 {missing}）")
+    return ("pass" if ratio <= threshold else "fail"), note, ratio
 
 
 def now() -> str:

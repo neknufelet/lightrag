@@ -42,7 +42,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import intake  # noqa: E402
-import ledger  # noqa: E402
+import ledger
+from ledger import grounding_entry  # noqa: F401 —— 判準只有一份，住在 ledger  # noqa: E402
 from mineru_common import add_workspace_arg, load_env  # noqa: E402
 from pp.paths import DEFAULT_DATA_ROOT, DataPaths  # noqa: E402
 
@@ -71,39 +72,6 @@ def latest_job_per_document(jobs: list[Mapping[str, object]]) -> dict[str, Mappi
         if name:
             best[name] = job
     return best
-
-
-def grounding_entry(
-    stats: Mapping[str, int], threshold: float,
-) -> tuple[str, str, float | None]:
-    """`extract-check` 的一份逐份統計 →（三態, 理由, 比率）。
-
-    ⚠ **分母只算「字串比對有鑑別力」的那些**（接得回原文的 ＋ 可疑的）。
-    - 符號型（來源 chunk 全是表格／公式）算進分母會稀釋比例，而一份幾乎全是
-      公式的文件永遠不會超標 —— 那正是最需要被看的那種。
-    - 來源 chunk 找不到的是**簿記問題不是幻覺**，兩邊都不算；算成可疑的話，
-      索引重建期間的一次不一致會在表上看起來像模型在編東西。
-
-    分母 0 ⇒ **沒得驗**，不是通過。
-    """
-    total = int(stats.get("total") or 0)
-    ok = int(stats.get("ok") or 0)
-    missing = int(stats.get("missing_chunk") or 0)
-    symbolic = int(stats.get("symbolic") or 0)
-    suspect = total - ok - missing - symbolic
-    denom = ok + suspect
-
-    if denom <= 0:
-        if total == 0:
-            return "unverifiable", "這份沒有抽出任何實體 —— 沒東西可驗", None
-        return ("unverifiable",
-                f"全部 {total} 個實體的來源都是表格／公式（符號型 {symbolic}、"
-                f"來源不見 {missing}），字串比對沒有鑑別力", None)
-
-    ratio = suspect / denom
-    note = (f"{suspect}/{denom} 個字串比對有鑑別力的實體接不回原文"
-            f"（總計 {total} 個：符號型 {symbolic} 驗不了、來源不見 {missing}）")
-    return ("pass" if ratio <= threshold else "fail"), note, ratio
 
 
 def main() -> int:

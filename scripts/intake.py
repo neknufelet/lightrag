@@ -676,6 +676,40 @@ def _as_list(value: object) -> list[object]:
     return value if isinstance(value, list) else []
 
 
+def record_grounding(
+    root: Path, workspace: str, filenames: Sequence[str],
+    stats: Mapping[str, Mapping[str, int]],
+) -> int:
+    """把接地檢查的結果寫進體檢表的 `extract.grounding` 格。回寫了幾格。
+
+    **判定不在這裡** —— 在 `ledger.grounding_entry`，三個呼叫端共用同一份
+    （進料收尾、手動回填、測試）。這一支只負責「配對」與「寫進去」。
+
+    ⚠ **報告裡沒有的文件一格都不寫。** 填 `pass` 是說謊、填 `fail` 是誣賴，
+    而留空是 `ledger` 三態刻意保留的第四種狀態：還沒驗。
+
+    ⚠ **寫不進去不得擋路。** 紀錄不是閘門 —— 磁碟滿了、目錄權限錯了都會讓
+    寫入失敗，而那不該讓一份已經進了圖譜的文件在流程上顯示異常。
+    與 `_record_ledger_from_plan` 同一條原則。
+    """
+    written = 0
+    for name in filenames:
+        row = stats.get(name)
+        if not row:
+            continue
+        state, note, ratio = ledger.grounding_entry(row)
+        try:
+            ledger.record(root, workspace, name, "extract.grounding", state,
+                          note=note, value=ratio,
+                          threshold=ledger.GROUNDING_SUSPECT_RATIO)
+        except Exception as exc:                                  # noqa: BLE001
+            LOGGER.warning("寫接地結果失敗（不影響進料）%s：%s: %s",
+                           name, type(exc).__name__, exc)
+            continue
+        written += 1
+    return written
+
+
 def ledger_entries_from_plan(
     *, accepted: bool, reasons: Sequence[str], plan: Mapping[str, object],
     admitted: bool = False,
@@ -1033,6 +1067,40 @@ class SubprocessRunner:
         if applied.ok:
             return OperationResult(True, f"清掉 {len(names)} 個位置標記節點")
         return applied
+
+    def grounding_report(
+        self, workspace: str,
+    ) -> tuple[OperationResult, dict[str, Mapping[str, int]]]:
+        """一批抽完之後量接地率：抽出來的實體名字，在它來源的原文裡找不找得到。
+
+        **為什麼要自動跑**：判定 (`ledger.grounding_entry`) 早就寫好也驗過了，
+        但生產路徑**零呼叫點** —— 只有手動回填工具在叫它。
+        「寫好的檢查沒被呼叫等於沒寫」，這條線就是那句話的解藥。
+
+        ⚠ **跑一次全庫，不逐份跑。** `--doc` 是子字串比對（`"G Porous"` 會抓到
+        `…extended-reactin*g porous* materials…`），逐份跑等於逐份踩那個坑。
+        全庫實測 48 秒，相對於抽取本身（每份中位 233 秒）是零頭。
+
+        ⚠ **拿不到報告時回空的統計，不是空的通過。** 呼叫端據此一格都不寫 ——
+        沒跑過的閘門填 `pass` 就是說謊，而那正是 `ledger` 三態要防的事。
+
+        ⚠ 失敗不影響這一批：接地率要等抽取做完才量得到，那時文件已經在圖譜裡。
+        """
+        script = str(self.repo / "scripts" / "extract-check.py")
+        out = self._run(
+            [self.python, script, "--workspace", workspace, "--json"],
+            self.command_timeout)
+        if not out.ok:
+            return out, {}
+        try:
+            payload = json.loads(out.output or "")
+        except Exception as exc:                                  # noqa: BLE001
+            return OperationResult(
+                False, "", f"讀不到接地報告：{type(exc).__name__}: {exc}"), {}
+        per_doc = payload.get("per_doc") if isinstance(payload, dict) else None
+        if not isinstance(per_doc, dict):
+            return OperationResult(False, "", "讀不到接地報告：沒有 per_doc"), {}
+        return OperationResult(True, f"量到 {len(per_doc)} 份"), per_doc
 
     def _run(self, command: list[str], timeout: float) -> OperationResult:
         try:
@@ -2435,6 +2503,7 @@ class IntakeApp:
                 self._verify_one(job, admitted, verdicts.get(job.job_id))
         self._assert_staging_drained(len(staged))
         self._clean_graph_labels()
+        self._record_grounding([job.filename for job, _ in survivors])
 
     def _wait_one(self, job: Job, admitted: Path) -> bool:
         """等這一份 processed。回傳「還活著嗎」。失敗只影響它自己。"""
@@ -2478,6 +2547,27 @@ class IntakeApp:
         finally:
             if not settled:
                 self._release_inputs(job, admitted)
+
+    def _record_grounding(self, filenames: Sequence[str]) -> None:
+        """一批收尾之後量接地率並寫進體檢表。**不擋這一批。**
+
+        只給活下來的那些寫 —— 沒進圖譜的文件沒有實體可量，寫任何一格都是編的。
+        """
+        if not filenames:
+            return
+        try:
+            result, stats = self.runner.grounding_report(self.workspace)
+        except Exception as exc:                                  # noqa: BLE001
+            LOGGER.error("量接地率時出錯（不影響這一批）：%s: %s",
+                         type(exc).__name__, exc)
+            return
+        if not result.ok:
+            # **量不到就整批留空**，不是整批 pass。
+            LOGGER.error("量接地率失敗（不影響這一批，體檢表留空）：%s",
+                         result.error or "沒有錯誤訊息")
+            return
+        n = record_grounding(self.paths.root, self.workspace, filenames, stats)
+        LOGGER.info("接地率寫進體檢表：%d/%d 份", n, len(filenames))
 
     def _clean_graph_labels(self) -> None:
         """一批收尾之後清位置標記。**不擋這一批** —— 見 `Runner.clean_graph_labels`。"""

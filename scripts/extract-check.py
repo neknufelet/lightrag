@@ -30,6 +30,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ledger  # noqa: E402
 from mineru_common import add_workspace_arg, load_env, postgres_container  # noqa: E402
 from pp import findings  # noqa: E402
 
@@ -37,7 +38,11 @@ REPO = Path(__file__).resolve().parent.parent
 
 # 散文 chunk 的未接地比例超過此值才算異常。
 # 只看散文 —— 符號型 chunk 的「未接地」不代表幻覺，見 SYMBOLIC 說明。
-T_UNGROUNDED = 0.10
+#
+# ⚠ **值不在這裡，在 `ledger.GROUNDING_SUSPECT_RATIO`。** 2026-08-16 之前這裡與
+# `ledger-backfill.py` 各有一份 0.10 —— 兩份同值的常數不是「一致」，是「還沒漂」。
+# 改了其中一個，這張總表會印 ⚠ 而體檢表寫 pass，兩邊打架而且沒有人會發現。
+T_UNGROUNDED = ledger.GROUNDING_SUSPECT_RATIO
 
 # chunk 裡表格標記與 LaTeX 佔比超過此值，視為符號型。
 SYMBOLIC_RATIO = 0.35
