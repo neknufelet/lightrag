@@ -60,6 +60,59 @@ def test_writing_the_same_gate_twice_keeps_the_latest(tmp_path: Path) -> None:
     assert entry["note"] == "重跑後變了"
 
 
+# ── 變化要留下痕跡（2026-08-16 加）─────────────────────────────────────────
+#
+# 上面那條說「體檢表記的是現在的判定，不是歷史」——**那條仍然成立**，下面加的
+# 不是歷史日誌，是**一層**「上次不一樣的時候是什麼」。
+#
+# 為什麼需要：重抽之後同一格從 `pass` 變 `fail`，舊值直接被蓋掉，表上只看得到
+# 新值。**沒有任何東西說它變壞了**，而重建就是一次三百多份的重抽。
+# 這正是本專案一路在防的「數字沒有錯誤訊息，它只是靜靜地錯著」。
+
+def test_a_changed_state_remembers_what_it_was(tmp_path: Path) -> None:
+    ledger.record(tmp_path, "ws", "甲.pdf", "extract.grounding", "pass", value=0.03)
+    ledger.record(tmp_path, "ws", "甲.pdf", "extract.grounding", "fail", value=0.12)
+
+    entry = ledger.load(tmp_path, "ws", "甲.pdf")["gates"]["extract.grounding"]
+    assert entry["state"] == "fail"
+    assert entry["previous"]["state"] == "pass", "變壞了卻看不出原本是好的"
+    assert entry["previous"]["at"], "沒有時間就分不出是哪一輪變的"
+
+
+def test_the_previous_value_is_kept_so_the_direction_is_visible(tmp_path: Path) -> None:
+    """只記 `pass → fail` 不夠 —— 3% 變 12% 與 9.9% 變 10.1% 是兩件事。"""
+    ledger.record(tmp_path, "ws", "甲.pdf", "extract.grounding", "pass", value=0.03)
+    ledger.record(tmp_path, "ws", "甲.pdf", "extract.grounding", "fail", value=0.12)
+
+    entry = ledger.load(tmp_path, "ws", "甲.pdf")["gates"]["extract.grounding"]
+    assert entry["previous"]["value"] == 0.03
+
+
+def test_an_unchanged_state_adds_no_noise(tmp_path: Path) -> None:
+    """**控制組。** 每天重跑都塞一筆的話，這個欄位很快就沒有人看。"""
+    ledger.record(tmp_path, "ws", "甲.pdf", "pp.tables", "pass")
+    ledger.record(tmp_path, "ws", "甲.pdf", "pp.tables", "pass")
+
+    entry = ledger.load(tmp_path, "ws", "甲.pdf")["gates"]["pp.tables"]
+    assert "previous" not in entry
+
+
+def test_the_first_write_has_no_previous(tmp_path: Path) -> None:
+    ledger.record(tmp_path, "ws", "甲.pdf", "pp.tables", "pass")
+    assert "previous" not in ledger.load(tmp_path, "ws", "甲.pdf")["gates"]["pp.tables"]
+
+
+def test_previous_keeps_only_one_step(tmp_path: Path) -> None:
+    """一層就好。**這不是歷史日誌** —— 無界成長的欄位沒有人會讀。"""
+    ledger.record(tmp_path, "ws", "甲.pdf", "pp.tables", "pass")
+    ledger.record(tmp_path, "ws", "甲.pdf", "pp.tables", "fail")
+    ledger.record(tmp_path, "ws", "甲.pdf", "pp.tables", "unverifiable", note="換了模型")
+
+    entry = ledger.load(tmp_path, "ws", "甲.pdf")["gates"]["pp.tables"]
+    assert entry["previous"]["state"] == "fail"
+    assert "previous" not in entry["previous"], "巢狀下去就是無界的歷史"
+
+
 def test_the_cli_goes_through_the_same_judgement() -> None:
     """CLI 不得自己再寫一份守衛 —— 兩份只要有人改一邊就會靜靜地不一致。"""
     src = (ROOT / "scripts" / "ledger.py").read_text(encoding="utf-8")

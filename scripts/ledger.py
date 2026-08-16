@@ -239,6 +239,16 @@ def record(
     entry["at"] = now()
 
     old = rec["gates"].get(gate)
+    # **變了才留一層。** 這一格記的仍然是「現在的判定」，不是歷史日誌 ——
+    # 但重抽之後同一格從 pass 變 fail 時，舊值直接被蓋掉的話，表上只看得到新值，
+    # **沒有任何東西說它變壞了**。而重建就是一次三百多份的重抽。
+    #
+    # 只取 state／value／at 三個鍵，所以 `previous` 不可能巢狀下去 ——
+    # 巢狀就是無界成長的歷史，而無界成長的欄位沒有人會讀。
+    #
+    # 沒變就不寫：每次重跑都塞一筆的話，這個欄位很快就跟沒有一樣。
+    if old and old.get("state") != state:
+        entry["previous"] = {k: old[k] for k in ("state", "value", "at") if k in old}
     rec["gates"][gate] = entry
     save(root, workspace, rec)
     return resolved, entry, old
