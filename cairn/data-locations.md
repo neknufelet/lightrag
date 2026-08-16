@@ -25,9 +25,10 @@ summary: "當前真相：每一類資料的現役副本在哪、備份在哪、�
 ```mermaid
 flowchart LR
     subgraph CODER["florian-coder（工作台）"]
+        direction TB
         REPO["repo<br/>所有編輯與 commit"]
-        STD["上位規範<br/>（只有這台有）"]
-        NOENV["❌ 沒有 LightRAG 的 .env<br/>❌ 沒有跑 LightRAG 的 docker"]
+        STD["上位規範<br/>只有這台有"]
+        NOENV["❌ 沒有 .env<br/>❌ 沒有跑 LightRAG 的 docker"]
     end
 
     subgraph GH["GitHub"]
@@ -35,35 +36,38 @@ flowchart LR
     end
 
     subgraph DKER["florian-dker（跑著的系統）"]
+        direction TB
         REPO2["repo<br/>唯讀，只 git pull"]
-        ENV["🔑 .env<br/>/opt/stacks/lightrag/<br/>權限 0600"]
+        ENV["🔑 .env　權限 0600<br/>/opt/stacks/lightrag/"]
         DATA[("/data/lightrag<br/>解析成果、原始 PDF、人工判定")]
-        PG[("Postgres 容器<br/>知識庫本體")]
+        PG[("Postgres<br/>知識庫本體")]
         GPU["Infinity<br/>向量與重排（本機 GPU）"]
     end
 
     subgraph OUT["外面（要錢或會過期）"]
-        MU["MinerU<br/>⏰ token 2026-09-04 到期"]
-        DS["DeepSeek<br/>抽取"]
-        OR["OpenRouter<br/>看圖的眼睛"]
-        OA["OpenAI<br/>第二雙眼睛"]
+        direction TB
+        MU["MinerU　解析<br/>⏰ token 2026-09-04 到期"]
+        DS["DeepSeek　抽取"]
+        EYES["OpenRouter ＋ OpenAI<br/>看圖的眼睛"]
         BR["backrest → Google Drive"]
     end
 
     REPO -->|"git push"| GIT
     GIT -->|"git pull"| REPO2
-    DATA -->|"人工判定同步回來<br/>（手動，沒有執行者）"| REPO
+    DATA -.->|"人工判定同步回來<br/>手動，沒有執行者"| REPO
 
     DATA --> MU
+    DATA --> EYES
     PG --> DS
-    DATA --> OR
-    DATA --> OA
     PG --> GPU
     PG -.->|"備份"| BR
 
-    style NOENV stroke-dasharray: 4 4
-    style ENV fill:#f8e8e8,stroke:#a44a4a
-    style MU fill:#fdf0e3,stroke:#c8853a
+    classDef danger fill:#fbe3e3,stroke:#b3454a,stroke-width:2px,color:#3a1114
+    classDef warn fill:#fdefdd,stroke:#b3762e,stroke-width:2px,color:#3d2708
+    classDef absent fill:#eceff1,stroke:#8a9299,stroke-dasharray:4 4,color:#1f2328
+    class ENV danger
+    class MU warn
+    class NOENV absent
 ```
 
 **⚠ 為什麼「我在 coder 上驗過了」在物理上做不到**：coder 沒有 `.env`、也沒有跑
@@ -103,10 +107,20 @@ flowchart TB
         F3["apply 的還原點"]
     end
 
-    style DANGER fill:#f8e8e8,stroke:#a44a4a,stroke-width:3px
-    style OK fill:#e8f0e8,stroke:#5a8a5a
-    style COST fill:#fdf0e3,stroke:#c8853a
-    style FREE fill:#f0f0f0,stroke:#999
+    classDef danger fill:#fbe3e3,stroke:#b3454a,stroke-width:2px,color:#3a1114
+    classDef ok fill:#e4efe4,stroke:#4f7d4f,stroke-width:2px,color:#12240f
+    classDef cost fill:#fdefdd,stroke:#b3762e,stroke-width:2px,color:#3d2708
+    classDef free fill:#eceff1,stroke:#8a9299,stroke-width:2px,color:#1f2328
+
+    class D1,D2 danger
+    class O1,O2,O3,O4 ok
+    class C1,C2,C3,C4 cost
+    class F1,F2,F3 free
+
+    style DANGER fill:#fdf3f3,stroke:#b3454a,stroke-width:3px,color:#3a1114
+    style OK fill:#f1f7f1,stroke:#4f7d4f,stroke-width:2px,color:#12240f
+    style COST fill:#fdf8f0,stroke:#b3762e,stroke-width:2px,color:#3d2708
+    style FREE fill:#f6f7f8,stroke:#8a9299,stroke-width:2px,color:#1f2328
 ```
 
 **🟢 那一格是 2026-08-16 才補起來的。** 在那之前三樣全部在 🔴：

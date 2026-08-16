@@ -84,7 +84,16 @@ flowchart TD
     RERANK --> ANS
 
     STAMP -.->|"reindex：刪掉文件記錄再重掃<br/>不重新付 MinerU"| SCAN
+
+    classDef human fill:#e3eef5,stroke:#3f7d99,stroke-width:2px,color:#0e2530
+    classDef paid fill:#fdefdd,stroke:#b3762e,stroke-width:2px,color:#3d2708
+    classDef cut fill:#fbe3e3,stroke:#b3454a,stroke-width:2px,color:#3a1114
+    class HUMAN1,HUMAN2 human
+    class MINERU,LLM,EMB paid
+    class MUTE cut
 ```
+
+> 顏色的意思：🔵 人要出場　🟠 這一步要花錢　🔴 **這一步會把文字刪掉**
 
 ---
 
@@ -136,10 +145,14 @@ flowchart LR
     B --> C(["👤 裁定<br/>「兩個版本不同，用哪一個」"])
     C --> D(["👤 決定判準<br/>「這個警報算不算壞」"])
 
-    style A fill:#e8f4f8,stroke:#4a90a4
-    style B fill:#fdf0e3,stroke:#c8853a
-    style C fill:#f8e8e8,stroke:#a44a4a
-    style D fill:#eef0e8,stroke:#7a8a5a
+    classDef human fill:#e3eef5,stroke:#3f7d99,stroke-width:2px,color:#0e2530
+    classDef handwork fill:#fdefdd,stroke:#b3762e,stroke-width:2px,color:#3d2708
+    classDef judge fill:#fbe3e3,stroke:#b3454a,stroke-width:2px,color:#3a1114
+    classDef rule fill:#e4efe4,stroke:#4f7d4f,stroke-width:2px,color:#12240f
+    class A human
+    class B handwork
+    class C judge
+    class D rule
 ```
 
 | 出場 | 頻率 | 現在的做法 |
