@@ -162,66 +162,9 @@ summary: "待辦清單，依收尾批次排序。一條一行、動詞開頭，�
   而且是想要的**（原本留待人工確認的那張表判完了）。⚠ 但 `--update` 會同時把
   那一堆「新增」整批吃進基準，正是上面那句話禁止的事。**要分開處理。**
 
-- ⬜ 🔴 **`canary` 的報告檔被同一支腳本刪掉**　→ 紅燈訊息指得到東西
-
-  2026-08-16 實測：`daily-check.sh` 報
-  「canary 規則漂移 → `/data/lightrag/checks/canary-<ts>.txt`」，
-  **而那個檔案不存在**。原因在同一支腳本的保留步驟（第 150–155 行）：
-
-  ```
-  find … \( -name 'compat-2*' -o -name 'canary-2*' -o … \) | sort | head -n -120 | xargs rm
-  ```
-
-  它把**不同前綴的檔名混在一起排序**，而 `canary-` 字母序排在
-  `compat-`／`coverage-`／`deploy-`／`fresh-`／`parse-`／`scan-`／`units-` **全部之前**。
-  ⇒ 一旦總數碰到 120 的上限，**第一個被刪的永遠是 canary，而且是剛寫好的那一份**。
-  當天實測：清理前 121 個、清理後正好 120 個，被刪的就是那一份。
-  ⇒ 所以 `checks/` 底下**一個 canary 檔都沒有**，而紅燈訊息一直指著它。
-
-  ⚠ 這是「檢查自己壞掉」那一族，而且形狀特別惡劣：**紅燈是真的、證據被自己刪了。**
-
-- ⬜ `latest.json` 沒有 `canary` 欄位　→ 機器讀得到 canary 的結果
-
-  2026-08-16 實測：`latest.json` 記了 compat／scan／units／deploy／fresh／tests／
-  parse／coverage 八個 rc，**就是沒有 canary**。canary 失敗只出現在 stderr 的
-  訊息裡（進 journal），**任何讀 `latest.json` 的人都看不到它紅了**。
-
-- ⬜ `docs/NEXT.md` 超過交接檔行數上限　→ `standards-check` 的 VERIFY-9-A02 回綠
-
-  `standards-check` 唯一的 hard 失敗，而它不在每日排程裡。
-
-## ✅ 人工裁定兩邊合成一份了（2026-08-16），剩兩張等 PO 裁
-
-合併後 dker 178、repo 180；`apply --commit` ＋ `reindex` 走完，零 MinerU 呼叫、
-總份數 317 不變。過程與數字在 [LOG](../cairn/LOG.md)。
-
-- ⬜ **`C Equivalent` 的 #466 與 #525 兩張表兩邊內容不同**　→ PO 裁一次
-
-  現役是 dker 版（2026-08-09，底稿 eye_c，註解寫著「PO 目視確認底線與列切法」）；
-  repo 舊版（08-02，qwen 轉錄）留成 `466.alt-repo-20260802.html` 等裁。
-  **我的建議是維持現役那版**：證據硬（PDF 文字層＋書的 Conventions 章＋你目視），
-  而舊版帶著 `style="padding: 10px…"` 這類 inline CSS——那會原樣餵進抽取模型。
-  裁完之後把落選的那份刪掉，並把守衛基準 180 往下調。
-
-- ⬜ `apply` 乾跑的「消音 N」與實際寫入對不上　→ 兩個數字一致
-
-  08-16 實測 N Flow：乾跑永遠說「消音 3」，`--commit` 實際寫入 0。
-  原因是 `r.muted` 在乾跑那條路數的是**計畫數**（`len(refs.mutes)`），
-  而 `reference_section.apply_to_items` 用 `if it.get("list_items"):` 擋掉
-  已經空掉的項目、回傳 `touched` 數。⚠ **方向偏安全**（乾跑報得比實際多），
-  但 `apply.py` 自己的註解寫著「乾跑的數字若跟實際寫入不一致，乾跑就失去意義」。
-
-- ⬜ **重抽之後要重跑 `graph-clean`，這件事沒有執行者**　→ 有人／有東西記得跑
-
-  08-16 實測：`reindex` 兩份文件之後，模型又生出 `Table 16`／`17`／`21`，
-  `compat-check` 的 A-33 從綠變紅。用既有工具清掉就回綠了 —— 問題不在工具，
-  在**沒有人規定重抽之後要跑它**。⚠ 這對 [design-one-name](design-one-name-20260814.md)
-  的整場遷移特別重要：那是一次 317 份的重抽。
-
-- ⬜ 體檢表補齊到 322 份之後，**接線仍然沒有執行者**　→ 新的裁定不會自動回流
-
-  08-16 是手動 rsync 補的（20 → 322，之前備份只做到 6%）。
-  `verdicts/README.md` 有可直接貼的差集指令，但**沒有人在跑它**。
+- ✅ **canary 的兩個缺陷 2026-08-16 修掉了**（`prune-checks.sh` ＋ 11 條測試）：
+  報告檔不再被自己刪（改成按修改時間排，不按檔名），`latest.json` 補上
+  `canary_rc` 欄位。理由與事故經過在 `scripts/prune-checks.sh` 檔頭。
 
 ## 🔴 三把尺對中文語料是壞的（2026-08-12）
 

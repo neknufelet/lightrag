@@ -35,8 +35,15 @@ case $rc in
   *) fail_msgs+=("compat-check 硬失敗 (rc=$rc) → $CHECK_DIR/compat-$ts.json") ;;
 esac
 
-python3 scripts/postprocess.py canary > "$CHECK_DIR/canary-$ts.txt" 2>&1 ||
-  fail_msgs+=("canary 規則漂移 (rc=$?) → $CHECK_DIR/canary-$ts.txt")
+# ⚠ 離開碼要**先存進變數**再判斷。原本寫成 `cmd || fail_msgs+=(… $? …)`，
+# 那個 rc 沒有被留下來，於是 latest.json 裡**根本沒有 canary 這一欄** ——
+# canary 紅了只會出現在 stderr（進 journal），任何讀 latest.json 的人都看不到。
+# 2026-08-16 實測到：那天 canary 是紅的，而 latest.json 看起來只有四個紅燈。
+python3 scripts/postprocess.py canary > "$CHECK_DIR/canary-$ts.txt" 2>&1
+canary_rc=$?
+if [ "$canary_rc" -ne 0 ]; then
+  fail_msgs+=("canary 規則漂移 (rc=$canary_rc) → $CHECK_DIR/canary-$ts.txt")
+fi
 
 # ── SCANNER-1：∂ 誤讀探針（2026-08-03 加入）────────────────────────────
 # 這是「新符號誤讀」唯一的偵測手段：漏字檢查抓不到它（誤讀不刪字，覆蓋率永遠
@@ -139,20 +146,15 @@ status=pass
 commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
 
 # coverage_rc 記在這裡但**不影響 status** —— 它是參考值不是判定，理由見上方。
-printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"scan_rc":%d,"units_rc":%d,"deploy_rc":%d,"fresh_rc":%d,"tests_rc":%d,"parse_rc":%d,"coverage_rc":%d,"detail":"%s"}\n' \
-  "$ts" "$status" "$commit" "$rc" "$scan_rc" "$units_rc" "$deploy_rc" "$fresh_rc" \
+printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"canary_rc":%d,"scan_rc":%d,"units_rc":%d,"deploy_rc":%d,"fresh_rc":%d,"tests_rc":%d,"parse_rc":%d,"coverage_rc":%d,"detail":"%s"}\n' \
+  "$ts" "$status" "$commit" "$rc" "$canary_rc" "$scan_rc" "$units_rc" "$deploy_rc" "$fresh_rc" \
   "$tests_rc" "$parse_rc" "$coverage_rc" "$CHECK_DIR/compat-$ts.json" \
   > "$CHECK_DIR/latest.json"
 
-# 保留最新 120 份。`v2-*` 那組是 CUTOVER 之前雙 checkout 時代留下的**歷史**
-# 紀錄（本腳本已不再產生它們），仍列在這裡是為了讓它們也會隨時間被清掉——
-# 漏掉的話就是一堆只增不減、永遠不會過期的檔案。
-find "$CHECK_DIR" \( -name 'compat-2*' -o -name 'canary-2*' \
-                     -o -name 'v2-compat-2*' -o -name 'v2-canary-2*' \
-                     -o -name 'scan-2*' -o -name 'units-2*' \
-                     -o -name 'deploy-2*' -o -name 'fresh-2*' \
-                     -o -name 'parse-2*' -o -name 'coverage-2*' \) |
-  sort | head -n -120 | xargs -r rm --
+# 保留最新 120 份。抽成獨立腳本是因為它需要測試 —— 原本寫在這裡的版本按**檔名**
+# 排序，而 `canary-` 的字母序排在其餘七種之前，於是每次都先刪掉剛寫好的 canary
+# 報告（2026-08-16 實測，理由寫在 prune-checks.sh 的檔頭）。
+scripts/prune-checks.sh "$CHECK_DIR" 120
 
 if [ "$status" = fail ]; then
   # 2026-08-07：ntfy 已拆，改寫 stderr —— systemd 會收進 journal。
