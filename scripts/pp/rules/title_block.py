@@ -43,6 +43,28 @@ CONSIDERED_TYPES: Final[frozenset[str]] = frozenset({"text", "page_footnote"})
 # （含著作權聲明）。設 25 是留餘裕，不是判準 —— 判準是下面的逐項測試。
 MAX_SPAN = 25
 
+# 標題不在第 0 項時，往下找 lvl=1 標題的上限。
+#
+# **為什麼需要**：很多期刊在論文標題**上方**加一行分類標籤（`PAPER`、
+# `ACCEPTED MANUSCRIPT`、`Full length article`、`PAPERS • OPEN ACCESS`），
+# 標題因此被擠到第 1～3 項，整條規則就不開火了。2026-08-16 逐份掃 317 個解析包
+# 量到 52 份單篇論文長這樣，它們的作者、單位、出版社原封不動進了知識庫。
+#
+# 5 是量出來的：實測需要救的文件裡，標題最深出現在第 3 項。
+TITLE_LOOKAHEAD: Final[int] = 5
+
+# 放寬找標題的位置之後的**保險絲**：只有頁上出現這兩種訊號才准放寬。
+#
+# ⚠ **不能只放寬位置。** 教科書章節的第 0 頁也常常在前幾項出現 lvl=1 標題，
+# 2026-08-16 實測只放寬位置會讓 7 份從**章節標題**往下消音 —— 其中
+# `01901_10.1 Acoustical scale models` 抓到的還是**上一章**的標題，
+# 消掉的會是正文開頭。
+#
+# 這兩種是**明確字串**（`Citation:`、`doi:`、`corresponding author`、email），
+# 不是靠形狀猜的。分界線量得很乾淨：21 份誤判的拆章文件**零份**有這種訊號，
+# 而該救的論文都有。合起來實測 **+25 份、零誤傷**。
+ANCHOR_SIGNALS: Final[frozenset[str]] = frozenset({"publication", "correspondence"})
+
 # ── 訊號一：單位 ───────────────────────────────────────────────────────────
 # 字彙表是 2026-08-09 從 17 份文件的標題頁**實際抄下來的**，不是憑印象列的。
 #
@@ -214,23 +236,69 @@ def _signal(text: str) -> str | None:
     return None
 
 
+def _has_anchor(items: list[dict]) -> bool:
+    """第 0 頁上有沒有**明確字串**（出版資訊或通訊方式）。
+
+    只認 :data:`ANCHOR_SIGNALS` 那兩種 —— 它們是關鍵字比對，不是形狀猜測。
+    作者列與單位列**刻意不算**：教科書章節的章名（`6.2 SOUND ABSORPTION BY
+    MEMBRANES AND PERFORATED SHEETS`）會被大寫比例猜成作者列，拿它當保險絲
+    等於沒有保險絲。
+    """
+    for it in items:
+        if (it.get("page_idx") or 0) != 0:
+            continue
+        if it.get("type") not in CONSIDERED_TYPES:
+            continue
+        if _signal(str(it.get("text") or "")) in ANCHOR_SIGNALS:
+            return True
+    return False
+
+
+def _title_index(items: list[dict]) -> tuple[int | None, str]:
+    """文件標題在第幾項。回傳 (索引, 沒找到的理由)。
+
+    兩條路，**寬鬆程度刻意不同**：
+
+    1. 第 0 項就是 `text_level == 1` 的標題 —— 直接採用，不附加條件（現行行為）。
+    2. 標題被期刊分類標籤擠到後面 —— 往下最多找 :data:`TITLE_LOOKAHEAD` 項，
+       **而且第 0 頁必須有錨定字串**（見 :data:`ANCHOR_SIGNALS`）。
+
+    第二條沒有保險絲的話會咬到教科書章節，實測 7 份。
+    """
+    first = items[0]
+    if first.get("text_level") == 1:
+        if (first.get("page_idx") or 0) != 0:
+            return None, "第一項不在第 0 頁"
+        return 0, ""
+
+    for i, it in enumerate(items[:TITLE_LOOKAHEAD]):
+        if (it.get("page_idx") or 0) != 0:
+            break                       # 翻頁了，後面不算「被標籤擋住」
+        if it.get("text_level") == 1:
+            if not _has_anchor(items):
+                return None, (f"標題在第 {i} 項而不是第一項，但第 0 頁沒有錨定字串 —— "
+                              "教科書章節長這樣，放行會從章節標題往下消掉正文")
+            return i, ""
+    return None, "第一項不是 lvl=1 標題（教科書章節、期刊封面頁都長這樣）"
+
+
 def _span(items: list[dict]) -> tuple[list[int], str]:
     """圈出標題頁區塊的候選索引。回傳 (索引清單, 沒開火的理由)。
 
-    開火條件刻意嚴格 —— 第一項必須是 `text_level == 1` 的文件標題而且在第 0 頁。
-    教科書章節（`01204_3.4 Non-rigid walls`）第 0 頁是從半句話開始的正文，
-    第一項沒有 `text_level`，於是整條規則不開火。**那是設計，不是漏掉。**
+    開火條件刻意嚴格，理由見 :func:`_title_index`。找到標題之後，從它的下一項
+    往後圈到「碰到下一個標題」或「翻頁」為止。
+
+    ⚠ **圈出來的範圍不等於要消的東西。** 每一項還要自己通過 :func:`_signal`，
+    2026-08-09 逐份看過 27 份證實：有三份文件的標題後面直接接正文或摘要。
     """
     if not items:
         return [], "文件沒有項目"
-    first = items[0]
-    if first.get("text_level") != 1:
-        return [], "第一項不是 lvl=1 標題（教科書章節、期刊封面頁都長這樣）"
-    if (first.get("page_idx") or 0) != 0:
-        return [], "第一項不在第 0 頁"
+    start, why = _title_index(items)
+    if start is None:
+        return [], why
 
     span: list[int] = []
-    for i, it in enumerate(items[1:], start=1):
+    for i, it in enumerate(items[start + 1:], start=start + 1):
         if it.get("text_level"):
             break                       # 碰到 Abstract／Introduction，區塊結束
         if (it.get("page_idx") or 0) != 0:

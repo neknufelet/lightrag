@@ -248,3 +248,91 @@ def test_apply_is_revertible() -> None:
     assert layout_noise.revert_items(items) == 2
     assert items[1]["text"] == AUTHOR_LINES[1]
     assert items[2]["text"] == AFFILIATION_LINES[0]
+
+
+# ── 期刊小標擋在標題前面（2026-08-16 加）─────────────────────────────────────
+#
+# 量出來的問題：**很多期刊在論文標題上方加一行分類標籤**，於是第 0 項不是標題，
+# 整條規則不開火，那一頁的作者／單位／出版社原封不動進了知識庫。
+#
+# 2026-08-16 在 dker 逐份掃 317 個解析包（`work/parsed/*/content_list.json`，
+# 用的是本模組自己的 `_span` 與 `_signal`，不另外重寫一份判準）量到：
+#
+#     沒開火、但第 0 頁確實有作者／單位訊號的        77 份
+#       其中 A 組（Mechel 的章）                      4 份
+#       其中 B 組（拆章書與學位論文）                21 份 ← **全部是誤判**
+#       其中 C 組（單篇論文）                        52 份 ← 真的漏掉
+#
+# B 組那 21 份逐項印出來看過，命中的**全部是章節標題**被大寫比例猜成作者列
+# （`6.2 SOUND ABSORPTION BY MEMBRANES AND PERFORATED SHEETS`）。
+# **所以不能只放寬位置** —— 只放寬的話實測 7 份會從章節標題往下消音，
+# 其中 `01901_10.1 Acoustical scale models` 抓到的還是**上一章**的標題。
+#
+# 分界線量得很乾淨：B 組**零份**有錨定訊號（`publication` / `correspondence`
+# 這種明確字串），而該救的論文都有。合起來實測 **+25 份、零誤傷**。
+
+JOURNAL_LABELS = [
+    "Full length article",
+    "ACCEPTED MANUSCRIPT",
+    "PAPERS • OPEN ACCESS",
+    "PAPER",
+    "PHYSICS",
+]
+
+
+def test_journal_label_above_the_title_still_fires_when_anchored() -> None:
+    """標題被期刊分類標籤擠到第 1 項，但頁上有錨定字串 —— 要開火。"""
+    for label in JOURNAL_LABELS:
+        items = [_body(label),
+                 _title("A low-frequency sound absorber based on micro-slit and coiled cavity"),
+                 _body(AUTHOR_LINES[0]),
+                 _body(AFFILIATION_LINES[0]),
+                 _body(PUBLICATION_LINES[1])]
+        p = tb.plan(items)
+        assert p.fired, f"標籤 {label!r} 擋在前面時沒開火：{p.reason}"
+        assert len(p.mutes) == 3, f"標籤 {label!r} 消音項數不對：{[m.why for m in p.mutes]}"
+
+
+def test_email_alone_is_enough_of_an_anchor() -> None:
+    """錨定不限出版資訊 —— 通訊作者的 email 同樣是明確字串。"""
+    items = [_body("Full length article"),
+             _title("Broadband impedance modulation via non-local acoustic metamaterials"),
+             _body(AUTHOR_LINES[1]),
+             _body("Corresponding author. E-mail: yong.li@tongji.edu.cn"),
+             _body(AFFILIATION_LINES[3])]
+    p = tb.plan(items)
+    assert p.fired, p.reason
+    assert len(p.mutes) == 3
+
+
+def test_widened_lookahead_needs_an_anchor_or_it_stays_shut() -> None:
+    """**保險絲。** 教科書章節第 0 頁也可能在前幾項出現 lvl=1 標題。
+
+    實測 6 份 B 組長這樣。它們的第 0 頁**零個**有錨定字串，所以要求錨定就擋得住。
+    沒有這一條，`01901_10.1` 會從上一章的標題往下把正文開頭消掉。
+    """
+    items = [_body("Prediction models"),
+             _title("10.1 Acoustical scale models"),
+             _body(REAL_CONTENT_LINES[0]),
+             _body(REAL_CONTENT_LINES[1])]
+    p = tb.plan(items)
+    assert not p.fired, f"沒有錨定字串卻開火了，會消掉正文：{[m.text[:40] for m in p.mutes]}"
+    assert p.mutes == []
+
+
+def test_lookahead_does_not_run_past_the_limit() -> None:
+    """往下找標題有上限。找太深就不是「標籤擋在前面」，是別的形狀。"""
+    items = ([_body(f"label {i}") for i in range(tb.TITLE_LOOKAHEAD + 1)]
+             + [_title("Some Paper"),
+                _body(AUTHOR_LINES[1]),
+                _body(PUBLICATION_LINES[1])])
+    p = tb.plan(items)
+    assert not p.fired, "超過上限還往下找標題"
+
+
+def test_standard_shape_does_not_need_an_anchor() -> None:
+    """**現行行為不可以變。** 第 0 項就是標題時，照舊開火，不要求錨定。"""
+    items = [_title("Some Paper"), _body(AUTHOR_LINES[1]), _body(AFFILIATION_LINES[0])]
+    p = tb.plan(items)
+    assert p.fired, p.reason
+    assert len(p.mutes) == 2
