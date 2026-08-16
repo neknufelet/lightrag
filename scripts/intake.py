@@ -2861,6 +2861,16 @@ class IntakeApp:
         於是「一週前通過」看起來跟「剛剛通過」一模一樣。所以一律回報 `age_s`，
         並在超過 `CHECKS_STALE_AFTER_S` 時把 `state` 改成 `stale` —— 那不是通過，
         是「沒有在檢查」。
+
+        **2026-08-17：紅燈分三態。** 原本這裡把「任何非零的 `*_rc`」都塞進
+        `failing`，於是永遠不會綠的那一盞（`tests_rc=3` ＝ 這台沒有 node，
+        測試根本沒跑）跟真的紅燈（`fresh_rc=2` ＝ 跑著的是舊碼）在畫面上長得
+        一模一樣。判準**不在這裡**，在 `check-levels.py`，由 `daily-check.sh`
+        寫進 `levels` 欄 —— 兩個地方各判一次的話，哪天有人只改一邊，兩邊會
+        打架而且沒有人會發現。
+
+        ⚠ 舊的結果檔沒有 `levels`（升級當下 `latest.json` 還是上一輪那份）。
+        沒有它就退回舊行為「非零即 failing」—— **寧可多叫，不可漏叫**。
         """
         path = self.paths.checks_dir / "latest.json"
         if not path.is_file():
@@ -2874,14 +2884,30 @@ class IntakeApp:
         stamp = str(raw.get("at") or "")
         status = str(raw.get("status") or "unknown")
         state = "stale" if age > self.CHECKS_STALE_AFTER_S else status
-        failing = sorted(k for k, v in raw.items()
+        nonzero = sorted(k for k, v in raw.items()
                          if k.endswith("_rc") and isinstance(v, int) and v != 0)
+        levels = raw.get("levels")
+        if isinstance(levels, dict):
+            def _by(want: str) -> list[str]:
+                return sorted(k for k in nonzero if levels.get(k) == want)
+            failing = _by("block")
+            warnings = _by("warn")
+            unverified = _by("unverified")
+            # 有 levels 卻標不出來的（欄位打錯、新檢查沒登記）不得靜靜消失：
+            # 併進 failing，錯了會吵，不會沉默。
+            failing += [k for k in nonzero
+                        if k not in failing and k not in warnings and k not in unverified]
+            failing.sort()
+        else:
+            failing, warnings, unverified = nonzero, [], []
         return {
             "state": state,          # ok / fail / stale / missing / unreadable
             "reported": status,      # 檔案裡寫的原值，stale 時仍要看得到
             "at": stamp,
             "age_s": age,
-            "failing": failing,      # 哪幾項非零，例如 ["scan_rc", "tests_rc"]
+            "failing": failing,      # 擋流程的紅，例如 ["fresh_rc"]
+            "warnings": warnings,    # 提醒的紅：知道就好，不擋人
+            "unverified": unverified,  # 驗不了：既不是通過也不是失敗
             "detail": raw.get("detail"),
             # 產生這筆結果的 commit。沒有它，「這條檢查後來被修好了」與
             # 「這個問題還在」在畫面上無法區分 —— 讀者會照著一份舊碼的判斷去處置。

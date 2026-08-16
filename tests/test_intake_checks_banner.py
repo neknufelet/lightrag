@@ -77,6 +77,71 @@ def test_fresh_fail_lists_which_checks_failed(tmp_path: Path) -> None:
     assert got["detail"]
 
 
+# ── 三態：擋流程的紅／提醒的紅／驗不了（2026-08-17）────────────────────────
+# 原本這裡把「任何非零的 `*_rc`」都塞進 `failing`，於是永遠不會綠的那一盞
+# （`tests_rc=3` ＝ 這台沒有 node）跟真的紅燈（`fresh_rc=2` ＝ 跑著舊碼）在
+# 畫面上長得一模一樣。判準在 `check-levels.py`，這裡只是照著分欄。
+
+def _levelled(**rcs: int) -> dict:
+    import importlib.util
+    root = Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location(
+        "check_levels_for_banner", root / "scripts" / "check-levels.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    summary = mod.summarise(rcs)
+    payload = {"at": "20260817T000000", "status": summary["status"],
+               "levels": summary["levels"]}
+    payload.update({f"{k}_rc": v for k, v in rcs.items()})
+    return payload
+
+
+def test_banner_separates_the_three_kinds(tmp_path: Path) -> None:
+    """2026-08-17 的實際盤面：一盞真紅，其餘是提醒與驗不了。"""
+    app = _app(tmp_path)
+    _write(app, _levelled(compat=5, parse=1, coverage=1, tests=3, fresh=2,
+                          canary=0, scan=0, units=0, deploy=0))
+    got = app.daily_checks()
+    assert got["failing"] == ["fresh_rc"], "要喊的只有跑著舊碼那一盞"
+    assert got["warnings"] == ["compat_rc", "coverage_rc", "parse_rc"]
+    assert got["unverified"] == ["tests_rc"]
+
+
+def test_permanently_unverifiable_light_does_not_shout(tmp_path: Path) -> None:
+    """`tests_rc=3` 單獨存在時，橫幅不得把它喊成紅燈 —— 但也不得讓它消失。"""
+    app = _app(tmp_path)
+    _write(app, _levelled(tests=3, compat=0, canary=0, scan=0, units=0,
+                          deploy=0, fresh=0, parse=0, coverage=0))
+    got = app.daily_checks()
+    assert got["failing"] == []
+    assert got["unverified"] == ["tests_rc"], "驗不了不得從畫面上消失"
+
+
+def test_light_missing_from_levels_is_treated_as_blocking(tmp_path: Path) -> None:
+    """`levels` 裡沒登記的非零燈要併進 failing —— 錯了會吵，不會沉默。
+
+    新加一支檢查卻忘了在 `check-levels.py` 登記時，它會走到這條路。
+    """
+    app = _app(tmp_path)
+    _write(app, {"at": "20260817T000000", "status": "pass",
+                 "levels": {"tests_rc": "unverified"},
+                 "tests_rc": 3, "新檢查_rc": 2})
+    got = app.daily_checks()
+    assert got["failing"] == ["新檢查_rc"]
+    assert got["unverified"] == ["tests_rc"]
+
+
+def test_old_result_without_levels_falls_back_to_shouting(tmp_path: Path) -> None:
+    """升級當下 `latest.json` 還是上一輪那份，沒有 `levels`。寧可多叫，不可漏叫。"""
+    app = _app(tmp_path)
+    _write(app, {"at": "20260817T000000", "status": "fail",
+                 "compat_rc": 5, "tests_rc": 3, "fresh_rc": 0})
+    got = app.daily_checks()
+    assert got["failing"] == ["compat_rc", "tests_rc"]
+    assert got["warnings"] == [] and got["unverified"] == []
+
+
 def test_stale_pass_is_reported_as_stale_not_ok(tmp_path: Path) -> None:
     """**本檔最重要的一條。**
 

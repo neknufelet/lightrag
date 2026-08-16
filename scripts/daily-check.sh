@@ -24,16 +24,17 @@ if [ "${1:-}" = "--selftest" ]; then
 fi
 
 ts=$(date +%Y%m%dT%H%M%S)
-fail_msgs=()
+
+# ── 紅燈語意：這一支只負責「跑」與「記下離開碼」，不判「算不算失敗」──────────
+# 判準全部在 scripts/check-levels.py（擋流程的紅／提醒的紅／驗不了）。
+# 分開是因為原本的「任何非零都是失敗」讓 status 天天是 fail，其中一盞
+# （tests 在 dker 上永遠回 3 ＝ 這台沒有 node）**永遠不會綠**，而 2026-08-16
+# 真的紅燈 fresh_rc=2「跑著的是舊碼」就埋在那一片紅裡沒有人看出來。
+# 判準只有那一份，審核台橫幅也讀它 —— 兩邊各寫一份會打架而且沒人會發現。
 
 python3 scripts/compat-check.py --json \
   > "$CHECK_DIR/compat-$ts.json" 2> "$CHECK_DIR/compat-$ts.err"
-rc=$?
-case $rc in
-  0) ;;
-  5) fail_msgs+=("compat-check 軟失敗 (rc=5) → $CHECK_DIR/compat-$ts.json") ;;
-  *) fail_msgs+=("compat-check 硬失敗 (rc=$rc) → $CHECK_DIR/compat-$ts.json") ;;
-esac
+compat_rc=$?
 
 # ⚠ 離開碼要**先存進變數**再判斷。原本寫成 `cmd || fail_msgs+=(… $? …)`，
 # 那個 rc 沒有被留下來，於是 latest.json 裡**根本沒有 canary 這一欄** ——
@@ -41,22 +42,15 @@ esac
 # 2026-08-16 實測到：那天 canary 是紅的，而 latest.json 看起來只有四個紅燈。
 python3 scripts/postprocess.py canary > "$CHECK_DIR/canary-$ts.txt" 2>&1
 canary_rc=$?
-if [ "$canary_rc" -ne 0 ]; then
-  fail_msgs+=("canary 規則漂移 (rc=$canary_rc) → $CHECK_DIR/canary-$ts.txt")
-fi
 
 # ── SCANNER-1：∂ 誤讀探針（2026-08-03 加入）────────────────────────────
 # 這是「新符號誤讀」唯一的偵測手段：漏字檢查抓不到它（誤讀不刪字，覆蓋率永遠
 # 100%）、preflight 也抓不到（型別沒變）—— 它可以完全安靜地進索引。
 # rc: 0 與基準相同／2 漂移／3 沒有基準檔（未設定，不是通過也不是失敗）。
+# ⚠ 它回 3（沒有基準檔）在 check-levels.py 裡**刻意留在「擋」那一態**，跟
+# tests 的 3 不同 —— 那不是「這台驗不了」，是「有人要去建一份基準」，做得完。
 python3 scripts/scan-partial.py > "$CHECK_DIR/scan-$ts.txt" 2>&1
 scan_rc=$?
-case $scan_rc in
-  0) ;;
-  2) fail_msgs+=("∂ 誤讀探針漂移 (rc=2) → $CHECK_DIR/scan-$ts.txt") ;;
-  3) fail_msgs+=("∂ 誤讀探針【沒有基準檔】(rc=3) —— 未設定不是通過，去建基準") ;;
-  *) fail_msgs+=("∂ 誤讀探針掛了 (rc=$scan_rc) → $CHECK_DIR/scan-$ts.txt") ;;
-esac
 
 # ── 解析品質：碎字元（2026-08-10 加入）──────────────────────────────────
 # `parse-check` 的離開碼只在**掉字**時非 0（WARN 不算），而 2026-08-10 對 257 份
@@ -64,20 +58,24 @@ esac
 # （`s d s e o a sne a`），成因是 .env.example 記過的「文字層路徑會吃掉
 # x-height 字母」，`is_ocr=true` 沒有百分之百擋掉。
 # 它的對照源是解析成果自己，不依賴 pdftotext —— 不會被壞掉的文字層騙。
+#
+# **2026-08-17：它從「擋」降成「提醒」**（NEXT 的「每日體檢分不出擋流程的紅與
+# 提醒的紅」那一條，以及新庫設計文件第一層的裁決「尺不改，但紅燈只印警告不擋」）。
+# 實跑母體 317 份：OK 32／WARN 283（89%）／ERROR 2 —— 它量的是**語料內容**，
+# 不是系統壞掉，而 ERROR 那兩份是修得動的個案，不該讓整張儀表板天天紅。
 python3 scripts/parse-check.py > "$CHECK_DIR/parse-$ts.txt" 2>&1
 parse_rc=$?
-if [ "$parse_rc" -ne 0 ]; then
-  fail_msgs+=("解析出現碎字元 (rc=$parse_rc) → $CHECK_DIR/parse-$ts.txt")
-fi
 
 # ── 漏字比對：**只記錄，不進紅燈**（2026-08-10 加入）────────────────────
 # 2026-08-10 對 257 份實測：13 份超標，**逐份查證的 4 份全是假訊號** ——
 # 它拿 `pdftotext` 讀的文字層當對照源，而那個證人對雙欄學術論文會自己壞掉
 # （浮水印讀成碎片、數學字型讀成 dddd、掃描件黏字、同段落重複輸出）。
 #
-# **所以它的離開碼不進 fail_msgs。** 讓它天天把紅燈染紅，代價是真的紅燈被淹沒
-# —— 那正是本專案在別處一再避開的形狀。判斷交給 `kb-health-check` skill，
-# 查過的結論記進 tests/verified-findings.json，工具下次會自己印出來。
+# **所以它是「提醒的紅」不是「擋流程的紅」。** 讓它天天把紅燈染紅，代價是真的
+# 紅燈被淹沒 —— 那正是本專案在別處一再避開的形狀。判斷交給 `kb-health-check`
+# skill，查過的結論記進 tests/verified-findings.json，工具下次會自己印出來。
+# ⚠ 2026-08-17 起它**不再是被靜靜丟掉**：check-levels.py 明確標成 warn 並印出來。
+# 原本「算進 latest.json 但不算 status」的做法看不出是刻意的還是漏掉的。
 python3 scripts/coverage-check.py --json \
   > "$CHECK_DIR/coverage-$ts.json" 2> "$CHECK_DIR/coverage-$ts.err"
 coverage_rc=$?
@@ -92,18 +90,12 @@ coverage_rc=$?
 # 探針本身要有探針（鐵則 6）。rc: 0 一致／2 缺檔、內容不符、或沒 enabled。
 python3 scripts/systemd-units.py verify > "$CHECK_DIR/units-$ts.txt" 2>&1
 units_rc=$?
-if [ "$units_rc" -ne 0 ]; then
-  fail_msgs+=("systemd 單元與 repo 不一致 (rc=$units_rc) → $CHECK_DIR/units-$ts.txt")
-fi
 
 # ── 部署一致性：stack 那份 compose 有沒有跟 repo 一致 ──────────────────
 # 這支 2026-08-08 之前**沒有任何人呼叫**（deploy-stack.py 檔頭自己寫了「執行者
 # 目前是弱的」）。寫好的檢查沒被呼叫，等於沒寫。
 python3 scripts/deploy-stack.py verify > "$CHECK_DIR/deploy-$ts.txt" 2>&1
 deploy_rc=$?
-if [ "$deploy_rc" -ne 0 ]; then
-  fail_msgs+=("stack 的 compose 與 repo 不一致 (rc=$deploy_rc) → $CHECK_DIR/deploy-$ts.txt")
-fi
 
 # ── 部署新鮮度：跑著的是不是最新的碼 ───────────────────────────────────
 # 檔案放對了不代表跑著的是它。2026-08-08 實測 dker 落後 origin 3 個 commit
@@ -111,23 +103,25 @@ fi
 # **完全沒有外顯症狀**。三條：落後 origin／工作區被手改／容器比它該跑的碼舊。
 python3 scripts/deploy-stack.py freshness > "$CHECK_DIR/fresh-$ts.txt" 2>&1
 fresh_rc=$?
-if [ "$fresh_rc" -ne 0 ]; then
-  fail_msgs+=("部署不新鮮 (rc=$fresh_rc) → $CHECK_DIR/fresh-$ts.txt")
-fi
+# ⚠ 2026-08-17 這一盞真的抓到東西：`lightrag-intake.service` 08-14 啟動、載入的
+# 4 個檔 08-16 23:35 改過，**跑著的是舊碼**（前一晚才接上的接地檢查與 graph-clean
+# 根本沒在跑）。它埋在天天都在的一片紅裡，這正是要把三態分開的理由。
 
 # ── REBUILD-6：單一測試入口───────────────────────────────────────────────
 # run-tests.sh 內會依序跑 pytest 與自製的 test_gates.py；pytest 不會收集後者，
 # 因此兩者缺一不可。測試失敗屬於檢查紅燈，讓本支以 exit 1 通知；不要把它誤當
 # 成 daily-check 自身掛掉而走 OnFailure。
+#
+# ⚠ **rc=3 不是失敗。** run-tests.sh 自己的定義：「跑得動的都通過了，但這台
+# 驗不了全部」（dker 沒有 node，zotero-plugin 的檔名測試沒跑）。它至少從
+# 2026-08-13 起每天都是 3 —— 天天把 status 染成 fail 的就是這一盞。
+# check-levels.py 把它標成 `unverified`：既不是通過也不是失敗，但**照樣印出來**。
 if [ ! -x scripts/run-tests.sh ]; then
   echo "daily-check: 找不到可執行的 scripts/run-tests.sh" >&2
   exit 2
 fi
 scripts/run-tests.sh > "$CHECK_DIR/tests-$ts.txt" 2>&1
 tests_rc=$?
-if [ "$tests_rc" -ne 0 ]; then
-  fail_msgs+=("測試入口失敗 (rc=$tests_rc) → $CHECK_DIR/tests-$ts.txt")
-fi
 
 # 2026-08-03 CUTOVER：這裡原本有第二段，去 ../lightrag-v2 那個 worktree 再跑一次
 # compat-check 與 canary。worktree 已收掉、acoustics_v155 已退役，現在只有一個
@@ -137,28 +131,45 @@ fi
 # 「檢查跑過了」在報表上長得一樣（鐵則 6）。將來真要同時顧兩個庫，正確做法
 # 是讓這支腳本吃一份明確的 workspace 清單，而不是猜隔壁目錄存不存在。
 
-status=pass
-[ ${#fail_msgs[@]} -gt 0 ] && status=fail
-
 # 這份結果是**哪一版的碼**產生的。沒有它，一筆過期的紅燈與一筆剛跑出來的紅燈
 # 在審核台上長得一模一樣 —— 而處置完全不同（前者要先問「排程還活著嗎」）。
 # 「檢查結果要帶上產生它的版本」是要升上游的通則之一。
 commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
 
-# coverage_rc 記在這裡但**不影響 status** —— 它是參考值不是判定，理由見上方。
-printf '{"at":"%s","status":"%s","commit":"%s","compat_rc":%d,"canary_rc":%d,"scan_rc":%d,"units_rc":%d,"deploy_rc":%d,"fresh_rc":%d,"tests_rc":%d,"parse_rc":%d,"coverage_rc":%d,"detail":"%s"}\n' \
-  "$ts" "$status" "$commit" "$rc" "$canary_rc" "$scan_rc" "$units_rc" "$deploy_rc" "$fresh_rc" \
-  "$tests_rc" "$parse_rc" "$coverage_rc" "$CHECK_DIR/compat-$ts.json" \
-  > "$CHECK_DIR/latest.json"
+# ── status 與離開碼由 check-levels.py 決定 ─────────────────────────────────
+# 它印 JSON 到 stdout（`latest.json` 的全文，舊欄位一個都沒少，另加 `levels`／
+# `blocking`／`warnings`／`unverified`），三態的清單印到 stderr（systemd 收進
+# journal），離開碼 0／1 只看有沒有「擋流程的紅」。
+#
+# ⚠ **先寫暫存再換上去。** 直接重導向到 latest.json 的話，check-levels.py 自己
+# 掛掉會留下一個空檔 —— 而審核台讀到空檔會報 unreadable，看起來像「檢查壞了」
+# 而不是「上一次的結果還在」。寫壞不如不寫。
+tmp_latest="$CHECK_DIR/latest.json.tmp"
+python3 scripts/check-levels.py \
+  --at "$ts" --commit "$commit" --detail "$CHECK_DIR/compat-$ts.json" \
+  --rc "compat=$compat_rc"   --report "compat=$CHECK_DIR/compat-$ts.json" \
+  --rc "canary=$canary_rc"   --report "canary=$CHECK_DIR/canary-$ts.txt" \
+  --rc "scan=$scan_rc"       --report "scan=$CHECK_DIR/scan-$ts.txt" \
+  --rc "units=$units_rc"     --report "units=$CHECK_DIR/units-$ts.txt" \
+  --rc "deploy=$deploy_rc"   --report "deploy=$CHECK_DIR/deploy-$ts.txt" \
+  --rc "fresh=$fresh_rc"     --report "fresh=$CHECK_DIR/fresh-$ts.txt" \
+  --rc "tests=$tests_rc"     --report "tests=$CHECK_DIR/tests-$ts.txt" \
+  --rc "parse=$parse_rc"     --report "parse=$CHECK_DIR/parse-$ts.txt" \
+  --rc "coverage=$coverage_rc" --report "coverage=$CHECK_DIR/coverage-$ts.json" \
+  > "$tmp_latest"
+levels_rc=$?
+if [ ! -s "$tmp_latest" ]; then
+  rm -f "$tmp_latest"
+  echo "daily-check: check-levels.py 沒有產出 latest.json（rc=$levels_rc）" >&2
+  exit 2
+fi
+mv "$tmp_latest" "$CHECK_DIR/latest.json"
 
 # 保留最新 120 份。抽成獨立腳本是因為它需要測試 —— 原本寫在這裡的版本按**檔名**
 # 排序，而 `canary-` 的字母序排在其餘七種之前，於是每次都先刪掉剛寫好的 canary
 # 報告（2026-08-16 實測，理由寫在 prune-checks.sh 的檔頭）。
 scripts/prune-checks.sh "$CHECK_DIR" 120
 
-if [ "$status" = fail ]; then
-  # 2026-08-07：ntfy 已拆，改寫 stderr —— systemd 會收進 journal。
-  # ⚠ 沒有人會被打斷。要知道紅燈只能看 journal 或 $CHECK_DIR。
-  printf '%s\n' "${fail_msgs[@]}" >&2
-  exit 1
-fi
+# 2026-08-07：ntfy 已拆，紅燈只寫 stderr —— systemd 會收進 journal。
+# ⚠ 沒有人會被打斷。要知道紅燈只能看 journal、$CHECK_DIR，或審核台橫幅。
+exit "$levels_rc"

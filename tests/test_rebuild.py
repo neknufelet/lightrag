@@ -226,9 +226,20 @@ def test_run_tests_entry_names_both_non_collecting_test_paths() -> None:
 
 
 def test_daily_check_wires_test_entry_into_check_red_path() -> None:
+    """測試入口的離開碼要跑得到、存得下、並被判成三態之一。
+
+    ⚠ **2026-08-17 換了機制，意圖沒換。** 原本這裡斷言的是
+    `fail_msgs+=("測試入口失敗` 與 printf 的 `"tests_rc":%d` —— 兩者都隨
+    「任何非零都是失敗」那段邏輯一起搬進 `check-levels.py` 了，daily-check.sh
+    現在只負責跑與記離開碼。所以改成斷言**新的那條路**，不是刪掉這條守衛。
+
+    為什麼要換：`run-tests.sh` 在 dker 上永遠回 3（沒有 node ＝ 那支 JS 測試
+    根本沒跑），舊機制把它算成失敗，於是 `status` 天天是 `fail`，真的紅燈
+    （`fresh_rc=2` 跑著舊碼）被淹在裡面。三態的判準見 tests/test_check_levels.py。
+    """
     source = (SCRIPTS / "daily-check.sh").read_text(encoding="utf-8")
 
     assert "scripts/run-tests.sh > \"$CHECK_DIR/tests-$ts.txt\"" in source
     assert "tests_rc=$?" in source
-    assert 'fail_msgs+=("測試入口失敗' in source
-    assert '"tests_rc":%d' in source
+    assert '--rc "tests=$tests_rc"' in source, "測試的離開碼沒有被餵進判準"
+    assert "scripts/check-levels.py" in source

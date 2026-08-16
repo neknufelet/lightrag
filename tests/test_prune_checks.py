@@ -145,9 +145,13 @@ def test_daily_check_calls_it_and_records_canary_rc() -> None:
     `canary_rc` 那半是 2026-08-16 的另一個缺陷：canary 的離開碼原本寫成
     `cmd || fail_msgs+=(… $? …)`，**沒有被存進變數**，所以 latest.json 裡
     根本沒有這一欄 —— canary 紅了只出現在 stderr，讀 latest.json 的人看不到。
+
+    ⚠ **2026-08-17：latest.json 改由 `check-levels.py` 產生**，原本那一行
+    printf 的 `"canary_rc":%d` 不在了。守的東西沒變（「canary 的離開碼要落進
+    latest.json」），改成斷言它有被餵進去那支。
     """
     src = (ROOT / "scripts" / "daily-check.sh").read_text(encoding="utf-8")
     assert "prune-checks.sh" in src, "daily-check 沒有呼叫 prune-checks.sh"
     assert "sort | head -n -120" not in src, "按檔名排序的舊版又回來了"
     assert "canary_rc=$?" in src, "canary 的離開碼沒有被存下來"
-    assert '"canary_rc":%d' in src, "latest.json 沒有記 canary_rc"
+    assert '--rc "canary=$canary_rc"' in src, "canary 的離開碼沒有進 latest.json"
