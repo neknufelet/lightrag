@@ -13,7 +13,12 @@ import logging
 from dataclasses import dataclass
 
 from chapters.naming import MAX_FILENAME_LENGTH, sanitize_filename
-from chapters.split_plan import PdfChapterPlan, is_appendix_title, is_preamble_title
+from chapters.split_plan import (
+    PdfChapterPlan,
+    is_appendix_title,
+    is_preamble_title,
+    plan_pdf_split,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +26,20 @@ logger = logging.getLogger(__name__)
 #: 少了它，下一個人無法區分「規則剛好也這樣勾」與「有人特地改成這樣」。
 DECIDED_BY_RULE = "rule"
 DECIDED_BY_HUMAN = "human"
+
+
+@dataclass(frozen=True)
+class LevelOption:
+    """「切到哪一層」的一個選項。
+
+    Attributes:
+        level: 切到第幾層（1＝只切章、2＝章＋節、3＝再往下一層…）。
+        selected_count: 選了這一層之後，**規則會勾好幾列** —— 也就是實際會切出
+            幾個檔。不是總列數：前言與參考文獻預設不勾，算進去會比實際多。
+    """
+
+    level: int
+    selected_count: int
 
 
 @dataclass
@@ -47,6 +66,37 @@ class SelectionRow:
     selected: bool
     decided_by: str
     note: str = ""
+
+
+def level_options(toc: list[tuple[int, str, int]], total_pages: int) -> list[LevelOption]:
+    """這本書有哪幾層可以選，每一層會切出幾個檔。
+
+    層數是**讀這本書的目錄**算出來的，不是寫死「只切章／章＋節」兩個 ——
+    寫死的話三層的書就永遠選不到第三層（PO 2026-08-17：「目錄有幾層就給幾個選項」）。
+
+    Args:
+        toc: ``[(level, title, page), ...]``，同 fitz ``doc.get_toc()`` 的形狀。
+        total_pages: PDF 總頁數。
+
+    Returns:
+        由淺到深的選項清單；目錄是空的時候回空清單（**不是**回一個假的第 1 層）。
+    """
+    depth = max((lvl for lvl, _, _ in toc), default=0)
+    options = [
+        LevelOption(
+            level=lvl,
+            selected_count=sum(
+                1 for row in build_selection(
+                    plan_pdf_split(toc, total_pages, max_level=lvl, chapter_prefix=True),
+                    key="", tail="",
+                ) if row.selected
+            ),
+        )
+        for lvl in range(1, depth + 1)
+    ]
+    logger.debug("目錄深度 %d 層，各層勾好的列數 %s",
+                 depth, [o.selected_count for o in options])
+    return options
 
 
 def build_selection(plans: list[PdfChapterPlan], *, key: str, tail: str) -> list[SelectionRow]:

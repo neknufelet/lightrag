@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from chapters.naming import MAX_FILENAME_LENGTH  # noqa: E402
-from chapters.selection import build_selection  # noqa: E402
+from chapters.selection import build_selection, level_options  # noqa: E402
 from chapters.split_plan import PdfChapterPlan, plan_pdf_split  # noqa: E402
 
 # 一本假書：前言、兩章（各一節）、參考文獻。level 與頁碼照 fitz get_toc 的形狀。
@@ -34,6 +34,40 @@ BOOK_PAGES = 50
 
 def _plans(max_level: int = 2) -> list[PdfChapterPlan]:
     return plan_pdf_split(BOOK_TOC, BOOK_PAGES, max_level=max_level, chapter_prefix=True)
+
+
+def test_level_options_come_from_the_book_not_from_a_hardcoded_list() -> None:
+    """有幾層可以選，是**讀這本書的目錄**算出來的，不是寫死兩個選項。
+
+    PO 2026-08-17 的形狀：「目錄有幾層就給幾個選項，讀目錄的時候就知道了」。
+    寫死成「只切章／章＋節」的話，三層的書就永遠選不到第三層。
+    """
+    three_level = [
+        (1, "Chapter 1", 1),
+        (2, "1.1 Waves", 3),
+        (3, "1.1.1 Plane waves", 4),
+        (1, "Chapter 2", 20),
+    ]
+
+    assert [o.level for o in level_options(three_level, 30)] == [1, 2, 3]
+    assert [o.level for o in level_options(BOOK_TOC, BOOK_PAGES)] == [1, 2]
+
+
+def test_level_options_say_how_many_files_each_choice_makes() -> None:
+    """每個選項要附「這樣切會切出幾個檔」。
+
+    這是先問層次的**理由**：四百頁的書切到節可能兩三百列，先選層次能縮到
+    二十幾列。看不到數字的話，那個理由對使用者不成立 —— 他無從判斷該選哪個。
+
+    ⚠ 數的是**勾好的**列數，不是全部列數。前言與參考文獻預設不勾，
+    把它們算進去會讓數字比實際會產生的檔案多。
+    """
+    options = {o.level: o.selected_count for o in level_options(BOOK_TOC, BOOK_PAGES)}
+
+    # 只切章：Preface / Ch1 / Ch2 / References 四列，勾好的是兩章。
+    assert options[1] == 2
+    # 章＋節：再多兩節，全部勾好 → 四個檔。
+    assert options[2] == 4
 
 
 def test_rules_pre_check_body_and_skip_frontmatter() -> None:
