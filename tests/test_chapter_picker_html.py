@@ -104,6 +104,20 @@ def test_a_pdf_without_an_outline_says_so_and_offers_no_confirm_button() -> None
     assert "整份直接進" in html, "要告訴使用者接下來能做什麼"
 
 
+def test_there_is_always_a_way_back_to_the_console() -> None:
+    """勾選畫面一定要有回去的路。
+
+    2026-08-17 PO 實際踩到：「沒辦法回去上一頁」。這一頁自成一頁、不是彈出視窗，
+    沒有連結就只剩瀏覽器的上一頁按鈕 —— 而使用者不該被迫用瀏覽器的按鈕來走
+    我們自己做的流程。
+
+    ⚠ 沒有目錄那條路早就有回去的連結，**正常那條反而漏了** ——
+    只在例外情況做對，是漏得最容易的一種。
+    """
+    assert "回收件匣" in _page()
+    assert "href='/'" in _page()
+
+
 def test_page_says_which_book_it_is() -> None:
     """畫面要講清楚現在勾的是哪一本，否則同時開兩本會勾錯。"""
     assert "W7M3NDKV 2015 - Acoustics.pdf" in _page()

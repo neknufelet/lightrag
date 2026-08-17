@@ -94,14 +94,21 @@ def render_picker(*, doc: str, options: Sequence[LevelOption], chosen_level: int
             "</section>"
         )
 
+    # **一定要有回去的路。** 這一頁自成一頁、不是彈出視窗；沒有連結就只剩瀏覽器的
+    # 上一頁按鈕，而使用者不該被迫用瀏覽器的按鈕來走我們自己做的流程
+    # （2026-08-17 PO 實際踩到）。⚠ 沒有目錄那條路早就有這個連結，**正常那條反而
+    # 漏了** —— 只在例外情況做對，是漏得最容易的一種。
+    back = "<p class='back'><a class='btn' href='/'>← 回收件匣</a></p>"
     return (
         "<section class='picker'>"
-        f"<h2>切這本書：{_esc(doc)}</h2>"
+        + back
+        + f"<h2>切這本書：{_esc(doc)}</h2>"
         + _level_choices(options, chosen_level)
         + "<fieldset class='rows'><legend>二、要切哪幾章"
         f"（規則先幫你勾了 {picked} 列，只改勾錯的）</legend>"
         + "".join(_row(r) for r in rows)
         + "</fieldset>"
         "<button type='button' class='go'>確認，開始切</button>"
-        "</section>"
+        + back
+        + "</section>"
     )
