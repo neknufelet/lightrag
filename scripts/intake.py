@@ -37,6 +37,16 @@ from typing import Literal, Protocol
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ledger  # noqa: E402
+from chapters.pdf_splitter import read_toc  # noqa: E402
+from chapters.picker_html import render_picker  # noqa: E402
+from chapters.selection import (  # noqa: E402
+    DECIDED_BY_HUMAN,
+    build_selection,
+    level_options,
+)
+from chapters.split_plan import plan_pdf_split  # noqa: E402
+from chapters.split_record import record_path as chapter_record_path  # noqa: E402
+from chapters.split_record import write_record  # noqa: E402
 from mineru_common import load_env  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
@@ -167,6 +177,27 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return "sha256:" + digest.hexdigest()
+
+
+def _chapters_commit(repo: Path) -> str:
+    """`scripts/chapters/` 現在是哪一版。存進拆章紀錄裡當對照用。
+
+    ⚠ **只拿來對照，不拿來重算**：裁決是「照舊的切」，重來時不跑規則
+    （`docs/chapter-selection-record-20260817.md`）。記它是為了哪天想知道
+    「這本書是用學會認英文附錄之前還是之後的規則切的」，翻得到。
+
+    查不到就回 ``"unknown"`` —— **不要因為問不到 git 就讓確認鍵按不下去**，
+    而 ``"unknown"`` 本身是誠實的：它說的是「不知道」，不是假裝知道。
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "log", "-1", "--format=%h", "--", "scripts/chapters"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        LOGGER.warning("查不到 scripts/chapters 的 commit：%s", exc)
+        return "unknown"
+    return out.stdout.strip() or "unknown"
 
 
 def _atomic_json_write(path: Path, payload: Mapping[str, object]) -> None:
@@ -2846,6 +2877,99 @@ class IntakeApp:
         target.unlink()
         LOGGER.info("刪除收件匣檔案 %s", name)
 
+    # ── 拆章勾選 ────────────────────────────────────────────────────────────
+    # 這裡只做**接線**：算在 `chapters.selection`、畫在 `chapters.picker_html`、
+    # 存在 `chapters.split_record`。那三支都是純函式或純 I/O，在 coder 上就驗得完
+    # （coder 沒有 LightRAG 的 `.env` 也沒有它的 docker，起不了審核台）。
+    # 設計與四條裁決在 `docs/chapter-selection-record-20260817.md`。
+
+    def _inbox_pdf(self, filename: str) -> Path:
+        """收件匣裡那份 PDF 的路徑。**只准碰收件匣** —— 沿用 `delete_inbox_file`
+        同一條界線；不擋的話 `../` 就能讓畫面去讀部署機上任何一個 PDF。
+        """
+        name = Path(filename.replace("\\", "/")).name.strip()
+        if not name or name.startswith("."):
+            raise IntakeError("檔名不合法", 400)
+        target = self.paths.inbox_dir / name
+        if not target.is_file():
+            raise IntakeError(f"收件匣裡沒有這個檔案：{name}", 404)
+        if target.resolve().parent != self.paths.inbox_dir.resolve():
+            raise IntakeError("只能勾收件匣裡的檔案", 400)
+        return target
+
+    def chapter_record_path(self, filename: str) -> Path:
+        """這本書的勾選紀錄該落在哪（repo 底下，進版控）。"""
+        return chapter_record_path(self.repo, Path(filename).name)
+
+    def _chapter_key_and_tail(self, filename: str) -> tuple[str, str]:
+        """從檔名拆出 8 碼 Zotero key 與尾巴。
+
+        外掛 0.3.5 送進來的形狀是 ``<KEY> <年份> - <標題>.pdf``。
+        **沒有 key 的檔案不猜**（手動丟進來的舊檔就是這樣）—— 回空字串，
+        由呼叫端決定要不要擋。猜一個假 key 會讓兩本不同的書撞在一起。
+        """
+        stem = Path(filename).stem
+        head, _, tail = stem.partition(" ")
+        if len(head) == 8 and head.isalnum() and head.isupper() and tail:
+            return head, tail
+        return "", stem
+
+    def chapter_picker(self, filename: str, level: int | None = None) -> str:
+        """畫「這本書要切哪幾章」的勾選畫面。
+
+        Args:
+            filename: 收件匣裡的 PDF 檔名。
+            level: 切到第幾層；``None`` 時取最深的那一層（多數書就是章＋節）。
+        """
+        pdf = self._inbox_pdf(filename)
+        toc, total_pages = read_toc(pdf)
+        options = level_options(toc, total_pages)
+        chosen = level if level is not None else (options[-1].level if options else 1)
+        key, tail = self._chapter_key_and_tail(pdf.name)
+        rows = build_selection(
+            plan_pdf_split(toc, total_pages, max_level=chosen, chapter_prefix=True),
+            key=key, tail=tail,
+        )
+        return render_picker(doc=pdf.name, options=options, chosen_level=chosen, rows=rows)
+
+    def confirm_chapter_split(self, filename: str, *, level: int,
+                              selected: Sequence[int],
+                              notes: Mapping[int, str]) -> Path:
+        """把人按下確認的結果存成紀錄，回傳寫到哪裡。
+
+        ⚠ **整份清單都存，沒勾的列照樣存**（藍桶第 2 條）。只存勾好的話，重來時
+        那幾章會被當成「規則沒偵測到」而重新勾上 —— 人當初取消勾選的決定就被
+        安靜地推翻了。
+
+        Args:
+            filename: 收件匣裡的 PDF 檔名。
+            level: 人選的層次。
+            selected: 人勾好的那幾列的流水號。
+            notes: ``{流水號: 理由}``。**理由不強迫填**（PO 2026-08-17 裁）。
+        """
+        pdf = self._inbox_pdf(filename)
+        toc, total_pages = read_toc(pdf)
+        key, tail = self._chapter_key_and_tail(pdf.name)
+        rows = build_selection(
+            plan_pdf_split(toc, total_pages, max_level=level, chapter_prefix=True),
+            key=key, tail=tail,
+        )
+        wanted = set(selected)
+        for row in rows:
+            chosen = row.serial in wanted
+            # 只有「人改掉規則本來的判斷」才標 human。規則剛好也這樣勾的不算 ——
+            # 全部標 human 的話，「哪些是人判的」這個問題就再也答不出來。
+            if chosen != row.selected or row.serial in notes:
+                row.decided_by = DECIDED_BY_HUMAN
+                row.note = notes.get(row.serial, "")
+            row.selected = chosen
+        return write_record(
+            self.repo, doc=pdf.name, pdf_sha256=ledger.sha256_of(pdf), key=key,
+            chosen_level=level, rows=rows,
+            at=datetime.now(UTC).astimezone().isoformat(timespec="seconds"),
+            rules_commit=_chapters_commit(self.repo),
+        )
+
     # daily-check 的結果超過這麼久沒更新，就當成「沒有在檢查」而不是「通過」。
     # 24 小時是排程週期的兩倍——留一次失敗的餘裕，但不留到「停了一週還在顯示綠燈」。
     CHECKS_STALE_AFTER_S = 24 * 3600
@@ -3998,6 +4122,71 @@ if (document.body.dataset.running === '1') {
 }"""
 
 
+#: 勾選畫面自己的樣式。**刻意跟審核台共用 `CSS`**（同一套顏色與字級），
+#: 只補這一頁特有的幾條 —— 兩套樣式會慢慢長歪，而它們是同一個工具的兩頁。
+CHAPTER_CSS = """
+.picker{max-width:60rem;margin:1.5rem auto;padding:0 1rem}
+.picker h2{font-size:1.1rem;margin:0 0 1rem}
+.picker fieldset{border:1px solid #d7d9e0;border-radius:4px;margin:0 0 1rem;padding:.6rem .9rem}
+.picker legend{font-size:.85rem;padding:0 .4rem}
+.picker .lvl{display:block;padding:.3rem 0}
+.picker .lvl .cnt{color:#666;font-size:.85rem;margin-left:.5rem}
+.picker .row{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem;align-items:baseline;
+  padding:.3rem 0;border-bottom:1px solid #f0f1f4}
+.picker .row.off{opacity:.55}
+.picker .row .f{grid-column:2;font-family:ui-monospace,monospace;font-size:.75rem;color:#666}
+.picker .row .p{font-size:.8rem;color:#666;white-space:nowrap}
+.picker .go{margin:1rem 0 3rem;padding:.6rem 1.2rem;font-size:1rem}
+.picker .warn{color:#8a3b12}
+"""
+
+#: 換層次就整頁重載（帶 `?level=`），確認就 POST 回去。
+#: **層次一換整份清單都要重算**（編號、頁範圍、檔名全變），所以是重載不是前端改字。
+CHAPTER_JS = """
+document.addEventListener('change', e => {
+  if (e.target.name !== 'level') return;
+  const u = new URL(location.href);
+  u.searchParams.set('level', e.target.value);
+  location.href = u.toString();
+});
+document.addEventListener('click', async e => {
+  if (!e.target.classList.contains('go')) return;
+  e.target.disabled = true;
+  const boxes = [...document.querySelectorAll(".rows input[type='checkbox']")];
+  const body = {
+    doc: new URL(location.href).searchParams.get('doc'),
+    level: Number(document.querySelector("input[name='level']:checked")?.value || 1),
+    selected: boxes.filter(b => b.checked).map(b => Number(b.value)),
+    notes: {},
+  };
+  const r = await fetch('/api/chapters/confirm', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
+  });
+  const out = await r.json();
+  e.target.insertAdjacentHTML('afterend',
+    r.ok ? ' <span>已存下你的勾選。</span>'
+         : ' <span class="warn">沒存成功：' + (out.error || r.status) + '</span>');
+  e.target.disabled = !r.ok;
+});
+"""
+
+
+def _chapter_page(fragment: str) -> str:
+    """把勾選片段包成完整一頁。
+
+    自成一頁而不是塞進審核台那張長頁 —— 一本四百頁的書切到節可能兩三百列，
+    塞進去會把別的區塊淹掉。
+    """
+    return (
+        "<!doctype html>\n"
+        "<html lang='zh-Hant'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>切這本書</title><style>" + CSS + CHAPTER_CSS + "</style></head>"
+        "<body><main>" + fragment + "</main>"
+        "<script>" + CHAPTER_JS + "</script></body></html>"
+    )
+
+
 def render_html(state: Mapping[str, object], selected_job_id: str | None = None) -> str:
     sections = state.get("sections") if isinstance(state.get("sections"), dict) else {}
     if not isinstance(sections, dict):
@@ -4205,6 +4394,15 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     job = app._get_job(job_id)
                     self._json(app._public_job(job))
                     return
+                if parsed.path == "/chapters":
+                    # 拆章勾選。**自成一頁**，不擠進審核台那張長頁 ——
+                    # 一本四百頁的書切到節可能兩三百列，塞進去會把別的區塊淹掉。
+                    query = urllib.parse.parse_qs(parsed.query)
+                    doc = (query.get("doc") or [""])[0]
+                    raw_level = (query.get("level") or [""])[0]
+                    level = int(raw_level) if raw_level.isdigit() else None
+                    self._html(_chapter_page(app.chapter_picker(doc, level)))
+                    return
                 if parsed.path == "/":
                     query = urllib.parse.parse_qs(parsed.query)
                     selected = (query.get("job") or [None])[0]
@@ -4231,6 +4429,23 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                 if parsed.path == "/api/parse":
                     jobs = app.submit_parse(_candidate_ids(payload))
                     self._json({"jobs": [app._public_job(job) for job in jobs]}, 202)
+                    return
+                if parsed.path == "/api/chapters/confirm":
+                    doc = payload.get("doc")
+                    level = payload.get("level")
+                    picked = payload.get("selected")
+                    if not isinstance(doc, str) or not isinstance(level, int):
+                        raise IntakeError("需要 doc 與 level", 400)
+                    if not (isinstance(picked, list) and all(isinstance(x, int) for x in picked)):
+                        raise IntakeError("selected 必須是整數陣列", 400)
+                    # 理由是選填的（PO 2026-08-17 裁：不強迫），所以 notes 可以整個沒有。
+                    raw_notes = payload.get("notes") or {}
+                    if not isinstance(raw_notes, dict):
+                        raise IntakeError("notes 必須是物件", 400)
+                    notes = {int(k): str(v) for k, v in raw_notes.items()}
+                    written = app.confirm_chapter_split(
+                        doc, level=level, selected=picked, notes=notes)
+                    self._json({"status": "ok", "record": str(written)}, 201)
                     return
                 if parsed.path == "/api/inbox/delete":
                     filename = payload.get("filename")
