@@ -3463,15 +3463,22 @@ def _render_candidate_row(candidate: Mapping[str, object]) -> str:
     candidate_id = _esc(candidate.get("candidate_id", ""))
     source = str(candidate.get("source", ""))
     filename = str(candidate.get("filename", ""))
-    # 只有收件匣裡的檔案給刪 —— 別的來源不是我們的東西。
-    remove = ""
+    # 只有收件匣裡的檔案給刪、給切 —— 別的來源不是我們的東西，
+    # 而勾選畫面本來就只讀收件匣（`_inbox_pdf`）。給了入口卻點進去被擋，
+    # 使用者只會看到一個沒頭沒尾的錯誤。
+    remove = split_link = ""
     if source == "inbox":
         remove = (f"<button class='danger' data-act='rm' data-id='{_esc(filename)}'"
                   f" title='從收件匣刪除'>刪除</button>")
+        # ⚠ 檔名要 URL 編碼：書名有空格與 `&`，直接塞進網址會斷在第一個特殊字元
+        # （`A&B …` 的 `&` 會被當成下一個查詢參數，畫面只收到半個檔名）。
+        split_link = (f"<a class='btn' href='/chapters?doc="
+                      f"{_esc(urllib.parse.quote(filename))}'"
+                      f" title='選要切哪幾章'>切章</a>")
     return (
         "<div class='row'>"
         f"<span class='nm' title='{_esc(filename)}'>{_esc(filename)}</span>"
-        f"<span style='display:flex;gap:6px'>{remove}"
+        f"<span style='display:flex;gap:6px'>{remove}{split_link}"
         f"<button data-act='parse' data-id='{candidate_id}'>只解析</button></span>"
         f"<span class='sub'><span>{_esc(source)}</span>"
         f"<span>{_format_size(candidate.get('size'))}</span></span>"
