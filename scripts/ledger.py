@@ -321,6 +321,31 @@ def ghost_docs(root: Path, ws: str) -> tuple[list[str], int]:
     return sorted(have - current), len(current)
 
 
+def ghost_verdicts(root: Path, ws: str, ghosts: list[str]) -> dict[str, int]:
+    """幽靈體檢表實際帶著幾格**判定**，以及那些格子的三態分佈。
+
+    只數有 state 的格子（未設定的不算）—— 未設定的格子在總表上不影響任何結論，
+    會誤導人的是那些帶著 pass／fail 的。
+
+    **這個數字必須量，不能寫死。** 2026-08-07 的原始訊息把「幽靈貢獻了總表上
+    絕大部分的『通過』」寫成固定文字，於是不管情況怎麼變都照印同一句；
+    2026-08-17 在 dker 實測是 1218 格通過裡幽靈只佔 2 格 —— 那句話錯了六百倍，
+    而且因為它讀起來像結論，沒有人會想到要去數。**嚴重程度是量測值，不是文案。**
+    """
+    d = ledger_dir(root, ws)
+    tally: dict[str, int] = {}
+    for name in ghosts:
+        p = d / f"{name}.json"
+        if not p.is_file():
+            continue
+        gates = json.loads(p.read_text(encoding="utf-8")).get("gates", {})
+        for gate in GATES:
+            state = (gates.get(gate) or {}).get("state")
+            if state is not None:
+                tally[str(state)] = tally.get(str(state), 0) + 1
+    return tally
+
+
 def cmd_summary(a: argparse.Namespace) -> int:
     d = ledger_dir(a.root, a.workspace)
     files = sorted(d.glob("*.pdf.json")) if d.is_dir() else []
@@ -346,9 +371,16 @@ def cmd_summary(a: argparse.Namespace) -> int:
             print(f"    {name.removesuffix('.pdf')}")
         if len(ghosts) > 8:
             print(f"    …另外 {len(ghosts) - 8} 份")
-        print("\n  為什麼拒絕而不是照印：那些幽靈文件貢獻了總表上絕大部分的『通過』，")
-        print("  於是畫面顯示一個漂亮的高通過數，而現役文件其實幾乎一格都沒驗。")
-        print("  比印出 0 更難察覺——0 會讓人懷疑，高通過數不會。")
+        verdicts = ghost_verdicts(a.root, a.workspace, ghosts)
+        n_cells = sum(verdicts.values())
+        detail = "、".join(f"{s} {verdicts[s]}" for s in ("pass", "fail", "unverifiable")
+                           if verdicts.get(s)) or "沒有任何判定"
+        print(f"\n  這 {len(ghosts)} 張幽靈表帶著 {n_cells} 格判定（{detail}），"
+              "它們會被算進總計那一行。")
+        print("  為什麼拒絕而不是照印：總計是唯一一定會被看的一行，"
+              "而它有一部分量的是已經不在庫裡的文件。")
+        print("  ⚠ 那個格數是**量出來的**，不是估的——它決定這件事該多急，"
+              "看數字判斷，別只看「已停用」三個字。")
         print("\n  處置：先歸檔幽靈體檢表，再回來跑這支。")
         print("    python3 scripts/archive-ledger.py            # 先 dry-run 看清單")
         print("    python3 scripts/archive-ledger.py --move      # 確認後才移動")

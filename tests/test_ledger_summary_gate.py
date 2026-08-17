@@ -77,6 +77,45 @@ def test_ghost_ledgers_disable_the_summary(tmp_path: Path,
         "拒絕輸出時不得印出總計 —— 那一行就是假訊號本身"
 
 
+def test_ghost_severity_is_measured_not_hardcoded(tmp_path: Path,
+                                                 capsys: pytest.CaptureFixture[str]) -> None:
+    """停用訊息裡的「幽靈佔幾格」必須是**數出來的**，不得寫死。
+
+    這一條守的是 2026-08-17 抓到的病：原訊息寫死「幽靈貢獻了總表上絕大部分的
+    『通過』」，dker 實測卻是 1218 格通過裡幽靈只佔 2 格 —— 錯了六百倍。
+    **而它讀起來像結論，所以沒有人會想到要去數。** 這比沒寫更糟。
+
+    兩組刻意給不同的格數，輸出必須跟著變；只要有一組對不上，就是又寫死了。
+    """
+    module = _module()
+    _make(tmp_path, ledger_docs=("幽靈.pdf", "現役的.pdf"), live_pdfs=("現役的.pdf",),
+          gates={"parse.coverage": "pass", "pp.tables": "fail"})
+
+    rc = module.cmd_summary(_args(tmp_path))
+    out = capsys.readouterr().out
+
+    assert rc == 3
+    assert "2 格判定" in out, "幽靈只帶 2 格判定，訊息就得說 2"
+    assert "pass 1" in out and "fail 1" in out, "三態分佈要照實拆開，不能只給總數"
+    assert "絕大部分" not in out, "嚴重程度是量測值，不得用形容詞寫死"
+
+
+def test_ghost_cell_count_tracks_the_actual_data(tmp_path: Path,
+                                                 capsys: pytest.CaptureFixture[str]) -> None:
+    """同一段程式碼、不同的資料 ⇒ 不同的格數。這是「有量」的唯一證據。"""
+    module = _module()
+    _make(tmp_path, ledger_docs=("幽靈甲.pdf", "幽靈乙.pdf", "現役的.pdf"),
+          live_pdfs=("現役的.pdf",),
+          gates={"parse.coverage": "pass", "pp.tables": "pass", "extract.grounding": "pass"})
+
+    rc = module.cmd_summary(_args(tmp_path))
+    out = capsys.readouterr().out
+
+    assert rc == 3
+    assert "6 格判定" in out, "兩張幽靈 × 三格 = 6，寫死成上一條的 2 就會在這裡爆"
+    assert "pass 6" in out
+
+
 def test_missing_population_is_unverifiable_not_all_ghosts(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """現役母體讀不到 ⇒ 「驗不了」，不能把全部體檢表當成幽靈。
