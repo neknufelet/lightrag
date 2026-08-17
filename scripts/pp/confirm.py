@@ -101,6 +101,29 @@ def _rows(section: Mapping[str, object], key: str) -> Sequence[Mapping[str, obje
     return value if isinstance(value, list) else []
 
 
+#: 標題區塊那條規則自己分出來的判準（`TitleHeld.why`）→ 給人看的白話理由。
+#:
+#: ⚠ **規則的用詞是分類，不能直接印給人看。**「散文」是分類，
+#: 「讀起來像正文，不像封面資訊」才是理由 —— PO 2026-08-17 第四條：
+#: 人要判斷的是「機器憑什麼這樣勾」。
+#:
+#: ⚠ **不要退回一句通用句。** 之前 292 項全部共用「可能是期刊封面資訊，也可能是
+#: 正文開頭」，等於沒講理由。認不得的判準寧可**照原文吐出來**，讓人看到
+#: 一個沒見過的詞，也不要用一句漂亮話把它蓋掉。
+_TITLE_REASONS: Mapping[str, str] = {
+    "散文": "讀起來像正文，不像封面資訊，所以不敢消",
+    "沒有訊號": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+}
+
+
+def _title_reason(why: str) -> str:
+    known = _TITLE_REASONS.get(why)
+    if known:
+        return known
+    logger.warning("標題區塊出現沒見過的判準 %r —— 理由照原文吐出", why)
+    return f"規則的判準是「{why}」，這個判準還沒有白話說明" if why else "規則沒有給判準"
+
+
 def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     """挑出要人確認的項目。**規則有把握的不進來**（那些走 :func:`muted_count`）。
 
@@ -127,7 +150,7 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     for row in _rows(title, "held"):
         items.append(ConfirmItem(
             section="title", index=int(row["index"]), category="標題區塊",
-            reason="在第一頁的標題區，可能是期刊封面資訊，也可能是正文開頭",
+            reason=_title_reason(str(row.get("why") or "")),
             text=str(row.get("text") or ""), page=int(row.get("page") or 0),
             suppress=False,
         ))

@@ -228,9 +228,16 @@ def as_json(p: dict) -> dict:
             "ratio": round(p["refs"].ratio, 4),
             "suspicious": p["refs"].suspicious,
         },
+        # **原文與判準都要跟著出去。** 2026-08-17 之前這兩列只吐 `index` 與
+        # `page`，而規則算出來的 `text`／`why`／`signal` 就停在這裡 ——
+        # 於是全庫 292 個標題區塊項目走到確認清單時是「有勾選框、沒有原文」，
+        # 人看不到字就沒辦法判斷，「規則先幫你勾好」等於白幫。
+        # 同一族的病：資料在上游是齊的，序列化的時候安靜掉一半（藍桶第 2 條）。
         "title": {
-            "mute": [{"index": m.index, "page": m.page} for m in p["title"].mutes],
-            "held": [{"index": m.index, "page": m.page} for m in p["title"].held],
+            "mute": [{"index": m.index, "page": m.page, "text": m.text,
+                      "signal": m.signal} for m in p["title"].mutes],
+            "held": [{"index": m.index, "page": m.page, "text": m.text,
+                      "why": m.why} for m in p["title"].held],
             "fired": p["title"].fired,
             "ratio": round(p["title"].ratio, 4),
             "suspicious": p["title"].suspicious,
