@@ -113,6 +113,28 @@ def test_chinese_matching_is_unchanged() -> None:
     assert is_appendix_title("參考文獻")
 
 
+def test_cover_pages_are_preamble() -> None:
+    """封面算前言。**2026-08-17 實測漏掉的那一個。**
+
+    PO 第一本真的透過 Zotero 送進來的教科書（《The science of sound》，63 章），
+    規則正確地沒勾「Table of Contents」「Preface to the Third Edition」「Index」，
+    **卻把「Cover」勾了起來** —— 封面沒有內容，切出去就是一份垃圾。
+    """
+    for title in ("Cover", "cover", "Front Cover", "Back Cover"):
+        assert is_preamble_title(title), f"{title!r} 應該算前言"
+
+
+def test_cover_only_matches_the_whole_title() -> None:
+    """「cover」走**完全比對**，不得誤傷真章節。
+
+    走開頭比對的話 `Coverage of the audible range` 會被當成封面而預設不勾 ——
+    而抓錯比漏抓貴得多：真章節被排到全書最後面，人不一定會發現。
+    """
+    for title in ("Coverage of the audible range", "Covering materials for absorbers",
+                  "Discovery of ultrasound"):
+        assert not is_preamble_title(title), f"{title!r} 是真章節，不得當成封面"
+
+
 def test_titles_without_letters_do_not_crash() -> None:
     for title in ("", "   ", "10.9", "第 3 章"):
         assert isinstance(is_preamble_title(title), bool)

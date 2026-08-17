@@ -130,6 +130,11 @@ _EN_APPENDIX_HEAD: tuple[str, ...] = (
 _EN_PREAMBLE_EXACT: tuple[str, ...] = (
     "contents", "table of contents", "abstract",
     "list of figures", "list of tables", "list of illustrations",
+    # 2026-08-17 實測補：第一本真的透過 Zotero 進來的教科書（63 章）裡，規則正確地
+    # 放過了目錄／序／索引，卻把「Cover」勾了起來 —— 封面沒有內容，切出去是垃圾。
+    # ⚠ **只能走完全比對。** 放進 HEAD 的話 `Coverage of the audible range` 會被
+    # 當成封面，而抓錯比漏抓貴得多（真章節被排到全書最後面，人不一定會發現）。
+    "cover", "front cover", "back cover",
 )
 _EN_APPENDIX_EXACT: tuple[str, ...] = (
     "index", "subject index", "author index", "name index", "general index",
