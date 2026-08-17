@@ -100,5 +100,10 @@ def test_a_half_built_plan_does_not_pretend_to_be_clean() -> None:
         items_from_plan(broken)
     except KeyError as exc:
         assert "noise" in str(exc) or "title" in str(exc)
+        # ⚠ **不得寫死原因。** 第一版寫「多半是計畫半路失敗」，2026-08-17 實測
+        # dker 上 50 份缺段的**一份都不是失敗**，全是舊版程式跑的舊文件。
+        # 寫死的因果跟寫死的數字一樣會過期。
+        assert "舊版" in str(exc) and "半路失敗" in str(exc), "兩種可能都要講"
+        assert "重跑" in str(exc), "要給處置"
     else:
         raise AssertionError("計畫缺段時必須丟例外，不得回空清單")

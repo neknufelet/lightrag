@@ -64,11 +64,22 @@ def _require(plan: Mapping[str, object], name: str) -> Mapping[str, object]:
 
     這個碼庫記過同型事故：`pp.tables` 因為缺鍵而回 `{}`，一路走到
     「共 None 張，沒有待修的」，在 dker 上產生 4 個假通過。
+
+    ⚠ **不要猜原因。** 缺一段有兩種可能，而且處置一樣（都要重跑一次計畫）：
+
+    * 這份是**舊版程式跑的**，那時候還沒有這條規則
+      （2026-08-17 實測：50 份缺 `title` 與 `refs`，全部是早就 `indexed` 的舊文件）
+    * 這份的計畫**半路失敗**
+
+    第一版的訊息寫死「多半是計畫半路失敗」—— 實測 50 份裡一份都不是。
+    寫死的因果跟寫死的數字一樣會過期（今天 `ledger.py` 才因為同一個病錯了六百倍）。
     """
     section = plan.get(name)
     if not isinstance(section, Mapping):
-        raise KeyError(f"處理計畫缺少 `{name}` 那一段 —— 多半是計畫半路失敗，"
-                       "這時候不知道有沒有要確認的項目，不能當成沒有")
+        raise KeyError(
+            f"處理計畫沒有 `{name}` 這一段 —— 可能是舊版程式跑的（那時還沒有這條規則），"
+            "也可能是計畫半路失敗。兩種都表示「不知道有沒有要確認的項目」，"
+            "不能當成沒有；處置一樣：重跑一次計畫")
     return section
 
 
