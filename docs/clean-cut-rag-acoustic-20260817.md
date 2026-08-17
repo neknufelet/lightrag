@@ -74,7 +74,7 @@ WORKSPACE=acoustics_v2
 | 4 | `/data/lightrag/work` 2.6 GB | 解析結果 | 刪或搬 |
 | 5 | `/data/lightrag/library` 733 MB | 語料 | **先確認 Zotero 有原件再刪** |
 | 6 | `/data/lightrag/rag_storage`、`inputs` | 小 | 刪 |
-| 7 | `/data/lightrag/records` 28 MB、`checks` 9.8 MB | 體檢表與備份 | **已全份在 git**，見下 |
+| 7 | `/data/lightrag/records` 28 MB、`checks` 9.8 MB | 人工判定與體檢表 | ⚠ **只有一部分在 git**，見下 |
 | 8 | `/data/lightrag/models` 6.4 GB | 本機 embedding 模型 | **留著**，新庫也要用 |
 | 9 | `/opt/stacks/lightrag/` 的 compose 與 `.env` | 在用 | 改成新庫的 |
 | 10 | systemd：`lightrag-stack`、`intake`、`mount-guard`、`daily-check`、`cold-backup` | 5 個 | 指向新庫 |
@@ -106,7 +106,7 @@ $ find verdicts/work/crops -type f | wc -l
 ⇒ dker 上那 178 個人工裁定**每一個都在 repo 裡**，散在 3 本教科書
 （`N Flow Acoustics`、`C Equivalent Networks`、`G Porous Absorbers`）。
 
-`records/` 那邊也一樣，`pull-verdicts.py` 乾跑（2026-08-17）：
+`records/ledger/` 那邊也一樣，`pull-verdicts.py` 乾跑（2026-08-17）：
 
 ```
 chapter-splits：dker 上還沒有這個目錄（還沒有人存過）
@@ -114,6 +114,45 @@ ledger：新增 0、更新 0、沒變 317、repo 才有 5
 ```
 
 ⇒ 體檢表 317 份逐檔一致，**今天跑 `--apply` 搬不動任何東西**。
+
+### ⚠ 但「records 已全份在 git」是錯的 —— 336 個檔不在
+
+**這一節 8/17 稍早寫過「已全份在 git」。那是把兩塊驗過的東西講成全部。**
+第二雙眼睛 8/18 抓到，重驗確認：
+
+```
+$ ssh florian-dker 'cd /data/lightrag && find records checks -type f | sort' > /tmp/dker.txt
+$ git -c core.quotePath=false ls-files 'verdicts/records/*' | sed 's|^verdicts/||' | sort > /tmp/repo.txt
+
+$ grep -c '^records/' /tmp/dker.txt                          # dker 上有幾個
+550
+$ comm -23 <(grep '^records/' /tmp/dker.txt) /tmp/repo.txt | wc -l   # 其中不在 git 的
+194
+$ grep -c '^checks/' /tmp/dker.txt                           # 體檢表輸出
+142
+$ git ls-files | grep -c 'checks/'                           # git 裡有幾個
+0
+```
+
+⇒ **194 ＋ 142 ＝ 336 個檔刪了就沒有。** 在 git 的是 `ledger/` 317 份與
+`work/crops/*/verified/` 178 個，那兩塊確實逐檔一致——問題是把它們講成了全部。
+
+不在 git 的按目錄分（`find … | wc -l` 逐個數）：
+
+```
+75  review/                    各族群的裁決材料，含「定案」節
+73  scanner-rescue-20260803/   
+46  removed/                   移除紀錄
+9   bench/
+5   ledger-archive-20260811/   2  ledger-archive-20260817/
+4   crops-backup/              2  zotero-tags/   ← 8/14 誤刪 163 筆標籤時的救命備份
+```
+
+⚠ **⚠ 這些是不是垃圾，要 PO 裁，不是我裁。** 但在裁之前不能寫成「都在 git」。
+建議：拔舊庫之前把 `records/` 與 `checks/` 整包搬走或進版控（38 MB，一分鐘的事）。
+
+⚠ 這也是**同一個病的第二次**：8/17 早上才因為「附了驗證指令卻寫了對不上的數字」
+被記過一次，這次是「驗了兩塊、寫成全部」。驗證的**範圍**跟數字一樣要講清楚。
 
 ⚠ **`pull-verdicts.py` 從來就沒有涵蓋 `work/crops/`** —— 它只同步
 `records/chapter-splits` 與 `records/ledger` 兩個目錄（見該檔的 `PAIRS`）。
