@@ -41,3 +41,24 @@ def test_the_message_tells_the_user_what_to_do_instead() -> None:
     它拿到的一定是真的 File。
     """
     assert "選擇檔案" in JS
+
+
+def test_the_upload_says_it_started_before_it_finishes() -> None:
+    """按下去要**立刻**有話說，不能等傳完才出聲。
+
+    2026-08-17 實測：PO 拖一本 20 MB 的教科書，傳輸要好幾秒，而這幾秒之內畫面
+    完全安靜 —— 使用者只能解讀成「沒反應」，然後去重新整理或再拖一次，
+    而**重新整理會把正在傳的上傳掐斷**（實測就是這樣斷在 2.1 MB / 20.5 MB）。
+
+    所以「開始傳了」這句話不只是禮貌，它直接防止使用者做出弄壞它的動作。
+    """
+    assert "傳送中" in JS
+
+
+def test_a_cancelled_upload_says_so_in_plain_words() -> None:
+    """傳到一半被中斷要講清楚是怎麼回事，並叫人不要在傳的時候換頁。
+
+    伺服器那邊已驗證 20 MB 收得下（curl 實測 201），所以這一格是瀏覽器端被打斷，
+    訊息必須指向正確的原因，不然使用者會一直重試同一個會失敗的動作。
+    """
+    assert "不要重新整理" in JS

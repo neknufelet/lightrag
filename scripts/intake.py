@@ -4105,17 +4105,30 @@ const say = (msg, cls) => {
   el.textContent = msg; if (cls) el.className = cls;
   uplog.prepend(el);
 };
+const mb = n => (n / (1024 * 1024)).toFixed(1) + ' MB';
 const send = async (files) => {
   let ok = 0;
   for (const f of files) {
+    /* **先出聲再開始傳。** 一本 20 MB 的教科書要傳好幾秒，這幾秒之內畫面全靜，
+       使用者只能解讀成「沒反應」—— 然後去重新整理或再拖一次，而那會把正在傳的
+       上傳掐斷（2026-08-17 實測就是這樣斷在 2.1 MB / 20.5 MB）。
+       所以這句話不只是禮貌，它直接防止使用者做出弄壞它的動作。 */
+    const note = document.createElement('div');
+    note.textContent = '傳送中 ' + f.name + '（' + mb(f.size) + '）—— 傳完之前不要重新整理或關掉這一頁';
+    uplog.prepend(note);
     try {
       const r = await fetch('/api/upload', {method:'POST', body:f,
         headers:{'X-Filename': encodeURIComponent(f.name),
                  'Content-Type':'application/octet-stream'}});
       const d = await r.json().catch(() => ({}));
+      note.remove();
       if (r.ok) { say('收下 ' + (d.filename || f.name), 'ok'); ok++; }
       else say(f.name + '：' + (d.error || '失敗'), 'bad');
-    } catch (e) { say(f.name + '：' + e.message, 'bad'); }
+    } catch (e) {
+      note.remove();
+      say(f.name + '：傳到一半被打斷了（' + e.message + '）。'
+        + '大檔要傳幾秒鐘，傳的時候**不要重新整理、不要換頁**，等這行字變成「收下」再動。', 'bad');
+    }
   }
   if (ok) setTimeout(() => location.reload(), 700);
 };
@@ -4448,6 +4461,11 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                 LOGGER.warning("GET %s 擋下（%d）：%s",
                                parsed.path, exc.status_code, exc)
                 self._json({"error": str(exc)}, exc.status_code)
+            except (BrokenPipeError, ConnectionResetError):
+                # 瀏覽器換頁／關分頁就會這樣，**不是服務出錯**。舊版在這裡吐一整串
+                # traceback，再去寫一個寫不出去的 500，於是紀錄裡又多一串 ——
+                # 2026-08-17 追查上傳問題時，真正的線索就埋在這片紅字裡。
+                LOGGER.info("GET %s 對方先斷線（換頁或關分頁）", parsed.path)
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("GET 處理失敗")
                 self._json({"error": f"服務內部錯誤：{type(exc).__name__}"}, 500)
@@ -4525,6 +4543,9 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                 LOGGER.warning("POST %s 擋下（%d）：%s",
                                parsed.path, exc.status_code, exc)
                 self._json({"error": str(exc)}, exc.status_code)
+            except (BrokenPipeError, ConnectionResetError):
+                # 同 GET：對方先斷線不是服務出錯。上傳中途換頁最常打到這一格。
+                LOGGER.info("POST %s 對方先斷線（換頁或關分頁）", parsed.path)
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("POST 處理失敗")
                 self._json({"error": f"服務內部錯誤：{type(exc).__name__}"}, 500)
