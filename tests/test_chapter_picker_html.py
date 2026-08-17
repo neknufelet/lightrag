@@ -88,6 +88,22 @@ def test_titles_with_html_characters_do_not_break_the_page() -> None:
     assert "Ka < 1 &" not in html, "原始的 < 與 & 不得直接落進 HTML"
 
 
+def test_a_pdf_without_an_outline_says_so_and_offers_no_confirm_button() -> None:
+    """沒有目錄的 PDF ⇒ 講清楚為什麼、並且**不給確認鍵**。
+
+    2026-08-17 PO 實際踩到：拖一篇沒有目錄的論文進來、點「切章」，看到的是
+    一頁幾乎空白、卻附著一顆亮著的「確認，開始切」—— 按下去什麼也不會發生。
+    **一顆按了沒有作用的按鈕比沒有按鈕更糟**：使用者會以為是自己做錯了。
+
+    多數期刊論文本來就沒有目錄，所以這不是罕見狀況，是常態。
+    """
+    html = render_picker(doc="paper.pdf", options=[], chosen_level=1, rows=[])
+
+    assert "讀不到目錄" in html
+    assert "確認，開始切" not in html, "沒得切的時候不給確認鍵"
+    assert "整份直接進" in html, "要告訴使用者接下來能做什麼"
+
+
 def test_page_says_which_book_it_is() -> None:
     """畫面要講清楚現在勾的是哪一本，否則同時開兩本會勾錯。"""
     assert "W7M3NDKV 2015 - Acoustics.pdf" in _page()

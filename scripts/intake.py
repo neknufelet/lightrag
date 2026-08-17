@@ -4423,6 +4423,8 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     return
                 self._json({"error": "unknown path"}, 404)
             except IntakeError as exc:
+                LOGGER.warning("GET %s 擋下（%d）：%s",
+                               parsed.path, exc.status_code, exc)
                 self._json({"error": str(exc)}, exc.status_code)
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("GET 處理失敗")
@@ -4494,6 +4496,12 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     return
                 self._json({"error": "unknown path"}, 404)
             except IntakeError as exc:
+                # **理由要進紀錄。** 2026-08-17：PO 說「拖 PDF 進去沒反應」，
+                # 而紀錄裡只有 `POST /api/upload 400` —— 400 有四種可能
+                # （沒內容／檔名不合法／長度不合法／傳到一半斷了），事後完全分不出
+                # 是哪一種。被擋掉的請求在紀錄裡不能是隱形的。
+                LOGGER.warning("POST %s 擋下（%d）：%s",
+                               parsed.path, exc.status_code, exc)
                 self._json({"error": str(exc)}, exc.status_code)
             except Exception as exc:  # noqa: BLE001
                 LOGGER.exception("POST 處理失敗")

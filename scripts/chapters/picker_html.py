@@ -76,6 +76,24 @@ def render_picker(*, doc: str, options: Sequence[LevelOption], chosen_level: int
     """
     picked = sum(1 for r in rows if r.selected)
     logger.debug("畫勾選框：%s，%d 列、勾好 %d 列", doc, len(rows), picked)
+
+    if not options:
+        # **沒得切就不要給確認鍵。** 2026-08-17 PO 實際踩到：一頁幾乎空白、
+        # 卻附著一顆亮著的「確認，開始切」，按下去什麼也不會發生 ——
+        # 按了沒作用的按鈕比沒有按鈕更糟，使用者會以為是自己做錯了。
+        # 多數期刊論文本來就沒有目錄，這是常態不是例外。
+        logger.info("%s 讀不到目錄，不提供勾選", doc)
+        return (
+            "<section class='picker'>"
+            f"<h2>切這本書：{_esc(doc)}</h2>"
+            "<p class='warn'>這份 PDF <b>讀不到目錄</b>，沒有層次可選 ——"
+            "所以沒辦法按章切。</p>"
+            "<p>多數期刊論文本來就沒有目錄，這是正常的。"
+            "回收件匣按<b>「只解析」</b>把<b>整份直接進</b>知識庫就好。</p>"
+            "<p><a class='btn' href='/'>回收件匣</a></p>"
+            "</section>"
+        )
+
     return (
         "<section class='picker'>"
         f"<h2>切這本書：{_esc(doc)}</h2>"
