@@ -37,6 +37,10 @@ LOGGER = logging.getLogger("pull-verdicts")
 #: 兩邊名字刻意不同（`records/` vs `verdicts/records/`），照各自現有的慣例。
 KINDS: dict[str, tuple[str, str]] = {
     "chapter-splits": ("records/chapter-splits", "verdicts/records/chapter-splits"),
+    # 確認清單：人勾好「這段不要進知識庫」的決定。**重跑規則產不出來**，
+    # 所以跟其他人工裁定一樣要進版控 —— 少了這一行，live 檔會安靜地只留在
+    # dker 上，而 dker 的 repo 推不出去，等於備份沒做。
+    "confirm-lists": ("records/confirm-lists", "verdicts/records/confirm-lists"),
     "ledger": ("records/ledger", "verdicts/records/ledger"),
 }
 
