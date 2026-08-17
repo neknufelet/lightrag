@@ -93,6 +93,52 @@ PREAMBLE_KEYWORDS: tuple[str, ...] = (
     "致謝", "謝辭", "版權", "出版",
 )
 
+# ── 英文（2026-08-17 加）──────────────────────────────────────────────────
+#
+# **為什麼不能沿用中文那套「子字串比對」。** 中文關鍵字是複合詞，夾在正文標題
+# 裡的機會低。英文不是：`Index` 會命中 `Index of refraction`、`Notes` 會命中
+# `Notes on measurement` —— 兩個都是聲學的真章節。所以英文分兩種比法。
+#
+# 判準是**寧可漏抓，不要抓錯**。漏抓 → 那一章拿到普通編號，人在勾選清單裡照樣
+# 看得到；抓錯 → 真章節被編成 900+ 的附錄，排到全書最後面。
+#
+# ⚠ 拿現有語料驗過：`/data/lightrag/library` 的 88 個章節標題，
+# 對 index／note／content／preface／appendix／reference／biblio／glossar／
+# foreword／acknowledg／introduc 全部**零命中**（2026-08-17 實跑）。
+#
+# ⚠ **刻意不收 `Introduction`。** 中文那邊把「緒論／導論／引言」當前言，但英文
+# 學術書與論文的 `Introduction` 幾乎都是**第一章正文**。收了會把真內容編成前言。
+
+#: 開頭比對：標題**以這個字開頭**（整字、不分大小寫）就算。
+#: 只放「幾乎不可能當正文章節開頭」的字。
+#: ⚠ `references` 用複數：`Reference Sound Source`（單數）是真的聲學題目。
+_EN_PREAMBLE_HEAD: tuple[str, ...] = (
+    "preface", "foreword", "dedication", "acknowledgment", "acknowledgement",
+    "acknowledgments", "acknowledgements", "copyright", "frontispiece",
+    "about the author", "about the authors", "title page", "half title",
+)
+_EN_APPENDIX_HEAD: tuple[str, ...] = (
+    "appendix", "appendices", "bibliography", "glossary", "colophon",
+    "afterword", "epilogue", "references",
+)
+
+#: 完全比對：整個標題（只看英文單字、不分大小寫）**剛好等於**其中一條才算。
+#:
+#: 這條專門處理危險字。**第一版寫成「≤3 個字且以該字結尾」，當場被自己的測試
+#: 打臉**：`Articulation index`（清晰度指數，真的聲學名詞）符合那個形狀。
+#: 改成明列完整片語 —— 沒有啟發式，看得懂、加得動、不會誤傷。
+_EN_PREAMBLE_EXACT: tuple[str, ...] = (
+    "contents", "table of contents", "abstract",
+    "list of figures", "list of tables", "list of illustrations",
+)
+_EN_APPENDIX_EXACT: tuple[str, ...] = (
+    "index", "subject index", "author index", "name index", "general index",
+    "notes", "notation", "nomenclature", "symbols", "list of symbols",
+)
+
+#: 抓英文單字用。撇號留著（`Author's Note`）。
+_EN_WORD_RE: re.Pattern[str] = re.compile(r"[A-Za-z][A-Za-z']*")
+
 #: appendix(附錄)關鍵字集合(7 個),以子字串比對。
 #: 來源:_reference chapter_splitter.py:44-46。
 APPENDIX_KEYWORDS: tuple[str, ...] = (
@@ -148,11 +194,47 @@ class PdfChapterPlan:
 # --------------------------------------------------------------------------- #
 
 
+def _english_words(title: str) -> list[str]:
+    """標題裡的英文單字，全部轉小寫。編號、標點、中文都不算字。
+
+    ``"Appendix A: Derivations"`` → ``["appendix", "a", "derivations"]``
+    ``"10.9 Problems"``           → ``["problems"]``
+    """
+    return [w.lower() for w in _EN_WORD_RE.findall(title)]
+
+
+def _matches_english(
+    title: str,
+    head_keywords: tuple[str, ...],
+    exact_keywords: tuple[str, ...],
+) -> bool:
+    """英文比對：以某個字開頭，或整個標題剛好等於某個片語。
+
+    ⚠ **不是子字串比對**，理由見 :data:`_EN_PREAMBLE_HEAD` 上方那段。
+
+    Args:
+        title: 原始 TOC 標題。
+        head_keywords: 以此開頭就算（可含空格的片語，如 ``"about the author"``）。
+        exact_keywords: 整個標題剛好等於此片語才算（危險字走這條）。
+
+    Returns:
+        命中則 ``True``。
+    """
+    words = _english_words(title)
+    if not words:
+        return False
+    if " ".join(words) in exact_keywords:
+        return True
+    return any(words[: len(needle := phrase.split())] == needle
+               for phrase in head_keywords)
+
+
 def is_preamble_title(title: str) -> bool:
     """標題是否屬於 preamble(前言 / 序 / 目錄類)。
 
-    行為來源:_reference chapter_splitter.py:30-37。先 ``strip()`` 再以
-    :data:`PREAMBLE_KEYWORDS` 任一關鍵字『子字串』比對(非完全相等)。
+    中文：以 :data:`PREAMBLE_KEYWORDS` 任一關鍵字『子字串』比對(非完全相等)。
+    英文(2026-08-17 加)：見 :func:`_matches_english` —— **比法不同**，
+    因為英文的關鍵字會夾在真章節標題裡。
 
     Args:
         title: 原始 TOC 標題。
@@ -161,14 +243,16 @@ def is_preamble_title(title: str) -> bool:
         命中任一 preamble 關鍵字則 ``True``。
     """
     stripped = title.strip()
-    return any(kw in stripped for kw in PREAMBLE_KEYWORDS)
+    if any(kw in stripped for kw in PREAMBLE_KEYWORDS):
+        return True
+    return _matches_english(stripped, _EN_PREAMBLE_HEAD, _EN_PREAMBLE_EXACT)
 
 
 def is_appendix_title(title: str) -> bool:
     """標題是否屬於 appendix(附錄 / 後記 / 索引類)。
 
-    行為來源:_reference chapter_splitter.py:40-46。先 ``strip()`` 再以
-    :data:`APPENDIX_KEYWORDS` 任一關鍵字『子字串』比對。
+    中文：以 :data:`APPENDIX_KEYWORDS` 任一關鍵字『子字串』比對。
+    英文(2026-08-17 加)：見 :func:`_matches_english`。
 
     Args:
         title: 原始 TOC 標題。
@@ -177,7 +261,9 @@ def is_appendix_title(title: str) -> bool:
         命中任一 appendix 關鍵字則 ``True``。
     """
     stripped = title.strip()
-    return any(kw in stripped for kw in APPENDIX_KEYWORDS)
+    if any(kw in stripped for kw in APPENDIX_KEYWORDS):
+        return True
+    return _matches_english(stripped, _EN_APPENDIX_HEAD, _EN_APPENDIX_EXACT)
 
 
 def is_degenerate_pdf_toc(
