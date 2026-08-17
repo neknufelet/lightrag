@@ -33,6 +33,8 @@
 | 14 | 確認清單畫面排哪裡 | **PO 開始灌之前要做好** —— 先抽再確認等於花兩次錢 |
 | 15 | models 那 6.4 GB | **刪之前先複製出來**（那是上游下載的權重，不是舊庫的東西） |
 | 16 | 「乾淨」怎麼證明 | **寫一支檢查，數字必須是 0**，不是列清單給人看 |
+| 17 | 新資料根放哪顆碟 | **同一顆**（`sda1`）。`/data/lightrag` **整顆清乾淨**，路徑不變；卸載後重新掛回來也可以 |
+| 18 | 確認清單要不要跟刪庫解耦 | **不要。先做完確認清單、確定沒事，才刪庫** |
 
 ### ⚠ 第 12 條是 PO 當場改的
 
@@ -85,7 +87,7 @@ $ grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' /opt/stacks/lightrag/.env
 
 | 東西 | 舊的 | 新的 |
 |---|---|---|
-| 資料根 | `/data/lightrag` | `/data/rag_acoustic` |
+| 資料根 | `/data/lightrag`（一顆 916 GB 外接碟） | **同一顆碟、同一個路徑，內容整個清掉**（裁決 17） |
 | 資料庫 | `lightrag` | `rag_acoustic` |
 | **資料庫使用者** | **`deeptutor`** ← 沿用的證據 | `rag_acoustic` |
 | Postgres 容器 | `lightrag-postgres` | 新的一個 |
@@ -104,10 +106,13 @@ $ grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' /opt/stacks/lightrag/.env
 因此寫成 5 個。要數 unit 用 `list-unit-files`。**只刪 5 個 service 的話，
 兩個 timer 每天照響**，對著已經不存在的東西失敗。
 
-⚠ **寫死路徑那條特別陰**：`pp/paths.py` 的 `DEFAULT_DATA_ROOT` 就是
-`/data/lightrag`，有 `PP_DATA_ROOT` 可以覆蓋，但**預設值不改的話，哪一支忘了設
-就靜靜用回舊路徑**。⇒ 第 6 步那支檢查必須包含「舊路徑與舊 workspace
-在跑著的設定裡出現 **0** 次」。
+⚠ **寫死路徑那條，裁決 17 之後反而變簡單了**：資料根維持 `/data/lightrag`，
+所以 `pp/paths.py` 的 `DEFAULT_DATA_ROOT` 與那 11 支腳本**不用改**，
+也就沒有「哪一支忘了改就靜靜用回舊路徑」的風險——因為沒有舊路徑了，
+碟上是空的。
+⇒ 相對地，**第 6 步那支檢查不能拿路徑當判準**，要改成
+「碟上舊內容 0 個」＋「舊 workspace `acoustics_v2` 與舊使用者 `deeptutor`
+在跑著的設定、unit 檔、compose、三個查詢 skill 裡出現 0 次」。
 
 ⚠ **查詢 skill 那條會安靜地騙人**：`lightrag-search` 的說明自己寫著
 「search 端點不看網址裡的 workspace」——埠沿用之後，它會**查到新庫卻自稱在查
@@ -132,16 +137,32 @@ $ df -h /data /data/lightrag
 **`/data/lightrag` 不是一個目錄，是一顆 916 GB 外接碟的掛載點。**
 這份文件第一版寫「`/data` 234 GB 只用 13 GB」——那量的是 nvme，舊庫根本不在上面。
 
-三個後果：
+**PO 裁決 17：同一顆碟、同一個路徑、內容整個清掉。**
+原話：「原本那顆不行嗎 data/lightrag 直接清乾淨 你要移除再重新掛載也可以。」
 
-1. 第 4 步「刪掉 `/data/lightrag` 整個目錄」**做不到字面意思**。要 umount
-   並改 `/etc/fstab`，否則重開機空碟又掛回來。
-2. **「`/data/lightrag` 不存在」這個證明會假通過** —— umount 之後那個目錄自然
-   就空了，而碟上的資料還原封不動躺在 `sda1`。
-3. **新的資料根 `/data/rag_acoustic` 要放哪一顆碟，沒有人裁過。**
-   直接 `mkdir` 會落在 nvme，等於悄悄換碟；而 `mount-guard`、資料根記號檔、
-   `compat-check` 的掛載檢查整套都是為「USB 碟會被拔走」設計的。
-   ⇒ **這是一條沒出現在 16 條裡的決定，要補裁。**
+那顆碟上**只有本專案的東西**，實查過：
+
+```
+$ ssh florian-dker 'ls /data/lightrag/'
+checks  inbox  inputs  intake  library  models  postgres  rag_storage  records  work
+
+$ grep -rl "/data/lightrag" /opt/stacks/ | grep -v '^/opt/stacks/lightrag'
+（沒有輸出）                                    ← 別的 stack 沒有掛它
+
+$ docker ps -a --format '{{.Names}}' | while read n; do \
+    docker inspect "$n" --format '{{range .Mounts}}{{.Source}} {{end}}' \
+    | grep -q /data/lightrag && echo "  $n"; done
+  lightrag-acoustics_v2  kbapi-acoustics_v2  lightrag-postgres  lightrag-infinity
+```
+
+⇒ 掛著它的四個容器全部是本專案的，**整顆清掉不會動到別人**
+（dockge、backrest、roonserver、samba 那些都不在上面）。
+
+⚠ 但「刪掉目錄」這個講法還是要改掉：**要清的是碟的內容**，
+而不是那個掛載點目錄本身。乾淨程度由強到弱有兩條路——
+umount ＋ 重新格式化（連檔案系統都是新的，最好證明），
+或掛著的時候把裡面的東西刪光。**PO 說重新掛載也可以，所以走格式化那條。**
+　證明：碟掛回來之後 `ls -A /data/lightrag` 沒有輸出、`df` 顯示用量近乎 0。
 
 ---
 
@@ -296,14 +317,7 @@ $ git ls-files | grep -c 'checks/'                                    → 0     
 
 ## 還沒決定的
 
-**第二雙眼睛 8/18 抓出來、需要 PO 補裁的兩條：**
-
-- **新的資料根放哪一顆碟。** 舊庫在一顆 916 GB 的外接碟上（`sda1`），
-  `/data` 是另一顆 nvme。直接 `mkdir /data/rag_acoustic` 等於悄悄換碟，
-  而 `mount-guard` 那一整套是為外接碟設計的。
-- **要不要把第 2 步（確認清單）跟刪庫解耦** —— 把 `work/` 2.6 GB 抄一份出來
-  就能兩件事並行，不然「全移除」會被一個畫面功能擋住，而 token 9/4 到期在倒數。
-
+（第二雙眼睛 8/18 抓出來的那兩條，PO 當場裁完了 —— 見裁決 17、18。）
 
 - 確認清單的**存檔格式**還是提案（`docs/confirm-list-design-20260817.md`），
   第 2 步開始之前要裁。
