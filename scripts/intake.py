@@ -3303,12 +3303,27 @@ def _upload_body(handler: BaseHTTPRequestHandler) -> bytes:
         raise IntakeError("沒有收到檔案內容", 400)
     if length > MAX_UPLOAD_BYTES:
         raise IntakeError(f"檔案超過上限 {MAX_UPLOAD_BYTES // (1024 * 1024)} MB", 413)
+    # **要迴圈讀，不能只 read 一次。** socket 上的讀取本來就可能少於要求的位元組數，
+    # 大檔特別容易；只讀一次再比長度，會把「還沒送完」誤判成「連線斷了」。
+    # 2026-08-17 實測：PO 拖一本大部頭教科書進來，紀錄寫「上傳內容不完整（可能中斷）」，
+    # 而同一天那份 2.8 MB 的小檔剛好一次讀得完 —— 所以症狀看起來時好時壞。
+    chunks: list[bytes] = []
+    remaining = length
     try:
-        data = handler.rfile.read(length)
+        while remaining > 0:
+            block = handler.rfile.read(min(remaining, 1024 * 1024))
+            if not block:
+                break          # 真的沒了 —— 下面的長度檢查會擋
+            chunks.append(block)
+            remaining -= len(block)
     except OSError as exc:
         raise IntakeError(f"讀取上傳內容失敗：{exc}", 400) from exc
+    data = b"".join(chunks)
+    # 這道檢查**留著**：修好短讀不等於把它拆掉。真的少送了卻放行的話，
+    # 一份被截斷的 PDF 會靜靜進收件匣，然後在解析階段炸得莫名其妙。
     if len(data) != length:
-        raise IntakeError("上傳內容不完整（可能中斷）", 400)
+        raise IntakeError(
+            f"上傳內容不完整（收到 {len(data)} / 應有 {length} 位元組，可能中斷）", 400)
     return data
 
 
