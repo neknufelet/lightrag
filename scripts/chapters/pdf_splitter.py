@@ -121,6 +121,43 @@ def pdf_has_toc(pdf_path: Path) -> bool:
         doc.close()
 
 
+def read_toc(pdf_path: Path) -> tuple[list[tuple[int, str, int]], int]:
+    """讀出 PDF 的目錄與總頁數。勾選畫面的入口。
+
+    **兩個一起回**：少了總頁數就算不出最後一章的結束頁。分兩次開檔既慢，
+    又可能讀到不同的檔（中途被換掉），那正是「照舊的切、檔名不變」要防的。
+
+    這支是 fitz adapter 的職責 —— 開檔在這裡發生，讓
+    :mod:`chapters.selection` 與 :mod:`chapters.picker_html` 維持純函式、不碰磁碟，
+    因此在沒有資料的機器上（coder）也驗得完。
+
+    Args:
+        pdf_path: PDF 路徑。
+
+    Returns:
+        ``(toc, total_pages)``。``toc`` 是 ``[(level, title, page), ...]``，
+        ``page`` 為 1-indexed，同 fitz ``get_toc()`` 的形狀。
+        **沒有目錄時回空清單**，不是丟例外、也不是硬編一個第 1 層 ——
+        硬編等於宣稱知道書的結構，而我們不知道。
+
+    Raises:
+        FileNotFoundError: 檔案不存在。
+        ValueError: 檔案損壞、加密或不是 PDF（與 :func:`pdf_has_toc` 同一套處置）。
+    """
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF 檔案不存在: {pdf_path}")
+    fitz = _require_fitz()
+    try:
+        doc = fitz.open(pdf_path)
+    except (RuntimeError, ValueError) as exc:
+        raise ValueError(f"無法讀取 PDF（檔案損壞、加密或非 PDF）：{exc}") from exc
+    try:
+        toc = [(level, title, page) for level, title, page in doc.get_toc()]
+        return toc, doc.page_count
+    finally:
+        doc.close()
+
+
 def _build_page_features(
     doc: fitz.Document, needed_pages: set[int]
 ) -> list[PageFeatures]:
