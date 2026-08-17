@@ -105,6 +105,66 @@ def test_the_record_keeps_what_the_person_changed(tmp_path: Path) -> None:
     assert by_serial[2].decided_by == "rule", "沒被人動過的列不得標成 human"
 
 
+def test_running_the_split_puts_the_chapters_in_the_inbox(tmp_path: Path) -> None:
+    """真的切：勾好的那幾章各自變成一個檔，落在收件匣等你送去解析。
+
+    落在收件匣而不是別的地方，是因為收件匣就是這條生產線的入口 ——
+    切出來的章跟其他文件走完全一樣的路，不另立一條。
+    """
+    app = _app(tmp_path)
+    app.confirm_chapter_split(DOC, level=2, selected=[2, 3], notes={})
+
+    made = app.run_chapter_split(DOC)
+
+    names = sorted(p.name for p in made)
+    assert names == ["W7M3NDKV_02 2015 - Acoustics_Chapter 1 Sound.pdf",
+                     "W7M3NDKV_03 2015 - Acoustics_1.1 Waves.pdf"]
+    assert all((app.paths.inbox_dir / n).is_file() for n in names)
+
+
+def test_the_original_leaves_the_inbox_but_is_not_deleted(tmp_path: Path) -> None:
+    """切完之後原書要離開收件匣，**但不刪掉**。
+
+    留著的話它會跟著被送去解析 —— 一本 37 MB、幾百頁的書，MinerU 收不下
+    （200 頁上限），而且內容會跟切出來的章重複進知識庫。
+    刪掉則是另一個極端：切錯了就沒得重來，而重下載未必拿得到同一份。
+    """
+    app = _app(tmp_path)
+    app.confirm_chapter_split(DOC, level=2, selected=[2], notes={})
+
+    app.run_chapter_split(DOC)
+
+    assert not (app.paths.inbox_dir / DOC).exists(), "原書要離開收件匣"
+    kept = tmp_path / "data" / "records" / "split-originals" / DOC
+    assert kept.is_file(), "但要留著，不能刪"
+
+
+def test_a_swapped_pdf_stops_the_split_and_touches_nothing(tmp_path: Path) -> None:
+    """PDF 換過了就不切（PO 2026-08-17 裁：停下來問人）。
+
+    舊的頁碼可能指到完全不同的內容，照切會切出錯的章**而且不報錯**。
+    """
+    app = _app(tmp_path)
+    app.confirm_chapter_split(DOC, level=2, selected=[2, 3], notes={})
+    _book(app.paths.inbox_dir / DOC)          # 同名換一份內容（指紋就變了）
+
+    with pytest.raises(IntakeError) as exc:
+        app.run_chapter_split(DOC)
+
+    assert "不一樣" in str(exc.value)
+    assert (app.paths.inbox_dir / DOC).is_file(), "擋下時原書不得被搬走"
+    assert not list((tmp_path / "data" / "records" / "split-originals").glob("*")) \
+        if (tmp_path / "data" / "records" / "split-originals").exists() else True
+
+
+def test_splitting_without_a_record_is_refused(tmp_path: Path) -> None:
+    """沒有勾選紀錄就不切 —— 不猜「大概全部都要」。"""
+    app = _app(tmp_path)
+
+    with pytest.raises(IntakeError):
+        app.run_chapter_split(DOC)
+
+
 def test_the_record_remembers_which_pdf_it_was(tmp_path: Path) -> None:
     """紀錄要帶著那份 PDF 的指紋，之後才擋得住「書被換掉」。"""
     app = _app(tmp_path)

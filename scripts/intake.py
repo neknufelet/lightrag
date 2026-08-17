@@ -37,7 +37,7 @@ from typing import Literal, Protocol
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ledger  # noqa: E402
-from chapters.pdf_splitter import read_toc  # noqa: E402
+from chapters.pdf_splitter import extract_pages, read_toc  # noqa: E402
 from chapters.picker_html import render_picker  # noqa: E402
 from chapters.selection import (  # noqa: E402
     DECIDED_BY_HUMAN,
@@ -45,8 +45,13 @@ from chapters.selection import (  # noqa: E402
     level_options,
 )
 from chapters.split_plan import plan_pdf_split  # noqa: E402
+from chapters.split_record import (  # noqa: E402
+    PdfChangedError,
+    read_record,
+    require_same_pdf,
+    write_record,
+)
 from chapters.split_record import record_path as chapter_record_path  # noqa: E402
-from chapters.split_record import write_record  # noqa: E402
 from mineru_common import load_env  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
@@ -2937,6 +2942,56 @@ class IntakeApp:
         )
         return render_picker(doc=pdf.name, options=options, chosen_level=chosen, rows=rows)
 
+    def run_chapter_split(self, filename: str) -> list[Path]:
+        """照勾選紀錄真的把書切開，切好的章放進收件匣，原書搬走。
+
+        Returns:
+            切出來的檔案路徑。
+
+        Raises:
+            IntakeError: 沒有勾選紀錄、PDF 換過了、或切不出來。
+
+        **原書要離開收件匣但不刪掉。** 留著它會跟著被送去解析 —— 一本幾百頁的書
+        MinerU 收不下（200 頁上限），而且內容會跟切出來的章重複進知識庫。
+        刪掉則是另一個極端：切錯了就沒得重來，而重下載未必拿得到同一份。
+        """
+        pdf = self._inbox_pdf(filename)
+        record_file = self.chapter_record_path(pdf.name)
+        if not record_file.is_file():
+            raise IntakeError(
+                f"「{pdf.name}」還沒有勾選紀錄，先去 /chapters 選要切哪幾章。", 409)
+        record = read_record(record_file)
+        try:
+            require_same_pdf(record, ledger.sha256_of(pdf))
+        except PdfChangedError as exc:
+            raise IntakeError(str(exc), 409) from exc
+
+        cuts = [(row.filename, row.page_range[0], row.page_range[1])
+                for row in record.rows if row.selected]
+        # **先切到暫存區，全部成功才搬進收件匣。** 直接切進收件匣的話，切到一半
+        # 失敗會留下幾個章 —— 而收件匣裡有東西看起來就像切完了，沒有任何地方會說少了。
+        staging = pdf.parent.parent / ".chapter-staging" / pdf.stem
+        if staging.exists():
+            shutil.rmtree(staging)
+        try:
+            made = extract_pages(pdf, staging, cuts)
+            for path in made:
+                target = self.paths.inbox_dir / path.name
+                if target.exists():
+                    raise IntakeError(f"收件匣裡已經有 {path.name}，這本可能切過了。", 409)
+            moved = [Path(shutil.move(str(p), self.paths.inbox_dir / p.name)) for p in made]
+        except (ValueError, FileExistsError) as exc:
+            raise IntakeError(f"切不出來：{exc}", 409) from exc
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+
+        kept = Path(self.paths.root) / "records" / "split-originals"
+        kept.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(pdf), kept / pdf.name)
+        LOGGER.info("拆章完成 %s：切出 %d 章，原書搬到 %s", pdf.name, len(moved), kept)
+        return moved
+
     def confirm_chapter_split(self, filename: str, *, level: int,
                               selected: Sequence[int],
                               notes: Mapping[int, str]) -> Path:
@@ -4212,8 +4267,10 @@ document.addEventListener('click', async e => {
   });
   const out = await r.json();
   e.target.insertAdjacentHTML('afterend',
-    r.ok ? ' <span>已存下你的勾選。</span>'
-         : ' <span class="warn">沒存成功：' + (out.error || r.status) + '</span>');
+    r.ok ? ' <span>切好了，' + (out.made || []).length
+           + ' 章已經放進收件匣。原書搬走了，不會被重複解析。'
+           + ' <a class="btn" href="/">← 回收件匣看看</a></span>'
+         : ' <span class="warn">沒切成：' + (out.error || r.status) + '</span>');
   e.target.disabled = !r.ok;
 });
 """
@@ -4500,7 +4557,11 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     notes = {int(k): str(v) for k, v in raw_notes.items()}
                     written = app.confirm_chapter_split(
                         doc, level=level, selected=picked, notes=notes)
-                    self._json({"status": "ok", "record": str(written)}, 201)
+                    # **先存決定，再動刀。** 順序反過來的話，切成功但存檔失敗會留下
+                    # 一堆沒人知道是怎麼來的章；而存好了切失敗，重按一次就好。
+                    made = app.run_chapter_split(doc)
+                    self._json({"status": "ok", "record": str(written),
+                                "made": [p.name for p in made]}, 201)
                     return
                 if parsed.path == "/api/inbox/delete":
                     filename = payload.get("filename")

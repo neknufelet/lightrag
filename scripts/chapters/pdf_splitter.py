@@ -158,6 +158,66 @@ def read_toc(pdf_path: Path) -> tuple[list[tuple[int, str, int]], int]:
         doc.close()
 
 
+def extract_pages(pdf_path: Path, out_dir: Path,
+                  cuts: list[tuple[str, int, int]]) -> list[Path]:
+    """把指定頁範圍各自存成一個 PDF。**真的動刀的那一層。**
+
+    這裡只做「按頁切」，**不決定切哪裡** —— 切哪裡是勾選紀錄說了算
+    （`docs/chapter-selection-record-20260817.md`：照舊的切、檔名不變）。
+
+    Args:
+        pdf_path: 來源 PDF。
+        out_dir: 輸出目錄，不存在就建。
+        cuts: ``[(檔名, 起頁, 迄頁), ...]``，頁碼 1-indexed **含頭含尾**。
+
+    Returns:
+        實際寫出的檔案路徑，順序同 ``cuts``。
+
+    Raises:
+        FileNotFoundError: 來源不存在。
+        ValueError: 有任何一段的頁碼超出範圍或頭尾顛倒。
+        FileExistsError: 目的地已經有同名檔。
+
+    ⚠ **先全部檢查，再開始寫。** 寫到一半才發現有問題的話，收件匣裡會多出幾個章、
+    少了幾個章，而**沒有任何地方會說少了** —— 人看到檔案出現就以為切完了。
+    """
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF 檔案不存在: {pdf_path}")
+    if not cuts:
+        return []
+
+    fitz = _require_fitz()
+    doc = fitz.open(pdf_path)
+    try:
+        total = doc.page_count
+        # ── 先驗完全部，一個不合格就整批不寫 ──────────────────────────────
+        for name, start, end in cuts:
+            if not 1 <= start <= end <= total:
+                raise ValueError(
+                    f"{name} 的頁碼超出範圍：{start}-{end}，這份 PDF 只有 {total} 頁")
+            if (out_dir / name).exists():
+                raise FileExistsError(
+                    f"{out_dir / name} 已經存在。同名多半代表這本書已經切過 —— "
+                    "那是要人決定的事，不在這裡猜。")
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        written: list[Path] = []
+        for name, start, end in cuts:
+            part = fitz.open()
+            try:
+                part.insert_pdf(doc, from_page=start - 1, to_page=end - 1)
+                target = out_dir / name
+                target.write_bytes(part.tobytes())
+                written.append(target)
+            finally:
+                part.close()
+    finally:
+        doc.close()
+
+    logger.info("從 %s 切出 %d 個檔到 %s", pdf_path.name, len(written), out_dir)
+    return written
+
+
 def _build_page_features(
     doc: fitz.Document, needed_pages: set[int]
 ) -> list[PageFeatures]:
