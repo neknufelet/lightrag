@@ -74,21 +74,55 @@ WORKSPACE=acoustics_v2
 | 4 | `/data/lightrag/work` 2.6 GB | 解析結果 | 刪或搬 |
 | 5 | `/data/lightrag/library` 733 MB | 語料 | **先確認 Zotero 有原件再刪** |
 | 6 | `/data/lightrag/rag_storage`、`inputs` | 小 | 刪 |
-| 7 | `/data/lightrag/records`、`checks` 38 MB | **人工裁定與體檢表** | ⚠ **不要刪**，見下 |
+| 7 | `/data/lightrag/records` 28 MB、`checks` 9.8 MB | 體檢表與備份 | **已全份在 git**，見下 |
 | 8 | `/data/lightrag/models` 6.4 GB | 本機 embedding 模型 | **留著**，新庫也要用 |
 | 9 | `/opt/stacks/lightrag/` 的 compose 與 `.env` | 在用 | 改成新庫的 |
 | 10 | systemd：`lightrag-stack`、`intake`、`mount-guard`、`daily-check`、`cold-backup` | 5 個 | 指向新庫 |
 | 11 | backrest 的兩個 rag 排程 | **PO 早就說要關，還沒關** | 關掉或改指向 |
 | 12 | 三個查詢 skill 的網址與 workspace | 指著舊庫 | 改 |
 
-### ⚠ 第 7 項是唯一不能刪的
+### 第 7 項不用搶救 —— PO 2026-08-17 裁定
 
-`/data/lightrag/records/` 裡是**重跑不出來的人工判定**（`verdicts/README.md` 的整個
-前提）：表格轉錄、LaTeX 修正、體檢表、圖譜清理的備份。
+**這一節 8/17 稍早寫成「拔舊庫之前要先跑一次 `pull-verdicts.py --apply` 搶救」。
+那是錯的，PO 同日裁掉：**
 
-⚠ 而且它**還沒有完整進版控**：2026-08-17 實測 `pull-verdicts.py` 顯示體檢表
-317 份逐檔一致，但那只是體檢表一種。**拔舊庫之前要先跑一次
-`scripts/pull-verdicts.py --apply` 並提交**，否則就是把不可再生的東西跟舊庫一起丟掉。
+> 那就移除沒關係，我們應該會重抽，格式命名都不一樣了。
+
+**而且實測也不需要搶救 —— 東西早就在 git 裡了。** 2026-08-17 逐檔比對：
+
+```
+$ ssh florian-dker 'cd /data/lightrag/work/crops && find */verified -type f | sort' \
+    > /tmp/dker.txt
+$ cd verdicts/work/crops && find */verified -type f | sort > /tmp/repo.txt
+$ comm -23 /tmp/dker.txt /tmp/repo.txt      # dker 有而 repo 沒有的
+（沒有輸出）
+
+$ ssh florian-dker 'find /data/lightrag/work/crops/*/verified -type f | wc -l'
+178                                          # 163 個 .txt ＋ 15 個 .html
+$ find verdicts/work/crops -type f | wc -l
+181                                          # 多的 3 個是 2 個待裁的舊版 ＋ 1 個 review.md
+```
+
+⇒ dker 上那 178 個人工裁定**每一個都在 repo 裡**，散在 3 本教科書
+（`N Flow Acoustics`、`C Equivalent Networks`、`G Porous Absorbers`）。
+
+`records/` 那邊也一樣，`pull-verdicts.py` 乾跑（2026-08-17）：
+
+```
+chapter-splits：dker 上還沒有這個目錄（還沒有人存過）
+ledger：新增 0、更新 0、沒變 317、repo 才有 5
+```
+
+⇒ 體檢表 317 份逐檔一致，**今天跑 `--apply` 搬不動任何東西**。
+
+⚠ **`pull-verdicts.py` 從來就沒有涵蓋 `work/crops/`** —— 它只同步
+`records/chapter-splits` 與 `records/ledger` 兩個目錄（見該檔的 `PAIRS`）。
+所以「跑 pull-verdicts 就能救到人工裁定」這句話本身也是錯的；那 178 個檔案
+是別的時候手動進版控的。
+
+⚠ 仍然要注意的是**第 4 項**：`/data/lightrag/work` 底下的 `crops/` 42 MB 就是
+那些人工裁定的原生位置。刪 `work` 會把它們刪掉 —— 可以刪，因為 repo 有副本，
+但要知道自己在刪什麼，不要當成純快取。
 
 ---
 
@@ -96,8 +130,10 @@ WORKSPACE=acoustics_v2
 
 **這一段是提案，還沒有執行。** 每一步後面那行是「怎麼證明」。
 
-1. **先救人工裁定** —— `scripts/pull-verdicts.py --apply`，看過再 commit。
-   　證明：`git log verdicts/` 有這次的 commit。
+1. ~~**先救人工裁定**~~ —— **PO 2026-08-17 裁掉這一步**（要重抽、格式命名都不同），
+   而且實測也搬不動任何東西（見上一節的逐檔比對）。
+   　保留一個便宜的保險：動手當天再跑一次 `scripts/pull-verdicts.py`（**乾跑，不加
+   `--apply`**），確認它仍然說「新增 0、更新 0」。**只是看一眼，不是一個步驟。**
 2. **確認語料的原件還在** —— 733 MB 的 `library` 是從 Zotero 來的。
    　證明：Zotero 裡的份數 ≥ library 的份數。⚠ 這條沒做就不要動第 5 項。
 3. **建新資料庫 `rag_acoustic`**（空的，不動舊的）。
