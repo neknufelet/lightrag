@@ -4112,8 +4112,15 @@ const send = async (files) => {
   e.preventDefault(); depth = Math.max(0, depth - (ev === 'drop' ? depth : 1));
   if (!depth) veil.classList.remove('on');
 }));
+/* 沒有 File 物件的 drop **不能靜靜跳過**。2026-08-17 實測：PO 說「拖進去沒反應」，
+   而伺服器紀錄裡一次連線都沒有 —— 舊版在這裡直接跳過整個分支，不送請求也不說話。
+   從另一個瀏覽器分頁、或從雲端硬碟網頁拖過來的東西只有網址沒有檔案，就是這一格。 */
 document.addEventListener('drop', e => {
-  if (e.dataTransfer && e.dataTransfer.files.length) send(e.dataTransfer.files);
+  const files = e.dataTransfer ? e.dataTransfer.files : null;
+  if (files && files.length) { send(files); return; }
+  say('拖不進來：這一下沒有帶到真正的檔案。'
+    + '從另一個瀏覽器分頁或雲端硬碟網頁拖過來時只會帶到網址，不是檔案。'
+    + '請先把檔案存到電腦裡，再從檔案總管拖進來，或直接用上面的「選擇檔案」。', 'bad');
 });
 const picker = document.getElementById('picker');
 if (picker) picker.onchange = () => { if (picker.files.length) send(picker.files); };
