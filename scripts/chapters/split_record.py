@@ -28,9 +28,17 @@ from chapters.selection import DECIDED_BY_RULE, SelectionRow
 
 logger = logging.getLogger(__name__)
 
-#: 紀錄落在這裡。跟 `verdicts/records/ledger/` 同一層 —— 那裡放的都是
+#: **live 紀錄**在資料區，跟 `records/ledger/` 同一層。backrest 備份得到。
+#:
+#: ⚠ **不要直接寫進 repo。** 2026-08-17 實測踩到：服務跑在 dker，而 dker 的 repo
+#: 是唯讀只 `git pull` —— 直接寫進去的檔會躺在那裡永遠上不了 GitHub。體檢表踩過
+#: 同一個坑，一度 dker 318 份而 git 只有 20 份，備份只做到 6%。
+LIVE_SUBDIR = Path("records") / "chapter-splits"
+
+#: **版控副本**在 repo，跟 `verdicts/records/ledger/` 同一層 —— 那裡放的都是
 #: 「重跑不出來的人工判定」，而人手改的勾選正是那種東西。
-RECORD_SUBDIR = Path("verdicts") / "records" / "chapter-splits"
+#: 由 `scripts/pull-verdicts.py` 從 dker 拉回 coder，再由人提交。
+REPO_SUBDIR = Path("verdicts") / "records" / "chapter-splits"
 
 #: 格式版本。欄位形狀變了就要 +1，讀舊檔的人才知道自己在讀什麼。
 FORMAT_VERSION = 1
@@ -63,9 +71,14 @@ class SplitRecord:
     rules_commit: str
 
 
-def record_path(root: Path, doc: str) -> Path:
-    """這本書的紀錄該放哪。一本書一個檔，檔名跟體檢表同作法。"""
-    return root / RECORD_SUBDIR / f"{doc}.json"
+def record_path(data_root: Path, doc: str) -> Path:
+    """這本書的 live 紀錄該放哪（資料區）。一本書一個檔，檔名跟體檢表同作法。"""
+    return data_root / LIVE_SUBDIR / f"{doc}.json"
+
+
+def repo_record_path(repo: Path, doc: str) -> Path:
+    """這本書的版控副本該放哪（repo）。由 `pull-verdicts.py` 寫入。"""
+    return repo / REPO_SUBDIR / f"{doc}.json"
 
 
 def write_record(root: Path, *, doc: str, pdf_sha256: str, key: str, chosen_level: int,

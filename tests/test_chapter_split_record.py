@@ -22,6 +22,7 @@ from chapters.split_plan import plan_pdf_split  # noqa: E402
 from chapters.split_record import (  # noqa: E402
     PdfChangedError,
     read_record,
+    repo_record_path,
     require_same_pdf,
     write_record,
 )
@@ -127,9 +128,25 @@ def test_the_file_explains_itself_in_plain_words(tmp_path: Path) -> None:
     assert payload["chosen_level"] == 2
 
 
-def test_the_record_lands_next_to_the_other_human_verdicts(tmp_path: Path) -> None:
-    """檔案落在 `verdicts/records/chapter-splits/`，一本書一個檔（PO 裁：跟程式碼一起）。"""
+def test_the_record_is_written_into_the_data_area_first(tmp_path: Path) -> None:
+    """檔案先落在資料區 `records/chapter-splits/`，一本書一個檔。
+
+    ⚠ **不是直接寫進 repo。** 2026-08-17 實測踩到的：服務跑在 dker，而 dker 的
+    repo 是唯讀只 pull —— 直接寫進去的檔會躺在那裡永遠上不了 GitHub
+    （`git status` 只看得到一個 `??`）。體檢表踩過同一個坑，一度 dker 318 份、
+    git 只有 20 份，備份只做到 6%。
+
+    所以沿用體檢表現在的形狀：**live 在資料區**（有 backrest 備份），
+    **版控副本靠 `pull-verdicts.py` 拉回 coder 再提交**。
+    """
     path = _write(tmp_path, _rows())
 
-    assert path.parent == tmp_path / "verdicts" / "records" / "chapter-splits"
+    assert path.parent == tmp_path / "records" / "chapter-splits"
     assert path.name == "W7M3NDKV 2015 - Acoustics.pdf.json"
+
+
+def test_the_repo_copy_sits_with_the_other_human_verdicts(tmp_path: Path) -> None:
+    """版控副本的位置與體檢表同層：`verdicts/records/chapter-splits/`。"""
+    assert repo_record_path(tmp_path, "某本書.pdf") == (
+        tmp_path / "verdicts" / "records" / "chapter-splits" / "某本書.pdf.json"
+    )

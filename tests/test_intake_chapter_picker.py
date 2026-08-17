@@ -69,18 +69,20 @@ def test_a_file_outside_the_inbox_is_refused(tmp_path: Path) -> None:
         app.chapter_picker("沒有這本書.pdf")
 
 
-def test_confirming_writes_the_record_where_the_design_says(tmp_path: Path) -> None:
-    """確認之後，紀錄落在 repo 的 `verdicts/records/chapter-splits/`。
+def test_confirming_writes_the_record_into_the_data_area(tmp_path: Path) -> None:
+    """確認之後，紀錄落在資料區的 `records/chapter-splits/`。
 
-    落在 `/data` 的話它不會進版控，而人手改的勾選重跑不出來 —— 那正是
-    PO 2026-08-17 裁「跟程式碼一起」的理由。
+    ⚠ **不是 repo 底下。** 這支服務跑在 dker，而 dker 的 repo 唯讀只 pull ——
+    寫進去的檔會躺在那裡永遠上不了 GitHub（2026-08-17 實測，`git status`
+    只看得到一個 `??`）。版控副本靠 `pull-verdicts.py` 拉回 coder 再提交。
     """
     app = _app(tmp_path)
 
     path = app.confirm_chapter_split(DOC, level=2, selected=[2, 3], notes={})
 
-    assert path == tmp_path / "repo" / "verdicts" / "records" / "chapter-splits" / f"{DOC}.json"
+    assert path == tmp_path / "data" / "records" / "chapter-splits" / f"{DOC}.json"
     assert path.is_file()
+    assert not (tmp_path / "repo" / "verdicts").exists(), "不得直接寫進 repo"
 
 
 def test_the_record_keeps_what_the_person_changed(tmp_path: Path) -> None:

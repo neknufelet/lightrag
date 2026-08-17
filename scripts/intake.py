@@ -2898,8 +2898,13 @@ class IntakeApp:
         return target
 
     def chapter_record_path(self, filename: str) -> Path:
-        """這本書的勾選紀錄該落在哪（repo 底下，進版控）。"""
-        return chapter_record_path(self.repo, Path(filename).name)
+        """這本書的勾選紀錄該落在哪（資料區）。
+
+        ⚠ **不是 repo 底下。** 這支服務跑在 dker，而 dker 的 repo 是唯讀只 pull ——
+        直接寫進去的檔會躺在那裡永遠上不了 GitHub。版控副本由
+        `scripts/pull-verdicts.py` 從 coder 拉回去再提交。
+        """
+        return chapter_record_path(Path(self.paths.root), Path(filename).name)
 
     def _chapter_key_and_tail(self, filename: str) -> tuple[str, str]:
         """從檔名拆出 8 碼 Zotero key 與尾巴。
@@ -2964,7 +2969,8 @@ class IntakeApp:
                 row.note = notes.get(row.serial, "")
             row.selected = chosen
         return write_record(
-            self.repo, doc=pdf.name, pdf_sha256=ledger.sha256_of(pdf), key=key,
+            Path(self.paths.root), doc=pdf.name,
+            pdf_sha256=ledger.sha256_of(pdf), key=key,
             chosen_level=level, rows=rows,
             at=datetime.now(UTC).astimezone().isoformat(timespec="seconds"),
             rules_commit=_chapters_commit(self.repo),
