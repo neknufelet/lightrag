@@ -52,6 +52,35 @@ def test_the_message_says_what_to_do(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "切成章節" in msg and "已經切好進過" in msg
 
 
+def test_the_message_hands_over_a_working_link(monkeypatch: pytest.MonkeyPatch) -> None:
+    """訊息要給**點得下去的路**，不是只叫人「去切一切」。
+
+    2026-08-17 之前這句話寫著「把它切成章節再進」，而那時候根本沒有切章的畫面 ——
+    等於叫人去做一件做不到的事。現在有了，就要把路給出來。
+
+    ⚠ 檔名要 URL 編碼：書名有空格與 `&`，不編碼的話連結會斷在第一個特殊字元。
+    """
+    monkeypatch.setattr(subprocess, "run", _fake("Pages: 500\n"))
+
+    msg = intake._too_many_pages(Path("A&B 2015 - Big Book.pdf"), 200) or ""
+
+    assert "/chapters?doc=" in msg
+    assert "A%26B%202015" in msg, "檔名要編碼，不然連結會斷"
+
+
+def test_being_too_thick_and_being_worth_splitting_stay_separate(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """**「太厚」與「該不該切」是兩件事**（設計文件的提醒），不得合成同一個判斷。
+
+    一本 150 頁的學位論文照樣該按章切，而它不會經過這道擋 —— 所以這道擋只負責
+    「送不出去」，切不切由使用者在收件匣那一列自己決定（那裡每一本都有切章入口）。
+    這條釘住的是：**沒超過上限就一個字都不說**，不要在這裡順便勸人去切。
+    """
+    monkeypatch.setattr(subprocess, "run", _fake("Pages: 150\n"))
+
+    assert intake._too_many_pages(Path("thesis.pdf"), 200) is None
+
+
 def test_a_pdf_at_the_limit_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     """**邊界。** 剛好 200 頁是可以的，上限是「超過」不是「達到」。"""
     monkeypatch.setattr(subprocess, "run", _fake("Pages: 200\n"))

@@ -840,8 +840,13 @@ def _too_many_pages(pdf: Path, limit: int) -> str | None:
     pages = int(match.group(1))
     if pages <= limit:
         return None
+    # **把路給出來，不要只叫人「去切一切」。** 2026-08-17 之前這句話寫著
+    # 「把它切成章節再進」，而那時候根本沒有切章的畫面 —— 等於叫人去做一件
+    # 做不到的事。現在有了，就附上點得下去的連結。
+    # ⚠ 檔名要編碼：書名有空格與 `&`，不編碼的話連結會斷在第一個特殊字元。
+    link = f"/chapters?doc={urllib.parse.quote(pdf.name)}"
     return (f"{pages} 頁，超過 MinerU 的上限 {limit} 頁 —— 送出去也會被退回。"
-            f"把它切成章節再進，或確認這本書是不是已經切好進過了")
+            f"把它切成章節再進（{link}），或確認這本書是不是已經切好進過了")
 
 
 def _failure_reason(message: str) -> str:
