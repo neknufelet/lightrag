@@ -11,8 +11,16 @@
 4. **每一項都要有一句白話理由** —— 少了它，人得自己重新判斷每一項，
    「規則先幫你勾好」就白幫了
 
-2026-08-17 在 dker 全母體實測：要確認的 1,232 項散在 218 份（平均 5.7 項），
-規則有把握直接丟的 7,586 項。
+**這裡刻意不寫「有幾項」。** 同一個量在四個地方出現過四個不同的值
+（631／1015／1232／1342），因為量的時機不同 —— `pp.apply` 動手之後再算，
+消音早就執行完了，`noise.mute` 會是 0。要數字就自己跑，六秒鐘的事：
+
+    scripts/postprocess.py plan --json   # 只讀不寫，dker 全母體實測 6.27 秒
+
+再把每份計畫餵給 :func:`items_from_plan` 與 :func:`muted_count`。
+**四格要一起報**：母體幾份、要人看幾項、散在幾份、規則直接丟幾項，
+並註明是在 apply 之前還是之後量的 —— 少了最後這項，兩次的數字不能比。
+理由寫在 `docs/confirm-list-design-20260817.md` 的「量」那一節。
 """
 from __future__ import annotations
 
@@ -73,6 +81,11 @@ def _require(plan: Mapping[str, object], name: str) -> Mapping[str, object]:
 
     第一版的訊息寫死「多半是計畫半路失敗」—— 實測 50 份裡一份都不是。
     寫死的因果跟寫死的數字一樣會過期（今天 `ledger.py` 才因為同一個病錯了六百倍）。
+
+    ⚠ **那 50 份不是從 `postprocess.py plan --json` 來的。** 2026-08-17 稍晚拿
+    `plan --json` 對 dker 全母體 317 份重跑，缺段的是 **0 份** —— 因為 `plan`
+    每次都現算，四段一定齊全。缺段只會出現在**讀存下來的舊計畫**時。
+    引用「50」這個數字之前先確認自己餵的是哪一種輸入。
     """
     section = plan.get(name)
     if not isinstance(section, Mapping):
@@ -91,8 +104,9 @@ def _rows(section: Mapping[str, object], key: str) -> Sequence[Mapping[str, obje
 def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     """挑出要人確認的項目。**規則有把握的不進來**（那些走 :func:`muted_count`）。
 
-    有把握的也塞進來的話，實測會從 1,232 列變成 8,818 列 —— 人看不完，
-    而「規則先幫你勾好」這個設計就失去意義。
+    有把握的也塞進來的話，列數會變成「要人看的 ＋ 規則直接丟的」—— 人看不完，
+    而「規則先幫你勾好」這個設計就失去意義。（**不寫死倍數**：那個比例隨語料
+    與量的時機浮動，模組開頭那段說明了為什麼。）
 
     Raises:
         KeyError: 計畫缺段（見 :func:`_require`）。
