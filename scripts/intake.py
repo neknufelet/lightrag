@@ -4452,51 +4452,61 @@ document.addEventListener('click', async e => {
 
 
 CONFIRM_CSS = """
-/* 確認清單。獨立一頁（PO 2026-08-17 第五條），沿用審核台的底色與字級。 */
+/* 確認清單。獨立一頁（PO 2026-08-17 第五條）。
+   ⚠ **顏色一律用上面 CSS 的變數，不要寫死。** 第一版寫死了 #fff 白底，
+   而審核台有深色模式（`prefers-color-scheme:dark` 會把 --ink 換成近白色）——
+   於是白底配淺色字，整頁看起來是空的。2026-08-18 PO 實際踩到：
+   服務回 200、內容完整，他就是什麼都看不到。 */
 .confirm{max-width:44rem;margin:1.5rem auto;padding:0 1rem}
-.confirm h1{font-size:1.4rem;margin:0 0 .3rem}
-.confirm .sub{margin:0;color:#5a6070;font-size:.95rem}
-.confirm .prog{margin:.9rem 0 0;padding:.7rem .8rem;border:1px solid #d7d9e0;
-  border-radius:4px;background:#fafbfc;font-size:.9rem;color:#5a6070}
-.confirm h2.doc{margin:1.1rem 0 0;padding:.75rem .9rem;border:1px solid #d7d9e0;
-  border-bottom:0;border-radius:4px 4px 0 0;background:#f2f4f7;font-size:.95rem;
-  overflow-wrap:anywhere}
-.confirm .count,.confirm .ok{margin:0;padding:.65rem .9rem;border:1px solid #d7d9e0;
-  border-bottom:0;font-size:.9rem;color:#5a6070;background:#fff}
-.confirm .quick{padding:.55rem .9rem;border:1px solid #d7d9e0;border-bottom:0;
-  background:#fff;display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
-.confirm .quick span{font-size:.82rem;color:#7b8494}
+.confirm h1{font-size:1.4rem;margin:0 0 .3rem;color:var(--ink)}
+.confirm .sub{margin:0;color:var(--ink-2);font-size:.95rem}
+.confirm .prog{margin:.9rem 0 0;padding:.7rem .8rem;border:1px solid var(--line);
+  border-radius:4px;background:var(--panel);font-size:.9rem;color:var(--ink-2)}
+.confirm h2.doc{margin:1.1rem 0 0;padding:.75rem .9rem;border:1px solid var(--line);
+  border-bottom:0;border-radius:4px 4px 0 0;background:var(--sunk);color:var(--ink);
+  font-size:.95rem;overflow-wrap:anywhere}
+.confirm .count,.confirm .ok{margin:0;padding:.65rem .9rem;border:1px solid var(--line);
+  border-bottom:0;font-size:.9rem;color:var(--ink-2);background:var(--panel)}
+.confirm .quick{padding:.55rem .9rem;border:1px solid var(--line);border-bottom:0;
+  background:var(--panel);display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+.confirm .quick span{font-size:.82rem;color:var(--ink-3)}
 .confirm .quick button{font:inherit;font-size:.82rem;padding:.25rem .6rem;
-  border:1px solid #d7d9e0;border-radius:3px;background:#f2f4f7;cursor:pointer}
+  border:1px solid var(--line);border-radius:3px;background:var(--sunk);
+  color:var(--ink-2);cursor:pointer}
 /* 勾選框與內容並排；min-width:0 讓長字串（DOI、期刊代碼）在 grid 裡真的縮得下去。
    少了它，子項會用內容寬度撐開整頁，手機上右邊被切掉。 */
 .confirm .item{display:grid;grid-template-columns:auto 1fr;gap:.6rem;
-  padding:.75rem .9rem;border:1px solid #d7d9e0;border-bottom:0;background:#fff}
+  padding:.75rem .9rem;border:1px solid var(--line);border-bottom:0;
+  background:var(--panel);color:var(--ink)}
 .confirm .item>div{min-width:0}
-.confirm .item input{margin-top:.35rem;width:1.1rem;height:1.1rem;accent-color:#a35c18}
-.confirm .why{margin:0 0 .3rem;font-size:.82rem;color:#a35c18;overflow-wrap:anywhere}
-.confirm .why b{color:#171a22}
-.confirm .snip{margin:0;padding:.5rem .6rem;background:#f6f7f9;
-  border-left:2px solid #d7d9e0;border-radius:0 3px 3px 0;font-size:.85rem;
-  font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.6;
-  white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
-.confirm .blank{color:#a35c18;font-style:normal}
-.confirm .meta{margin:.3rem 0 0;font-size:.8rem;color:#7b8494}
-.confirm .foot{padding:.9rem;border:1px solid #d7d9e0;background:#fff;
-  display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
-.confirm .foot button{font:inherit;padding:.5rem 1rem;border:1px solid #d7d9e0;
-  border-radius:4px;background:#f2f4f7;cursor:pointer}
-.confirm .foot button.pri{background:#2f5d9e;border-color:#2f5d9e;color:#fff;font-weight:650}
+.confirm .item input{margin-top:.35rem;width:1.1rem;height:1.1rem;
+  accent-color:var(--review)}
+.confirm .why{margin:0 0 .3rem;font-size:.82rem;color:var(--review);
+  overflow-wrap:anywhere}
+.confirm .why b{color:var(--ink)}
+.confirm .snip{margin:0;padding:.5rem .6rem;background:var(--sunk);color:var(--ink-2);
+  border-left:2px solid var(--line);border-radius:0 3px 3px 0;font-size:.85rem;
+  font-family:var(--mono);line-height:1.6;white-space:pre-wrap;
+  overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+.confirm .blank{color:var(--review);font-style:normal}
+.confirm .meta{margin:.3rem 0 0;font-size:.8rem;color:var(--ink-3)}
+.confirm .foot{padding:.9rem;border:1px solid var(--line);background:var(--panel);
+  display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;color:var(--ink)}
+.confirm .foot button{font:inherit;padding:.5rem 1rem;border:1px solid var(--line);
+  border-radius:4px;background:var(--sunk);color:var(--ink);cursor:pointer}
+.confirm .foot button.pri{background:var(--accent);border-color:var(--accent);
+  color:var(--accent-ink);font-weight:650}
 .confirm .foot button[disabled]{opacity:.55;cursor:default}
-.confirm .dropped{border:1px solid #d7d9e0;border-top:0;background:#fff}
-.confirm .dropped summary{padding:.7rem .9rem;cursor:pointer;font-size:.88rem;color:#5a6070}
-.confirm .dropped .note{margin:0 .9rem .5rem;font-size:.82rem;color:#7b8494}
-.confirm .item.muted{display:block;opacity:.75;border-left:3px solid #2c7a52}
-.confirm .after{margin:0;padding:.7rem .9rem;border:1px solid #d7d9e0;border-top:0;
-  border-radius:0 0 4px 4px;background:#f6f7f9;font-size:.85rem;color:#5a6070}
+.confirm .dropped{border:1px solid var(--line);border-top:0;background:var(--panel)}
+.confirm .dropped summary{padding:.7rem .9rem;cursor:pointer;font-size:.88rem;
+  color:var(--ink-2)}
+.confirm .dropped .note{margin:0 .9rem .5rem;font-size:.82rem;color:var(--ink-3)}
+.confirm .item.muted{display:block;opacity:.8;border-left:3px solid var(--clean)}
+.confirm .after{margin:0;padding:.7rem .9rem;border:1px solid var(--line);border-top:0;
+  border-radius:0 0 4px 4px;background:var(--sunk);font-size:.85rem;color:var(--ink-2)}
 .confirm .back{margin:.8rem 0}
-.confirm .done{margin:1rem 0;padding:.8rem .9rem;border:1px solid #b6d7c2;
-  border-radius:4px;background:#eef7f1;font-size:.95rem}
+.confirm .back a{color:var(--accent)}
+.confirm .warn{color:var(--blocked)}
 """
 
 CONFIRM_JS = """
