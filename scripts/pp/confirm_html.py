@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import html
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from pp.confirm import ConfirmItem
 
@@ -48,22 +48,36 @@ def _esc(value: object) -> str:
     return html.escape(str(value), quote=True).replace("'", "&#x27;")
 
 
-def _item(item: ConfirmItem) -> str:
-    """清單的一列：勾選框、分類、**理由**、原文、頁碼。
+def _ctx(lines: Sequence[str], where: str) -> str:
+    """前後文。**排版上要跟被問的那段分得開** —— 三段長得一樣的話，
+    人會以為要一起決定。這裡用小字、灰色、加「前／後」標示。
+    """
+    if not lines:
+        return ""
+    body = "".join(f"<span>{_esc(x[:220])}</span>" for x in lines)
+    return f"<div class='ctx {where}'><i>{(where == 'up' and '前面') or '後面'}</i>{body}</div>"
 
-    順序刻意是「先講為什麼，再給原文」—— 人是帶著機器的判斷去看原文，
-    不是自己從頭讀一遍。
+
+def _item(item: ConfirmItem, context: Mapping[str, tuple[Sequence[str], Sequence[str]]]) -> str:
+    """清單的一列：分類、**理由**、前文、原文、後文、頁碼。
+
+    順序刻意是「先講為什麼，再給前後文包著原文」—— 人是帶著機器的判斷去看，
+    不是自己從頭讀一遍；而**沒有前後文就判斷不了**（PO 2026-08-18 實際卡住：
+    「只出現一行字就要我確認這是什麼」）。
     """
     text = item.text.strip()
     snippet = _esc(text) if text else f"<i class='blank'>{NO_TEXT}</i>"
+    before, after = context.get(item.key, ((), ()))
     return (
         f"<div class='item'>"
         f"<input type='checkbox' name='drop' value='{_esc(item.key)}'"
         f" data-cat='{_esc(item.category)}'>"
         f"<div>"
         f"<p class='why'><b>{_esc(item.category)}</b>　{_esc(item.reason)}</p>"
-        f"<p class='snip'>{snippet}</p>"
-        f"<p class='meta'>第 {item.page} 頁</p>"
+        + _ctx(before, "up")
+        + f"<p class='snip'>{snippet}</p>"
+        + _ctx(after, "down")
+        + f"<p class='meta'>第 {item.page} 頁</p>"
         f"</div></div>"
     )
 
@@ -125,7 +139,9 @@ def _dropped(muted: Sequence[ConfirmItem]) -> str:
 
 def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
                    position: int, total: int, evidence: str = "",
-                   muted: Sequence[ConfirmItem] = ()) -> str:
+                   muted: Sequence[ConfirmItem] = (),
+                   context: Mapping[str, tuple[Sequence[str], Sequence[str]]] | None = None,
+                   ) -> str:
     """畫出「這一份有哪幾段要你確認」的整個畫面。
 
     Args:
@@ -139,11 +155,15 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
             形容詞，實測差六百倍）。
         muted: :func:`pp.confirm.muted_items` 的輸出 —— **規則已經丟掉**的那些。
             選填；給了就多畫一塊可以點開的「機器另外丟了 N 段」。
+        context: ``{item.key: (前面幾段, 後面幾段)}``，由
+            :func:`pp.confirm_context.around` 算。**沒有它人判斷不了**
+            （PO 2026-08-18 實際卡住），但拿不到也要畫得出來。
 
     Returns:
         一段 HTML 片段（不是完整頁面）—— 由審核台那頁組進去。
     """
     logger.debug("畫確認清單：%s，第 %d/%d 份、%d 項", doc, position, total, len(items))
+    ctx = context or {}
 
     back = "<p class='back'><a class='btn' href='/'>← 回收件匣</a></p>"
     head = (
@@ -176,7 +196,7 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
         f"<section class='confirm' data-doc='{_esc(doc)}'>" + back + head + ev
         + f"<p class='count'>這一份有 <b>{len(items)}</b> 項要你看。</p>"
         + _bulk(items)
-        + "".join(_item(i) for i in items)
+        + "".join(_item(i, ctx) for i in items)
         + "<div class='foot'>"
         "<button type='button' class='pri save-next'>存起來，下一份 →</button>"
         "<button type='button' class='skip'>跳過這份</button>"

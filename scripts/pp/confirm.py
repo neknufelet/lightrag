@@ -142,8 +142,7 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
         repeat = row.get("repeat")
         items.append(ConfirmItem(
             section="noise", index=int(row["index"]), category="頁首頁尾",
-            reason=(f"重複 {repeat} 次，像頁首頁尾，但次數不夠多、不敢確定"
-                    if repeat is not None else "像頁首頁尾，但不敢確定"),
+            reason=_noise_reason(repeat),
             text=str(row.get("text") or ""), page=int(row.get("page") or 0),
             suppress=False,
         ))
@@ -185,6 +184,27 @@ def _lookup(table: Mapping[str, str], key: str, what: str) -> str:
         return known
     logger.warning("%s出現沒見過的判準 %r —— 理由照原文吐出", what, key)
     return f"規則的判準是「{key}」，這個判準還沒有白話說明" if key else "規則沒有給判準"
+
+
+def _noise_reason(repeat: object) -> str:
+    """頁首頁尾那條規則沒把握時，用人話說它在猶豫什麼。
+
+    ⚠ 第一版寫「重複 N 次，像頁首頁尾，但次數不夠多、不敢確定」。PO 2026-08-18
+    看著畫面說「只出現一行字就要我確認這是什麼，我有點搞不太清楚」——
+    **「重複 1 次」對人沒有意義**，它其實是「整份只出現過一次」。
+    而全庫 82%（867／1053）的問題都是這一種。
+
+    真正該講的是機器的推理：解析器說它是頁眉，但真的頁眉會一頁一頁重複出現。
+    """
+    if repeat is None:
+        return "解析器把它標成頁首頁尾，但機器看不出這是版面還是內容"
+    if repeat == 1:
+        # ⚠ 這句會被跳脫後直接印在網頁上，**不要寫 Markdown 星號** ——
+        # 會原樣印出來。同一個錯 2026-08-18 已經在 _dropped() 犯過一次。
+        return ("解析器把它標成頁首頁尾，但整份只出現這一次 —— "
+                "真的頁眉會每頁重複，所以它比較像章節標題或內文")
+    return (f"解析器把它標成頁首頁尾，整份出現 {repeat} 次 —— "
+            "次數不夠多，不確定是頁眉還是內容")
 
 
 def muted_items(plan: Mapping[str, object]) -> list[ConfirmItem]:

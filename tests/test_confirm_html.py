@@ -195,3 +195,38 @@ def test_even_the_nothing_to_do_page_says_which_document() -> None:
     out = render_confirm(doc=DOC, items=[], position=1, total=1)
 
     assert f"data-doc='{DOC}'" in out
+
+
+def test_each_item_shows_what_comes_before_and_after() -> None:
+    """要人判斷「這是頁眉還是標題」，就得讓他看到前後文（PO 2026-08-18 裁）。
+
+    PO 原話：「只出現一行字就要我確認這是什麼，我有點搞不太清楚」。
+    一段孤立的文字沒有辦法判斷 —— 全庫 82% 的問題都是這一種。
+    """
+    ctx = {"noise:41": (["前面那段"], ["後面那段"])}
+
+    out = _render(context=ctx)
+
+    assert "前面那段" in out
+    assert "後面那段" in out
+
+
+def test_an_item_without_context_still_renders() -> None:
+    """拿不到上下文（編號超出範圍、內容換過）也要畫得出來，不要整頁掛掉。"""
+    out = _render(context={})
+
+    assert "GRADED LOCALLY RESONANT METAMATERIALS" in out
+
+
+def test_the_context_is_visibly_not_the_thing_being_asked() -> None:
+    """上下文要看得出來「不是在問這幾段」，否則人會勾錯。
+
+    ⚠ 前後文沒有自己的勾選框，但**排版上必須分得開** —— 三段長得一樣的話，
+    人會以為要一起決定。
+    """
+    ctx = {"noise:41": (["前面那段"], ["後面那段"])}
+
+    out = _render(context=ctx)
+
+    assert "class='ctx up'" in out and "class='ctx down'" in out, \
+        "上下文要有自己的樣式、而且分得出前後，跟被問的那段不一樣"

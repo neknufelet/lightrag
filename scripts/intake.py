@@ -54,7 +54,13 @@ from chapters.split_record import (  # noqa: E402
 )
 from chapters.split_record import record_path as chapter_record_path  # noqa: E402
 from mineru_common import load_env  # noqa: E402
-from pp import confirm, confirm_html, confirm_queue, confirm_record  # noqa: E402
+from pp import (  # noqa: E402
+    confirm,
+    confirm_context,
+    confirm_html,
+    confirm_queue,
+    confirm_record,
+)
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 from pp.plan_cache import PlanCache  # noqa: E402
 
@@ -2989,11 +2995,33 @@ class IntakeApp:
         if doc not in plans:
             raise IntakeError(f"沒有這份文件的解析結果：{doc}", 404)
         plan = plans[doc]
+        items = confirm.items_from_plan(plan)
         return confirm_html.render_confirm(
-            doc=doc, items=confirm.items_from_plan(plan),
+            doc=doc, items=items,
             position=confirm_queue.position_of(doc, queue), total=len(queue),
             muted=confirm.muted_items(plan),
+            context=self._confirm_context(doc, items),
         )
+
+    def _confirm_context(self, doc: str,
+                         items: Sequence[confirm.ConfirmItem]
+                         ) -> dict[str, tuple[list[str], list[str]]]:
+        """每一項的前後文。**沒有它人判斷不了**（PO 2026-08-18 實際卡住：
+        「只出現一行字就要我確認這是什麼」）。
+
+        ⚠ 只讀**畫面上這一份**的解析結果，不是全部 —— 一份幾百 KB，
+        每次開一頁讀一次很便宜；全部讀進來就不是了。
+
+        ⚠ 讀不到就回空的，不要擋住整頁。畫面少一塊上下文可以接受。
+        """
+        raw = self.paths.parsed_bundle_dir(doc) / "content_list.json"
+        try:
+            with raw.open(encoding="utf-8") as fh:
+                content = json.load(fh)
+        except (OSError, ValueError) as exc:
+            LOGGER.warning("讀不到 %s 的解析結果，這一頁沒有上下文：%s", doc, exc)
+            return {}
+        return {i.key: confirm_context.around(content, i.index) for i in items}
 
     def save_confirm(self, filename: str, *, dropped: Sequence[str],
                      notes: Mapping[str, str]) -> dict[str, object]:
@@ -4511,6 +4539,17 @@ CONFIRM_CSS = """
   font-family:var(--mono);line-height:1.6;white-space:pre-wrap;
   overflow-wrap:anywhere;word-break:break-word;max-width:100%}
 .confirm .blank{color:var(--review);font-style:normal}
+/* 前後文。⚠ **必須跟被問的那段明顯不同** —— 三段長得一樣的話，人會以為要一起
+   決定（PO 2026-08-18：「只出現一行字就要我確認這是什麼」）。所以更小、更灰、
+   縮排、左邊沒有那條實線，而且前面掛一個「前面／後面」的標籤。 */
+.confirm .ctx{display:flex;gap:.5rem;margin:.25rem 0;padding:.2rem 0 .2rem .6rem;
+  font-size:.78rem;line-height:1.55;color:var(--ink-3)}
+.confirm .ctx i{flex:0 0 2.2rem;font-style:normal;color:var(--ink-3);opacity:.7}
+.confirm .ctx span{display:block;min-width:0;overflow-wrap:anywhere;
+  font-family:var(--mono);opacity:.85}
+.confirm .ctx span + span{margin-top:.15rem}
+.confirm .ctx.up{border-bottom:1px dotted var(--line-soft)}
+.confirm .ctx.down{border-top:1px dotted var(--line-soft)}
 .confirm .meta{margin:.3rem 0 0;font-size:.8rem;color:var(--ink-3)}
 .confirm .foot{padding:.9rem;border:1px solid var(--line);background:var(--panel);
   display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;color:var(--ink)}
