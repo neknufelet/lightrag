@@ -114,7 +114,7 @@ def _outside_body(it: dict, top: float | None, bottom: float | None) -> bool:
 PUBLISHER_PATTERNS: Final[re.Pattern[str]] = re.compile(
     r"(journal\s+homepage|https?://|doi\.org|\bdoi:\s*10\."
     r"|©|\(c\)\s*\d{4}|all\s+rights\s+reserved|\bISSN\b"
-    r"|this\s+article\s+is\s+copyrighted)", re.I)
+    r"|this\s+article\s+is\s+copyrighted|check\s+for\s+updates)", re.I)
 
 #: 超過這麼長就不當樣板。實測 2026-08-18：命中樣式的 57 項最長 210 字
 #: （那是整段版權宣告），而正文提到網址的段落動輒好幾百字。

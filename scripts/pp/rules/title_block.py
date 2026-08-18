@@ -31,6 +31,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from pp.rules import layout_noise
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from mineru_common import BODY_TYPES  # noqa: E402
 
@@ -224,6 +226,23 @@ def looks_like_author_line(text: str) -> bool:
     return caps_ratio(t) >= AUTHOR_MIN_CAPS_RATIO
 
 
+# 投稿／修訂／接受日期。期刊流程的紀錄，回答不了任何聲學問題。
+# PO 2026-08-18 在 19 份真資料裡丟過 12 次，一次都沒留。
+# ⚠ 用 `match`（從頭比對）不是 `search`：正文裡「The microphone received the
+# signal…」也有 received，從頭比對才不會咬到正文。
+SUBMISSION_DATES: Final[re.Pattern[str]] = re.compile(
+    r"^\s*\(?\s*(received|revised|accepted|submitted|manuscript\s+received)\b", re.I)
+
+# 期刊的分類碼。PACS 是聲學期刊最常見的，MSC/CCS/AMS 是別的領域的同類。
+CLASSIFICATION_CODES: Final[re.Pattern[str]] = re.compile(
+    r"^\s*(PACS|MSC|CCS|AMS)\b", re.I)
+
+# 作者自己標的主題詞。**留著**（PO 2026-08-18 裁）——那正是內容圖譜要連的東西，
+# 比參考書目的名字字串有用得多。
+KEYWORDS: Final[re.Pattern[str]] = re.compile(
+    r"^\s*(index\s+terms|key\s?words?)\b", re.I)
+
+
 def _signal(text: str) -> str | None:
     """這一項該不該消音，以及是憑哪個訊號。不該消就回 None。
 
@@ -237,6 +256,16 @@ def _signal(text: str) -> str | None:
         return None
     if PUBLICATION.match(t):
         return "publication"
+    if SUBMISSION_DATES.match(t):
+        return "submission"
+    if CLASSIFICATION_CODES.match(t):
+        return "classification"
+    # ⚠ 判準跟 `layout_noise` 共用同一支 —— **同一件事不要有兩個定義**，
+    # 不然兩邊會慢慢漂開，而漂開不會有錯誤訊息。
+    # PO 2026-08-18 對 'Check for updates' 的原話：「我以為那是你寫的字」。
+    # 一個使用者把語料裡的字當成介面文字，那它就不是內容。
+    if layout_noise.is_publisher_boilerplate(t):
+        return "publisher"
     if CORRESPONDENCE.search(t):
         return "correspondence"
     if looks_like_prose(t):
@@ -342,9 +371,13 @@ def plan(items: list[dict]) -> TitlePlan:
             mutes.append(TitleMute(index=i, item_type=itype, page=it.get("page_idx"),
                                    text=text, signal=sig))
         elif text.strip():
-            held.append(TitleHeld(index=i, item_type=itype, page=it.get("page_idx"),
-                                  text=text,
-                                  why="散文" if looks_like_prose(text) else "沒有訊號"))
+            held.append(TitleHeld(
+                index=i, item_type=itype, page=it.get("page_idx"), text=text,
+                # 關鍵字要留著（PO 2026-08-18 裁），但**留著的方式是標明判準、
+                # 不是憑空消失** —— 規則要報得出自己看到什麼。要不要拿來問人
+                # 是確認清單那一層的事（`pp/confirm.py` 的 `_NOT_WORTH_ASKING`）。
+                why=("關鍵字" if KEYWORDS.match(text.strip())
+                     else "散文" if looks_like_prose(text) else "沒有訊號")))
 
     # 第 0 頁的 page_footnote 另外掃一次：通訊作者的 email 常常掛在頁腳，
     # 而頁腳在 Abstract 之後 —— 不在上面圈的區塊裡。實測 2017 Optimal 就是

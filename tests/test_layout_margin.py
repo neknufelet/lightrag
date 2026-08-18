@@ -75,16 +75,17 @@ def test_a_running_head_above_the_body_is_muted_however_rare() -> None:
 
 
 def test_something_sitting_inside_the_body_still_asks() -> None:
-    """夾在正文裡的**照舊問人**（全庫 22%）。
+    """夾在正文裡的**照舊問人**（全庫 22%）。位置給不了答案的才輪到人。
 
-    實例是 `Check for updates` —— 它被標成頁眉，但位置在正文範圍內，
-    位置給不了答案，那才是真的需要人判斷的東西。
+    ⚠ 這條測試原本拿 `Check for updates` 當例子，2026-08-18 PO 裁掉了那一類
+    （他的原話：「我以為那是你寫的字」），它現在走出版商樣板那條規則。
+    **例子會過期，測試守的行為不會** —— 換一個位置在正文裡、規則真的說不準的。
     """
-    items = [*BODY[:6], _page(300, 340, "Check for updates"), *BODY[6:]]
+    items = [*BODY[:6], _page(300, 340, "Frequency"), *BODY[6:]]
 
     p = plan(items, n_pages=10)
 
-    assert [h.text for h in p.held] == ["Check for updates"]
+    assert [h.text for h in p.held] == ["Frequency"]
     assert p.mutes == []
 
 

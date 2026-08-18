@@ -129,7 +129,10 @@ def _title_reason(why: str) -> str:
 #: ⚠ 只影響**清單問不問**，不影響規則做什麼 —— 那些項目仍然在
 #: `title_block` 的 `held` 裡，`plan --details` 照樣印得出來。
 #: 兩件事分開：規則負責不要無聲消失，清單負責不要浪費人的時間。
-_NOT_WORTH_ASKING: frozenset[str] = frozenset({"散文"})
+#: 「關鍵字」是 PO 2026-08-18 裁的：留著，因為那是作者自己標的主題詞 ——
+#: 正是內容圖譜要連的東西，比參考書目的名字字串有用得多。既然一律留著，
+#: 就沒有理由拿來問人。
+_NOT_WORTH_ASKING: frozenset[str] = frozenset({"散文", "關鍵字"})
 
 
 def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
@@ -186,6 +189,9 @@ _REF_REASONS: Mapping[str, str] = {
 #: 標題區塊那條規則丟掉時看到的訊號 → 白話。
 _TITLE_SIGNALS: Mapping[str, str] = {
     "publication": "看到期刊名與卷期，是封面資訊",
+    "submission": "投稿／修訂／接受日期，是期刊流程的紀錄",
+    "classification": "期刊的分類碼（PACS 那類），不是內容",
+    "publisher": "出版商印的東西（網址、版權、按鈕文字），不是內容",
     "affiliation": "看到作者單位，是封面資訊",
     "correspondence": "看到通訊作者，是封面資訊",
     "author": "看到作者列，是封面資訊",

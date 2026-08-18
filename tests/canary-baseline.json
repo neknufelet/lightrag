@@ -191,16 +191,16 @@
  "01500_9 Scattering and Diffraction.pdf": {
   "charts_convert": 0,
   "charts_dangling": 0,
-  "held": 1,
+  "held": 0,
   "items": 9,
   "latex_glued": 0,
   "latex_items": 0,
   "latex_partials": 0,
   "latex_times": 0,
   "latex_vetoed": 0,
-  "mute": 1,
+  "mute": 2,
   "pages": 1,
-  "ratio": 0.0481,
+  "ratio": 0.0558,
   "refs_mute": 0,
   "repairable": 0,
   "review": 0,
@@ -590,16 +590,16 @@
  "01600_10 Effects of Viscosity and Other Dissipative Processes.pdf": {
   "charts_convert": 0,
   "charts_dangling": 0,
-  "held": 1,
+  "held": 0,
   "items": 9,
   "latex_glued": 0,
   "latex_items": 0,
   "latex_partials": 0,
   "latex_times": 0,
   "latex_vetoed": 0,
-  "mute": 1,
+  "mute": 2,
   "pages": 1,
-  "ratio": 0.0507,
+  "ratio": 0.0587,
   "refs_mute": 0,
   "repairable": 0,
   "review": 0,
@@ -989,16 +989,16 @@
  "01700_11 Nonlinear Effects in Sound Propagation.pdf": {
   "charts_convert": 0,
   "charts_dangling": 0,
-  "held": 1,
+  "held": 0,
   "items": 12,
   "latex_glued": 0,
   "latex_items": 0,
   "latex_partials": 0,
   "latex_times": 0,
   "latex_vetoed": 0,
-  "mute": 0,
+  "mute": 1,
   "pages": 1,
-  "ratio": 0.0,
+  "ratio": 0.015,
   "refs_mute": 0,
   "repairable": 0,
   "review": 0,
@@ -1031,16 +1031,16 @@
  "01701_11.1 Nonlinear Steepening.pdf": {
   "charts_convert": 0,
   "charts_dangling": 0,
-  "held": 1,
+  "held": 0,
   "items": 72,
   "latex_glued": 0,
   "latex_items": 0,
   "latex_partials": 0,
   "latex_times": 0,
   "latex_vetoed": 0,
-  "mute": 4,
+  "mute": 5,
   "pages": 5,
-  "ratio": 0.0162,
+  "ratio": 0.0183,
   "refs_mute": 0,
   "repairable": 0,
   "review": 0,
@@ -1907,8 +1907,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 4,
-  "title_mute": 0
+  "title_held": 2,
+  "title_mute": 2
  },
  "1994 - A Finite Element Method for the Free Vibration of Air in Ducts and Rooms with Absorbing Walls.pdf": {
   "charts_convert": 0,
@@ -1928,8 +1928,8 @@
   "review": 0,
   "tables_total": 4,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 1
  },
  "2004 - Room Sizing and Optimization at Low Frequencies.pdf": {
   "charts_convert": 0,
@@ -2012,8 +2012,8 @@
   "review": 0,
   "tables_total": 5,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 0
+  "title_held": 0,
+  "title_mute": 1
  },
  "2007 - Hybrid method for numerical simulation of room acoustics part 2 - validation of the computational c.pdf": {
   "charts_convert": 0,
@@ -2138,8 +2138,8 @@
   "review": 0,
   "tables_total": 4,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 0
+  "title_held": 2,
+  "title_mute": 1
  },
  "2009 - Gmsh A 3‐D finite element mesh generator with built‐in pre‐ and post‐processing facilities.pdf": {
   "charts_convert": 0,
@@ -2180,8 +2180,8 @@
   "review": 0,
   "tables_total": 5,
   "title_fired": true,
-  "title_held": 4,
-  "title_mute": 0
+  "title_held": 3,
+  "title_mute": 1
  },
  "2009 - Time-Domain Impedance Boundary Conditions for Simulations of Outdoor Sound Propagation.pdf": {
   "charts_convert": 0,
@@ -2285,8 +2285,8 @@
   "review": 0,
   "tables_total": 4,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 0
+  "title_held": 2,
+  "title_mute": 1
  },
  "2012 - Extreme Acoustic Metamaterial by Coiling Up Space.pdf": {
   "charts_convert": 0,
@@ -2306,8 +2306,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 5,
-  "title_mute": 0
+  "title_held": 4,
+  "title_mute": 1
  },
  "2012 - Low frequency sound propagation in activated carbon.pdf": {
   "charts_convert": 0,
@@ -2327,8 +2327,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 9,
-  "title_mute": 0
+  "title_held": 7,
+  "title_mute": 2
  },
  "2012 - Omnidirectional broadband acoustic absorber based on metamaterials.pdf": {
   "charts_convert": 0,
@@ -2621,8 +2621,8 @@
   "review": 0,
   "tables_total": 3,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 2
  },
  "2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves.pdf": {
   "charts_convert": 0,
@@ -2747,8 +2747,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 0
+  "title_held": 0,
+  "title_mute": 1
  },
  "2015 - Perceptual thresholds for the effects of room modes as a function of modal decay.pdf": {
   "charts_convert": 0,
@@ -2789,8 +2789,8 @@
   "review": 0,
   "tables_total": 1,
   "title_fired": true,
-  "title_held": 7,
-  "title_mute": 0
+  "title_held": 6,
+  "title_mute": 1
  },
  "2016 - 3D Acoustic Field Intensity Probe Design and Measurements.pdf": {
   "charts_convert": 0,
@@ -2810,8 +2810,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 0
+  "title_held": 2,
+  "title_mute": 1
  },
  "2016 - A sound absorbing metasurface with coupled resonators.pdf": {
   "charts_convert": 0,
@@ -3503,8 +3503,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 0
+  "title_held": 2,
+  "title_mute": 1
  },
  "2020 - A case study on workstation-dependent acoustic characterization of open-plan offices.pdf": {
   "charts_convert": 0,
@@ -3923,8 +3923,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 0
+  "title_held": 0,
+  "title_mute": 1
  },
  "2021 - Comparison of measurement and prediction for acoustical treatments designed with Transfer Matrix Mod.pdf": {
   "charts_convert": 0,
@@ -3965,8 +3965,8 @@
   "review": 0,
   "tables_total": 4,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 1
  },
  "2021 - Experimental validation and uncertainty quantification in wave-based computational room acoustics.pdf": {
   "charts_convert": 0,
@@ -4406,8 +4406,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 4,
-  "title_mute": 3
+  "title_held": 3,
+  "title_mute": 4
  },
  "2022 - Elimination of the Phase Mismatch Error in PP Probe Using Synchronous Measurement Technique.pdf": {
   "charts_convert": 0,
@@ -4532,8 +4532,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 3
+  "title_held": 0,
+  "title_mute": 4
  },
  "2023 - A Differentiable Image Source Model for Room Acoustics Optimization.pdf": {
   "charts_convert": 0,
@@ -4679,8 +4679,8 @@
   "review": 0,
   "tables_total": 1,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 1
  },
  "2023 - Extended reacting boundary modeling of porous materials with thin coverings for time-domain room aco.pdf": {
   "charts_convert": 0,
@@ -5288,8 +5288,8 @@
   "review": 0,
   "tables_total": 8,
   "title_fired": true,
-  "title_held": 8,
-  "title_mute": 2
+  "title_held": 7,
+  "title_mute": 3
  },
  "2025 - A method for extracting an average scattering coefficient for room acoustic modeling.pdf": {
   "charts_convert": 0,
@@ -5309,8 +5309,8 @@
   "review": 0,
   "tables_total": 3,
   "title_fired": true,
-  "title_held": 7,
-  "title_mute": 0
+  "title_held": 6,
+  "title_mute": 1
  },
  "2025 - Bioinspired labyrinthine metamaterials with designable sound-absorption capabilities and superior compressive properties.pdf": {
   "charts_convert": 0,
@@ -5372,8 +5372,8 @@
   "review": 0,
   "tables_total": 1,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 7
+  "title_held": 2,
+  "title_mute": 8
  },
  "2025 - Comparison of Impulse Response Generation Methods for a Simple Shoebox-Shaped Room.pdf": {
   "charts_convert": 0,
@@ -5477,8 +5477,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 5,
-  "title_mute": 0
+  "title_held": 4,
+  "title_mute": 1
  },
  "2025 - Differentiation Strategies for Acoustic Inverse Problems Admittance Estimation and Shape Optimizati.pdf": {
   "charts_convert": 0,
@@ -5582,8 +5582,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 0
+  "title_held": 0,
+  "title_mute": 2
  },
  "2025 - Modeling Nonuniform Energy Decay Through the Modal Decomposition of Acoustic Radiance Transfer.pdf": {
   "charts_convert": 0,
@@ -5630,16 +5630,16 @@
  "2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials.pdf": {
   "charts_convert": 0,
   "charts_dangling": 0,
-  "held": 3,
+  "held": 2,
   "items": 199,
   "latex_glued": 0,
   "latex_items": 0,
   "latex_partials": 0,
   "latex_times": 0,
   "latex_vetoed": 0,
-  "mute": 4,
+  "mute": 5,
   "pages": 13,
-  "ratio": 0.0026,
+  "ratio": 0.003,
   "refs_mute": 3,
   "repairable": 0,
   "review": 0,
@@ -5666,8 +5666,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 11,
-  "title_mute": 0
+  "title_held": 10,
+  "title_mute": 1
  },
  "2025 - Reconfigurable modular acoustic metamaterial for broadband sound absorption.pdf": {
   "charts_convert": 0,
@@ -5792,8 +5792,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 3
+  "title_held": 0,
+  "title_mute": 4
  },
  "2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise.pdf": {
   "charts_convert": 0,
@@ -5876,8 +5876,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 4,
-  "title_mute": 0
+  "title_held": 3,
+  "title_mute": 1
  },
  "2026 - JAX-BEM Gradient-Based Acoustic Shape Optimisation via a Differentiable Boundary Element Method.pdf": {
   "charts_convert": 0,
@@ -5939,8 +5939,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 3
+  "title_held": 0,
+  "title_mute": 4
  },
  "2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials.pdf": {
   "charts_convert": 0,
