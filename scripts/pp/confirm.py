@@ -148,8 +148,19 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     noise = _require(plan, "noise")
     title = _require(plan, "title")
 
+    # 封面廣告頁整條規則是「整頁丟掉」，它蓋掉的項目同時也還躺在 `noise.held`
+    # 與 `title.held` 裡 —— 那兩張是各自規則的安全網（`plan --details` 要印得
+    # 出來），不該為了這件事去動它們。
+    #
+    # ⚠ **所以過濾寫在清單這一層，不寫進規則層**（PO 2026-08-18 裁；上一輪把
+    # 過濾寫進規則層踩了兩次，兩次都是測試當場擋下來）。少了這一段，畫面會拿
+    # 已經丟掉的東西去佔用人的時間，而且畫面自己還說它「等你確認」。
+    dropped = {int(row["index"]) for row in _rows(_section(plan, "cover_ad"), "mute")}
+
     items: list[ConfirmItem] = []
     for row in _rows(noise, "held"):
+        if int(row["index"]) in dropped:
+            continue
         repeat = row.get("repeat")
         items.append(ConfirmItem(
             section="noise", index=int(row["index"]), category="頁首頁尾",
@@ -158,6 +169,8 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
             suppress=False,
         ))
     for row in _rows(title, "held"):
+        if int(row["index"]) in dropped:
+            continue
         if str(row.get("why") or "") in _NOT_WORTH_ASKING:
             # **規則自己已經知道答案的，不要佔用人的時間。**
             # 「散文」＝這一段讀起來像正文，規則的預設就是留著，而人看了
@@ -184,6 +197,12 @@ _REF_REASONS: Mapping[str, str] = {
     "reference": "參考書目，機器有把握。消掉是決定不是損失 —— 文獻之間的關聯"
                  "靠內容圖譜連，不靠這些名字字串",
     "acknowledgement": "致謝／經費，機器有把握。它不回答問題",
+}
+
+#: 封面廣告頁那條規則的訊號 → 白話。
+_COVER_AD_REASONS: Mapping[str, str] = {
+    "wrapper_page": "出版商夾在最前面那一頁：廣告，加上「你可能有興趣的文章」列出的"
+                    "**別人的論文**。這篇自己的標題在後面的頁上還在",
 }
 
 #: 標題區塊那條規則丟掉時看到的訊號 → 白話。
@@ -266,6 +285,13 @@ def muted_items(plan: Mapping[str, object]) -> list[ConfirmItem]:
             text=str(row.get("text") or ""), page=int(row.get("page") or 0),
             suppress=True,
         ))
+    for row in _rows(_section(plan, "cover_ad"), "mute"):
+        items.append(ConfirmItem(
+            section="cover_ad", index=int(row["index"]), category="封面廣告頁",
+            reason=_lookup(_COVER_AD_REASONS, str(row.get("signal") or ""), "封面廣告頁"),
+            text=str(row.get("text") or ""), page=int(row.get("page") or 0),
+            suppress=True,
+        ))
     return items
 
 
@@ -287,7 +313,7 @@ def muted_count(plan: Mapping[str, object]) -> int:
     「這份很乾淨」與「規則把半份文件丟了」。
     """
     total = 0
-    for name in ("noise", "refs", "title"):
+    for name in ("noise", "refs", "title", "cover_ad"):
         section = plan.get(name)
         if isinstance(section, Mapping):
             total += len(_rows(section, "mute"))

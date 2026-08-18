@@ -44,6 +44,7 @@ from pp.docctx import DocContext, DocContextError  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 from pp.rules import (  # noqa: E402
     chart_type,
+    cover_ad_page,
     empty_table,
     latex_fix,
     layout_noise,
@@ -135,8 +136,14 @@ def plan_one(raw: Path, *, source_dir: Path | None = None) -> dict:
     # 寫檔 —— 唯讀看不到的修改等於沒有人審過，而 σ̂→∂ 一份文件就改 138 處公式符號。
     # 這裡傳的是 ctx.items，`latex_fix.plan` 只讀不寫。
     latex = latex_fix.plan(ctx.items)
+    # ⚠ **要把前三條已經認領的項目讓開。** 三條消音規則消到同一項時
+    # `_pp_original_text` 會被寫兩次，第二次存進去的是空字串 —— `pp/apply.py`
+    # 會直接拒絕整份。這裡先算好，不靠「記得不要重疊」。
+    claimed = ({m.index for m in noise.mutes} | {m.index for m in refs.mutes}
+               | {m.index for m in title.mutes})
+    cover_ad = cover_ad_page.plan(ctx.items, claimed=claimed)
     return {"ctx": ctx, "noise": noise, "refs": refs, "title": title, "tables": tables,
-            "charts": charts, "latex": latex}
+            "charts": charts, "latex": latex, "cover_ad": cover_ad}
 
 
 def render(p: dict, details: bool) -> None:
@@ -147,6 +154,7 @@ def render(p: dict, details: bool) -> None:
     print(f"  過濾：{noise.summary()}")
     print(f"  文獻：{refs.summary()}")
     print(f"  標題：{p['title'].summary()}")
+    print(f"  封面：{p['cover_ad'].summary()}")
     print(f"  表格：{tables.summary()}")
     print(f"  圖片：{p['charts'].line()}")
     print(f"  LaTeX：{p['latex'].summary()}")
@@ -245,6 +253,15 @@ def as_json(p: dict) -> dict:
             "ratio": round(p["title"].ratio, 4),
             "suspicious": p["title"].suspicious,
         },
+        # 整頁丟掉的那一頁。**原文與訊號都要跟著出去** —— 少了 text，人攤開
+        # 「機器丟了什麼」時會看到一整片空白（2026-08-18 title.held 踩過）。
+        "cover_ad": {
+            "mute": [{"index": m.index, "page": m.page, "text": m.text,
+                      "signal": m.signal} for m in p["cover_ad"].mutes],
+            "fired": p["cover_ad"].fired,
+            "ratio": round(p["cover_ad"].ratio, 4),
+            "suspicious": p["cover_ad"].suspicious,
+        },
         "tables": {
             "total": tables.total,
             "repair": [{"index": t.index, "page": t.page, "class": t.klass.value,
@@ -314,6 +331,7 @@ def env_with_overlay(argv: list[str] | None = None) -> dict[str, str]:
 
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
                 "refs_mute", "title_mute", "title_held", "title_fired",
+                "cover_ad_mute", "cover_ad_fired",
                 "tables_total", "repairable", "review",
                 "charts_convert", "charts_dangling",
                 "latex_items", "latex_times", "latex_partials", "latex_glued",
@@ -335,6 +353,12 @@ def canary_row(p: dict) -> dict:
             "title_mute": len(p["title"].mutes),
             "title_held": len(p["title"].held),
             "title_fired": p["title"].fired,
+            # 封面廣告頁 2026-08-18 落地。**同一個病犯過兩次了**（refs／title 一次、
+            # LaTeX 三格一次）：規則落地、基準沒跟上，於是行為漂移完全沒有訊號。
+            # `fired` 一樣單獨記 —— 開火消了 0 項（廣告頁上全被別條認領走了）
+            # 與根本沒開火（這份沒有廣告頁）是兩件事。
+            "cover_ad_mute": len(p["cover_ad"].mutes),
+            "cover_ad_fired": p["cover_ad"].fired,
             "tables_total": tables.total,
             "repairable": len(tables.repairable),
             "review": len(tables.review),

@@ -40,6 +40,7 @@ from pp.oracle import Oracle, OracleError  # noqa: E402
 from pp.paths import ContainerPaths  # noqa: E402
 from pp.rules import (  # noqa: E402
     chart_type,
+    cover_ad_page,
     empty_table,
     latex_fix,
     layout_noise,
@@ -355,6 +356,15 @@ def apply_doc(
     if title.suspicious:
         _ratio_guard("標題頁消音比例", title.ratio)
 
+    # 出版商夾在最前面那一頁（廣告＋別人的論文）。**一定要在人工確認搬完之後才算**
+    # —— `confirm_apply.honour` 會把 held 搬進 title.mutes，那些項目也在第 0 頁上，
+    # 算早了就會兩條規則搶同一項而整份被拒。
+    cover_ad = cover_ad_page.plan(items, claimed=(
+        {m.index for m in noise.mutes} | {m.index for m in refs.mutes}
+        | {m.index for m in title.mutes}))
+    if cover_ad.suspicious:
+        _ratio_guard("封面廣告頁消音比例", cover_ad.ratio)
+
     tables = empty_table.plan(items, *ctx.page_size)
     want = verified_tables or {}
     want_text = verified_text or {}
@@ -369,7 +379,8 @@ def apply_doc(
     # 但分工是約定，這裡才是執行者。
     mute_sets = {"版面雜訊": {m.index for m in noise.mutes},
                  "參考文獻": {m.index for m in refs.mutes},
-                 "標題頁": {m.index for m in title.mutes}}
+                 "標題頁": {m.index for m in title.mutes},
+                 "封面廣告頁": {m.index for m in cover_ad.mutes}}
     names = list(mute_sets)
     for i, a in enumerate(names):
         for b in names[i + 1:]:
@@ -378,7 +389,8 @@ def apply_doc(
                 raise ApplyError(
                     f"{ctx.doc_name}：項目 {both} 同時是「{a}」與「{b}」的消音目標，拒絕")
 
-    muted_idx = mute_sets["版面雜訊"] | mute_sets["參考文獻"] | mute_sets["標題頁"]
+    muted_idx = (mute_sets["版面雜訊"] | mute_sets["參考文獻"] | mute_sets["標題頁"]
+                 | mute_sets["封面廣告頁"])
     clash = sorted(muted_idx & {int(k) for k in want_text})
     if clash:
         raise ApplyError(f"{ctx.doc_name}：項目 {clash} 同時是消音目標與文字修補目標，拒絕")
@@ -467,7 +479,10 @@ def apply_doc(
         # 東西** —— 2026-08-08 實測：參考文獻消音接進管線後，`plan` 說 19 項而
         # `apply`（乾跑）說 0 項，因為這一行只數了 noise。
         # 乾跑的數字若跟實際寫入不一致，乾跑就失去意義。
-        r.muted = len(noise.mutes) + len(refs.mutes)
+        # ⚠ **四條都要數。** 這一行原本只有 noise ＋ refs，`title` 接進來的時候
+        # 沒有跟著改 —— 乾跑因此長期少報標題頁那幾項。2026-08-18 補上。
+        r.muted = (len(noise.mutes) + len(refs.mutes) + len(title.mutes)
+                   + len(cover_ad.mutes))
         r.tables = len(write_tbl)
         for k in write_tbl:
             r.notes += add_notes.get(k, [])
@@ -506,7 +521,8 @@ def apply_doc(
     # ── 改動 ──
     r.muted = (layout_noise.apply_to_items(items, noise)
                + reference_section.apply_to_items(items, refs)
-               + title_block.apply_to_items(items, title))
+               + title_block.apply_to_items(items, title)
+               + cover_ad_page.apply_to_items(items, cover_ad))
     for k, txt in sorted(want_text.items(), key=lambda kv: int(kv[0])):
         if k in done_txt:                 # 上一輪就是這個內容，不重寫
             continue

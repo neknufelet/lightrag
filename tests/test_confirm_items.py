@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from _plan_skeleton import skeleton  # noqa: E402
 from _scripts import load  # noqa: E402
 from pp.confirm import items_from_plan, muted_count  # noqa: E402
 from pp.rules.title_block import TitleHeld, TitleMute, TitlePlan  # noqa: E402
@@ -47,24 +47,6 @@ PLAN = {
                   "why": "沒有訊號"}],
     },
 }
-
-
-def _skeleton(title: TitlePlan) -> dict:
-    """`as_json` 需要的最小骨架：只有 `title` 是真的，其餘給空殼。
-
-    刻意用真的 :class:`TitlePlan` 而不是字典 —— 要測的正是「規則算出來的欄位
-    有沒有全部走進 JSON」，拿字典假裝就等於再抄一次，抄的時候漏掉什麼就測不到。
-    """
-    empty = SimpleNamespace(mutes=[], held=[], body_chars_before=0,
-                            body_chars_after=0, ratio=0.0, suspicious=False)
-    return {
-        "ctx": SimpleNamespace(doc_name="x.pdf", n_pages=1, items=[], page_size=(595, 842)),
-        "noise": empty,
-        "refs": empty,
-        "title": title,
-        "tables": SimpleNamespace(total=0, repairable=[], review=[]),
-        "charts": SimpleNamespace(convert=[], dangling=[]),
-    }
 
 
 def test_only_the_uncertain_items_become_rows() -> None:
@@ -146,7 +128,7 @@ def test_as_json_really_carries_what_the_list_needs() -> None:
                         text="Received 14 January 2019", why="沒有訊號")],
         fired=True, reason="", body_chars_before=100, body_chars_after=90)
 
-    out = postprocess.as_json(_skeleton(title))["title"]
+    out = postprocess.as_json(skeleton(title=title))["title"]
 
     assert out["held"][0]["text"] == "Received 14 January 2019", "沒有原文，人沒辦法判斷"
     assert out["held"][0]["why"] == "沒有訊號", "理由要跟著走，不然清單只能印通用句"
