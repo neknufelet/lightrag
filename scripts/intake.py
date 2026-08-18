@@ -4460,10 +4460,13 @@ document.addEventListener('click', async e => {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
   });
   const out = await r.json();
+  // ⚠ **成功訊息裡不要再放一顆「回收件匣」。** 這一頁底部本來就有一顆，
+  // 兩顆會擠在一起變成兩個一樣的按鈕（2026-08-18 PO 實際看到）。
+  // 底部那顆是「隨時想走都走得掉」，這裡只講發生了什麼。
   e.target.insertAdjacentHTML('afterend',
     r.ok ? ' <span>切好了，' + (out.made || []).length
            + ' 章已經放進收件匣。原書搬走了，不會被重複解析。'
-           + ' <a class="btn" href="/">← 回收件匣看看</a></span>'
+           + ' 用下面那顆「回收件匣」去看。</span>'
          : ' <span class="warn">沒切成：' + (out.error || r.status) + '</span>');
   e.target.disabled = !r.ok;
 });
@@ -4541,10 +4544,17 @@ document.addEventListener('click', e => {
   });
 });
 
+// ⚠ **「現在是哪一份」一律讀畫面上的 data-doc，不要問網址。**
+// 從首頁點進 /confirm 時網址上沒有 ?doc=，是伺服器挑了隊伍最前面那份 ——
+// 問網址會得到空字串。2026-08-18 PO 實際踩到：按「跳過這份」完全沒反應，
+// 因為它跳去 /confirm?skip= ，伺服器只好又給同一份。
+function currentDoc() {
+  return document.querySelector('.confirm')?.dataset.doc || '';
+}
+
 async function saveConfirm(btn, thenGo) {
   btn.disabled = true;
-  const doc = new URL(location.href).searchParams.get('doc')
-            || document.querySelector('.confirm h2.doc')?.textContent.trim();
+  const doc = currentDoc();
   const dropped = [...document.querySelectorAll(".confirm .item > input:checked")]
                   .map(x => x.value);
   const r = await fetch('/api/confirm/save', {
@@ -4575,8 +4585,7 @@ document.addEventListener('click', e => {
   else if (e.target.classList.contains('stop')) saveConfirm(e.target, false);
   else if (e.target.classList.contains('skip') || e.target.classList.contains('go-next')) {
     // 跳過＝**不存**，直接看下一份。存了就等於替人做了決定。
-    const doc = new URL(location.href).searchParams.get('doc') || '';
-    location.href = '/confirm?skip=' + encodeURIComponent(doc);
+    location.href = '/confirm?skip=' + encodeURIComponent(currentDoc());
   }
 });
 """

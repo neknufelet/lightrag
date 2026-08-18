@@ -173,3 +173,25 @@ def test_it_says_what_happens_after_you_confirm() -> None:
     out = _render()
 
     assert "抽取" in out
+
+
+def test_the_page_carries_the_document_name_in_a_readable_place() -> None:
+    """畫面本身要帶著「我現在在看哪一份」，**不能只靠網址**。
+
+    2026-08-18 PO 實際踩到：從首頁點進 `/confirm`（網址上沒有 `?doc=`）之後
+    按「跳過這份」完全沒反應 —— 按鈕去問網址「現在是哪一份」，網址說不知道，
+    於是跳給自己看，畫面重載成同一份。
+
+    ⚠ **這一份是誰，是伺服器決定的**（隊伍最前面那份），所以答案要由伺服器
+    寫進畫面，不能讓瀏覽器去猜。
+    """
+    out = _render()
+
+    assert f"data-doc='{DOC}'" in out
+
+
+def test_even_the_nothing_to_do_page_says_which_document() -> None:
+    """沒有要確認的那條路也要帶檔名 —— 那一頁上的「下一份」按鈕同樣要用它。"""
+    out = render_confirm(doc=DOC, items=[], position=1, total=1)
+
+    assert f"data-doc='{DOC}'" in out

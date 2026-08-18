@@ -160,7 +160,7 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
         # 發生 —— 那比沒有按鈕更糟。多數乾淨的文件本來就沒有要確認的。
         logger.info("%s 沒有要確認的項目", doc)
         return (
-            "<section class='confirm'>" + back + head
+            f"<section class='confirm' data-doc='{_esc(doc)}'>" + back + head
             + "<p class='ok'>這一份<b>沒有</b>要你確認的段落，規則全部都有把握。"
             "直接放行就好。</p>"
             # ⚠ 沒有要確認的，**不代表沒有東西被丟掉** —— 這條路更需要那塊，
@@ -173,7 +173,7 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
 
     ev = f"<p class='ev'>{_esc(evidence)}</p>" if evidence else ""
     return (
-        "<section class='confirm'>" + back + head + ev
+        f"<section class='confirm' data-doc='{_esc(doc)}'>" + back + head + ev
         + f"<p class='count'>這一份有 <b>{len(items)}</b> 項要你看。</p>"
         + _bulk(items)
         + "".join(_item(i) for i in items)
