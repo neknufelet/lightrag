@@ -28,6 +28,7 @@ from __future__ import annotations
 import html
 import logging
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 from pp.confirm import ConfirmItem
 
@@ -194,7 +195,9 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
     ev = f"<p class='ev'>{_esc(evidence)}</p>" if evidence else ""
     return (
         f"<section class='confirm' data-doc='{_esc(doc)}'>" + back + head + ev
-        + f"<p class='count'>這一份有 <b>{len(items)}</b> 項要你看。</p>"
+        # 「看還剩哪些」的入口。⚠ 沒有入口的頁面等於不存在 —— 同設計文件第五條。
+        + f"<p class='count'>這一份有 <b>{len(items)}</b> 項要你看。"
+        "　<a class='btn' href='/confirm?view=all'>看還剩哪些 →</a></p>"
         + _bulk(items)
         + "".join(_item(i, ctx) for i in items)
         + "<div class='foot'>"
@@ -206,4 +209,73 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
         + "<p class='after'>確認完的會排進下一批<b>抽取</b>；"
         "沒確認的等著，<b>不會被抽取</b> —— 先抽再改要重抽一次，那是最貴的一步。</p>"
         + back + "</section>"
+    )
+
+
+@dataclass(frozen=True)
+class Group:
+    """總覽的一列：一模一樣的文字併成一組。
+
+    Attributes:
+        category: 分類。**同樣的字出現在不同分類要分開算** —— 併在一起的話
+            「這一類有幾項」就再也算不準。
+        text: 原文。
+        count: 出現幾次。**次數就是「這值不值得變成規則」的證據。**
+        docs: 出現在哪些文件裡。看到可疑的才追得下去。
+    """
+
+    category: str
+    text: str
+    count: int
+    docs: list[str]
+
+
+def group_items(pairs: Sequence[tuple[str, ConfirmItem]]) -> list[Group]:
+    """把 ``(文件, 項目)`` 照「分類 ＋ 一模一樣的文字」併組，次數多的排前面。
+
+    ⚠ **規律藏在前面。** 17 份文件都有 'ELSEVIER'，那不是內容而是出版商印的；
+    只出現一次的才是真正一份一份不一樣的東西。
+    """
+    buckets: dict[tuple[str, str], list[str]] = {}
+    for doc, item in pairs:
+        buckets.setdefault((item.category, item.text.strip()), []).append(doc)
+    groups = [Group(category=cat, text=text, count=len(docs), docs=docs)
+              for (cat, text), docs in buckets.items()]
+    groups.sort(key=lambda g: (-g.count, g.category, g.text))
+    return groups
+
+
+def render_overview(groups: Sequence[Group], *, total: int, docs: int) -> str:
+    """一次看完還剩哪些東西。
+
+    PO 2026-08-18 問「我現在能看一下還有哪些東西嗎」，然後補一句
+    「不是在原本的頁面看嗎」—— 對，這種東西該長在產品裡，不是丟檔案給人。
+
+    **為什麼需要**：確認清單一次只給一份文件（357 項散在 124 份）。
+    要看出「還有沒有規律」，得把整批攤在一起。
+    """
+    back = "<p class='back'><a class='btn' href='/confirm'>← 一份一份確認</a>"
+    back += " · <a class='btn' href='/'>回收件匣</a></p>"
+    if not groups:
+        return ("<section class='confirm'>" + back
+                + "<header><h1>還剩哪些</h1></header>"
+                + "<p class='ok'>全部確認完了，<b>沒有</b>剩下的。</p>"
+                + back + "</section>")
+
+    rows = "".join(
+        f"<tr><td class='n'>{g.count}</td><td class='c'>{_esc(g.category)}</td>"
+        f"<td class='t'>{_esc(g.text[:300]) or '（空）'}</td>"
+        f"<td class='w'>{_esc(g.docs[0][:34])}…</td></tr>"
+        for g in groups
+    )
+    return (
+        "<section class='confirm'>" + back
+        + "<header><h1>還剩哪些</h1>"
+        f"<p class='sub'>還有 <b>{total}</b> 項要你看，散在 <b>{docs}</b> 份，"
+        f"照一模一樣的文字分成 <b>{len(groups)}</b> 組。</p></header>"
+        "<p class='prog'>次數多的排前面 —— <b>出現越多次，越可能是規則抓得到的</b>；"
+        "只出現一次的才是真正一份一份不一樣的東西。</p>"
+        "<table class='overview'>"
+        "<tr><th>幾次</th><th>分類</th><th>原文</th><th>出現在</th></tr>"
+        + rows + "</table>" + back + "</section>"
     )

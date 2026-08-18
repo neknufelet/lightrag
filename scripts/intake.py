@@ -3055,6 +3055,22 @@ class IntakeApp:
             return {}
         return {i.key: confirm_context.around(content, i.index) for i in items}
 
+    def confirm_overview(self) -> str:
+        """一次看完還剩哪些東西。**照一模一樣的文字分組**，次數多的排前面。
+
+        ⚠ 這一頁跟一份一份確認那頁看的是同一批資料，只是換個切法 ——
+        兩邊算出來的總數必須一致，不然人會不知道該相信哪一個。
+        """
+        queue, plans = self.confirm_queue()
+        pairs: list[tuple[str, confirm.ConfirmItem]] = []
+        for doc in queue:
+            plan = plans.get(doc)
+            if plan is None:
+                continue
+            pairs.extend((doc, item) for item in confirm.items_from_plan(plan))
+        return confirm_html.render_overview(
+            confirm_html.group_items(pairs), total=len(pairs), docs=len(queue))
+
     def save_confirm(self, filename: str, *, dropped: Sequence[str],
                      notes: Mapping[str, str]) -> dict[str, object]:
         """把人勾好的結果存成紀錄，回傳寫到哪裡與下一份是誰。
@@ -4650,6 +4666,21 @@ CONFIRM_CSS = """
 .confirm .back{margin:.8rem 0}
 .confirm .back a{color:var(--accent)}
 .confirm .warn{color:var(--blocked)}
+/* 「還剩哪些」的總覽表。⚠ 外層要能橫向捲動 —— 原文有很長的字串（DOI、
+   期刊代碼），不給捲動的話手機上右邊會被切掉。 */
+.confirm .overview{width:100%;border-collapse:collapse;font-size:.82rem;
+  display:block;overflow-x:auto}
+.confirm .overview th{text-align:left;padding:.4rem .5rem;color:var(--ink-3);
+  border-bottom:1px solid var(--line);font-size:.75rem;font-weight:600}
+.confirm .overview td{padding:.4rem .5rem;border-bottom:1px solid var(--line-soft);
+  vertical-align:top}
+.confirm .overview td.n{width:3rem;text-align:right;font-family:var(--mono);
+  color:var(--review)}
+.confirm .overview td.c{width:5rem;color:var(--ink-3);white-space:nowrap;font-size:.75rem}
+.confirm .overview td.t{font-family:var(--mono);color:var(--ink-2);
+  overflow-wrap:anywhere;word-break:break-word}
+.confirm .overview td.w{width:10rem;color:var(--ink-3);font-size:.72rem;
+  overflow-wrap:anywhere}
 """
 
 CONFIRM_JS = """
@@ -4963,6 +4994,11 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     # 審核台既有的頁是「看狀態」，這一頁是「做事情」，
                     # 做到一半關掉要能回來，狀態頁沒有這種概念。
                     query = urllib.parse.parse_qs(parsed.query)
+                    if (query.get("view") or [""])[0] == "all":
+                        # 「還剩哪些」的總覽。PO 2026-08-18：「不是在原本的頁面
+                        # 看嗎」—— 這種東西要長在產品裡，不是丟檔案給人。
+                        self._html(_confirm_page(app.confirm_overview()))
+                        return
                     doc = (query.get("doc") or [""])[0]
                     skip = (query.get("skip") or [""])[0]
                     self._html(_confirm_page(app.confirm_screen(doc, skip)))
