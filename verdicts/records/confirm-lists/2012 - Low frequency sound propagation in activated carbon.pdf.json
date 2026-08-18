@@ -1,0 +1,98 @@
+{
+ "version": 1,
+ "_": "2026-08-18T22:16:18+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "2012 - Low frequency sound propagation in activated carbon.pdf",
+ "pdf_sha256": "sha256:2b57c7d85ff555c27822b1c193dd50f8cc7d9d3a1a1b58a2e3f28fcbcc637b37",
+ "at": "2026-08-18T22:16:18+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "title",
+   "index": 1,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "F. Bechwati and M. R. Avis",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 3,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "D. J. Bull",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 5,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "T. J. Coxa) and J. A. Hargreaves",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 7,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "D. Moser and D. K. Ross",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 9,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "O. Umnova and R. Venegas",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 11,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "(Received 25 October 2011; revised 26 April 2012; accepted 28 April 2012)",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 14,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "PACS number(s): 43.55.Ev [NX]",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 15,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Pages: 239–248",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  }
+ ]
+}

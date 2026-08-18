@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "_": "2026-08-18T22:13:55+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "01500_9 Scattering and Diffraction.pdf",
+ "pdf_sha256": "sha256:37877d0af3d1af4af1e1598b58c77c8a72632a0453a50e876ad34954c3f6d28b",
+ "at": "2026-08-18T22:13:55+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "noise",
+   "index": 6,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "Check for updates",
+   "page": 0,
+   "suppress": false,
+   "decided_by": "rule",
+   "note": ""
+  }
+ ]
+}

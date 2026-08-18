@@ -1,0 +1,109 @@
+{
+ "version": 1,
+ "_": "2026-08-18T21:43:13+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "RWCVR29K 2010 - A theoretical framework for quantitatively characterizing sound field diffusion based on scattering coefficient and absorption coefficient of walls.pdf",
+ "pdf_sha256": "sha256:64ab85fb3f3246e88de4e4ad5fa6a37d224574ab88fb1c2b274da76889e6e546",
+ "at": "2026-08-18T21:43:13+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "noise",
+   "index": 16,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "1140 J. Acoust. Soc. Am. 128 (3), September 2010 0001-4966/2010/128(3)/1140/9/\\$25.00",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 17,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "© 2010 Acoustical Society of America",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 60,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，整份出現 2 次 —— 次數不夠多，不確定是頁眉還是內容",
+   "text": "1142 J. Acoust. Soc. Am., Vol. 128, No. 3, September 2010",
+   "page": 2,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 129,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，整份出現 2 次 —— 次數不夠多，不確定是頁眉還是內容",
+   "text": "1144 J. Acoust. Soc. Am., Vol. 128, No. 3, September 2010",
+   "page": 4,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 1,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Toshiki Hanyuª)",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 3,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "(Received 8 January 2009; revised 10 June 2010; accepted 15 June 2010)",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 4,
+   "category": "標題區塊",
+   "reason": "讀起來像正文，不像封面資訊，所以不敢消",
+   "text": "This paper describes the development of a theoretical framework for quantitatively characterizing sound field diffusion based on scattering coefficient and absorption coefficient of walls. The concepts of equivalent scattering area, equivalent scatter reflection area, average scattering coefficient and average scatter reflection coefficient are introduced in order to express all walls' capability of scatter in a room. Using these concepts and the mean free path, scatter-to-absorption ratio, mean scatter time and diffusion time are defined in order to evaluate degree of diffusion of a space. Furthermore the effect of spatial scattering objects to sound field diffusion is formulated. In addition the time variation of specular and scattered components in a room impulse response is formulated. The verification of these characterization methods was performed with computer simulations based on the sound ray tracing method. The results supported that the ideas presented are basically valid. © 2010 Acoustical Society of America. [DOI: 10.1121/1.3463802]",
+   "page": 0,
+   "suppress": false,
+   "decided_by": "rule",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 5,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "PACS number(s): 43.55.Br [LMW]",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 6,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Pages: 1140-1148",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  }
+ ]
+}
