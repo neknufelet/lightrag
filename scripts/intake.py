@@ -56,6 +56,7 @@ from chapters.split_record import record_path as chapter_record_path  # noqa: E4
 from mineru_common import load_env  # noqa: E402
 from pp import confirm, confirm_html, confirm_queue, confirm_record  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
+from pp.plan_cache import PlanCache  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 LOGGER = logging.getLogger("intake")
@@ -1445,6 +1446,9 @@ class IntakeApp:
         self.environment = dict(environment or {})
         self.repo = repo
         self._lock = threading.RLock()
+        # 算過的處理計畫。**不加這個的話首頁每次都要 4.71 秒**
+        # （dker 實測 317 份），PO 2026-08-18 當場感覺到變慢。
+        self._plans = PlanCache()
         # **三條佇列，不是一條。** 每條的節流理由不同：
         #   解析  打 mineru.net 的雲端 API，純等網路 —— 限制是對方的（每天 2,000 頁
         #         享最高優先，併發沒有上限）。**不受階段閘門管**，隨時可跑
@@ -2897,8 +2901,14 @@ class IntakeApp:
     def _confirm_plans(self) -> dict[str, dict]:
         """算出每一份的處理計畫。**只讀，不寫任何檔。**
 
-        ⚠ 全母體實測 6.27 秒（dker，317 份），所以刻意不做快取 —— 快取要處理
-        失效，而失效算錯就會給人看過期的清單，代價遠高於六秒。
+        ⚠ **這裡本來刻意不做快取**，理由是「失效算錯會給人看過期的清單」。
+        那個判斷在「只有確認清單那一頁會用到」的前提下是對的；2026-08-18 把
+        「還有幾份要確認」加上審核台首頁之後前提就變了 —— 首頁每次載入都要
+        重算 317 份，dker 實測 **4.71 秒**，PO 當場感覺到：「為什麼覺得登入
+        網路的反應變好慢」。
+
+        ⇒ 改成走 :class:`pp.plan_cache.PlanCache`，只認「改動時間 ＋ 大小」，
+        檔案一變就重算。**判斷會過期，理由要跟著重看，不要只看結論。**
         """
         # ⚠ **不要用 `postprocess.find_bundles()`。** 兩個理由，都實際咬過：
         #   ① 它讀的是模組層的全域資料根（`/data/lightrag`），不是這個 app 的
@@ -2910,10 +2920,19 @@ class IntakeApp:
         parsed = self.paths.parsed_dir
         if not parsed.is_dir():
             LOGGER.warning("沒有解析目錄 %s，確認隊伍是空的", parsed)
+            self._plans.keep_only(set())
             return plans
-        for raw in sorted(parsed.glob("*.mineru_raw")):
+        bundles = sorted(parsed.glob("*.mineru_raw"))
+        # 不見的文件要從快取清掉 —— 舊庫刪掉之後，抱著舊計畫的畫面會繼續顯示
+        # 已經不存在的文件，而且不會報錯。
+        self._plans.keep_only(set(bundles))
+        for raw in bundles:
             try:
-                plan = postprocess.as_json(postprocess.plan_one(raw))
+                content = raw / "content_list.json"
+                stat = content.stat()
+                plan = self._plans.get(raw, (stat.st_mtime_ns, stat.st_size),
+                                       lambda raw=raw: postprocess.as_json(
+                                           postprocess.plan_one(raw)))
                 # ⚠ **用計畫自己報的檔名當鍵，不要用目錄名。** 目錄叫
                 # `<檔名>.mineru_raw`，拿它當鍵的話畫面、紀錄檔名、找原 PDF
                 # 三個地方都會多一截尾巴，而且不會報錯 —— 只是每一份都對不上。
