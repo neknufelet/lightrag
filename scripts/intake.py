@@ -2178,12 +2178,13 @@ class IntakeApp:
             # 2026-08-18 之前這裡直接自動放行，於是 PO 從 Zotero 丟一篇進來，
             # 它一路走到抽取，中間沒有任何地方停下來問他 —— 錢花在一個要被
             # 刪掉的舊庫上。消音會改變送去抽取的文字，先抽再改要重抽一次。
+            # ⚠ **不要把理由塞進 `reasons`。** 那一格是「這份教了我們什麼新東西」，
+            # 畫面會在旁邊印「決定會變成規則，套用到之後所有文件」—— 而「等你
+            # 確認」不是規則，是這一份的一次性關卡。2026-08-18 第一版塞在那裡，
+            # 畫面於是同時說「可以放行」與「等你確認」，PO 當場看不懂。
+            # ⇒ 擋的理由由 `_public_job` 現算，不進 job 的簿記。
             hold = self._confirm_hold_reason(job.filename)
             if hold:
-                with self._lock:
-                    job.reasons = [*job.reasons, "等你確認"]
-                    job.details = [*job.details, hold]
-                    self.store.save(job)
                 self.store.append_log(job.job_id, f"計畫乾淨但不自動放行：{hold}")
                 LOGGER.info("job %s 等人確認，不自動放行", job.job_id)
                 return
@@ -3407,7 +3408,14 @@ class IntakeApp:
         }
 
     def _public_job(self, job: Job) -> dict[str, object]:
-        return job.public(self.store.log_tail(job.job_id), self._metrics(job.plan))
+        row = job.public(self.store.log_tail(job.job_id), self._metrics(job.plan))
+        # **現算，不進簿記。** 人去確認完之後這一格要立刻消失，存進 job 的話
+        # 還要記得清掉 —— 少清一次畫面就永遠說它在等確認。
+        if job.status == "planned":
+            row["confirm_hold"] = self._confirm_hold_reason(job.filename)
+            row["confirm_link"] = ("/confirm?doc=" + urllib.parse.quote(job.filename)
+                                   if row["confirm_hold"] else "")
+        return row
 
     def state(self) -> dict[str, object]:
         candidates, warnings = self._candidates()
@@ -3700,7 +3708,12 @@ def _format_size(value: object) -> str:
     return f"{value / (1024 * 1024):.1f} MiB"
 
 
-def _status_label(status: object, decision: object = None) -> str:
+def _status_label(status: object, decision: object = None, hold: object = "") -> str:
+    # ⚠ **擋著的時候不能說「可以放行」。** 計畫判乾淨（decision=clean）與
+    # 「這份可以往下走」是兩件事 —— 2026-08-18 PO 看到同一張卡片上面寫
+    # 「可以放行」、下面寫「等你確認」，當場問這是在幹嘛。
+    if status == "planned" and hold:
+        return "等你確認"
     if status == "planned" and decision == "clean":
         return "可以放行"
     labels = {
@@ -3901,8 +3914,10 @@ def _render_job_row(job: Mapping[str, object], current: str | None = None) -> st
     # 使用者只看得到「按了沒反應」。
     if status in {"failed", "failed_parse", "planned"} and isinstance(error, str) and error:
         err_html = f"<span class='err'>⚠ {_esc(error)}</span>"
+    hold = job.get("confirm_hold") or ""
     chip = (f"<span class='chip {'idle' if job.get('queued') else _chip_class(status, decision)}'>"
-            f"{_esc('排隊中' if job.get('queued') else _status_label(status, decision))}</span>")
+            f"{_esc('排隊中' if job.get('queued') else _status_label(status, decision, hold))}"
+            "</span>")
     return (
         f"<div class='row{" current" if is_current else ""}' "
         f"data-q='{1 if job.get('queued') else 0}'>"
@@ -4109,7 +4124,15 @@ def _render_plan(job: Mapping[str, object] | None) -> str:
         teach = ("<div class='teach ok'><b>沒有。全部命中既有規則</b>"
                  "<ul><li>處理方式與前面幾份相同，沒有需要你決定的事。</li></ul></div>")
 
-    if status == "planned" and decision == "clean":
+    hold = str(job.get("confirm_hold") or "")
+    if status == "planned" and hold:
+        # ⚠ **擋著的時候不要給放行鍵。** 給了就等於邀請人繞過自己剛裝的煞車，
+        # 而且畫面同時說「可以放行」與「等你確認」—— 2026-08-18 PO 當場看不懂。
+        # 這裡改成把他送去該去的地方。
+        link = _esc(job.get("confirm_link") or "/confirm")
+        acts = (f"<a class='go' href='{link}'>去確認這 一份 →</a>"
+                f"<button data-act='return' data-id='{job_id}'>跳過</button>")
+    elif status == "planned" and decision == "clean":
         acts = (f"<button class='go' data-act='admit' data-id='{job_id}'>放行 · 修補並索引</button>"
                 f"<button data-act='return' data-id='{job_id}'>跳過</button>")
     elif status == "planned":
@@ -4135,13 +4158,16 @@ def _render_plan(job: Mapping[str, object] | None) -> str:
         head.append(f"{_esc(pages)} 頁")
     if items_n not in (None, "—"):
         head.append(f"{_esc(items_n)} 個項目")
-    head.append(_esc(_status_label(status, decision)))
+    head.append(_esc(_status_label(status, decision, hold)))
 
     return (
         "<div class='stage-body'><p class='eyebrow'>處理計畫</p>"
         f"<h2>{_esc(job.get('filename', ''))}</h2>"
         f"<p class='meta'>{' · '.join(head)}</p>"
-        "<h3>這份有沒有教我們新東西</h3>"
+        # 停在這裡的原因寫在最上面，不要混進「教了我們什麼新東西」那一格 ——
+        # 那一格旁邊印著「決定會變成規則」，而這是這一份的一次性關卡。
+        + (f"<p class='banner'>⏸ {_esc(hold)}</p>" if hold else "")
+        + "<h3>這份有沒有教我們新東西</h3>"
         f"{teach}"
         "<h3>打算怎麼處理</h3><div class='grid'>"
         f"<div class='cell'><div class='k'>消音</div>"
