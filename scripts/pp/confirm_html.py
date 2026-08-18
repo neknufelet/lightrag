@@ -91,8 +91,41 @@ def _bulk(items: Sequence[ConfirmItem]) -> str:
     )
 
 
+def _dropped(muted: Sequence[ConfirmItem]) -> str:
+    """「機器另外自己丟了 N 段」+ 點得開。
+
+    PO 2026-08-18 問「確定的沒露出？」—— 在此之前完全沒有，連數字都沒印。
+    ⚠ **只給數字是死路**：看到數字不對勁，卻沒有任何辦法看是哪幾段。
+    PO 原話：「如果有問題還是要寫看全部吧」。
+
+    ⚠ 攤開的是**這一份**的十幾段，不是全庫那幾百段 —— 一份一份看才走得完。
+    ⚠ 一段都沒丟就整塊不畫：畫面上每多一行，人就要多讀一行。
+    """
+    if not muted:
+        return ""
+    rows = "".join(
+        f"<div class='item muted'><div>"
+        f"<p class='why'><b>{_esc(m.category)}</b>　{_esc(m.reason)}</p>"
+        f"<p class='snip'>{_esc(m.text.strip()) if m.text.strip() else NO_TEXT}</p>"
+        f"<p class='meta'>第 {m.page} 頁</p>"
+        f"</div></div>"
+        for m in muted
+    )
+    return (
+        "<details class='dropped'>"
+        f"<summary>這一份機器另外自己丟了 <b>{len(muted)}</b> 段（規則有把握的）"
+        "—— 點開看是哪些</summary>"
+        # ⚠ 這裡是 HTML 不是 Markdown，強調要用 <b> —— 寫 `**…**` 會原樣印出星號。
+        "<p class='note'>這些<b>已經丟掉了</b>，這裡只是給你看。覺得不對就回報，"
+        "改的是規則、不是這一頁。</p>"
+        + rows +
+        "</details>"
+    )
+
+
 def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
-                   position: int, total: int, evidence: str = "") -> str:
+                   position: int, total: int, evidence: str = "",
+                   muted: Sequence[ConfirmItem] = ()) -> str:
     """畫出「這一份有哪幾段要你確認」的整個畫面。
 
     Args:
@@ -104,6 +137,8 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
             ⚠ 選填，**目前還沒有接上任何來源**。有量到的就給，讓人自己判斷
             嚴重度；不要用形容詞替人下結論（`ledger.py` 曾把嚴重程度寫死成
             形容詞，實測差六百倍）。
+        muted: :func:`pp.confirm.muted_items` 的輸出 —— **規則已經丟掉**的那些。
+            選填；給了就多畫一塊可以點開的「機器另外丟了 N 段」。
 
     Returns:
         一段 HTML 片段（不是完整頁面）—— 由審核台那頁組進去。
@@ -128,7 +163,10 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
             "<section class='confirm'>" + back + head
             + "<p class='ok'>這一份<b>沒有</b>要你確認的段落，規則全部都有把握。"
             "直接放行就好。</p>"
-            "<div class='foot'>"
+            # ⚠ 沒有要確認的，**不代表沒有東西被丟掉** —— 這條路更需要那塊，
+            # 因為整頁除此之外什麼都沒有，人無從判斷「規則全部有把握」對不對。
+            + _dropped(muted)
+            + "<div class='foot'>"
             "<button type='button' class='pri go-next'>下一份 →</button>"
             "</div>" + back + "</section>"
         )
@@ -144,7 +182,8 @@ def render_confirm(*, doc: str, items: Sequence[ConfirmItem],
         "<button type='button' class='skip'>跳過這份</button>"
         "<button type='button' class='stop'>存起來，今天到這</button>"
         "</div>"
-        "<p class='after'>確認完的會排進下一批<b>抽取</b>；"
+        + _dropped(muted)
+        + "<p class='after'>確認完的會排進下一批<b>抽取</b>；"
         "沒確認的等著，<b>不會被抽取</b> —— 先抽再改要重抽一次，那是最貴的一步。</p>"
         + back + "</section>"
     )

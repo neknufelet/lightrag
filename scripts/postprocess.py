@@ -221,8 +221,11 @@ def as_json(p: dict) -> dict:
         # 這與這個碼庫記過的「dry-run 說 0、--commit 卻改了東西」同一族：
         # **乾跑報的東西若少於實際會擋的東西，乾跑就失去意義。**
         "refs": {
+            # `text` 是 2026-08-18 補的。少了它，人攤開「機器丟了什麼」時會看到
+            # 一整片空白 —— 實測全庫被丟掉的 382 段參考文獻，`text` 欄位全空，
+            # 內容都在 `list_items` 裡（`reference_section.display_text` 負責合併）。
             "mute": [{"index": m.index, "page": m.page, "kind": m.kind,
-                      "section": m.section} for m in p["refs"].mutes],
+                      "section": m.section, "text": m.text} for m in p["refs"].mutes],
             "body_chars_before": p["refs"].body_chars_before,
             "body_chars_after": p["refs"].body_chars_after,
             "ratio": round(p["refs"].ratio, 4),

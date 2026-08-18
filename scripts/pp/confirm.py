@@ -159,6 +159,82 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     return items
 
 
+#: 參考文獻那條規則的判準 → 白話。同 :data:`_TITLE_REASONS`：認不得的照原文吐。
+_REF_REASONS: Mapping[str, str] = {
+    "reference": "參考書目，機器有把握。消掉是決定不是損失 —— 文獻之間的關聯"
+                 "靠內容圖譜連，不靠這些名字字串",
+    "acknowledgement": "致謝／經費，機器有把握。它不回答問題",
+}
+
+#: 標題區塊那條規則丟掉時看到的訊號 → 白話。
+_TITLE_SIGNALS: Mapping[str, str] = {
+    "publication": "看到期刊名與卷期，是封面資訊",
+    "affiliation": "看到作者單位，是封面資訊",
+    "correspondence": "看到通訊作者，是封面資訊",
+    "author": "看到作者列，是封面資訊",
+}
+
+
+def _lookup(table: Mapping[str, str], key: str, what: str) -> str:
+    """查白話理由。**認不得就照原文吐出來，不要用一句漂亮話蓋掉。**
+
+    蓋掉的話，規則多了一種判準而畫面照樣說得頭頭是道，沒有人會發現。
+    """
+    known = table.get(key)
+    if known:
+        return known
+    logger.warning("%s出現沒見過的判準 %r —— 理由照原文吐出", what, key)
+    return f"規則的判準是「{key}」，這個判準還沒有白話說明" if key else "規則沒有給判準"
+
+
+def muted_items(plan: Mapping[str, object]) -> list[ConfirmItem]:
+    """規則有把握、**已經丟掉**的那些，攤開成跟確認清單同樣的形狀。
+
+    PO 2026-08-18 問「確定的沒露出？」—— 在此之前沒有，只有 :func:`muted_count`
+    的一個數字。**只給數字是死路**：看到「丟了 12 段」覺得不對勁，卻沒有任何
+    辦法看是哪 12 段。PO 原話：「如果有問題還是要寫看全部吧」。
+
+    回傳的每一項 ``suppress`` 都是真的 —— 它們已經被丟了，不是待決定。
+    ⚠ 這個函式**只負責攤開來看**，不參與勾選；要覆核就是重跑規則的事。
+    """
+    items: list[ConfirmItem] = []
+    for row in _rows(_section(plan, "noise"), "mute"):
+        repeat = row.get("repeat")
+        items.append(ConfirmItem(
+            section="noise", index=int(row["index"]), category="頁首頁尾",
+            reason=(f"重複 {repeat} 次，確定是頁首頁尾" if repeat is not None
+                    else "確定是頁首頁尾"),
+            text=str(row.get("text") or ""), page=int(row.get("page") or 0),
+            suppress=True,
+        ))
+    for row in _rows(_section(plan, "refs"), "mute"):
+        items.append(ConfirmItem(
+            section="refs", index=int(row["index"]), category="參考書目",
+            reason=_lookup(_REF_REASONS, str(row.get("kind") or ""), "參考文獻"),
+            text=str(row.get("text") or ""), page=int(row.get("page") or 0),
+            suppress=True,
+        ))
+    for row in _rows(_section(plan, "title"), "mute"):
+        items.append(ConfirmItem(
+            section="title", index=int(row["index"]), category="標題區塊",
+            reason=_lookup(_TITLE_SIGNALS, str(row.get("signal") or ""), "標題區塊"),
+            text=str(row.get("text") or ""), page=int(row.get("page") or 0),
+            suppress=True,
+        ))
+    return items
+
+
+def _section(plan: Mapping[str, object], name: str) -> Mapping[str, object]:
+    """有這一段就回它，沒有就回空的。
+
+    ⚠ 跟 :func:`_require` **刻意不同**：那支是「不知道有沒有要確認的，不能當成
+    沒有」，所以缺段就丟；這支攤開的是**已經丟掉**的東西，缺段時報少一點
+    不會讓人誤刪正文。兩種嚴格度對應兩種後果，不要統一。
+    """
+    section = plan.get(name)
+    return section if isinstance(section, Mapping) else {}
+
+
 def muted_count(plan: Mapping[str, object]) -> int:
     """規則有把握、直接丟掉的項數。
 

@@ -138,6 +138,22 @@ def item_chars(item: dict) -> int:
             + sum(len(x) for x in (item.get("list_items") or [])))
 
 
+def display_text(item: dict) -> str:
+    """一個項目**給人看的原文**。
+
+    ⚠ 跟 :func:`item_chars` 同一個理由：**不能只看 `text`**。參考清單的型別是
+    `list`，內容在 `list_items` 陣列裡而 `text` 是空的。2026-08-18 實測全庫
+    被丟掉的 **382 段參考文獻，`text` 全部是空的** —— 只看 `text` 的話，
+    人攤開來看會是 382 個空白，跟沒給一樣。
+
+    ⚠ 這個碼庫已經為同一件事付過一次代價：`item_chars` 的第一版只數 `text`，
+    報出「消音 0.05%」這種假數字（實際 8–23%）。**同一個坑不要踩第二次。**
+    """
+    parts = [(item.get("text") or "").strip()]
+    parts += [str(x).strip() for x in (item.get("list_items") or [])]
+    return "\n".join(p for p in parts if p)
+
+
 def _kind(text: str) -> str | None:
     """這個標題是不是要消音的區段起點。不是就回 None。"""
     if REFERENCE_HEADING.match(text):
@@ -199,7 +215,7 @@ def plan(items: list[dict]) -> RefPlan:
             muted_idx.add(j)
             mutes.append(RefMute(index=j, item_type=items[j].get("type", ""),
                                  page=items[j].get("page_idx"),
-                                 text=items[j].get("text") or "",
+                                 text=display_text(items[j]),
                                  section=text, kind=kind))
         sections.append((i, text, kind, len(span)))
 
@@ -215,7 +231,7 @@ def plan(items: list[dict]) -> RefPlan:
             continue
         muted_idx.add(i)
         mutes.append(RefMute(index=i, item_type=it.get("type", ""),
-                             page=it.get("page_idx"), text=it.get("text") or "",
+                             page=it.get("page_idx"), text=display_text(it),
                              section="<MinerU sub_type=ref_text>", kind="reference"))
 
     total = sum(item_chars(it) for it in items)
