@@ -48,6 +48,7 @@ from pp.rules import (  # noqa: E402
     empty_table,
     latex_fix,
     layout_noise,
+    margin_text,
     reference_section,
     title_block,
 )
@@ -142,8 +143,10 @@ def plan_one(raw: Path, *, source_dir: Path | None = None) -> dict:
     claimed = ({m.index for m in noise.mutes} | {m.index for m in refs.mutes}
                | {m.index for m in title.mutes})
     cover_ad = cover_ad_page.plan(ctx.items, claimed=claimed)
+    margin = margin_text.plan(ctx.items,
+                              claimed=claimed | {m.index for m in cover_ad.mutes})
     return {"ctx": ctx, "noise": noise, "refs": refs, "title": title, "tables": tables,
-            "charts": charts, "latex": latex, "cover_ad": cover_ad}
+            "charts": charts, "latex": latex, "cover_ad": cover_ad, "margin": margin}
 
 
 def render(p: dict, details: bool) -> None:
@@ -155,6 +158,7 @@ def render(p: dict, details: bool) -> None:
     print(f"  文獻：{refs.summary()}")
     print(f"  標題：{p['title'].summary()}")
     print(f"  封面：{p['cover_ad'].summary()}")
+    print(f"  邊緣：{p['margin'].summary()}")
     print(f"  表格：{tables.summary()}")
     print(f"  圖片：{p['charts'].line()}")
     print(f"  LaTeX：{p['latex'].summary()}")
@@ -262,6 +266,14 @@ def as_json(p: dict) -> dict:
             "ratio": round(p["cover_ad"].ratio, 4),
             "suspicious": p["cover_ad"].suspicious,
         },
+        # 印在頁面左右緣的字。原文與判準都要跟著出去。
+        "margin": {
+            "mute": [{"index": m.index, "page": m.page, "text": m.text,
+                      "signal": m.signal} for m in p["margin"].mutes],
+            "fired": p["margin"].fired,
+            "ratio": round(p["margin"].ratio, 4),
+            "suspicious": p["margin"].suspicious,
+        },
         "tables": {
             "total": tables.total,
             "repair": [{"index": t.index, "page": t.page, "class": t.klass.value,
@@ -331,7 +343,7 @@ def env_with_overlay(argv: list[str] | None = None) -> dict[str, str]:
 
 _CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
                 "refs_mute", "title_mute", "title_held", "title_fired",
-                "cover_ad_mute", "cover_ad_fired",
+                "cover_ad_mute", "cover_ad_fired", "margin_mute", "margin_fired",
                 "tables_total", "repairable", "review",
                 "charts_convert", "charts_dangling",
                 "latex_items", "latex_times", "latex_partials", "latex_glued",
@@ -359,6 +371,8 @@ def canary_row(p: dict) -> dict:
             # 與根本沒開火（這份沒有廣告頁）是兩件事。
             "cover_ad_mute": len(p["cover_ad"].mutes),
             "cover_ad_fired": p["cover_ad"].fired,
+            "margin_mute": len(p["margin"].mutes),
+            "margin_fired": p["margin"].fired,
             "tables_total": tables.total,
             "repairable": len(tables.repairable),
             "review": len(tables.review),

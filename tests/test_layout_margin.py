@@ -108,3 +108,23 @@ def test_without_a_band_the_old_repeat_rule_still_decides() -> None:
     p = plan(items, n_pages=10)
 
     assert [h.text for h in p.held] == ["只出現一次的東西"]
+
+
+# ── 左右邊緣：PO 2026-08-18 指著 Annual Reviews 印在頁緣的下載聲明 ──────────
+
+
+def test_the_horizontal_body_band_is_measured_the_same_way() -> None:
+    """左右緣跟上下緣同一套量法 —— **百分位與門檻只有一份**，各寫一份就會漂。"""
+    from pp.rules.layout_noise import body_hband
+
+    left, right = body_hband(BODY)
+
+    assert (left, right) == (70, 900)
+
+
+def test_too_few_body_paragraphs_means_no_horizontal_band_either() -> None:
+    """量不出來就回 None。猜一條邊界的後果是把正文當版面消掉，而且不報錯。"""
+    from pp.rules.layout_noise import body_hband
+
+    assert body_hband([_body(100, 130)]) == (None, None)
+    assert body_hband([]) == (None, None)

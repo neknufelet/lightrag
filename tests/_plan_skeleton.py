@@ -30,6 +30,7 @@ def skeleton(**sections: object) -> dict:
         "refs": _empty(),
         "title": _empty(),
         "cover_ad": _empty(),
+        "margin": _empty(),
         "tables": SimpleNamespace(total=0, repairable=[], review=[]),
         "charts": SimpleNamespace(convert=[], dangling=[]),
         # `canary_row` 讀的是另外五格 —— 兩支都要餵，否則骨架只夠用一半。

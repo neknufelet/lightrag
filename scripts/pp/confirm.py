@@ -155,7 +155,8 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     # ⚠ **所以過濾寫在清單這一層，不寫進規則層**（PO 2026-08-18 裁；上一輪把
     # 過濾寫進規則層踩了兩次，兩次都是測試當場擋下來）。少了這一段，畫面會拿
     # 已經丟掉的東西去佔用人的時間，而且畫面自己還說它「等你確認」。
-    dropped = {int(row["index"]) for row in _rows(_section(plan, "cover_ad"), "mute")}
+    dropped = {int(row["index"]) for name in WHOLE_DROP_SECTIONS
+               for row in _rows(_section(plan, name), "mute")}
 
     items: list[ConfirmItem] = []
     for row in _rows(noise, "held"):
@@ -197,6 +198,19 @@ _REF_REASONS: Mapping[str, str] = {
     "reference": "參考書目，機器有把握。消掉是決定不是損失 —— 文獻之間的關聯"
                  "靠內容圖譜連，不靠這些名字字串",
     "acknowledgement": "致謝／經費，機器有把握。它不回答問題",
+}
+
+#: 「不逐段判斷、整塊丟掉」的那幾條規則。它們蓋掉的項目同時還躺在別條規則的
+#: `held` 裡，所以清單這一層要把它們濾掉。**新增一條就要加進這裡** ——
+#: 漏加的話畫面會拿已經丟掉的東西去問人，而且還說它「等你確認」。
+WHOLE_DROP_SECTIONS: tuple[str, ...] = ("cover_ad", "margin")
+
+#: 頁面邊緣那條規則的訊號 → 白話。
+_MARGIN_REASONS: Mapping[str, str] = {
+    "left_margin": "整條印在正文框的左邊外面 —— 期刊印的下載聲明、書眉那類，"
+                   "不是內容",
+    "right_margin": "整條印在正文框的右邊外面 —— 期刊印的下載聲明、書眉那類，"
+                    "不是內容",
 }
 
 #: 封面廣告頁那條規則的訊號 → 白話。
@@ -292,6 +306,13 @@ def muted_items(plan: Mapping[str, object]) -> list[ConfirmItem]:
             text=str(row.get("text") or ""), page=int(row.get("page") or 0),
             suppress=True,
         ))
+    for row in _rows(_section(plan, "margin"), "mute"):
+        items.append(ConfirmItem(
+            section="margin", index=int(row["index"]), category="頁面邊緣",
+            reason=_lookup(_MARGIN_REASONS, str(row.get("signal") or ""), "頁面邊緣"),
+            text=str(row.get("text") or ""), page=int(row.get("page") or 0),
+            suppress=True,
+        ))
     return items
 
 
@@ -313,7 +334,7 @@ def muted_count(plan: Mapping[str, object]) -> int:
     「這份很乾淨」與「規則把半份文件丟了」。
     """
     total = 0
-    for name in ("noise", "refs", "title", "cover_ad"):
+    for name in ("noise", "refs", "title", "cover_ad", "margin"):
         section = plan.get(name)
         if isinstance(section, Mapping):
             total += len(_rows(section, "mute"))

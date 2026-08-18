@@ -90,6 +90,32 @@ def body_band(items: list[dict]) -> tuple[float | None, float | None]:
     return tops[k], bottoms[len(bottoms) - 1 - k]
 
 
+def body_hband(items: list[dict]) -> tuple[float | None, float | None]:
+    """這份文件的正文從哪裡到哪裡（x 座標）。量不出來就回 ``(None, None)``。
+
+    :func:`body_band` 的橫向版本。**百分位與最少段數共用同一組常數** —— 各寫
+    一份的話，改了一邊而另一邊沒改不會有任何訊號。
+
+    PO 2026-08-18 指著 Annual Reviews 印在頁面左緣的那條下載聲明說「第二章左邊
+    也是屬於外面的，感覺邊界上的都沒甚麼用」。那條字是直排的，位置在正文左緣
+    之外 —— 跟頁眉一樣，**位置就是答案**。
+    """
+    lefts, rights = [], []
+    for it in items:
+        if it.get("type") != "text" or not (it.get("text") or "").strip():
+            continue
+        box = it.get("bbox") or []
+        if len(box) >= 4:
+            lefts.append(box[0])
+            rights.append(box[2])
+    if len(lefts) < BODY_MIN_PARAGRAPHS:
+        return None, None
+    lefts.sort()
+    rights.sort()
+    k = max(0, len(lefts) * BODY_EDGE_PERCENTILE // 100)
+    return lefts[k], rights[len(rights) - 1 - k]
+
+
 def _outside_body(it: dict, top: float | None, bottom: float | None) -> bool:
     """這一項在不在正文範圍之外（＝頁眉區或頁尾區）。
 

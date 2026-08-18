@@ -58,6 +58,7 @@ def _fake_plan() -> dict:
         # 封面廣告頁 2026-08-18 接進來 —— 這份假計畫少一段的話，`canary_row`
         # 會在真實環境之外先 KeyError，那正是它該做的事。
         "cover_ad": SimpleNamespace(mutes=[], fired=False),
+        "margin": SimpleNamespace(mutes=[], fired=False),
         "tables": SimpleNamespace(total=0, repairable=[], review=[]),
         "charts": _FakeChartPlan(),
         "latex": SimpleNamespace(items=0, times=0, partials=0, glued=0, vetoed=[]),
