@@ -29,7 +29,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -37,6 +37,7 @@ from typing import Literal, Protocol
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ledger  # noqa: E402
+import postprocess  # noqa: E402
 from chapters.pdf_splitter import extract_pages, read_toc  # noqa: E402
 from chapters.picker_html import render_picker  # noqa: E402
 from chapters.selection import (  # noqa: E402
@@ -53,6 +54,7 @@ from chapters.split_record import (  # noqa: E402
 )
 from chapters.split_record import record_path as chapter_record_path  # noqa: E402
 from mineru_common import load_env  # noqa: E402
+from pp import confirm, confirm_html, confirm_queue, confirm_record  # noqa: E402
 from pp.paths import DataPaths, configured_data_root  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
@@ -2887,6 +2889,154 @@ class IntakeApp:
         target.unlink()
         LOGGER.info("刪除收件匣檔案 %s", name)
 
+    # ── 確認清單 ────────────────────────────────────────────────────────────
+    # 同樣只做**接線**：排隊在 `pp.confirm_queue`、挑項目在 `pp.confirm`、
+    # 畫在 `pp.confirm_html`、存在 `pp.confirm_record`。那四支都是純函式或純 I/O。
+    # 設計與五條裁決在 `docs/confirm-list-design-20260817.md`。
+
+    def _confirm_plans(self) -> dict[str, dict]:
+        """算出每一份的處理計畫。**只讀，不寫任何檔。**
+
+        ⚠ 全母體實測 6.27 秒（dker，317 份），所以刻意不做快取 —— 快取要處理
+        失效，而失效算錯就會給人看過期的清單，代價遠高於六秒。
+        """
+        # ⚠ **不要用 `postprocess.find_bundles()`。** 兩個理由，都實際咬過：
+        #   ① 它讀的是模組層的全域資料根（`/data/lightrag`），不是這個 app 的
+        #      `self.paths` —— 測試與多資料根的情況下會去掃別人的目錄。
+        #   ② 找不到目錄時它 `sys.exit()`。那是 `SystemExit`，**不是 `Exception`**，
+        #      底下的 try 攔不到，整個服務會當場結束。
+        # 它是 CLI 的進入點，行為對 CLI 是對的，對長跑的服務不是。
+        plans: dict[str, dict] = {}
+        parsed = self.paths.parsed_dir
+        if not parsed.is_dir():
+            LOGGER.warning("沒有解析目錄 %s，確認隊伍是空的", parsed)
+            return plans
+        for raw in sorted(parsed.glob("*.mineru_raw")):
+            try:
+                plan = postprocess.as_json(postprocess.plan_one(raw))
+                # ⚠ **用計畫自己報的檔名當鍵，不要用目錄名。** 目錄叫
+                # `<檔名>.mineru_raw`，拿它當鍵的話畫面、紀錄檔名、找原 PDF
+                # 三個地方都會多一截尾巴，而且不會報錯 —— 只是每一份都對不上。
+                plans[str(plan["doc"])] = plan
+            except Exception as exc:                      # noqa: BLE001
+                # ⚠ **一份算不出來不能讓整頁掛掉**，但也不能安靜跳過 ——
+                # 安靜跳過的話那一份就永遠不會出現在隊伍裡，沒有人會發現。
+                LOGGER.warning("算不出 %s 的處理計畫，這一份不進確認隊伍：%s",
+                               raw.name, exc)
+        return plans
+
+    def confirm_queue(self) -> tuple[list[str], dict[str, dict]]:
+        """還有哪幾份要確認，連同它們的計畫。
+
+        Returns:
+            ``(隊伍, 計畫)``。隊伍已排序且已扣掉確認過的。
+        """
+        plans = self._confirm_plans()
+        docs = []
+        for doc, plan in plans.items():
+            try:
+                if confirm.items_from_plan(plan):
+                    docs.append(doc)
+            except KeyError as exc:
+                LOGGER.warning("%s 的計畫缺段，不進確認隊伍：%s", doc, exc)
+        recorded = {p.stem for p in
+                    (Path(self.paths.root) / confirm_record.LIVE_SUBDIR).glob("*.json")}
+        return confirm_queue.pending(docs, recorded), plans
+
+    def confirm_pending_count(self) -> int:
+        """還有幾份要確認 —— 給審核台首頁那個入口用。
+
+        ⚠ **沒有這個入口，這一頁等於不存在**（設計文件第五條）。
+        """
+        return len(self.confirm_queue()[0])
+
+    def confirm_screen(self, filename: str = "", skip: str = "") -> str:
+        """畫某一份的確認清單。
+
+        Args:
+            filename: 要看哪一份。空的就從隊伍最前面那份開始。
+            skip: 剛剛按了「跳過」的那一份 —— 改看它的下一份。
+                ⚠ **跳過不存檔**：存了就等於替人做了決定，而他按跳過正是因為
+                不想決定。所以被跳過的那份仍然留在隊伍裡，下次還會遇到。
+        """
+        queue, plans = self.confirm_queue()
+        if not queue:
+            return confirm_html.render_confirm(doc="", items=[], position=0, total=0)
+        skipped = Path(skip.replace("\\", "/")).name.strip()
+        if skipped:
+            doc = confirm_queue.next_after(skipped, queue) or queue[0]
+        else:
+            doc = Path(filename.replace("\\", "/")).name.strip() or queue[0]
+        if doc not in plans:
+            raise IntakeError(f"沒有這份文件的解析結果：{doc}", 404)
+        plan = plans[doc]
+        return confirm_html.render_confirm(
+            doc=doc, items=confirm.items_from_plan(plan),
+            position=confirm_queue.position_of(doc, queue), total=len(queue),
+            muted=confirm.muted_items(plan),
+        )
+
+    def save_confirm(self, filename: str, *, dropped: Sequence[str],
+                     notes: Mapping[str, str]) -> dict[str, object]:
+        """把人勾好的結果存成紀錄，回傳寫到哪裡與下一份是誰。
+
+        ⚠ **整份清單都存，沒勾的照樣存**（PO 第二條、藍桶第 2 條）。只存勾掉的
+        話，「看過、決定留著」會被當成「還沒看過」；更糟的是規則一改、那幾項
+        可能變成預設勾掉，人當初決定留著的東西就被安靜地丟了。
+
+        Args:
+            filename: 這份文件的名字。
+            dropped: 人勾起來（＝要丟掉）的那些項目的 ``section:index``。
+            notes: ``{key: 理由}``。**理由不強迫填。**
+        """
+        queue, plans = self.confirm_queue()
+        doc = Path(filename.replace("\\", "/")).name.strip()
+        if doc not in plans:
+            raise IntakeError(f"沒有這份文件的解析結果：{doc}", 404)
+
+        wanted = set(dropped)
+        items = []
+        for item in confirm.items_from_plan(plans[doc]):
+            drop = item.key in wanted
+            # 只有「人改掉規則本來的判斷」才標 human。規則剛好也這樣的不算 ——
+            # 全部標 human 的話，「哪些是人判的」這個問題就再也答不出來。
+            decided = (confirm.DECIDED_BY_HUMAN
+                       if drop != item.suppress or item.key in notes
+                       else confirm.DECIDED_BY_RULE)
+            items.append(replace(item, suppress=drop, decided_by=decided,
+                                 note=notes.get(item.key, "")))
+
+        source = self._confirm_source_pdf(doc)
+        path = confirm_record.write_record(
+            Path(self.paths.root), doc=doc,
+            pdf_sha256=ledger.sha256_of(source) if source else "",
+            items=items,
+            at=datetime.now(UTC).astimezone().isoformat(timespec="seconds"),
+            rules_commit=_chapters_commit(self.repo),
+        )
+        remaining = [d for d in queue if d != doc]
+        LOGGER.info("確認 %s：丟掉 %d／%d 項，還剩 %d 份",
+                    doc, sum(1 for i in items if i.suppress), len(items), len(remaining))
+        return {"saved": str(path), "dropped": sum(1 for i in items if i.suppress),
+                "total": len(items), "next": confirm_queue.next_after(doc, queue),
+                "remaining": len(remaining)}
+
+    def _confirm_source_pdf(self, doc: str) -> Path | None:
+        """這份文件的原 PDF 在哪。找不到就回 None。
+
+        ⚠ **找不到不要擋下存檔。** 指紋是「PDF 換了要停下來問人」用的保險，
+        而保險失效不該讓人白做一遍勾選。存空字串，讓下次讀回時自己看得出來
+        沒有指紋可比。
+        """
+        for candidate in (self.paths.parsed_dir / doc,
+                          self.paths.inputs_dir(self.workspace) / doc):
+            if candidate.is_file():
+                return candidate
+        found = next(self.paths.library_dir.rglob(doc), None)
+        if found is None:
+            LOGGER.warning("找不到 %s 的原 PDF，確認紀錄不會有指紋", doc)
+        return found
+
     # ── 拆章勾選 ────────────────────────────────────────────────────────────
     # 這裡只做**接線**：算在 `chapters.selection`、畫在 `chapters.picker_html`、
     # 存在 `chapters.split_record`。那三支都是純函式或純 I/O，在 coder 上就驗得完
@@ -3250,8 +3400,22 @@ class IntakeApp:
             "foreign": foreign_rows,
             "foreign_error": foreign_error,
             "staging_warning": self.staging_warning(),
+            "confirm_pending": self._confirm_pending_safe(),
             "restore_point": self._restore_point,
         }
+
+    def _confirm_pending_safe(self) -> int:
+        """還有幾份要確認。**算不出來就回 0，不要讓首頁整頁掛掉。**
+
+        ⚠ 這條掛在首頁上，而首頁是唯一看得到系統狀態的地方 —— 為了一個入口
+        數字讓整頁 500，代價遠大於少顯示一條橫幅。但**要留下訊息**，
+        不然沒有人會知道那個入口為什麼不見了。
+        """
+        try:
+            return self.confirm_pending_count()
+        except Exception as exc:                          # noqa: BLE001
+            LOGGER.warning("算不出待確認份數，首頁不顯示那個入口：%s", exc)
+            return 0
 
     def _index_documents(self) -> tuple[dict[str, str], str | None]:
         """索引裡每份文件的現況：檔名 → 狀態。**「它現在怎麼樣」的唯一真相來源。**
@@ -4281,6 +4445,120 @@ document.addEventListener('click', async e => {
 """
 
 
+CONFIRM_CSS = """
+/* 確認清單。獨立一頁（PO 2026-08-17 第五條），沿用審核台的底色與字級。 */
+.confirm{max-width:44rem;margin:1.5rem auto;padding:0 1rem}
+.confirm h1{font-size:1.4rem;margin:0 0 .3rem}
+.confirm .sub{margin:0;color:#5a6070;font-size:.95rem}
+.confirm .prog{margin:.9rem 0 0;padding:.7rem .8rem;border:1px solid #d7d9e0;
+  border-radius:4px;background:#fafbfc;font-size:.9rem;color:#5a6070}
+.confirm h2.doc{margin:1.1rem 0 0;padding:.75rem .9rem;border:1px solid #d7d9e0;
+  border-bottom:0;border-radius:4px 4px 0 0;background:#f2f4f7;font-size:.95rem;
+  overflow-wrap:anywhere}
+.confirm .count,.confirm .ok{margin:0;padding:.65rem .9rem;border:1px solid #d7d9e0;
+  border-bottom:0;font-size:.9rem;color:#5a6070;background:#fff}
+.confirm .quick{padding:.55rem .9rem;border:1px solid #d7d9e0;border-bottom:0;
+  background:#fff;display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+.confirm .quick span{font-size:.82rem;color:#7b8494}
+.confirm .quick button{font:inherit;font-size:.82rem;padding:.25rem .6rem;
+  border:1px solid #d7d9e0;border-radius:3px;background:#f2f4f7;cursor:pointer}
+/* 勾選框與內容並排；min-width:0 讓長字串（DOI、期刊代碼）在 grid 裡真的縮得下去。
+   少了它，子項會用內容寬度撐開整頁，手機上右邊被切掉。 */
+.confirm .item{display:grid;grid-template-columns:auto 1fr;gap:.6rem;
+  padding:.75rem .9rem;border:1px solid #d7d9e0;border-bottom:0;background:#fff}
+.confirm .item>div{min-width:0}
+.confirm .item input{margin-top:.35rem;width:1.1rem;height:1.1rem;accent-color:#a35c18}
+.confirm .why{margin:0 0 .3rem;font-size:.82rem;color:#a35c18;overflow-wrap:anywhere}
+.confirm .why b{color:#171a22}
+.confirm .snip{margin:0;padding:.5rem .6rem;background:#f6f7f9;
+  border-left:2px solid #d7d9e0;border-radius:0 3px 3px 0;font-size:.85rem;
+  font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.6;
+  white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+.confirm .blank{color:#a35c18;font-style:normal}
+.confirm .meta{margin:.3rem 0 0;font-size:.8rem;color:#7b8494}
+.confirm .foot{padding:.9rem;border:1px solid #d7d9e0;background:#fff;
+  display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.confirm .foot button{font:inherit;padding:.5rem 1rem;border:1px solid #d7d9e0;
+  border-radius:4px;background:#f2f4f7;cursor:pointer}
+.confirm .foot button.pri{background:#2f5d9e;border-color:#2f5d9e;color:#fff;font-weight:650}
+.confirm .foot button[disabled]{opacity:.55;cursor:default}
+.confirm .dropped{border:1px solid #d7d9e0;border-top:0;background:#fff}
+.confirm .dropped summary{padding:.7rem .9rem;cursor:pointer;font-size:.88rem;color:#5a6070}
+.confirm .dropped .note{margin:0 .9rem .5rem;font-size:.82rem;color:#7b8494}
+.confirm .item.muted{display:block;opacity:.75;border-left:3px solid #2c7a52}
+.confirm .after{margin:0;padding:.7rem .9rem;border:1px solid #d7d9e0;border-top:0;
+  border-radius:0 0 4px 4px;background:#f6f7f9;font-size:.85rem;color:#5a6070}
+.confirm .back{margin:.8rem 0}
+.confirm .done{margin:1rem 0;padding:.8rem .9rem;border:1px solid #b6d7c2;
+  border-radius:4px;background:#eef7f1;font-size:.95rem}
+"""
+
+CONFIRM_JS = """
+// 整份快速處理。data-cat 的三種值：某個分類名／'*' 全部／'' 全部取消。
+document.addEventListener('click', e => {
+  const b = e.target.closest('.bulk');
+  if (!b) return;
+  const want = b.dataset.cat;
+  document.querySelectorAll(".confirm .item > input[type='checkbox']").forEach(x => {
+    if (want === '*') x.checked = true;
+    else if (want === '') x.checked = false;
+    else if (x.dataset.cat === want) x.checked = true;
+  });
+});
+
+async function saveConfirm(btn, thenGo) {
+  btn.disabled = true;
+  const doc = new URL(location.href).searchParams.get('doc')
+            || document.querySelector('.confirm h2.doc')?.textContent.trim();
+  const dropped = [...document.querySelectorAll(".confirm .item > input:checked")]
+                  .map(x => x.value);
+  const r = await fetch('/api/confirm/save', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({doc: doc, dropped: dropped, notes: {}}),
+  });
+  const out = await r.json();
+  if (!r.ok) {
+    btn.insertAdjacentHTML('afterend',
+      ' <span class="warn">沒存成：' + (out.error || r.status) + '</span>');
+    btn.disabled = false;
+    return;
+  }
+  // ⚠ 存成功之後**一定要換頁或明講已存**。停在原地的話，人不知道自己存到沒有，
+  // 只好再按一次 —— 而按第二次會覆蓋掉他這中間可能改過的東西。
+  if (thenGo && out.next) {
+    location.href = '/confirm?doc=' + encodeURIComponent(out.next);
+  } else {
+    btn.insertAdjacentHTML('afterend',
+      ' <span>存好了：丟掉 ' + out.dropped + ' / ' + out.total + ' 項，還剩 '
+      + out.remaining + ' 份。' + (out.next ? '' : ' 全部做完了。')
+      + ' <a class="btn" href="/">← 回收件匣</a></span>');
+  }
+}
+
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('save-next')) saveConfirm(e.target, true);
+  else if (e.target.classList.contains('stop')) saveConfirm(e.target, false);
+  else if (e.target.classList.contains('skip') || e.target.classList.contains('go-next')) {
+    // 跳過＝**不存**，直接看下一份。存了就等於替人做了決定。
+    const doc = new URL(location.href).searchParams.get('doc') || '';
+    location.href = '/confirm?skip=' + encodeURIComponent(doc);
+  }
+});
+"""
+
+
+def _confirm_page(fragment: str) -> str:
+    """把確認清單包成完整一頁。**獨立一頁**（PO 2026-08-17 第五條）。"""
+    return (
+        "<!doctype html>\n"
+        "<html lang='zh-Hant'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>確認清單</title><style>" + CSS + CONFIRM_CSS + "</style></head>"
+        "<body><main>" + fragment + "</main>"
+        "<script>" + CONFIRM_JS + "</script></body></html>"
+    )
+
+
 def _chapter_page(fragment: str) -> str:
     """把勾選片段包成完整一頁。
 
@@ -4327,8 +4605,18 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
         len(in_progress), len(completed), len(failed), len(skipped)])
 
     links = state.get("links") if isinstance(state.get("links"), dict) else {}
+
+    # ⚠ **沒有這個入口，確認清單那一頁等於不存在**（設計文件第五條）。
+    # 一份都不剩就整條不畫 —— 常態不佔畫面，同暫存區橫幅的理由。
+    pending = state.get("confirm_pending")
+    confirm_link = ""
+    if isinstance(pending, int) and pending > 0:
+        confirm_link = (f"<div class='banner'>還有 <b>{pending}</b> 份要你確認"
+                        "（機器不敢決定哪幾段該不該進知識庫）"
+                        "　<a class='btn' href='/confirm'>去確認 →</a></div>")
+
     warnings = state.get("source_warnings")
-    warn_html = ""
+    warn_html = confirm_link
     if isinstance(warnings, list) and warnings:
         warn_html = ("<div class='banner'>⚠ "
                      + _esc("；".join(str(item) for item in warnings)) + "</div>")
@@ -4504,6 +4792,15 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     job = app._get_job(job_id)
                     self._json(app._public_job(job))
                     return
+                if parsed.path == "/confirm":
+                    # 確認清單。**自成一頁**（PO 2026-08-17 第五條）——
+                    # 審核台既有的頁是「看狀態」，這一頁是「做事情」，
+                    # 做到一半關掉要能回來，狀態頁沒有這種概念。
+                    query = urllib.parse.parse_qs(parsed.query)
+                    doc = (query.get("doc") or [""])[0]
+                    skip = (query.get("skip") or [""])[0]
+                    self._html(_confirm_page(app.confirm_screen(doc, skip)))
+                    return
                 if parsed.path == "/chapters":
                     # 拆章勾選。**自成一頁**，不擠進審核台那張長頁 ——
                     # 一本四百頁的書切到節可能兩三百列，塞進去會把別的區塊淹掉。
@@ -4546,6 +4843,13 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                 if parsed.path == "/api/parse":
                     jobs = app.submit_parse(_candidate_ids(payload))
                     self._json({"jobs": [app._public_job(job) for job in jobs]}, 202)
+                    return
+                if parsed.path == "/api/confirm/save":
+                    doc = str(payload.get("doc") or "")
+                    dropped = [str(x) for x in (payload.get("dropped") or [])]
+                    notes = {str(k): str(v)
+                             for k, v in (payload.get("notes") or {}).items()}
+                    self._json(app.save_confirm(doc, dropped=dropped, notes=notes))
                     return
                 if parsed.path == "/api/chapters/confirm":
                     doc = payload.get("doc")
