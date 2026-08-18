@@ -56,6 +56,18 @@ RUNNING_HEAD_MIN_REPEAT = 3
 RUNNING_HEAD_PAGE_FRACTION = 0.5
 
 
+#: 封面那一頁。**在這一頁上，型別本身就是答案。**
+#:
+#: 期刊名只印在封面，整份只出現一次 → 過不了重複門檻；而封面的標題與作者排得
+#: 很高，把 :func:`body_band` 的正文上緣拉到 y≈97，於是 y=110 的頁眉落在「正文
+#: 範圍內」。**兩條既有判準同時失效**，但正文永遠不會是 header/footer/aside_text。
+#:
+#: ⚠ **只有這一頁。** 內頁被標成這三種型別的可能是被標錯的真內容 —— 全庫實測
+#: 2026-08-18，其他頁那 36 項裡有 `from jax import random`（程式碼被標成 footer）
+#: 與 `Boundary layer flow:`（被標成 aside_text）。同一個型別在封面是版面、
+#: 在內頁可能是內容，差別就是位置。
+COVER_PAGE_IDX: Final[int] = 0
+
 #: 量正文上下緣時，取第幾百分位。取極值會被少數壓在很上面的段落帶歪，
 #: 取中位又會把正常正文算成邊緣。10% 是折衷。
 BODY_EDGE_PERCENTILE = 10
@@ -261,6 +273,7 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
         # **位置優先於次數。** 在正文範圍之外就是版面，不必管它出現幾次
         # （見 `_outside_body` 的說明：頁眉會隨章節換字串）。
         if (n >= thr
+                or it.get("page_idx") == COVER_PAGE_IDX
                 or _outside_body(it, band_top, band_bottom)
                 or is_publisher_boilerplate(key)
                 or (it["type"] == "aside_text" and is_gibberish(key))):

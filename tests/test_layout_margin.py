@@ -29,12 +29,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from pp.rules.layout_noise import body_band, plan  # noqa: E402
 
 
-def _page(y0: int, y1: int, text: str, kind: str = "header") -> dict:
-    return {"type": kind, "text": text, "page_idx": 0, "bbox": [70, y0, 900, y1]}
+def _page(y0: int, y1: int, text: str, kind: str = "header", page: int = 1) -> dict:
+    # ⚠ **預設排在內頁，不是封面。** 2026-08-18 起封面那一頁的 header/footer
+    # 一律當版面家具消掉（`layout_noise.COVER_PAGE_IDX`），樣本擺在第 0 頁的話
+    # 這幾支測試量到的是那條新規則，不是它們自己要守的行為。
+    return {"type": kind, "text": text, "page_idx": page, "bbox": [70, y0, 900, y1]}
 
 
-def _body(y0: int, y1: int, text: str = "正文一段夠長的內容") -> dict:
-    return {"type": "text", "text": text, "page_idx": 0, "bbox": [70, y0, 900, y1]}
+def _body(y0: int, y1: int, text: str = "正文一段夠長的內容", page: int = 1) -> dict:
+    return {"type": "text", "text": text, "page_idx": page, "bbox": [70, y0, 900, y1]}
 
 
 BODY = [_body(100 + i * 40, 130 + i * 40) for i in range(12)]
