@@ -57,6 +57,7 @@ from mineru_common import load_env  # noqa: E402
 from pp import (  # noqa: E402
     confirm,
     confirm_context,
+    confirm_gate,
     confirm_html,
     confirm_queue,
     confirm_record,
@@ -2173,7 +2174,37 @@ class IntakeApp:
                 self.events.append(event)
                 self.store.append_log(job.job_id, f"教學事件：{reason}：{detail}")
         if evaluation.accepted:
+            # ⚠ **煞車：沒確認的不准往下走**（PO 2026-08-17 第二條的下半）。
+            # 2026-08-18 之前這裡直接自動放行，於是 PO 從 Zotero 丟一篇進來，
+            # 它一路走到抽取，中間沒有任何地方停下來問他 —— 錢花在一個要被
+            # 刪掉的舊庫上。消音會改變送去抽取的文字，先抽再改要重抽一次。
+            hold = self._confirm_hold_reason(job.filename)
+            if hold:
+                with self._lock:
+                    job.reasons = [*job.reasons, "等你確認"]
+                    job.details = [*job.details, hold]
+                    self.store.save(job)
+                self.store.append_log(job.job_id, f"計畫乾淨但不自動放行：{hold}")
+                LOGGER.info("job %s 等人確認，不自動放行", job.job_id)
+                return
             self._auto_admit(job)
+
+    def _confirm_hold_reason(self, filename: str) -> str:
+        """這份文件該不該卡住等人確認。回一句理由；空字串＝放行。
+
+        ⚠ **算不出來就放行**，不要擋。擋住的代價是文件永遠卡著而且沒人知道
+        為什麼；放行的代價是少確認一份。前者比較糟 —— 但要留下 warning。
+        """
+        try:
+            plan = self._confirm_plans().get(filename)
+            if plan is None:
+                return ""
+            pending = len(confirm.items_from_plan(plan))
+            recorded = confirm_record.record_path(Path(self.paths.root), filename).is_file()
+        except Exception as exc:                          # noqa: BLE001
+            LOGGER.warning("算不出 %s 要不要等確認，先放行：%s", filename, exc)
+            return ""
+        return confirm_gate.hold_reason(pending=pending, confirmed=recorded)
 
     def _auto_admit(self, job: Job) -> None:
         """機械計畫判定 clean 的自動放行（PO 裁決 2026-08-08 `4eacaea`）。
@@ -3067,12 +3098,37 @@ class IntakeApp:
         # 沒有路往下走。2026-08-18 在 dker 上實際踩到。
         ordered = queue if doc in queue else sorted([*queue, doc])
         following = confirm_queue.next_after(doc, ordered)
+        # **確認一份、放行一份**（PO 2026-08-17 第二條）。存完就自己往下走 ——
+        # 不然它會停在「等你確認」，而人以為自己已經做完了。
+        released = self._release_after_confirm(doc)
         remaining = [d for d in queue if d != doc]
         LOGGER.info("確認 %s：丟掉 %d／%d 項，還剩 %d 份",
                     doc, sum(1 for i in items if i.suppress), len(items), len(remaining))
         return {"saved": str(path), "dropped": sum(1 for i in items if i.suppress),
                 "total": len(items), "next": following,
-                "remaining": len(remaining)}
+                "released": released, "remaining": len(remaining)}
+
+    def _release_after_confirm(self, doc: str) -> str:
+        """確認完就把那份放行。回一句給人看的話。
+
+        ⚠ **不要沉默地不放行。** 人剛做完確認，如果文件還停在「等你確認」，
+        他會以為自己白做了、或再確認一次。
+
+        ⚠ 找不到對應的 job 不是錯誤 —— 舊庫那 246 份多數根本沒有 job
+        （它們是以前就進庫的）。回一句話說清楚，不要丟例外。
+        """
+        with self._lock:
+            waiting = [j for j in self._jobs.values()
+                       if j.filename == doc and j.status == "planned"]
+        if not waiting:
+            return "這份沒有在等放行的工作（可能早就進庫了）"
+        try:
+            self.submit_admit(waiting[0].job_id)
+        except IntakeError as exc:
+            LOGGER.warning("%s 確認完但放行失敗：%s", doc, exc)
+            return f"確認存好了，但放行沒成功：{exc}"
+        LOGGER.info("%s 確認完，已放行去抽取", doc)
+        return "已排進抽取"
 
     def _confirm_source_pdf(self, doc: str) -> Path | None:
         """這份文件的原 PDF 在哪。找不到就回 None。
@@ -4614,7 +4670,8 @@ async function saveConfirm(btn, thenGo) {
   } else {
     btn.insertAdjacentHTML('afterend',
       ' <span>存好了：丟掉 ' + out.dropped + ' / ' + out.total + ' 項，還剩 '
-      + out.remaining + ' 份。' + (out.next ? '' : ' 全部做完了。')
+      + out.remaining + ' 份。' + (out.released ? '（' + out.released + '）' : '')
+      + (out.next ? '' : ' 全部做完了。')
       + ' <a class="btn" href="/">← 回收件匣</a></span>');
   }
 }

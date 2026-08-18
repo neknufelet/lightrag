@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from pp import confirm_apply
 from pp.docctx import DocContext  # noqa: E402
 from pp.oracle import Oracle, OracleError  # noqa: E402
 from pp.paths import ContainerPaths  # noqa: E402
@@ -279,6 +280,7 @@ def apply_doc(
     verified_tables: dict[str, str] | None = None,
     verified_text: dict[str, str] | None = None,
     curated_idx: set[str] | None = None,
+    confirmed: set[str] | None = None,
     oracle: Oracle | None = None,
     commit: bool = False,
     acknowledged_ratio: bool = False,
@@ -290,6 +292,11 @@ def apply_doc(
     只寫**已驗證**的表格。沒有通過兩雙眼睛逐格比對的一律不寫 —— 拿沒把握的
     轉錄覆蓋原本的空表格，是把「明顯缺失」換成「看起來正常但可能是錯的」，
     那比缺失更難發現。
+
+    confirmed:       人在確認清單勾「這段不要」的那些（`section:index`）。
+                     **沒有它，確認清單是假的** —— 人勾完、畫面說存好了、
+                     抽取照樣把那幾段送進去。作法是把它們從 `held` 搬進
+                     `mutes`，走同一條消音路徑（還原、計數、守衛全一致）。
 
     verified_text 是給「文字層有正確答案、MinerU 讀成亂碼」那一類的單點修補
     （實測 C p64 的旋轉 90° 說明文字被 OCR 讀成 "Ab = = ze = etsosbd) te se…"）。
@@ -330,6 +337,21 @@ def apply_doc(
     # 標題頁的作者／單位／出版資訊。門檻比另外兩條緊得多（8%）：標題頁在論文裡
     # 佔比本來就很小，超過就表示圈錯範圍 —— 而圈錯範圍的代價是消掉摘要或正文。
     title = title_block.plan(items)
+    # 人在確認清單勾的「這段不要」→ 搬進消音清單，走同一條路（還原、計數、
+    # 項目數守衛全部一致）。
+    #
+    # ⚠ **比例守衛看不到人加的這幾項。** ratio 是 `plan()` 當下算的，
+    # 搬 held → mutes 不會改變它。這是刻意的：比例守衛防的是「規則圈太大、
+    # 吃到正文」，而人勾的東西按定義已經被人看過了。
+    # ⇒ 代價是「人勾很多」不會觸發比例警告。要擋那種情況得另外量，還沒做。
+    if confirmed:
+        n_conf, missing = confirm_apply.honour(
+            noise, title, confirmed, report_missing=True)
+        r.notes.append(f"依人工確認額外消音 {n_conf} 項")
+        if missing:
+            r.notes.append(
+                f"⚠ 確認紀錄有 {len(missing)} 項找不到對應段落（可能重新解析過）")
+
     if title.suspicious:
         _ratio_guard("標題頁消音比例", title.ratio)
 

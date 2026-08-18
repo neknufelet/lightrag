@@ -635,6 +635,30 @@ def _rollback_batch(
         print("      人工還原：把上列備份檔複製回 <bundle>/content_list.json 與 _manifest.json")
 
 
+def _confirmed_keys(paths, raw: Path) -> set[str]:
+    """這份文件的人工確認結果：人勾了「這段不要」的那幾個 `section:index`。
+
+    **沒有紀錄就回空集合**（多數文件本來就沒人確認過，那是常態不是錯誤）。
+    ⚠ 但**讀壞了要講出來**，不要當成沒有 —— 安靜當成沒有的話，人的決定會
+    無聲消失，而抽取照常跑完，沒有任何地方看得出來（藍桶第 2 條）。
+    """
+    from pp import confirm_record
+
+    doc = raw.name.removesuffix(".mineru_raw")
+    path = confirm_record.record_path(paths.root, doc)
+    if not path.is_file():
+        return set()
+    try:
+        record = confirm_record.read_record(path)
+    except (OSError, ValueError, KeyError) as exc:
+        sys.exit(f"postprocess: 讀不懂 {doc} 的確認紀錄（{path}）：{exc}\n"
+                 "      這份文件有人做過確認，但紀錄壞了。**不要當成沒有確認就往下跑** ——\n"
+                 "      那會把人決定要丟的段落送進抽取。修好紀錄或刪掉它重新確認。")
+    keys = {i.key for i in record.items if i.suppress}
+    print(f"  ⓘ {doc}：依人工確認要多消 {len(keys)} 項（{path.name}）")
+    return keys
+
+
 def cmd_apply(a: argparse.Namespace, env: dict[str, str],
               bundles: list[Path] | None = None) -> int:
     from pp import apply as ap_mod
@@ -705,6 +729,7 @@ def cmd_apply(a: argparse.Namespace, env: dict[str, str],
                                    acknowledged_ratio=a.acknowledged_ratio,
                                    out_root=out_root, verified_tables=verified,
                                    verified_text=cur_txt, curated_idx=set(cur_tbl),
+                                   confirmed=_confirmed_keys(paths, raw),
                                    oracle=o, commit=a.commit)
             if cur_tbl or cur_txt:
                 res.notes.append(
