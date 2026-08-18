@@ -192,6 +192,7 @@ _TITLE_SIGNALS: Mapping[str, str] = {
     "submission": "投稿／修訂／接受日期，是期刊流程的紀錄",
     "classification": "期刊的分類碼（PACS 那類），不是內容",
     "publisher": "出版商印的東西（網址、版權、按鈕文字），不是內容",
+    "name_line": "整行就是一個人名，是封面的作者列",
     "affiliation": "看到作者單位，是封面資訊",
     "correspondence": "看到通訊作者，是封面資訊",
     "author": "看到作者列，是封面資訊",

@@ -1886,8 +1886,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 1
  },
  "1991 - The propagation of plane sound waves in narrow and wide circular tubes, and generalization to uniform tubes of arbitrary cross-sectional shape.pdf": {
   "charts_convert": 0,
@@ -1907,8 +1907,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 2
+  "title_held": 1,
+  "title_mute": 3
  },
  "1994 - A Finite Element Method for the Free Vibration of Air in Ducts and Rooms with Absorbing Walls.pdf": {
   "charts_convert": 0,
@@ -1928,8 +1928,8 @@
   "review": 0,
   "tables_total": 4,
   "title_fired": true,
-  "title_held": 1,
-  "title_mute": 1
+  "title_held": 0,
+  "title_mute": 2
  },
  "2004 - Room Sizing and Optimization at Low Frequencies.pdf": {
   "charts_convert": 0,
@@ -1991,8 +1991,8 @@
   "review": 0,
   "tables_total": 1,
   "title_fired": true,
-  "title_held": 2,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 1
  },
  "2006 - Practical methods to define scattering coefficients in a room acoustics computer model.pdf": {
   "charts_convert": 0,
@@ -2033,8 +2033,8 @@
   "review": 0,
   "tables_total": 1,
   "title_fired": true,
-  "title_held": 4,
-  "title_mute": 0
+  "title_held": 1,
+  "title_mute": 3
  },
  "2007 - Hybrid method for numerical simulation of room acoustics with auralization part 1 - theoretical and.pdf": {
   "charts_convert": 0,
@@ -2054,8 +2054,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 5,
-  "title_mute": 0
+  "title_held": 3,
+  "title_mute": 2
  },
  "2007 - Thresholds of Detection for Changes to the Q Factor of Low-Frequency Modes in Listening Environments.pdf": {
   "charts_convert": 0,
@@ -2117,8 +2117,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 6,
-  "title_mute": 0
+  "title_held": 4,
+  "title_mute": 2
  },
  "2008 - Prediction of energy decay in room impulse responses simulated with an image-source model.pdf": {
   "charts_convert": 0,
@@ -2327,8 +2327,8 @@
   "review": 0,
   "tables_total": 2,
   "title_fired": true,
-  "title_held": 7,
-  "title_mute": 2
+  "title_held": 6,
+  "title_mute": 3
  },
  "2012 - Omnidirectional broadband acoustic absorber based on metamaterials.pdf": {
   "charts_convert": 0,
@@ -2705,8 +2705,8 @@
   "review": 0,
   "tables_total": 0,
   "title_fired": true,
-  "title_held": 3,
-  "title_mute": 0
+  "title_held": 2,
+  "title_mute": 1
  },
  "2015 - Development and validation of a combined phased acoustical radiosity and image source model for predicting sound fields in rooms.pdf": {
   "charts_convert": 0,

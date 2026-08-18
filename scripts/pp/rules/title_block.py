@@ -243,6 +243,51 @@ KEYWORDS: Final[re.Pattern[str]] = re.compile(
     r"^\s*(index\s+terms|key\s?words?)\b", re.I)
 
 
+# 封面上單獨一行的人名。期刊把作者排成一行一個，所以每個都自成一段。
+#
+# ⚠ **這條規則唯一會出事的方向是咬到正文。** PO 2026-08-18 自己問到重點：
+# 「單獨人名不會錯嗎？在文章裡面的好像不容易單獨拆開來」—— 他是對的，
+# 而且量得出來：把這個樣式套到 1827 段正文上，**命中 0 段**。
+# 正文裡的人名總是夾在句子裡（"Toole reported…"），不會自成一段。
+#
+# 四道關一起才擋得住：
+#   ① 整段完全比對（不是 search）—— 正文段落更長
+#   ② 至少兩個詞 —— 'Rayleigh'、'Frequency' 這種章節標題只有一個詞
+#   ③ 長度上限
+#   ④ **必須有縮寫點**（`R.`、`E.`、`A.`）
+#
+# ⚠ 第 ④ 條是被自己的測試逼出來的：前三條讓 'Sound Absorption' 通過了 ——
+# 兩個大寫字，跟人名長得一模一樣。實測庫裡那 62 個真人名**每一個都有縮寫點**
+# （FLOYD **E.** TOOLE、Michael **R.** Stinson、**A.** CRAGGS…），
+# 而章節標題沒有。
+# 代價是漏掉沒有縮寫的名字（"Michael Stinson"）—— **那是安全的方向**：
+# 漏抓只是多問人一次，誤抓是丟掉真內容而且不報錯。
+STANDALONE_NAME: Final[re.Pattern[str]] = re.compile(
+    r"[A-Z][A-Za-z'\-]*\.?(\s+[A-Z][A-Za-z'\-]*\.?){1,3}")
+
+#: 縮寫：單一個大寫字母加一個點。人名一行必須至少有一個。
+INITIAL: Final[re.Pattern[str]] = re.compile(r"\b[A-Z]\.")
+
+#: 人名一行的長度上限。實測庫裡最長的是 'Julio Cesar B. Torres'（21 字）；
+#: 給到 34 留餘裕，但擋得住整串大寫的標題。
+NAME_MAX_CHARS: Final[int] = 34
+
+
+def is_standalone_name(text: str) -> bool:
+    """這一段是不是「整段就只有一個人名」。
+
+    ⚠ **只該用在封面那一區。** 實測 62 個命中裡 56 個在第 0 頁；不在封面的
+    那 6 個是期刊標章與掃壞的字（'AUDIO A ES'、'AC IPT'），不是內容 ——
+    但既然位置給得起保險，就收緊到封面，一個都不多碰。
+    """
+    t = (text or "").strip().rstrip(",;")
+    if not t or len(t) > NAME_MAX_CHARS:
+        return False
+    if not INITIAL.search(t):
+        return False
+    return STANDALONE_NAME.fullmatch(t) is not None
+
+
 def _signal(text: str) -> str | None:
     """這一項該不該消音，以及是憑哪個訊號。不該消就回 None。
 
@@ -274,6 +319,9 @@ def _signal(text: str) -> str | None:
         return "affiliation"
     if looks_like_author_line(t):
         return "author"
+    # 單獨一行的人名。放在最後 —— 前面每一條都比它明確，先讓它們認領。
+    if is_standalone_name(t):
+        return "name_line"
     return None
 
 
