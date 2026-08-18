@@ -55,6 +55,56 @@ RUNNING_HEAD_MIN_REPEAT = 3
 RUNNING_HEAD_PAGE_FRACTION = 0.5
 
 
+#: 量正文上下緣時，取第幾百分位。取極值會被少數壓在很上面的段落帶歪，
+#: 取中位又會把正常正文算成邊緣。10% 是折衷。
+BODY_EDGE_PERCENTILE = 10
+
+#: 要有幾段正文才敢量邊界。太少的話量出來的邊界是噪音，
+#: **而猜錯一條邊界的後果是把正文當頁眉消掉，不會有任何錯誤訊息。**
+BODY_MIN_PARAGRAPHS = 5
+
+
+def body_band(items: list[dict]) -> tuple[float | None, float | None]:
+    """這份文件的正文從哪裡到哪裡（y 座標）。量不出來就回 ``(None, None)``。
+
+    ⚠ **每份自己量，不要用固定門檻。** 這個庫的版面尺寸本來就不一致
+    （體檢表天天在講「頁面尺寸不一致」），拿固定像素去比一定錯。
+
+    ⚠ **量不出來就不要猜。** 回 None 讓規則退回原本的重複次數判斷 ——
+    猜一條邊界的後果是把正文當頁眉消掉，而那不會有任何錯誤訊息。
+    """
+    tops, bottoms = [], []
+    for it in items:
+        if it.get("type") != "text" or not (it.get("text") or "").strip():
+            continue
+        box = it.get("bbox") or []
+        if len(box) >= 4:
+            tops.append(box[1])
+            bottoms.append(box[3])
+    if len(tops) < BODY_MIN_PARAGRAPHS:
+        return None, None
+    tops.sort()
+    bottoms.sort()
+    k = max(0, len(tops) * BODY_EDGE_PERCENTILE // 100)
+    return tops[k], bottoms[len(bottoms) - 1 - k]
+
+
+def _outside_body(it: dict, top: float | None, bottom: float | None) -> bool:
+    """這一項在不在正文範圍之外（＝頁眉區或頁尾區）。
+
+    **為什麼位置比重複次數可靠**：論文與報告的頁眉常常印「現在是第幾章」，
+    每換一章就換一個字串，所以每個只出現一兩次，永遠過不了重複門檻 ——
+    但它就在頁面最上緣。2026-08-18 全庫實測，要人看的 1053 項裡有 819 項
+    （78%）落在邊緣，剩下 234 項才是真的夾在正文裡、需要人判斷的。
+    """
+    if top is None or bottom is None:
+        return False
+    box = it.get("bbox") or []
+    if len(box) < 4:
+        return False
+    return box[3] <= top or box[1] >= bottom
+
+
 def head_threshold(n_pages: int) -> int:
     """實際門檻。短文件放寬，長文件維持 3 —— 68 頁時 min(3, 34) 仍是 3，
     既有行為不變；3 頁時 min(3, 2) = 2，書眉抓得到。"""
@@ -128,6 +178,7 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
     # 樣板計數：抹掉數字後再數一次。頁碼型頁尾只有這樣才數得到。
     tcounts = collections.Counter(template_key(it.get("text") or "") for _, it in targets)
 
+    band_top, band_bottom = body_band(items)
     mutes: list[Mute] = []
     held: list[Mute] = []
     for i, it in targets:
@@ -147,7 +198,11 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
         # （2016 論文的單次 OCR 殘骸）推論出「aside_text 只出現一次」。
         # 另一份 ASEE 論文用 aside_text 放每頁的 'Page 24.417.N' 頁邊頁尾，
         # 15 頁全都是，重複規則明明有效。同一個型別在不同期刊是不同東西。
-        if n >= thr or (it["type"] == "aside_text" and is_gibberish(key)):
+        # **位置優先於次數。** 在正文範圍之外就是版面，不必管它出現幾次
+        # （見 `_outside_body` 的說明：頁眉會隨章節換字串）。
+        if (n >= thr
+                or _outside_body(it, band_top, band_bottom)
+                or (it["type"] == "aside_text" and is_gibberish(key))):
             mutes.append(m)
         else:
             held.append(m)
