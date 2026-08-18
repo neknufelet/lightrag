@@ -15,6 +15,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from mineru_common import BODY_TYPES  # noqa: E402
@@ -103,6 +104,39 @@ def _outside_body(it: dict, top: float | None, bottom: float | None) -> bool:
     if len(box) < 4:
         return False
     return box[3] <= top or box[1] >= bottom
+
+
+#: 出版商印在版面上的東西：期刊首頁、DOI、版權、ISSN。**不是內容。**
+#:
+#: ⚠ 判準是「整段幾乎就是那個東西」，不是「裡面出現過那個字」。聲學論文本來
+#: 就會提到 ISO、doi、www —— 誤判的代價是消掉真內容，而那不會有錯誤訊息。
+#: 長度那道關就是為此：實測出版商樣板都很短，正文提到網址時整段都很長。
+PUBLISHER_PATTERNS: Final[re.Pattern[str]] = re.compile(
+    r"(journal\s+homepage|https?://|doi\.org|\bdoi:\s*10\."
+    r"|©|\(c\)\s*\d{4}|all\s+rights\s+reserved|\bISSN\b"
+    r"|this\s+article\s+is\s+copyrighted)", re.I)
+
+#: 超過這麼長就不當樣板。實測 2026-08-18：命中樣式的 57 項最長 210 字
+#: （那是整段版權宣告），而正文提到網址的段落動輒好幾百字。
+PUBLISHER_MAX_CHARS: Final[int] = 240
+
+
+def is_publisher_boilerplate(text: str) -> bool:
+    """這一段是不是出版商的版面家具（期刊首頁、DOI、版權、ISSN）。
+
+    **為什麼值得一條規則**：2026-08-18 量剩下要人看的 243 項，其中 86 項是
+    「同一個字串出現在好幾份不同文件」—— 那是出版商印上去的，不是內容。
+    但計畫是一份一份算的、看不到別份文件，所以只做**不依賴語料**的這半：
+    看樣式，不看跨文件次數。
+
+    ⚠ 另外那 62 項（'ELSEVIER'、'AIP Publishing'…）要靠一份出版商名單才抓得到。
+    **刻意不做**：名單是從舊語料長出來的，而舊語料要被刪掉，新庫的出版商組合
+    不一樣。等新庫有東西再量。
+    """
+    t = (text or "").strip()
+    if not t or len(t) > PUBLISHER_MAX_CHARS:
+        return False
+    return bool(PUBLISHER_PATTERNS.search(t))
 
 
 def head_threshold(n_pages: int) -> int:
@@ -202,6 +236,7 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
         # （見 `_outside_body` 的說明：頁眉會隨章節換字串）。
         if (n >= thr
                 or _outside_body(it, band_top, band_bottom)
+                or is_publisher_boilerplate(key)
                 or (it["type"] == "aside_text" and is_gibberish(key))):
             mutes.append(m)
         else:

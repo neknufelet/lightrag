@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _scripts import load  # noqa: E402
-from pp.confirm import ConfirmItem, items_from_plan, muted_count  # noqa: E402
+from pp.confirm import items_from_plan, muted_count  # noqa: E402
 from pp.rules.title_block import TitleHeld, TitleMute, TitlePlan  # noqa: E402
 
 # ⚠ 共用載入器，不要自己 exec 一份（`tests/_scripts.py` 開頭寫了為什麼）。
@@ -111,27 +111,26 @@ def test_each_row_says_where_it_came_from() -> None:
     assert first.page == 3
 
 
-def test_the_title_reason_says_what_the_rule_actually_saw() -> None:
-    """標題區塊的理由要來自**規則當下看到什麼**，不是全部共用一句話。
+def test_the_rule_answers_the_easy_ones_itself() -> None:
+    """判成「散文」的**不進清單** —— 規則自己已經知道答案了。
 
-    規則自己已經分出「像正文散文」與「沒看到封面訊號」兩種（`TitleHeld.why`），
-    兩種該不該留的判斷完全不同。全部印同一句就等於沒講理由，PO 第四條要的
-    「機器憑什麼這樣勾」就落空了。
+    2026-08-18 全庫實測：標題區塊 293 項待確認裡 138 項判準是「散文」，
+    中位 602 字，那是摘要或正文開頭。規則的預設就是留著，人看了幾乎一定也是
+    留著 —— 問了等於白佔他的時間，而 PO 看著畫面說「我有點搞不太清楚」。
+
+    ⚠ **只從清單裡拿掉，不從規則裡拿掉。** `title_block` 的 `held` 是那條
+    規則自己的安全網（`plan --details` 會印出來），拆掉它等於讓「留著沒消」
+    與「根本沒看到」再也分不出來（`tests/test_title_block.py` 釘著這件事）。
     """
-    def title_item(why: str, text: str) -> ConfirmItem:
-        plan = {**PLAN, "title": {"mute": [],
-                                  "held": [{"index": 1, "page": 1, "text": text,
-                                            "why": why}]}}
-        # ⚠ 不能拿 `[0]` —— 頁首頁尾那類排在前面。挑錯項目的話這條測試會用
-        # 「兩個都是頁首頁尾的理由」來比，永遠相等，而紅的理由跟要測的無關。
-        return next(i for i in items_from_plan(plan) if i.section == "title")
+    plan = {**PLAN, "title": {"mute": [], "held": [
+        {"index": 1, "page": 1, "text": "We measured the absorption…", "why": "散文"},
+        {"index": 2, "page": 1, "text": "Received 14 January 2019", "why": "沒有訊號"},
+    ]}}
 
-    prose = title_item("散文", "We measured the absorption…")
-    quiet = title_item("沒有訊號", "Received 14 January 2019")
+    titles = [i for i in items_from_plan(plan) if i.section == "title"]
 
-    assert prose.reason != quiet.reason, "兩種判準不能共用一句理由"
-    assert "正文" in prose.reason
-    assert "訊號" in quiet.reason
+    assert [i.index for i in titles] == [2], "散文那一項不該出現在清單裡"
+    assert "訊號" in titles[0].reason
 
 
 def test_as_json_really_carries_what_the_list_needs() -> None:

@@ -124,6 +124,14 @@ def _title_reason(why: str) -> str:
     return f"規則的判準是「{why}」，這個判準還沒有白話說明" if why else "規則沒有給判準"
 
 
+#: 規則自己就答得出來的判準，不要拿來問人。
+#:
+#: ⚠ 只影響**清單問不問**，不影響規則做什麼 —— 那些項目仍然在
+#: `title_block` 的 `held` 裡，`plan --details` 照樣印得出來。
+#: 兩件事分開：規則負責不要無聲消失，清單負責不要浪費人的時間。
+_NOT_WORTH_ASKING: frozenset[str] = frozenset({"散文"})
+
+
 def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
     """挑出要人確認的項目。**規則有把握的不進來**（那些走 :func:`muted_count`）。
 
@@ -147,6 +155,16 @@ def items_from_plan(plan: Mapping[str, object]) -> list[ConfirmItem]:
             suppress=False,
         ))
     for row in _rows(title, "held"):
+        if str(row.get("why") or "") in _NOT_WORTH_ASKING:
+            # **規則自己已經知道答案的，不要佔用人的時間。**
+            # 「散文」＝這一段讀起來像正文，規則的預設就是留著，而人看了
+            # 幾乎一定也是留著。2026-08-18 全庫實測 138 項判成散文、
+            # 中位 602 字，那是摘要或正文開頭。
+            #
+            # ⚠ **只從清單裡拿掉，不從規則裡拿掉。** `title_block` 的 `held`
+            # 是那條規則自己的安全網（`plan --details` 會印出來），
+            # 拆掉它等於讓「留著沒消」與「根本沒看到」再也分不出來。
+            continue
         items.append(ConfirmItem(
             section="title", index=int(row["index"]), category="標題區塊",
             reason=_title_reason(str(row.get("why") or "")),
