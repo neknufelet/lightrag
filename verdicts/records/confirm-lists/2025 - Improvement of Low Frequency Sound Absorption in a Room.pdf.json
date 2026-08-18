@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "_": "2026-08-19T00:29:40+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "2025 - Improvement of Low Frequency Sound Absorption in a Room.pdf",
+ "pdf_sha256": "sha256:2ac8a16246e1152e976d2918ef395b48f9169432ac9a0e65df30072f07070aa3",
+ "at": "2026-08-19T00:29:40+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "title",
+   "index": 1,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Neil Wang",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  }
+ ]
+}

@@ -1,0 +1,87 @@
+{
+ "version": 1,
+ "_": "2026-08-19T00:29:19+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method.pdf",
+ "pdf_sha256": "sha256:e2097d32dfe7e1c9778d1db7ab940e9fde897a136f286a343cde318c7bc9807a",
+ "at": "2026-08-19T00:29:19+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "title",
+   "index": 3,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "To cite this article: Yiming Zhao, Zichao Guo, Jie Ye, Junjie Deng, Xinying Lu, Kexin Zeng, Zhonggang Wang & Zhendong Li (2025) 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption: mechanism analysis and corresponding modified theoretical method, Virtual and Physical Prototyping, 20:1, e2455540, DOI: 10.1080/17452759.2025.2455540",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 8,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Submit your article to this journal",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 9,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "View related articles",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 12,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Published online: 16 Feb 2025.",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 13,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "LArticle views: 360",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 15,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "View Crossmark data ssMark",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "title",
+   "index": 17,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "Citing articles: 1 View citing articles",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  }
+ ]
+}

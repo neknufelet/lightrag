@@ -1,0 +1,76 @@
+{
+ "version": 1,
+ "_": "2026-08-18T23:54:39+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "2019 - Compact Acoustic Rainbow Trapping in a Bioinspired Spiral Array of Graded Locally Resonant Metamaterials.pdf",
+ "pdf_sha256": "sha256:62d864b7262dbab8c6e4d2d5857dd115f041beee2711bedfea5b1e082b3a2429",
+ "at": "2026-08-18T23:54:39+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "noise",
+   "index": 105,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "45. Comsol Multiphysics Version 5.3-Structural and Acoustics Module.",
+   "page": 10,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 106,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "46. Jiménez, N.; Romero-García, V.; Pagneux, V.; Groby, J.-P. Rainbow-trapping absorbers: Broadband, perfect and asymmetric sound absorption by subwavelength panels for transmission problems. Sci. Rep. 2017, 7, 13595. [CrossRef] [PubMed]",
+   "page": 10,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 107,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "47. Vanhille, C. Two-dimensional numerical simulations of ultrasound in liquids with gas bubble agglomerates: Examples of bubbly-liquid-type acoustic metamaterials (blamms). Sensors 2017, 17, 173. [CrossRef] [PubMed]",
+   "page": 10,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 108,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "48. Decker, C. Kinetic study and new applications of uv radiation curing. Macromol. Rapid Commun. 2003, 23, 1067–1093. [CrossRef]",
+   "page": 10,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 109,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "49. Ni, X.; Wu, Y.; Chen, Z.-G.; Zheng, L.-Y.; Xu, Y.-L.; Nayar, P.; Liu, X.-P.; Lu, M.-H.; Chen, Y.-F. Acoustic rainbow trapping by coiling up space. Sci. Rep. 2014, 4, 7038. [CrossRef] [PubMed]",
+   "page": 10,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  },
+  {
+   "section": "noise",
+   "index": 110,
+   "category": "頁首頁尾",
+   "reason": "解析器把它標成頁首頁尾，但整份只出現這一次 —— 真的頁眉會每頁重複，所以它比較像章節標題或內文",
+   "text": "G BY",
+   "page": 10,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  }
+ ]
+}

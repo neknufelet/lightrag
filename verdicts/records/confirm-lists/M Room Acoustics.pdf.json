@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "_": "2026-08-19T00:30:40+08:00 由人在確認清單畫面做的決定：打勾＝這段不要進知識庫。**整份清單都在這裡，含人看過但決定留著的那些**（PO 2026-08-17 裁）—— 只存改動的話，規則一改、項目數與順序就變了，`section:index` 會指到別的段落。`decided_by=human` 的那幾列是人改的，重跑規則產不出來，所以這個檔進版控。⚠ **不要事後改**：消音會改變送去抽取的文字，改了那一份就得重抽一次，而抽取是整條線最貴的一步。`rules_commit` 只拿來對照，不拿來重算。格式說明在 docs/confirm-list-design-20260817.md。",
+ "doc": "M Room Acoustics.pdf",
+ "pdf_sha256": "sha256:f1b1b4745dcbe7e1334f48d6d1bf49ec116f792c42f39c77c76ae8bab8ad28c2",
+ "at": "2026-08-19T00:30:40+08:00",
+ "rules_commit": "fd9a660",
+ "items": [
+  {
+   "section": "title",
+   "index": 1,
+   "category": "標題區塊",
+   "reason": "沒看到單位、通訊作者、期刊那些封面訊號，不敢確定",
+   "text": "with M. Vorländer",
+   "page": 0,
+   "suppress": true,
+   "decided_by": "human",
+   "note": ""
+  }
+ ]
+}
