@@ -3014,11 +3014,17 @@ class IntakeApp:
             at=datetime.now(UTC).astimezone().isoformat(timespec="seconds"),
             rules_commit=_chapters_commit(self.repo),
         )
+        # ⚠ **算「下一份」時要把這一份當成還在隊伍裡。** 人重看一份已經確認過的
+        # （改主意、或按了瀏覽器上一頁）時，它早就不在隊伍裡了 ——
+        # 直接問 `next_after` 會回 None，畫面就說「全部做完了」，人卡在那份上
+        # 沒有路往下走。2026-08-18 在 dker 上實際踩到。
+        ordered = queue if doc in queue else sorted([*queue, doc])
+        following = confirm_queue.next_after(doc, ordered)
         remaining = [d for d in queue if d != doc]
         LOGGER.info("確認 %s：丟掉 %d／%d 項，還剩 %d 份",
                     doc, sum(1 for i in items if i.suppress), len(items), len(remaining))
         return {"saved": str(path), "dropped": sum(1 for i in items if i.suppress),
-                "total": len(items), "next": confirm_queue.next_after(doc, queue),
+                "total": len(items), "next": following,
                 "remaining": len(remaining)}
 
     def _confirm_source_pdf(self, doc: str) -> Path | None:
