@@ -1,6 +1,6 @@
 {
  "version": 1,
- "_": "人核完成 2026-08-13，判定過程在 docs/source-review-20260813.md。⚠ 這是資料不是規則：要改分組請改這裡，不要回去改程式。",
+ "_": "人核完成 2026-08-13（舊庫 259 份，判定過程在 docs/source-review-20260813.md）＋ 2026-08-20 機器提案補進新庫 83 份（`by: propose`，尚未人核；當時 0 組需合併、0 份判不出來，因為新庫全是各自獨立的期刊論文）。⚠ 這是資料不是規則：要改分組請改這裡，不要回去改程式。⚠ 舊庫那 259 份的文件已不在語料裡，留著是因為鍵是檔名——同一批書再進來時判定仍然成立。",
  "sources": {
   "book:0xxxx-A": {
    "label": "Kuttruff, Room Acoustics",
@@ -626,6 +626,421 @@
   "book:a-r-handbook": {
    "label": "聲學公式手冊（A–R 共 18 章）",
    "evidence": "A 章內文自稱 'will be used in the book'，章號 A–R 連續無缺；⚠ 沒有書名頁，是推斷",
+   "same_work_as": []
+  },
+  "doc:26C22T9I 2019 - Broadband ultra-thin acoustic metasurface absorber": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:2NU7PPZ3 2020 - Acoustic impedance regulation of Helmholtz resonators for perfect sound absorption via roughened embedded necks": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:39XNGTT2 2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:3I2JUMSW 2019 - A thin low-frequency broadband metasurface with multi-order sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:3INDCAEK 2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:3J5G7JYA 2024 - Hybrid porous Helmholtz resonator for low-frequency broadband absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:42AK2LLR 2026 - A new inverse design method for sound-absorbing metamaterial based on deep learning": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:43RHIUBE 2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Bandwidth and Tunability": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:4IZS9H9E 2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:4Q5GMIP2 2024 - Broadband sound absorbers via quality-factor modulation": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:4ZGYYUIF 2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:6N84VBIF 2025 - Incorporating extended neck Helmholtz resonators into an advanced multi-degree of freedom acoustic metamaterial for low-frequency, broadband acoustic absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:6SRMZLXS 2024 - Multifunctional hybrid plate lattice structure with high energy absorption and excellent sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:7KEVLFNT 2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up channels": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:7PIP8K5P 2018 - Acoustic perfect absorbers via spiral metasurfaces with embedded apertures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:7W9322DZ 2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro-slits panel": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:8SIKYUV4 2025 - Reconfigurable modular acoustic metamaterial for broadband sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:964RDPVI 2019 - Broadband near-perfect absorption of low-frequency sound by subwavelength metasurface": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:9AMHIMWS 2024 - Accelerated design of low-frequency broadband sound absorber with deep learning approach": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:A3XGU2KK 2012 - Low frequency sound propagation in activated carbon": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:AAHMJ6TF 2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:AEL2NQKE 2008 - Perfect Metamaterial Absorber": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:B22ZAIS9 2022 - Design of broadband Helmholtz resonator arrays using the radiation impedance method": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:BAAFPPCT 2023 - Sound absorption of a perforated panel backed with perforated porous material Energy dissipation of Helmholtz resonator cavity": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:C5TB3IEA 2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:C7DEQVL3 2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:CDEVF8NL 2026 - Low-frequency broadband sound absorption of micro-perforated panel absorber with different extended necks": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:CNTLW38N 2014 - Homogenization scheme for acoustic metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:CVPGN8S9 2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:D6FKB7FJ 2017 - A low-frequency sound absorbing material with subwavelength thickness": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:D7CMPFFA 2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:DBB87GAA 2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:DCHEJ2ZJ 2022 - A compact multifunctional metastructure for Low-frequency broadband sound absorption and crash energy dissipation": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:DUA57J6V 2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:F935SQEY 2020 - A double porosity material for low frequency sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:F9FBE9QK 2020 - Folded metaporous material for sub-wavelength and broadband perfect sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:FALNPVEB 2022 - Acoustic absorption modeling of single and multiple coiled-up resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:FFMPAD8L 2026 - Tunable acoustic metasurface for low-frequency broadband absorption via asymmetric adjustable apertures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:FQRVUWYT 2021 - Acoustic multi-layer Helmholtz resonance metamaterials with multiple adjustable absorption peaks": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:FRD6XZJD 2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped acoustic metamaterial": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:GCRJFDX5 2014 - Acoustic coherent perfect absorbers": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:GDWVNKEN 2024 - Ultra-broadband sound absorption via a parallel composite structure consisting of perforated panel resonators with tube bundles and porous material": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:GX4JFGVL 2018 - Broadband high sound absorption from labyrinthine metasurfaces": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:GZJBVTPS 2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:HB2XKTAW 2014 - Ultrathin low-frequency sound absorbing panels based on coplanar spiral tubes or coplanar Helmholtz resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:IB93LWV2 2021 - Acoustic labyrinthine porous metamaterials for subwavelength low-frequency sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:JS95LFP9 2017 - Asymmetric absorber with multiband and broadband for low-frequency sound": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:K55TVB2C 2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:K7SS62X5 2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-resonator metastructured panel": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:KE5QR2V5 2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:KETR64P7 2022 - Acoustic metamaterial for highly efficient low-frequency impedance modulation by extensible design": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:L926GBPT 2016 - Low-frequency tunable acoustic absorber based on split tube resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:LA5JGQ45 2018 - Multiband quasi-perfect low-frequency sound absorber based on double-channel Mie resonator": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:LMURVRSN 2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:LRX57HHZ 2025 - Broadband low-frequency sound absorption of multifunctional composite metastructure": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:MIQ9V2ML 2017 - Perfect absorption of low-frequency sound waves by critically coupled subwavelength resonant system": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:N6QZQHW6 2023 - Coiled-up structure with porous material lining for enhanced sound absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:NAQMYP8A 2022 - Sound absorption in Hilbert fractal and coiled acoustic metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:NBIPP48I 2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:NDNJN5YY 2021 - A low-frequency sound absorber based on micro-slit and coiled cavity": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:NSF5RJAS 2018 - Coupled Resonators for Sound Trapping and Absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:NV7XSSJM 2025 - Recent advancements in sound-absorbing materials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:P9X73XKB 2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:PXUXLG4Y 2026 - Broadband sound absorption performance of parallel gyroid-type triply periodic minimal surface micro-perforated plate sandwich structures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:QFAUQ9UI 2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:QFSXG2HE 2017 - Rainbow-trapping absorbers Broadband, perfect and asymmetric sound absorption by subwavelength panels for transmission problems": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:QPPSPNIZ 2018 - High-efficiency ventilated metamaterial absorber at low frequency": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:QRBKRWB2 2015 - Subwavelength total acoustic absorption with degenerate resonators": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:R3PB4TRH 2021 - Low-frequency sound absorption of a metamaterial with symmetrical-coiled-up spaces": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:RFG9PMCA 2020 - The acoustic black hole A review of theory and applications": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:S6XKYNRL 2017 - Single-channel labyrinthine metasurfaces as perfect sound absorbers with tunable bandwidth": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:SS9HU52M 2017 - Optimal sound-absorbing structures": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:TN2LF7UZ 2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:VN8F6UUE 2012 - Omnidirectional broadband acoustic absorber based on metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:VVQ5D3P2 2022 - Broadband impedance modulation via non-local acoustic metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:VZPKEK57 2024 - Broadband low-frequency sound absorption via Helmholtz resonators with porous material lining": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:W7NYUM3T 2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:WAV24AEK 2022 - Metasurface absorber for ultra-broadband sound via over-damped modes coupling": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:WDPVERIW 2019 - Broadband low-frequency sound absorption by periodic metamaterial resonators embedded in a porous layer": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:WS3XYCAI 2022 - Broadband low-frequency acoustic absorber based on metaporous composite": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:XVD6N97J 2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:XVK63KEV 2019 - Compact Acoustic Rainbow Trapping in a Bioinspired Spiral Array of Graded Locally Resonant Metamaterials": {
+   "label": "",
+   "evidence": "",
+   "same_work_as": []
+  },
+  "doc:YAVMPZSH 2024 - Broadband acoustic metamaterial absorber": {
+   "label": "",
+   "evidence": "",
    "same_work_as": []
   }
  },
@@ -2183,6 +2598,504 @@
    "pdf_sha256": "sha256:c9f859470a869a2a01883c279910b9d73953e39c238bb742737002bdea2fcd96",
    "by": "human",
    "note": "單字母章號 A–R，**待人核是不是同一本**"
+  },
+  "26C22T9I 2019 - Broadband ultra-thin acoustic metasurface absorber": {
+   "source": "doc:26C22T9I 2019 - Broadband ultra-thin acoustic metasurface absorber",
+   "pdf_sha256": "sha256:f7db5b6a196d89b7f43b368ea38138d589748b8c4f1ab0b2a65779662426ffd5",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "2NU7PPZ3 2020 - Acoustic impedance regulation of Helmholtz resonators for perfect sound absorption via roughened embedded necks": {
+   "source": "doc:2NU7PPZ3 2020 - Acoustic impedance regulation of Helmholtz resonators for perfect sound absorption via roughened embedded necks",
+   "pdf_sha256": "sha256:e0bf64e870308a984d857673f4516ba1e2e3220c7cf4bb39b510657159bd4295",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "39XNGTT2 2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method": {
+   "source": "doc:39XNGTT2 2025 - 3D Printed multilayer overlapping resonators for low-frequency broadband sound absorption mechanism analysis and corresponding modified theoretical method",
+   "pdf_sha256": "sha256:e2097d32dfe7e1c9778d1db7ab940e9fde897a136f286a343cde318c7bc9807a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "3I2JUMSW 2019 - A thin low-frequency broadband metasurface with multi-order sound absorption": {
+   "source": "doc:3I2JUMSW 2019 - A thin low-frequency broadband metasurface with multi-order sound absorption",
+   "pdf_sha256": "sha256:e451fa49f9f1d1d073312a457a8fa8418f1ca4bee3bedde20cb369565d678f7e",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "3INDCAEK 2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks": {
+   "source": "doc:3INDCAEK 2021 - Wideband low-frequency sound absorption by inhomogeneous multi-layer resonators with extended necks",
+   "pdf_sha256": "sha256:19252a3964b155379d80e30757ed445c27927683d5c497a5ad67dbf29acf7385",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "3J5G7JYA 2024 - Hybrid porous Helmholtz resonator for low-frequency broadband absorption": {
+   "source": "doc:3J5G7JYA 2024 - Hybrid porous Helmholtz resonator for low-frequency broadband absorption",
+   "pdf_sha256": "sha256:a275778e007fa55aeeaa25cb29a08b1f810a806b7452bc8d7932dc4b71cbe022",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "42AK2LLR 2026 - A new inverse design method for sound-absorbing metamaterial based on deep learning": {
+   "source": "doc:42AK2LLR 2026 - A new inverse design method for sound-absorbing metamaterial based on deep learning",
+   "pdf_sha256": "sha256:f0bfb64bd3b0cd6cce7d7e60a640504952e2b2c90ac16fd94c3157cedcf3c13a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "43RHIUBE 2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Bandwidth and Tunability": {
+   "source": "doc:43RHIUBE 2016 - Three-Dimensional Single-Port Labyrinthine Acoustic Metamaterial Perfect Absorption with Large Bandwidth and Tunability",
+   "pdf_sha256": "sha256:502c66dcbc2eff953ad4d71db5e2204ff3e95a35f933e2cdcc6488fb3f1cccdb",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "4IZS9H9E 2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves": {
+   "source": "doc:4IZS9H9E 2014 - Symmetrical and anti-symmetrical coherent perfect absorption for acoustic waves",
+   "pdf_sha256": "sha256:c1718a0d8512b638b8e7d9665434732bab2d7084db6af053fbdd46c18815d7c0",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "4Q5GMIP2 2024 - Broadband sound absorbers via quality-factor modulation": {
+   "source": "doc:4Q5GMIP2 2024 - Broadband sound absorbers via quality-factor modulation",
+   "pdf_sha256": "sha256:66a4fc03784cb99abec65c5fd39f4cadbebb7a79993698a6f4884d8c3d4b8bea",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "4ZGYYUIF 2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic absorption": {
+   "source": "doc:4ZGYYUIF 2024 - Geometric optimisation of a multiple coiled-up resonator for broadband and octave band acoustic absorption",
+   "pdf_sha256": "sha256:87b8db961f0f049e8d2dbc2b112c51ab03fdc63d271180e84e32a3b75fd8ca72",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "6N84VBIF 2025 - Incorporating extended neck Helmholtz resonators into an advanced multi-degree of freedom acoustic metamaterial for low-frequency, broadband acoustic absorption": {
+   "source": "doc:6N84VBIF 2025 - Incorporating extended neck Helmholtz resonators into an advanced multi-degree of freedom acoustic metamaterial for low-frequency, broadband acoustic absorption",
+   "pdf_sha256": "sha256:0aa2e9108eb0086029d7bfbf5bf5851fe8c034a97af550a332efbf216e12147c",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "6SRMZLXS 2024 - Multifunctional hybrid plate lattice structure with high energy absorption and excellent sound absorption": {
+   "source": "doc:6SRMZLXS 2024 - Multifunctional hybrid plate lattice structure with high energy absorption and excellent sound absorption",
+   "pdf_sha256": "sha256:81cbd7fd49da062f3f27d15fc7e93c464e997565fbb39b5bdaac2d414be338e3",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "7KEVLFNT 2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up channels": {
+   "source": "doc:7KEVLFNT 2019 - Low-frequency sound absorption of hybrid absorber based on micro-perforated panel and coiled-up channels",
+   "pdf_sha256": "sha256:144ad066c03ab2ec76b888b18cb53977af1f4b775f002fa399d0a1af7bff578a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "7PIP8K5P 2018 - Acoustic perfect absorbers via spiral metasurfaces with embedded apertures": {
+   "source": "doc:7PIP8K5P 2018 - Acoustic perfect absorbers via spiral metasurfaces with embedded apertures",
+   "pdf_sha256": "sha256:77ed9a44717071db7618a0bc8f583f2f84c97b2bda2fb83779181347eac0e907",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "7W9322DZ 2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro-slits panel": {
+   "source": "doc:7W9322DZ 2025 - Design and optimization of sound-absorbing metastructure with extended slit-neck resonator and micro-slits panel",
+   "pdf_sha256": "sha256:574da14638ddc706ed23d3168657e67be3c659b2b905bfe2440acfdeef7dad68",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "8SIKYUV4 2025 - Reconfigurable modular acoustic metamaterial for broadband sound absorption": {
+   "source": "doc:8SIKYUV4 2025 - Reconfigurable modular acoustic metamaterial for broadband sound absorption",
+   "pdf_sha256": "sha256:5c1ff6b93d6a11d27c1da718a0d34fd04e6e591f61c32d9fd31fa577da41e7ae",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "964RDPVI 2019 - Broadband near-perfect absorption of low-frequency sound by subwavelength metasurface": {
+   "source": "doc:964RDPVI 2019 - Broadband near-perfect absorption of low-frequency sound by subwavelength metasurface",
+   "pdf_sha256": "sha256:05daa44842fae14b3523637e3b9f97ee4b5fc56b60db4def7c23900426ce5490",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "9AMHIMWS 2024 - Accelerated design of low-frequency broadband sound absorber with deep learning approach": {
+   "source": "doc:9AMHIMWS 2024 - Accelerated design of low-frequency broadband sound absorber with deep learning approach",
+   "pdf_sha256": "sha256:f84c73712dbcb891325886e61c37abb1b2fcd6f0b3820f944ef7c3fb8666fb05",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "A3XGU2KK 2012 - Low frequency sound propagation in activated carbon": {
+   "source": "doc:A3XGU2KK 2012 - Low frequency sound propagation in activated carbon",
+   "pdf_sha256": "sha256:2b57c7d85ff555c27822b1c193dd50f8cc7d9d3a1a1b58a2e3f28fcbcc637b37",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "AAHMJ6TF 2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials": {
+   "source": "doc:AAHMJ6TF 2026 - Low-frequency multi-band sound absorption in triangular fractal acoustic metamaterials",
+   "pdf_sha256": "sha256:bb8c34a43cd97a3a298fc1d38a10ee8fe67af283ca76643dbc9908808846e9ab",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "AEL2NQKE 2008 - Perfect Metamaterial Absorber": {
+   "source": "doc:AEL2NQKE 2008 - Perfect Metamaterial Absorber",
+   "pdf_sha256": "sha256:cdf688e214b4e76b1c6aabd34d2c0881536301abdf08ba3da857a9a80d8d7f6c",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "B22ZAIS9 2022 - Design of broadband Helmholtz resonator arrays using the radiation impedance method": {
+   "source": "doc:B22ZAIS9 2022 - Design of broadband Helmholtz resonator arrays using the radiation impedance method",
+   "pdf_sha256": "sha256:883342bd56349dd32434d20d1290d6c0081bfce7b6d5cd5615e0c0d191761ea6",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "BAAFPPCT 2023 - Sound absorption of a perforated panel backed with perforated porous material Energy dissipation of Helmholtz resonator cavity": {
+   "source": "doc:BAAFPPCT 2023 - Sound absorption of a perforated panel backed with perforated porous material Energy dissipation of Helmholtz resonator cavity",
+   "pdf_sha256": "sha256:c7713576dc08da2275afee70b16f805923ec0bf9b76c6e8b850a8881fa5b16f0",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "C5TB3IEA 2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity": {
+   "source": "doc:C5TB3IEA 2021 - Broadband low-frequency sound absorbing metastructures based on impedance matching coiled-up cavity",
+   "pdf_sha256": "sha256:59cd10916f5bdba70cb79c97a399661ed85d1d42d5a008dc70c116cf316015a8",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "C7DEQVL3 2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials": {
+   "source": "doc:C7DEQVL3 2017 - Sound Absorption Structures From Porous Media to Acoustic Metamaterials",
+   "pdf_sha256": "sha256:b086a782636a697b22b966f61679a5a3547bf9c9224b1d75f72f8f6af7299825",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "CDEVF8NL 2026 - Low-frequency broadband sound absorption of micro-perforated panel absorber with different extended necks": {
+   "source": "doc:CDEVF8NL 2026 - Low-frequency broadband sound absorption of micro-perforated panel absorber with different extended necks",
+   "pdf_sha256": "sha256:2da41b9d34ed10fb980f157da5bde6e0e56cf3a36a73959c52043d8376b16b19",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "CNTLW38N 2014 - Homogenization scheme for acoustic metamaterials": {
+   "source": "doc:CNTLW38N 2014 - Homogenization scheme for acoustic metamaterials",
+   "pdf_sha256": "sha256:2ad66dad31aa39b396cfd181993647856b26d744d8d30460e5cc6801e83900ac",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "CVPGN8S9 2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity": {
+   "source": "doc:CVPGN8S9 2026 - Low-frequency broadband absorber with porous material-coupled convoluted resonant cavity",
+   "pdf_sha256": "sha256:b3b58f747220c72e21aa282e19fc2fc958d480a1cd34ef178ba89bc75a613dcd",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "D6FKB7FJ 2017 - A low-frequency sound absorbing material with subwavelength thickness": {
+   "source": "doc:D6FKB7FJ 2017 - A low-frequency sound absorbing material with subwavelength thickness",
+   "pdf_sha256": "sha256:c7f397771de4e101c979b96676450a57e7313c44d775fe60c5c2c59da2c34fca",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "D7CMPFFA 2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials": {
+   "source": "doc:D7CMPFFA 2025 - Omnidirectional sound wave absorption based on the multi-oriented acoustic meta-materials",
+   "pdf_sha256": "sha256:ced2f34b99fec3d3e866fceffef2be66c6928ca9e1b0ee6a0874fd6d8cffd45a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "DBB87GAA 2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory": {
+   "source": "doc:DBB87GAA 2025 - Design and sound absorption analysis of labyrinthine acoustic metamaterials based on fractal theory",
+   "pdf_sha256": "sha256:ca7cab41b41629841009b8b8b31de8751f0c1b6779782a47e2c6bf504dbc243b",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "DCHEJ2ZJ 2022 - A compact multifunctional metastructure for Low-frequency broadband sound absorption and crash energy dissipation": {
+   "source": "doc:DCHEJ2ZJ 2022 - A compact multifunctional metastructure for Low-frequency broadband sound absorption and crash energy dissipation",
+   "pdf_sha256": "sha256:b3680bbd0760e3a63dd4669bf79f51434da1f714b38f78ae7eb9ba17a088be63",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "DUA57J6V 2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section": {
+   "source": "doc:DUA57J6V 2019 - Low-frequency anechoic metasurface based on coiled channel of gradient cross-section",
+   "pdf_sha256": "sha256:111bd996f2149a14df7a41beddb2b4227840d4f45adb50912175cdb3f8c23780",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "F935SQEY 2020 - A double porosity material for low frequency sound absorption": {
+   "source": "doc:F935SQEY 2020 - A double porosity material for low frequency sound absorption",
+   "pdf_sha256": "sha256:68d0d200d88b00ccba5b96b6686e058df36a5baf5cc32c58ac87a25fd017fa5d",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "F9FBE9QK 2020 - Folded metaporous material for sub-wavelength and broadband perfect sound absorption": {
+   "source": "doc:F9FBE9QK 2020 - Folded metaporous material for sub-wavelength and broadband perfect sound absorption",
+   "pdf_sha256": "sha256:4cfb8d8cf3bd6aff30ec54b6431fe25026d0b875d5eb24806169022ce5f7e514",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "FALNPVEB 2022 - Acoustic absorption modeling of single and multiple coiled-up resonators": {
+   "source": "doc:FALNPVEB 2022 - Acoustic absorption modeling of single and multiple coiled-up resonators",
+   "pdf_sha256": "sha256:38f15629066f1e751676efbadb67dd28d7c7b7d2d203384dfa6caf36fda25a6a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "FFMPAD8L 2026 - Tunable acoustic metasurface for low-frequency broadband absorption via asymmetric adjustable apertures": {
+   "source": "doc:FFMPAD8L 2026 - Tunable acoustic metasurface for low-frequency broadband absorption via asymmetric adjustable apertures",
+   "pdf_sha256": "sha256:92bfd1e19fc38f119048939767c373c852fcaf2062c2d5ee027a71a1751016bc",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "FQRVUWYT 2021 - Acoustic multi-layer Helmholtz resonance metamaterials with multiple adjustable absorption peaks": {
+   "source": "doc:FQRVUWYT 2021 - Acoustic multi-layer Helmholtz resonance metamaterials with multiple adjustable absorption peaks",
+   "pdf_sha256": "sha256:716dbc74375030554b22200703f563825e37c1df555080874108c594ab1f34ae",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "FRD6XZJD 2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped acoustic metamaterial": {
+   "source": "doc:FRD6XZJD 2025 - Study on the multi-low-frequency band gaps and vibration reduction performance of the tooth-shaped acoustic metamaterial",
+   "pdf_sha256": "sha256:8c837c46bea2d2642de4943fa236d0d00479005b78a7eedaeb02fa14387711b5",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "GCRJFDX5 2014 - Acoustic coherent perfect absorbers": {
+   "source": "doc:GCRJFDX5 2014 - Acoustic coherent perfect absorbers",
+   "pdf_sha256": "sha256:0f1e7a6bb9b3c4e2293ad024e44e48045c1373b76c20fef500dcc92e71085945",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "GDWVNKEN 2024 - Ultra-broadband sound absorption via a parallel composite structure consisting of perforated panel resonators with tube bundles and porous material": {
+   "source": "doc:GDWVNKEN 2024 - Ultra-broadband sound absorption via a parallel composite structure consisting of perforated panel resonators with tube bundles and porous material",
+   "pdf_sha256": "sha256:72162e9f07f51e12d6bde939ddbda8512ec01f5efb3d6a869698c08c21cf89ff",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "GX4JFGVL 2018 - Broadband high sound absorption from labyrinthine metasurfaces": {
+   "source": "doc:GX4JFGVL 2018 - Broadband high sound absorption from labyrinthine metasurfaces",
+   "pdf_sha256": "sha256:5587b2896253abaf3fe4cedfbec8be2e4fb9a0d8ae9ff2353f86cf57bf337cdf",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "GZJBVTPS 2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber": {
+   "source": "doc:GZJBVTPS 2026 - Nonlinear Dynamics and Vibration Suppression of a Helmholtz–Duffing Absorber",
+   "pdf_sha256": "sha256:22207af7577fbebce8c39026152c5fadae0d6ff870eabb811caae3dbc2645621",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "HB2XKTAW 2014 - Ultrathin low-frequency sound absorbing panels based on coplanar spiral tubes or coplanar Helmholtz resonators": {
+   "source": "doc:HB2XKTAW 2014 - Ultrathin low-frequency sound absorbing panels based on coplanar spiral tubes or coplanar Helmholtz resonators",
+   "pdf_sha256": "sha256:75f4dc2bbcd8d53129209fe2da6edd79fe3c82d0e82156e8fdb5d8daa82728c7",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "IB93LWV2 2021 - Acoustic labyrinthine porous metamaterials for subwavelength low-frequency sound absorption": {
+   "source": "doc:IB93LWV2 2021 - Acoustic labyrinthine porous metamaterials for subwavelength low-frequency sound absorption",
+   "pdf_sha256": "sha256:ee8a8345669b2cbe6b60f6ab5444735f63df24dd5f2961125d43d324530314c2",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "JS95LFP9 2017 - Asymmetric absorber with multiband and broadband for low-frequency sound": {
+   "source": "doc:JS95LFP9 2017 - Asymmetric absorber with multiband and broadband for low-frequency sound",
+   "pdf_sha256": "sha256:67fb50090129fb1cb7bd173ecc892fed4a0b665efeda31941f1993ad8673818f",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "K55TVB2C 2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise": {
+   "source": "doc:K55TVB2C 2026 - A low-frequency sound absorption structure easily manufactured by machine for transformers noise",
+   "pdf_sha256": "sha256:9d1880152230efaceb86dfe85374f7ee8c4557458b7a7b82f71cac1f049310ff",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "K7SS62X5 2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-resonator metastructured panel": {
+   "source": "doc:K7SS62X5 2026 - Ultra-broadband diffuse-field sound insulation enabled by a bilayer quasi-two-dimensional Helmholtz-resonator metastructured panel",
+   "pdf_sha256": "sha256:da79cc664279904a0b791648db0ec0db2f9a1d28e53c204d5cbf697600b3ebce",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "KE5QR2V5 2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures": {
+   "source": "doc:KE5QR2V5 2024 - Additively manufactured acoustic-mechanical multifunctional hybrid lattice structures",
+   "pdf_sha256": "sha256:55795d70cf9d0a8d549f85cf4582faff977285f7b80aca322045e1bc4810c610",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "KETR64P7 2022 - Acoustic metamaterial for highly efficient low-frequency impedance modulation by extensible design": {
+   "source": "doc:KETR64P7 2022 - Acoustic metamaterial for highly efficient low-frequency impedance modulation by extensible design",
+   "pdf_sha256": "sha256:a1d73fe62422b6ef6d41d14dce1a43b93e2380355d9ff93269913e34dd83090b",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "L926GBPT 2016 - Low-frequency tunable acoustic absorber based on split tube resonators": {
+   "source": "doc:L926GBPT 2016 - Low-frequency tunable acoustic absorber based on split tube resonators",
+   "pdf_sha256": "sha256:68558995fa41e968a423be8fe924304808df0d0ca40f35f5b565481a4e0944a1",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "LA5JGQ45 2018 - Multiband quasi-perfect low-frequency sound absorber based on double-channel Mie resonator": {
+   "source": "doc:LA5JGQ45 2018 - Multiband quasi-perfect low-frequency sound absorber based on double-channel Mie resonator",
+   "pdf_sha256": "sha256:7a77dcad5fdbb07846e4c49c30bdbe23fae33d955f700c015fc2fce499e04592",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "LMURVRSN 2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator": {
+   "source": "doc:LMURVRSN 2023 - Design and study of broadband sound absorbers with partition based on micro-perforated panel and Helmholtz resonator",
+   "pdf_sha256": "sha256:f9c24c7e442625abf8c7dc5778d8001c59ce2254127433237611a0d4b4be4332",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "LRX57HHZ 2025 - Broadband low-frequency sound absorption of multifunctional composite metastructure": {
+   "source": "doc:LRX57HHZ 2025 - Broadband low-frequency sound absorption of multifunctional composite metastructure",
+   "pdf_sha256": "sha256:d96e91b09d48b7aec4f872329017d1c70ff1d246e48b091f1ff2012c3a06ce02",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "MIQ9V2ML 2017 - Perfect absorption of low-frequency sound waves by critically coupled subwavelength resonant system": {
+   "source": "doc:MIQ9V2ML 2017 - Perfect absorption of low-frequency sound waves by critically coupled subwavelength resonant system",
+   "pdf_sha256": "sha256:bafb10dedffc14dc898ce559f935fe674a8590fb7652a802e15998ed2980972d",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "N6QZQHW6 2023 - Coiled-up structure with porous material lining for enhanced sound absorption": {
+   "source": "doc:N6QZQHW6 2023 - Coiled-up structure with porous material lining for enhanced sound absorption",
+   "pdf_sha256": "sha256:f6b7496be5a44a67c56d32e8472e812e34acf2c243e3227d4cb13d106ef0ae2b",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "NAQMYP8A 2022 - Sound absorption in Hilbert fractal and coiled acoustic metamaterials": {
+   "source": "doc:NAQMYP8A 2022 - Sound absorption in Hilbert fractal and coiled acoustic metamaterials",
+   "pdf_sha256": "sha256:de0d6f6dfaebf1dc3bbd3a0c846143ae13b2f270e1fd5cc5b5b3f7a8838edb90",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "NBIPP48I 2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces": {
+   "source": "doc:NBIPP48I 2025 - Study of the noise reduction performance of acoustic enclosures with ultra-thin bending labyrinth metasurfaces",
+   "pdf_sha256": "sha256:ca9f8a466b817998d2646b80960931fbdc087b3b2fc6ee6d4ddc066e9846b2b5",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "NDNJN5YY 2021 - A low-frequency sound absorber based on micro-slit and coiled cavity": {
+   "source": "doc:NDNJN5YY 2021 - A low-frequency sound absorber based on micro-slit and coiled cavity",
+   "pdf_sha256": "sha256:b9f80d8b57818493b8e9a42eb9f4847adfd0a072da8468906e2854652137070c",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "NSF5RJAS 2018 - Coupled Resonators for Sound Trapping and Absorption": {
+   "source": "doc:NSF5RJAS 2018 - Coupled Resonators for Sound Trapping and Absorption",
+   "pdf_sha256": "sha256:41eaa3d244e183f739f32a3ed8f9f4086fea40cb7efb10fc103d67a4cbd815d7",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "NV7XSSJM 2025 - Recent advancements in sound-absorbing materials": {
+   "source": "doc:NV7XSSJM 2025 - Recent advancements in sound-absorbing materials",
+   "pdf_sha256": "sha256:32188f36c19e93f7fb4e11d0c7013a93c7266eb7049c5766c98c7573c87282bf",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "P9X73XKB 2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies": {
+   "source": "doc:P9X73XKB 2026 - Low‐Frequency Acoustic Metamaterials Mechanisms, Designs, and Broadband Absorption Strategies",
+   "pdf_sha256": "sha256:d97bd903e16e3ddb99f2181d7e0dc4890130cee93640a408b4e3a9577b470a4b",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "PXUXLG4Y 2026 - Broadband sound absorption performance of parallel gyroid-type triply periodic minimal surface micro-perforated plate sandwich structures": {
+   "source": "doc:PXUXLG4Y 2026 - Broadband sound absorption performance of parallel gyroid-type triply periodic minimal surface micro-perforated plate sandwich structures",
+   "pdf_sha256": "sha256:b3ee2b5936234a8ea3a543b799653cbc0d130533e6039196a45211ee4adc4d7a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "QFAUQ9UI 2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels": {
+   "source": "doc:QFAUQ9UI 2020 - Low-Frequency Broadband Acoustic Metasurface Absorbing Panels",
+   "pdf_sha256": "sha256:6888071a06100661d6978066f19fbc218c134a4a9ec1de134e8ad4387684113e",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "QFSXG2HE 2017 - Rainbow-trapping absorbers Broadband, perfect and asymmetric sound absorption by subwavelength panels for transmission problems": {
+   "source": "doc:QFSXG2HE 2017 - Rainbow-trapping absorbers Broadband, perfect and asymmetric sound absorption by subwavelength panels for transmission problems",
+   "pdf_sha256": "sha256:b1e7cc7f036167ed07ffd814825105146abdeccc66b406b3976f383cd10d3980",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "QPPSPNIZ 2018 - High-efficiency ventilated metamaterial absorber at low frequency": {
+   "source": "doc:QPPSPNIZ 2018 - High-efficiency ventilated metamaterial absorber at low frequency",
+   "pdf_sha256": "sha256:971146250527991d94e2fe34cd3c4991f30a45c9b87846e061a3eb46095e867d",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "QRBKRWB2 2015 - Subwavelength total acoustic absorption with degenerate resonators": {
+   "source": "doc:QRBKRWB2 2015 - Subwavelength total acoustic absorption with degenerate resonators",
+   "pdf_sha256": "sha256:07deb059cb68173eea9ca509afd739577f251813a5c27abe5368b6136b7c274e",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "R3PB4TRH 2021 - Low-frequency sound absorption of a metamaterial with symmetrical-coiled-up spaces": {
+   "source": "doc:R3PB4TRH 2021 - Low-frequency sound absorption of a metamaterial with symmetrical-coiled-up spaces",
+   "pdf_sha256": "sha256:946962b412677b0a19a3af7c5a65dd66cd301ea82fa91080789820a23dc72bfd",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "RFG9PMCA 2020 - The acoustic black hole A review of theory and applications": {
+   "source": "doc:RFG9PMCA 2020 - The acoustic black hole A review of theory and applications",
+   "pdf_sha256": "sha256:dbcd4ee4f1a4808227854bbad853074becb8f5076e47b33f3f2a3721978ad35a",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "S6XKYNRL 2017 - Single-channel labyrinthine metasurfaces as perfect sound absorbers with tunable bandwidth": {
+   "source": "doc:S6XKYNRL 2017 - Single-channel labyrinthine metasurfaces as perfect sound absorbers with tunable bandwidth",
+   "pdf_sha256": "sha256:7bcc72c1eef444e498d5b54e194cab6827478f172447c9bd24d74e2e12911852",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "SS9HU52M 2017 - Optimal sound-absorbing structures": {
+   "source": "doc:SS9HU52M 2017 - Optimal sound-absorbing structures",
+   "pdf_sha256": "sha256:bd434b42f0b15c35b40d9fdd30202addc4989d61d59e488da1ce36f03bd935c5",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "TN2LF7UZ 2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption": {
+   "source": "doc:TN2LF7UZ 2025 - Multifunctional auxetic re-entrant metastructure for low-frequency broadband sound absorption and energy absorption",
+   "pdf_sha256": "sha256:0c2bdf9b7d5d80740b4922ccd370195829b7c3bd5d8a530cd54248b51964fd98",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "VN8F6UUE 2012 - Omnidirectional broadband acoustic absorber based on metamaterials": {
+   "source": "doc:VN8F6UUE 2012 - Omnidirectional broadband acoustic absorber based on metamaterials",
+   "pdf_sha256": "sha256:d1440ddca033d44233a94af70db95cef733e2cd25da981c549ee6058d32356e6",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "VVQ5D3P2 2022 - Broadband impedance modulation via non-local acoustic metamaterials": {
+   "source": "doc:VVQ5D3P2 2022 - Broadband impedance modulation via non-local acoustic metamaterials",
+   "pdf_sha256": "sha256:069894c5d20fa5868344422fae481701fc11fa37ce5e47a66bfb27c6bbc61d7e",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "VZPKEK57 2024 - Broadband low-frequency sound absorption via Helmholtz resonators with porous material lining": {
+   "source": "doc:VZPKEK57 2024 - Broadband low-frequency sound absorption via Helmholtz resonators with porous material lining",
+   "pdf_sha256": "sha256:3684ca7c4485d12102a2e912842ad0b98818e0a83fff2a17303bcbf9be0a591c",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "W7NYUM3T 2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces": {
+   "source": "doc:W7NYUM3T 2022 - Broadband sound absorption using multiple hybrid resonances of acoustic metasurfaces",
+   "pdf_sha256": "sha256:2158b2ec6bc2d7139c948de4a1dbc28878ce4be926143ae11cd29e2fc611ff36",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "WAV24AEK 2022 - Metasurface absorber for ultra-broadband sound via over-damped modes coupling": {
+   "source": "doc:WAV24AEK 2022 - Metasurface absorber for ultra-broadband sound via over-damped modes coupling",
+   "pdf_sha256": "sha256:30fafd22ad3cca7df0e318e85058c143301585c53e86e97e74946538c30b22e9",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "WDPVERIW 2019 - Broadband low-frequency sound absorption by periodic metamaterial resonators embedded in a porous layer": {
+   "source": "doc:WDPVERIW 2019 - Broadband low-frequency sound absorption by periodic metamaterial resonators embedded in a porous layer",
+   "pdf_sha256": "sha256:3f46b4744507fe1e179ddb69ab001447bdd76267fd263e57aaecda6c3eba6816",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "WS3XYCAI 2022 - Broadband low-frequency acoustic absorber based on metaporous composite": {
+   "source": "doc:WS3XYCAI 2022 - Broadband low-frequency acoustic absorber based on metaporous composite",
+   "pdf_sha256": "sha256:d379742cceda6631d42db84cdb123c009a1f42944b93e072161294d3f26a4324",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "XVD6N97J 2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial": {
+   "source": "doc:XVD6N97J 2022 - Near-perfect sound absorptions in low-frequencies by varying compositions of porous labyrinthine acoustic metamaterial",
+   "pdf_sha256": "sha256:af983fcd8adef2436ff0a5ebf0b8398abd0920b4601f860c6161877915bc99b0",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "XVK63KEV 2019 - Compact Acoustic Rainbow Trapping in a Bioinspired Spiral Array of Graded Locally Resonant Metamaterials": {
+   "source": "doc:XVK63KEV 2019 - Compact Acoustic Rainbow Trapping in a Bioinspired Spiral Array of Graded Locally Resonant Metamaterials",
+   "pdf_sha256": "sha256:62d864b7262dbab8c6e4d2d5857dd115f041beee2711bedfea5b1e082b3a2429",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
+  },
+  "YAVMPZSH 2024 - Broadband acoustic metamaterial absorber": {
+   "source": "doc:YAVMPZSH 2024 - Broadband acoustic metamaterial absorber",
+   "pdf_sha256": "sha256:3b3fcd14150d8b5e0d4b86158098b5ecbd1fb946c93be6a01058c300477eb311",
+   "by": "propose",
+   "note": "沒有切片跡象，自己是一個來源"
   }
  }
 }
