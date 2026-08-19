@@ -202,8 +202,20 @@ umount ＋ 重新格式化（連檔案系統都是新的，最好證明），
    ⇒ 現在的寫法讓「全移除」被一個畫面功能擋住，而 MinerU 的 token 9/4 到期
    正在倒數。**要不要解耦，PO 裁。**
 
-### 3. 把 models 複製出來
+### 3. 把 models 複製出來　✅ **2026-08-19 做完**
 　證明：新位置的檔案數與大小跟舊的一致。
+
+```
+$ rsync -a /data/lightrag/models/ /data/lightrag-models/
+來源:   49 檔 / 6857639415 bytes
+新位置: 49 檔 / 6857639415 bytes
+$ diff <(cd /data/lightrag/models && find . -type f | sort) \
+       <(cd /data/lightrag-models && find . -type f | sort)
+檔名完全一致
+```
+
+⚠ **抄到 nvme（`/data`）上，不是那顆要清的碟。** `/data/lightrag` 是 sda1 的
+掛載點，抄在它底下等於沒抄。
 
 ### 3.5 先把 `records/` 與 `checks/` 保住
 **336 個檔不在 git**（`records/` 194 個 ＋ `checks/` 全部 142 個），
