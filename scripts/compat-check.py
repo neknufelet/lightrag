@@ -857,11 +857,18 @@ class Checker:
             # 基準設 0 而不是留緩衝 —— 漏一部就是有一部的標籤在說謊，
             # 留緩衝等於容許它安靜地存在。soft，所以不會擋流程。
             baseline = 0
-            if not os.environ.get("ZOTERO_API_KEY"):
+            # ⚠ **從 `.env` 讀，不是從行程環境變數讀。** 2026-08-19 踩過：金鑰
+            # 明明在 `/opt/stacks/lightrag/.env` 裡（`curl` 打得通、回 200），
+            # 這條照樣說「沒跑」—— 因為它讀 `os.environ`，而 `daily-check.sh`
+            # 不 export `.env`，**也不該 export**（`LIGHTRAG_PARSER` 的值含 `;`，
+            # `source` 會把分號後面當指令跑）。同檔其他要金鑰的斷言走的都是
+            # `load_env(REPO)`，只有這條例外，於是它會永遠回「沒跑」。
+            key = load_env(REPO).get("ZOTERO_API_KEY", "").strip()
+            if not key or key == "changeme":
                 return False, ("沒有 `ZOTERO_API_KEY`，**這條沒跑**。"
                                "要納入每日體檢就把它加進 `.env`"), {}
             sync = _load_script("zotero_sync", REPO / "scripts" / "zotero-sync.py")
-            items = sync.zotero_items(os.environ["ZOTERO_API_KEY"])
+            items = sync.zotero_items(key)
             docs = sync.kb_documents(self.ws)
             claimed = sync.documents_in_kb(items, docs)
             owned = {f for i in items if i["data"]["key"] in claimed

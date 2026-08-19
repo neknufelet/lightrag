@@ -41,6 +41,9 @@ KNOWN_SECRET_KEYS = (
     # 在那之前它沿用 LLM_BINDING_API_KEY，所以清單上沒有這一條。
     "PP_EYE_A_API_KEY",
     "PP_EYE_B_API_KEY", "PP_EYE_C_API_KEY",
+    # Zotero 網路版 API 的私人金鑰，2026-08-19 補進來 —— 在那之前 A-38 一直是
+    # 「這條沒跑」，而刪舊庫前「Zotero 裡真的都有」就是靠它證明的。
+    "ZOTERO_API_KEY",
 )
 
 SECRET = "s3cr3t-value-do-not-leak"

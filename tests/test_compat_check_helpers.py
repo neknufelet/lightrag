@@ -154,3 +154,24 @@ def test_vector_table_suffix_matches_real_table_names() -> None:
     ]
     suffix = mod._vector_table_suffix("BAAI/bge-m3", "1024")
     assert all(name.endswith(suffix) for name in real), suffix
+
+
+def test_a38_reads_the_key_from_the_env_file_not_the_process() -> None:
+    """A-38 的金鑰要從 `.env` 讀，不是從行程環境變數讀。
+
+    2026-08-19 實測：PO 產了金鑰、也放進 `/opt/stacks/lightrag/.env`（74 個鍵，
+    `curl` 打 `api.zotero.org` 回 HTTP 200），A-38 **仍然說「這條沒跑」** ——
+    因為它讀的是 `os.environ`，而 `daily-check.sh` 不 export `.env`
+    （也不該 export：`LIGHTRAG_PARSER` 的值含 `;`，`source` 會炸）。
+
+    ⇒ 這條檢查會**永遠**回「沒跑」而沒有人知道為什麼。同檔裡其他每一條要金鑰的
+    斷言走的都是 `load_env(REPO)`，只有它自己一條走 `os.environ`。
+    """
+    src = (ROOT / "scripts" / "compat-check.py").read_text(encoding="utf-8")
+
+    # ⚠ 判準要看**程式碼**，不是看整段文字 —— 第一版用「這段裡不准出現
+    # os.environ」，結果被自己寫的那句註解（「因為它讀 os.environ」）打掛。
+    assert 'os.environ["ZOTERO_API_KEY"]' not in src, "A-38 還在讀行程環境變數"
+    assert 'os.environ.get("ZOTERO_API_KEY")' not in src, "A-38 還在讀行程環境變數"
+    assert 'load_env(REPO).get("ZOTERO_API_KEY"' in src, \
+        "A-38 沒有走 load_env(REPO)，跟同檔其他要金鑰的斷言不一致"
