@@ -60,7 +60,13 @@ class Sandbox:
             (self.db_root / "postgres" / f"{i}.dat").write_text("x", encoding="utf-8")
         (self.db_root / "models" / "hub").mkdir(parents=True)
         (self.db_root / "models" / "hub" / "big.bin").write_text("w", encoding="utf-8")
-        (repo / ".env").write_text(f"LIGHTRAG_DB_ROOT={self.db_root}\n", encoding="utf-8")
+        # ⚠ **`WORKSPACE` 是必要的**：容器名從它算（2026-08-19 起）。
+        # 沒有它腳本會 exit 2 而不是猜一個舊名字 —— 猜錯的後果是「停不掉」，
+        # 而那會擋住整批進料。
+        (repo / ".env").write_text(
+            f"LIGHTRAG_DB_ROOT={self.db_root}\nWORKSPACE=rag_acoustic\n"
+            "POSTGRES_USER=rag_acoustic\nPOSTGRES_DATABASE=rag_acoustic\n",
+            encoding="utf-8")
 
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir()
@@ -187,3 +193,32 @@ def test_the_daily_backup_still_skips_on_an_unchanged_fingerprint(tmp_path: Path
     assert result.returncode == 0, result.stdout + result.stderr
     assert "跳過" in result.stdout, result.stdout
     assert box.stopped_containers() == [], "指紋沒變卻停了容器"
+
+
+def test_container_names_come_from_the_env_not_hardcoded(tmp_path: Path) -> None:
+    """要停哪些容器**從 `.env` 的 `WORKSPACE` 算**，不是寫死。
+
+    **2026-08-19 實測踩到。** 新庫上線時容器改名（`lightrag-postgres` →
+    `postgres-rag_acoustic`），這支腳本還抓著舊名字，於是：
+
+        還原點建立失敗，這一批沒有開始：exit 3
+        ！停不掉 lightrag-postgres
+        有容器停不掉，不做複製（資料可能不一致）
+
+    ⚠ **腳本的行為是對的** —— 停不掉就不複製、不放行，大聲失敗。錯的是名字來源。
+    `mount-guard` 同一天因為同一個理由改成用 compose 標籤挑容器，這支漏了。
+    """
+    box = Sandbox(tmp_path)
+    (box.tmp / "repo" / ".env").write_text(
+        f"LIGHTRAG_DB_ROOT={box.db_root}\nWORKSPACE=rag_acoustic\n"
+        "POSTGRES_USER=rag_acoustic\nPOSTGRES_DATABASE=rag_acoustic\n",
+        encoding="utf-8")
+
+    box.run("--stage-only")
+    calls = box.docker_log.read_text(encoding="utf-8")
+
+    assert "stop -t 60 postgres-rag_acoustic" in calls, calls
+    assert "stop -t 60 kbapi-rag_acoustic" in calls, calls
+    assert "stop -t 60 lightrag-rag_acoustic" in calls, calls
+    assert "acoustics_v2" not in calls, "還在用舊 workspace 的容器名"
+    assert "lightrag-postgres" not in calls, "還在用寫死的舊 postgres 容器名"

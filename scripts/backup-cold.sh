@@ -87,10 +87,27 @@ if [ "$STAGE_ONLY" = "1" ]; then
   STAMP=$STAGE.stamp
   SKIP_NEEDS_DIR=1
 fi
+# 容器名**從 .env 的 WORKSPACE 算**，不寫死。
+#
+# ⚠ **2026-08-19 踩過。** 新庫上線時容器改名（`lightrag-postgres` →
+#   `postgres-rag_acoustic`），這裡還抓著舊名字，於是還原點建不起來、
+#   進料整批被擋下：「！停不掉 lightrag-postgres／有容器停不掉，不做複製」。
+#   **腳本的行為是對的**（停不掉就不複製、不放行），錯的是名字來源。
+#
+# 用同一份 .env 取值的方式與上面的 LIGHTRAG_DB_ROOT 一致：`grep | cut`。
+# ⚠ **不要 `source` .env** —— `LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號
+#   後面當指令跑（.env.example 檔頭記著這件事）。
+env_value() { grep -E "^$1=" "$REPO_DIR/.env" 2>/dev/null | cut -d= -f2-; }
+WORKSPACE=$(env_value WORKSPACE)
+if [ -z "$WORKSPACE" ]; then
+  echo "backup-cold: .env 裡沒有 WORKSPACE —— 算不出要停哪些容器，不敢往下做" >&2
+  exit 2
+fi
 # 停的順序：先停用它們的，再停資料庫。啟動反過來。
-DEPS=(kbapi-acoustics_v2 lightrag-acoustics_v2)
+DEPS=("kbapi-$WORKSPACE" "lightrag-$WORKSPACE")
 # 2026-08-07 起只有 Postgres —— 圖換成 PGTableGraphStorage，Neo4j 整個移除。
-DBS=(lightrag-postgres)
+DBS=("postgres-$WORKSPACE")
+PG=postgres-$WORKSPACE
 TS=$(date +%Y%m%dT%H%M%S)
 FAILED=""
 
@@ -114,7 +131,7 @@ start_all() {
   log "啟動服務（反序）"
   for c in "${DBS[@]}"; do docker start "$c" >/dev/null 2>&1 && log "  起 $c"; done
   for i in $(seq 1 40); do
-    docker exec lightrag-postgres pg_isready >/dev/null 2>&1 && break
+    docker exec "$PG" pg_isready >/dev/null 2>&1 && break
     sleep 3
   done
   for c in "${DEPS[@]}"; do docker start "$c" >/dev/null 2>&1 && log "  起 $c"; done
@@ -133,8 +150,8 @@ fingerprint() {
       (select count(*) from lightrag_entity_chunks)   || ':' ||
       (select count(*) from lightrag_relation_chunks) || ':' ||
       coalesce((select max(updated_at)::text from lightrag_doc_status), '-');" \
-  | docker exec -i lightrag-postgres psql -U "${POSTGRES_USER:-deeptutor}" \
-      -d "${POSTGRES_DATABASE:-lightrag}" -tAqX -f - 2>/dev/null | tr -d '[:space:]'
+  | docker exec -i "$PG" psql -U "$(env_value POSTGRES_USER)" \
+      -d "$(env_value POSTGRES_DATABASE)" -tAqX -f - 2>/dev/null | tr -d '[:space:]'
 }
 
 NOW_FP=$(fingerprint)

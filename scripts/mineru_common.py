@@ -239,9 +239,18 @@ POSTGRES_CONTAINER_DEFAULT = "lightrag-postgres"
 
 
 def postgres_container(env: Mapping[str, str]) -> str:
-    """回傳工具使用的 Postgres 容器名；設定缺席時使用專用實例。"""
-    return (env.get("PP_PG_CONTAINER") or env.get("POSTGRES_HOST")
-            or POSTGRES_CONTAINER_DEFAULT).strip()
+    """回傳工具使用的 Postgres 容器名；設定缺席時使用專用實例。
+
+    ⚠ **有 `WORKSPACE` 就用它算**，不要落到寫死的預設值。2026-08-19 新庫上線時
+    容器改名成 `postgres-${WORKSPACE}`，而寫死的舊名字會讓工具去 `docker exec`
+    一個不存在的容器 —— 那不會回答錯的資料，但會**每一次都失敗而理由看不出來**。
+    同一天 `backup-cold.sh` 就是因為寫死名字擋掉了整批進料。
+    """
+    explicit = env.get("PP_PG_CONTAINER") or env.get("POSTGRES_HOST")
+    if explicit and explicit.strip():
+        return explicit.strip()
+    workspace = (env.get("WORKSPACE") or "").strip()
+    return f"postgres-{workspace}" if workspace else POSTGRES_CONTAINER_DEFAULT
 
 
 def _workspace_value(v: str) -> str:

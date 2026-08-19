@@ -264,3 +264,17 @@ def test_daily_check_wires_test_entry_into_check_red_path() -> None:
     assert "tests_rc=$?" in source
     assert '--rc "tests=$tests_rc"' in source, "測試的離開碼沒有被餵進判準"
     assert "scripts/check-levels.py" in source
+
+
+def test_postgres_container_follows_the_workspace_when_no_host_is_set() -> None:
+    """有 `WORKSPACE` 就算得出容器名，不要落到寫死的舊名字。
+
+    2026-08-19 新庫上線時容器改成 `postgres-${WORKSPACE}`。寫死的預設值不會
+    回答錯的資料，但會**每一次 docker exec 都失敗而理由看不出來** ——
+    同一天 `backup-cold.sh` 因為同一個原因擋掉了整批進料。
+    """
+    common = _load("mineru_common_workspace", SCRIPTS / "mineru_common.py")
+
+    assert common.postgres_container({"WORKSPACE": "rag_acoustic"}) == "postgres-rag_acoustic"
+    assert common.postgres_container(
+        {"WORKSPACE": "rag_acoustic", "POSTGRES_HOST": "explicit-one"}) == "explicit-one"
