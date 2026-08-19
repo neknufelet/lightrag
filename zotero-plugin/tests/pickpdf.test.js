@@ -5,7 +5,7 @@
 // 跑法：node --test zotero-plugin/tests/pickpdf.test.js
 const test = require('node:test');
 const assert = require('node:assert');
-const { choose, isTranslation } = require('../lib/pickpdf.js');
+const { choose, isTranslation, acceptDirect } = require('../lib/pickpdf.js');
 
 const pdf = (title, tags) => ({ title, tags: tags || [] });
 const BABEL = [{ tag: 'BabelDOC_translated' }];
@@ -129,4 +129,48 @@ test('**`Monograph` 不是 mono** —— 分隔號的限制就是為了這個', 
 test('沒有 filename 欄位也不能爆掉 —— 舊呼叫端只給 title', () => {
   assert.ok(isTranslation({ title: 'PDF_ZHT' }));
   assert.ok(!isTranslation({ title: 'PDF' }));
+});
+
+// ── KI-016：人直接點附件那一列按送出 ────────────────────────────────────
+//
+// `bootstrap.js` 的 `sendOne()` 對這條路徑**整段跳過 `choose()`**，於是
+// 過濾翻譯本的規則全部沒跑：點到哪一份就送哪一份，而且不會有任何訊號。
+// PO 2026-08-16 口頭提過，2026-08-19 修。
+//
+// 判準刻意不是「照 choose() 再挑一次」——人明確點了某一份，那是意圖，不該被
+// 蓋掉。要擋的只有「他點到的那一份本身就是翻譯本」。
+
+test('KI-016：直接點到翻譯本那一列，要擋下來不送', () => {
+  const got = acceptDirect(pdf('2020 - X_zh-TW_dual.pdf'));
+  assert.strictEqual(got.ok, false);
+  assert.strictEqual(got.reason, 'translation');
+});
+
+test('KI-016：BabelDOC 標籤的也要擋 —— 標籤從不誤標', () => {
+  assert.strictEqual(acceptDirect(pdf('看不出來的名字', BABEL)).ok, false);
+});
+
+test('KI-016：點原文那一列照送 —— 人的明確指定不該被規則蓋掉', () => {
+  const got = acceptDirect(pdf('PDF'));
+  assert.strictEqual(got.ok, true);
+  assert.strictEqual(got.reason, 'explicit');
+});
+
+test('KI-016：檔名才看得出來的也要擋 —— 標題是 `deepseek-mono` 那種', () => {
+  assert.strictEqual(
+    acceptDirect({ title: '電子書', filename: 'Xie 2019.zh-TW.mono.pdf' }).ok, false);
+});
+
+test('KI-016：沒給東西不能當成可以送', () => {
+  assert.strictEqual(acceptDirect(null).ok, false);
+});
+
+test('KI-016：`bootstrap.js` 真的有走這條路徑', () => {
+  // 純函式測得到判斷，測不到「有沒有被呼叫」。而這個 bug 的本體就是
+  // **規則存在但那條路徑沒呼叫它** —— 所以這一條盯的是呼叫點。
+  const fs = require('node:fs');
+  const src = fs.readFileSync(require('node:path')
+    .join(__dirname, '..', 'bootstrap.js'), 'utf8');
+  assert.ok(src.includes('LightRAGPickPDF.acceptDirect'),
+    'sendOne() 沒有呼叫 acceptDirect —— 選片規則對這條路徑等於不存在');
 });

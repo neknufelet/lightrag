@@ -72,6 +72,22 @@ async function sendOne(item, tag) {
   let attachment = null;
   let parent = item;
   if (item.isPDFAttachment && item.isPDFAttachment()) {
+    // ⚠ **KI-016**：這條路徑原本直接 `attachment = item`，選片規則整段不跑 ——
+    //   在清單裡展開文獻、對底下的翻譯本那一列按送出，中文就這樣安靜進庫。
+    //   人明確點了哪一份是意圖，不拿 `choose()` 蓋掉；只擋「點到的就是翻譯本」。
+    const direct = LightRAGPickPDF.acceptDirect({
+      title: item.getField ? item.getField('title') : '',
+      filename: item.attachmentFilename || '',
+      tags: item.getTags ? item.getTags() : [],
+    });
+    if (!direct.ok) {
+      return {
+        state: 'skip',
+        detail: direct.reason === 'translation'
+          ? '這一份看起來是中文翻譯本，沒有送出。要送原文請改點文獻那一列'
+          : '沒有 PDF 附件',
+      };
+    }
     attachment = item;
     parent = Zotero.Items.get(item.parentItemID) || item;
   } else if (item.isRegularItem && item.isRegularItem()) {

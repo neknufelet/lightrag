@@ -88,8 +88,36 @@ var LightRAGPickPDF = (function () {
     return { pick: null, reason: 'ambiguous', candidates: rest };
   }
 
+  /**
+   * 人在條目清單裡**直接點某一份 PDF 附件那一列**按送出時，要不要照送。
+   *
+   * ## 為什麼不是「再跑一次 choose()」
+   *
+   * 人明確點了某一份，那是**意圖**：他可能就是要送那一份補充資料、那一章。
+   * 拿 `choose()` 蓋掉他的選擇，等於按了送出卻送出別的東西 —— 那是另一種
+   * 安靜的錯，不比原來的洞好。
+   *
+   * ⇒ 只擋一件事：**他點到的那一份本身就是翻譯本**。這種情況幾乎一定是誤點
+   * （在 Zotero 裡原文與翻譯上下相鄰），而送出去的代價是中文混進英文語料、
+   * 被公式跨來源比對當成一個獨立來源。
+   *
+   * ## 這條路徑原本完全沒有規則（KI-016）
+   *
+   * `bootstrap.js` 的 `sendOne()` 對 `isPDFAttachment()` 那一支直接
+   * `attachment = item`，`choose()` 整段不執行。**規則存在，但那條路徑沒呼叫
+   * 它** —— 所以 `tests/pickpdf.test.js` 裡有一條盯著呼叫點的測試，純函式
+   * 測得到判斷，測不到「有沒有被呼叫」。
+   *
+   * @returns `{ok, reason}`；`reason ∈ explicit／translation／missing`
+   */
+  function acceptDirect(att) {
+    if (!att) return { ok: false, reason: 'missing' };
+    if (isTranslation(att)) return { ok: false, reason: 'translation' };
+    return { ok: true, reason: 'explicit' };
+  }
+
   return {
-    choose: choose, isTranslation: isTranslation,
+    choose: choose, isTranslation: isTranslation, acceptDirect: acceptDirect,
     TRANSLATED_TAG: TRANSLATED_TAG, TRANSLATED_NAME: TRANSLATED_NAME,
   };
 })();

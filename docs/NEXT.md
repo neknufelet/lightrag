@@ -21,7 +21,6 @@ summary: "只放這一輪。做不做都不影響新庫上線的在 BACKLOG.md�
 `scripts/compat-check.py`，或看 `/data/lightrag/checks/latest.json`（每天 08:30 寫的）。
 
 ## 新庫上線（順序與判準在 [路標](roadmap-rag-acoustic-20260817.md)，18 條裁決也在那）
-- ⬜ 修外掛 `KI-016`：對 PDF 附件那一列送出會繞過選片規則　→ 那條路徑有一條「修之前是紅的」新測試（**路標第 1 步，上線前必修**）
 - ⬜ 三個查詢 skill 改網址與 workspace　→ 新庫獨立（第 6 步那支檢查會數它）
 - ⬜ `mount-guard`／`backup-cold.sh` 加上新 stack　→ 新庫也被守著、也有備份
 - ⬜ `lightrag-snapshot` 這個 backrest plan 還指著舊資料根　→ 新庫起來後改指
