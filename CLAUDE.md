@@ -28,9 +28,9 @@ tag `archive/pre-rebuild-20260807`。
 | | |
 |---|---|
 | repo | 同路徑，**唯讀，只 `git pull`**。repo 裡的 `.env` 是指向下一列的 symlink |
-| LightRAG 的 `.env` | **只在這台**，2026-08-07 起在 `/opt/stacks/lightrag/.env`（刪 repo 不再連帶弄丟秘密）。哪些是秘密、去哪裡拿，看 `.env.example` 開頭那張表；`compat-check` 的 A-30 守著兩邊鍵名一致。⚠ 數鍵用 `^[A-Za-z_][A-Za-z0-9_]*=`；用 `^[A-Z_]+=` 會漏掉含數字的鍵名（`NEO4J` 的 `4`），2026-08-07 因此少算 4 個並寫錯進 commit。⚠ **不要 `source` 它**：`LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號後面當指令 |
+| LightRAG 的 `.env` | **只在這台**，2026-08-07 起搬出 repo（刪 repo 不再連帶弄丟秘密）。**路徑不寫死**，跟著 symlink 走：`readlink -f .env`（stack 目錄名 ＝ `WORKSPACE`，換 workspace 就換路徑；寫死 `/opt/stacks/lightrag` 的那一版 2026-08-19 已經不存在）。哪些是秘密、去哪裡拿，看 `.env.example` 開頭那張表；`compat-check` 的 A-30 守著兩邊鍵名一致。⚠ 數鍵用 `^[A-Za-z_][A-Za-z0-9_]*=`；用 `^[A-Z_]+=` 會漏掉含數字的鍵名（`NEO4J` 的 `4`），2026-08-07 因此少算 4 個並寫錯進 commit。⚠ **不要 `source` 它**：`LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號後面當指令 |
 | 資料根 | `/data/lightrag` — `records` 與 `checks` 兩個目錄。**份數不寫死**，要知道就 `ls … \| wc -l` |
-| 本專案容器 | 由 Dockge 管，`docker ps --filter label=com.docker.compose.project=lightrag` 列得出來。**要判斷健康看「打得到端點」不是「容器在跑」**（compat-check A-27） |
+| 本專案容器 | 由 Dockge 管。**專案名不寫死**，它 ＝ `.env` 的 `WORKSPACE`：`docker ps --filter "label=com.docker.compose.project=$(grep -E '^WORKSPACE=' "$(readlink -f .env)" \| cut -d= -f2)"`。⚠ 寫死 `=lightrag` 的那一版**列不出任何東西**，看起來就像容器全掛了（2026-08-19 實測）。**要判斷健康看「打得到端點」不是「容器在跑」**（compat-check A-27） |
 | 別人的容器 | dockge、backrest、roonserver、zotero-pdf2zh、samba、nginx、hbbs/hbbr、vibevoice — **不要碰** |
 | GPU | 一張 RTX 2070 8GB，`nvidia-smi` 正常。**本機 embedding 與 rerank（Infinity）就跑在它上面** |
 
