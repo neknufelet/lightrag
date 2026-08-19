@@ -67,7 +67,16 @@ AD_MARKERS: Final[re.Pattern[str]] = re.compile(
     r"|full\s+terms\s+&?\s*conditions\s+of\s+access|recommended\s+citation"
     r"|follow\s+this\s+and\s+additional\s+works|digital\s+commons|scholarworks"
     r"|part\s+of\s+the\s+.{0,45}\bcommons\b"
-    r"|brought\s+to\s+you\s+for\s+free\s+and\s+open\s+access", re.I)
+    r"|brought\s+to\s+you\s+for\s+free\s+and\s+open\s+access"
+    # ⑤ Elsevier 的「Journal Pre-proof」預印頁（PO 2026-08-19 在新庫第一批抓到）。
+    #    那一頁 13 個區塊全是版面：PII、DOI、To appear in、收稿／修訂／接受日期、
+    #    引用格式、835 字的「本檔是接受後加工過的 PDF」聲明、版權行。
+    #    ⚠ **漏掉的原因是一個字**：上面 ③ 寫的是 `to cite this article`，
+    #    而它寫的是「**Please** cite this article **as**」。招牌清單是猜的那一半，
+    #    換一家出版商、甚至同一家換一個句型，就會漏。
+    r"|journal\s+pre-?proof|\bPII\s*:\s*S\d"
+    r"|to\s+appear\s+in\s*:|please\s+cite\s+this\s+article"
+    r"|undergone\s+enhancements\s+after\s+acceptance", re.I)
 
 #: 出現幾個**不同**招牌就不必再看字數。
 #:

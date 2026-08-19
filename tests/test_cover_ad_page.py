@@ -323,3 +323,69 @@ def test_the_iop_wording_counts_as_a_marker() -> None:
     p = cap.plan(items)
 
     assert p.fired is True
+
+
+# ── Elsevier 的「Journal Pre-proof」預印頁（PO 2026-08-19 在新庫第一批抓到）──
+
+
+def _preproof() -> list[dict]:
+    """取自 `K7SS62X5 2026 - Ultra-broadband diffuse-field…` 的第 0 頁。
+
+    13 個區塊，**一個字都不是內容**，而舊規則一條都沒開火。
+    """
+    return [
+        _row("Journal Pre-proof"),
+        _row("Ultra-broadband diffuse-field sound insulation enabled by a bilayer"),
+        _row("Yong-Hua Yu , Yuan-Yuan Li , Long-Xiang Xie , Weichun Huang"),
+        _row("PII: S0022-460X(26)00348-2"),
+        _row("DOI: https://doi.org/10.1016/j.jsv.2026.119986"),
+        _row("To appear in: Journal of Sound and Vibration"),
+        _row("Received date: 24 February 2026"),
+        _row("Please cite this article as: Yong-Hua Yu, Yuan-Yuan Li. " * 7),
+        _row("This is a PDF of an article that has undergone enhancements after "
+             "acceptance, such as the addition of a cover page. " * 9),
+        _row("©2026 Published by Elsevier Ltd."),
+    ]
+
+
+def test_the_elsevier_preproof_front_page_is_dropped() -> None:
+    """PO 2026-08-19 送進新庫的第一批就有一份，**整頁 13 個區塊全進了知識庫**。
+
+    三個原因疊在一起才漏掉的：招牌字寫的是 `To cite this article` 而它寫
+    `Please cite this article as`；那頁有 835 字的聲明撞到字數關；封面頁眉那條
+    只認 header／footer 型別而這頁全是 text。
+    """
+    items = [*_preproof(), *_real_body()]
+
+    p = cap.plan(items)
+
+    assert p.fired is True
+    assert len(p.mutes) == len(_preproof())
+
+
+def test_the_preproof_markers_are_enough_to_waive_the_length_guard() -> None:
+    """那一頁有 835 字的段落 —— 靠的是「兩個以上不同招牌」才過得了字數關。"""
+    blob = "\n".join(x["text"] for x in _preproof())
+
+    assert cap.distinct_markers(blob) >= cap.MARKERS_WAIVING_LENGTH
+
+
+def test_a_normal_article_first_page_is_still_untouched() -> None:
+    """同一批的另外兩篇第 0 頁**就是正文第一頁**，一個字都不能碰。
+
+    取自 `42AK2LLR` 與 `PXUXLG4Y`：標題 → ARTICLE INFO → Keywords → ABSTRACT
+    → 1. Introduction → 大段正文。
+    """
+    items = [
+        _row("A new inverse design method for sound-absorbing metamaterial"),
+        _row("ARTICLE INFO"),
+        _row("Keywords: Acoustic metamaterial Inverse design Deep learning"),
+        _row("ABSTRACT"),
+        _row("Recent advances in deep learning demonstrate significant potential. " * 25),
+        _row("1. Introduction"),
+        *_real_body(),
+    ]
+
+    p = cap.plan(items)
+
+    assert p.fired is False, [m.text for m in p.mutes]
