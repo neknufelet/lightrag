@@ -3055,21 +3055,39 @@ class IntakeApp:
             return {}
         return {i.key: confirm_context.around(content, i.index) for i in items}
 
-    def confirm_overview(self) -> str:
+    def confirm_overview(self, scope: str = confirm_html.SCOPE_PENDING) -> str:
         """一次看完還剩哪些東西。**照一模一樣的文字分組**，次數多的排前面。
 
         ⚠ 這一頁跟一份一份確認那頁看的是同一批資料，只是換個切法 ——
         兩邊算出來的總數必須一致，不然人會不知道該相信哪一個。
+
+        Args:
+            scope: ``pending`` 只算還沒確認的（＝待辦，預設）；``corpus`` 算全庫、
+                **當作沒人確認過**。PO 2026-08-19 全部按完之後畫面是空的，
+                他問「能重新把 117 讓我看一下嗎」—— 那個 117 問的是「規則還差
+                多少」，不是「還有多少要按」。**兩個母體都要看得到，而且畫面上
+                要寫清楚是哪一個**，否則兩個都對的數字會互相打架。
         """
         queue, plans = self.confirm_queue()
+        docs = sorted(plans) if scope == confirm_html.SCOPE_CORPUS else queue
         pairs: list[tuple[str, confirm.ConfirmItem]] = []
-        for doc in queue:
+        seen = 0
+        for doc in docs:
             plan = plans.get(doc)
             if plan is None:
                 continue
-            pairs.extend((doc, item) for item in confirm.items_from_plan(plan))
+            try:
+                items = confirm.items_from_plan(plan)
+            except KeyError as exc:
+                # 全庫視角會掃到缺段的計畫（隊伍那條路已經先濾掉了）。
+                # **不要讓一份算不出來就整頁掛掉**，但也不要安靜跳過。
+                LOGGER.warning("%s 的計畫缺段，不進總覽：%s", doc, exc)
+                continue
+            if items:
+                seen += 1
+            pairs.extend((doc, item) for item in items)
         return confirm_html.render_overview(
-            confirm_html.group_items(pairs), total=len(pairs), docs=len(queue))
+            confirm_html.group_items(pairs), total=len(pairs), docs=seen, scope=scope)
 
     def save_confirm(self, filename: str, *, dropped: Sequence[str],
                      notes: Mapping[str, str]) -> dict[str, object]:
@@ -4997,7 +5015,12 @@ def make_handler(app: IntakeApp) -> type[BaseHTTPRequestHandler]:
                     if (query.get("view") or [""])[0] == "all":
                         # 「還剩哪些」的總覽。PO 2026-08-18：「不是在原本的頁面
                         # 看嗎」—— 這種東西要長在產品裡，不是丟檔案給人。
-                        self._html(_confirm_page(app.confirm_overview()))
+                        # `scope=corpus` 是全庫視角（PO 2026-08-19）。
+                        scope = (query.get("scope") or [""])[0]
+                        self._html(_confirm_page(app.confirm_overview(
+                            confirm_html.SCOPE_CORPUS
+                            if scope == confirm_html.SCOPE_CORPUS
+                            else confirm_html.SCOPE_PENDING)))
                         return
                     doc = (query.get("doc") or [""])[0]
                     skip = (query.get("skip") or [""])[0]

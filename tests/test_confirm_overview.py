@@ -97,3 +97,49 @@ def test_text_from_a_pdf_cannot_break_the_page() -> None:
 
     assert "<script>x" not in out
     assert "&lt;script&gt;" in out
+
+
+# ── 全庫視角（PO 2026-08-19：「能重新把 117 讓我看一下嗎」）──────────────
+
+
+def test_the_corpus_view_says_it_ignores_what_you_already_confirmed() -> None:
+    """**全庫視角要講清楚它算的是什麼**，否則兩個不同的總數會互相打架。
+
+    PO 全部按完之後畫面是空的（有紀錄的不再問人），但「規則還是不確定的」
+    仍然有 117 項 —— 新庫從零灌進來時那些會再問一次。兩個數字都對，
+    差別只在母體，所以**母體要寫在畫面上**。
+    """
+    html = render_overview(group_items(PAIRS), total=5, docs=4, scope="corpus")
+
+    assert "已經確認過" in html
+    assert "全庫" in html
+
+
+def test_each_view_links_to_the_other() -> None:
+    """兩個視角要互相到得了 —— 只能從網址切換的功能等於不存在。"""
+    pending = render_overview(group_items(PAIRS), total=5, docs=4)
+    corpus = render_overview(group_items(PAIRS), total=5, docs=4, scope="corpus")
+
+    assert "scope=corpus" in pending, "還沒確認的那頁要有去全庫的路"
+    assert "scope=corpus" not in corpus, "全庫那頁不該再連到自己"
+    assert "view=all" in corpus, "全庫那頁要連得回還沒確認的那頁"
+
+
+def test_an_empty_corpus_view_still_offers_the_way_back() -> None:
+    """空的時候也要留著回去的路（深色模式那次的教訓：看得見才算存在）。"""
+    html = render_overview([], total=0, docs=0, scope="corpus")
+
+    assert "一份一份確認" in html
+
+
+def test_the_app_can_show_the_whole_corpus_not_just_the_queue() -> None:
+    """全庫視角要真的**繞過**「已確認就不再問」那道過濾，不是只換一句文案。
+
+    PO 2026-08-19 全部按完之後畫面是空的，他問「能重新把 117 讓我看一下嗎」。
+    如果只改文案而母體照舊，那一頁會永遠是空的 —— 而且看起來完全正常。
+    """
+    src = (ROOT / "scripts" / "intake.py").read_text(encoding="utf-8")
+
+    assert "def confirm_overview(self, scope" in src, "總覽沒有母體參數"
+    assert "SCOPE_CORPUS" in src, "app 沒有用共用常數，兩邊字串會漂"
+    assert "scope=corpus" in src or 'get("scope")' in src, "路由沒有讀 scope"

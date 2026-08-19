@@ -29,6 +29,7 @@ import html
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Final
 
 from pp.confirm import ConfirmItem
 
@@ -245,7 +246,14 @@ def group_items(pairs: Sequence[tuple[str, ConfirmItem]]) -> list[Group]:
     return groups
 
 
-def render_overview(groups: Sequence[Group], *, total: int, docs: int) -> str:
+#: 總覽的兩種母體。**畫面上一定要講是哪一種** —— 兩個數字都對，差別只在母體，
+#: 沒寫清楚的話人會以為其中一個在騙他。
+SCOPE_PENDING: Final[str] = "pending"
+SCOPE_CORPUS: Final[str] = "corpus"
+
+
+def render_overview(groups: Sequence[Group], *, total: int, docs: int,
+                    scope: str = SCOPE_PENDING) -> str:
     """一次看完還剩哪些東西。
 
     PO 2026-08-18 問「我現在能看一下還有哪些東西嗎」，然後補一句
@@ -254,12 +262,18 @@ def render_overview(groups: Sequence[Group], *, total: int, docs: int) -> str:
     **為什麼需要**：確認清單一次只給一份文件（357 項散在 124 份）。
     要看出「還有沒有規律」，得把整批攤在一起。
     """
+    corpus = scope == SCOPE_CORPUS
+    other = ("<a class='btn' href='/confirm?view=all'>只看還沒確認的 →</a>" if corpus
+             else "<a class='btn' href='/confirm?view=all&amp;scope=corpus'>"
+                  "看全庫（含已確認的）→</a>")
     back = "<p class='back'><a class='btn' href='/confirm'>← 一份一份確認</a>"
-    back += " · <a class='btn' href='/'>回收件匣</a></p>"
+    back += " · <a class='btn' href='/'>回收件匣</a> · " + other + "</p>"
     if not groups:
+        blank = ("全庫算下來<b>沒有</b>要問人的項目了。" if corpus
+                 else "全部確認完了，<b>沒有</b>剩下的。")
         return ("<section class='confirm'>" + back
                 + "<header><h1>還剩哪些</h1></header>"
-                + "<p class='ok'>全部確認完了，<b>沒有</b>剩下的。</p>"
+                + f"<p class='ok'>{blank}</p>"
                 + back + "</section>")
 
     rows = "".join(
@@ -271,8 +285,15 @@ def render_overview(groups: Sequence[Group], *, total: int, docs: int) -> str:
     return (
         "<section class='confirm'>" + back
         + "<header><h1>還剩哪些</h1>"
-        f"<p class='sub'>還有 <b>{total}</b> 項要你看，散在 <b>{docs}</b> 份，"
-        f"照一模一樣的文字分成 <b>{len(groups)}</b> 組。</p></header>"
+        + (f"<p class='sub'><b>全庫</b>重新算一遍（<b>當作沒人確認過</b>）："
+           f"規則還是不確定的有 <b>{total}</b> 項，散在 <b>{docs}</b> 份，"
+           f"照一模一樣的文字分成 <b>{len(groups)}</b> 組。</p>"
+           "<p class='prog'>⚠ 這一頁<b>不是待辦清單</b> —— 你<b>已經確認過</b>的"
+           "不會再問你。它算的是「規則還差多少」：新庫從零灌進來時，"
+           "這些會再問一次。</p>" if corpus else
+           f"<p class='sub'>還有 <b>{total}</b> 項要你看，散在 <b>{docs}</b> 份，"
+           f"照一模一樣的文字分成 <b>{len(groups)}</b> 組。</p>")
+        + "</header>"
         "<p class='prog'>次數多的排前面 —— <b>出現越多次，越可能是規則抓得到的</b>；"
         "只出現一次的才是真正一份一份不一樣的東西。</p>"
         "<table class='overview'>"
