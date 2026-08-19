@@ -110,8 +110,8 @@ def test_empty_source_is_not_a_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert "母體是空的" in capsys.readouterr().out
 
 
-def test_units_are_exactly_the_six_that_remain() -> None:
-    """六個單元一個都不能少、一個都不能多。
+def test_units_are_exactly_the_seven_that_remain() -> None:
+    """七個單元一個都不能少、一個都不能多。
 
     2026-08-07 拆掉 ntfy，兩個 `-crashed` 備援單元一起移除（它們的內容就是
     `curl` 到 ntfy）。**所以現在沒有任何 OnFailure 觸發的單元**——腳本本身掛掉
@@ -123,6 +123,13 @@ def test_units_are_exactly_the_six_that_remain() -> None:
     綁 `100.87.88.7` 失敗（`cannot assign requested address`），而那是啟動失敗不是
     程序死亡，restart policy 救不了。同一台上別人的 10 個容器綁 `0.0.0.0`，
     所以只有我們踩到。
+
+    ⚠ **2026-08-19 由六個變七個**：`lightrag-mount-guard.service` 補進來。它一直
+    在 `/etc` 裡跑著，**卻從來不在版控裡** —— 這支測試因此一直說「六個，剛剛好」。
+    重建舊庫時 `/etc` 那份被刪掉，才發現 repo 裡沒有備份，只能照
+    `docs/rebuild-v3-design-20260816.md` 的描述重寫。
+    **「在跑的東西不在版控裡」這支測試本來就該抓到，而它抓不到 ——**
+    因為它比對的是 repo 自己有什麼，不是機器上實際跑著什麼。
     """
     module = _module()
     names = set(module.render_all(Path("/x"), "u", "w", "/d", "/s", "1.2.3.4").keys())
@@ -130,6 +137,7 @@ def test_units_are_exactly_the_six_that_remain() -> None:
         "lightrag-daily-check.service", "lightrag-daily-check.timer",
         "lightrag-cold-backup.service", "lightrag-cold-backup.timer",
         "lightrag-intake.service", "lightrag-stack.service",
+        "lightrag-mount-guard.service",
     }, names
     assert set(module.ENABLE) == names - {"lightrag-daily-check.service",
                                           "lightrag-cold-backup.service"}

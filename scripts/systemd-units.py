@@ -55,7 +55,11 @@ ENABLE = ("lightrag-daily-check.timer", "lightrag-cold-backup.timer",
           "lightrag-intake.service",
           # 2026-08-07 加：沒有它，重開機之後 lightrag 與 kbapi 不會回來
           # （docker 比 tailscale 早起，綁 Tailscale 位址失敗）。實測過。
-          "lightrag-stack.service")
+          "lightrag-stack.service",
+          # 2026-08-19 加：資料根那顆碟掉了要停容器，否則 LightRAG 會在空目錄上
+          # 建一個新的空知識庫**而且不報錯**。這個檔在此之前**不在版控裡** ——
+          # 重建時跟著 /etc 一起被刪掉，只能照設計文件重寫。
+          "lightrag-mount-guard.service")
 
 # **刻意暫停**的單元：鍵是單元名，值是理由。
 #

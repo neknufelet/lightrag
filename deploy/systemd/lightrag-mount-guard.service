@@ -1,0 +1,32 @@
+[Unit]
+# 資料根不見了就把本專案的容器停掉。
+#
+# **為什麼需要**：`@DATA_ROOT@` 是一顆外接碟的掛載點。碟掉了之後那個路徑就是底層
+# 磁碟上的一個空目錄，而 LightRAG 看到空的資料根會**建一個新的空知識庫而且不報錯**
+# ——「安靜地寫到別的地方」正是這個專案反覆記著的那一族。
+#
+# **不用輪詢、不用定時檢查。** systemd 把掛載本身也當成一個單元（`data-lightrag.mount`），
+# `BindsTo=` 的意思是「它死我就死」：碟被拔 → 掛載單元停 → 這個守衛跟著停 →
+# 停的時候跑 ExecStop。實際觸發過一次，2026-08-09 17:23:24 的 journal 有紀錄。
+#
+# ⚠ **2026-08-19 重寫。** 原本這個檔**不在版控裡**，重建時跟著 /etc 一起被刪掉，
+# 只能照 `docs/rebuild-v3-design-20260816.md` 的描述重寫。這次放進 `deploy/systemd/`。
+Description=lightrag 掛載守衛：資料根不見就停掉本專案的容器
+BindsTo=data-lightrag.mount
+After=data-lightrag.mount docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=@USER@
+ExecStart=/bin/true
+# ⚠ **用 compose 的專案標籤挑容器，不要寫死名字。** 舊版把四個容器名寫死，
+# 設計文件自己標著「新 stack 叫別的名字，它抓不到 —— 這條要跟著改」。
+# 改用標籤之後容器改名、增減都不必再動這個檔。
+#
+# ⚠ 只停**掛著這個資料根**的那些（＝本專案的），機器上其他九個容器一個都不碰。
+ExecStop=/bin/sh -c '/usr/bin/docker ps -q --filter label=com.docker.compose.project=@WORKSPACE@ | xargs -r /usr/bin/docker stop'
+
+[Install]
+WantedBy=multi-user.target

@@ -219,7 +219,10 @@ services:
   # 少一個對外攻擊面、也不會跟既有的埠打架。
   postgres:
     image: pgvector/pgvector:pg16          # 與原實例同版：PG 16.14 + pgvector 0.8.2
-    container_name: lightrag-postgres
+    # ⚠ **容器名跟著 WORKSPACE 走**（2026-08-19 起）。原本寫死 `lightrag-postgres`
+    #   —— 那正是 PO 抱怨的「從 deeptutor 拔過來就說乾淨了結果裡面一堆沿用」
+    #   的同一族：庫換了、使用者換了，容器名還留著上一代的名字。
+    container_name: postgres-${WORKSPACE:?WORKSPACE 未設定}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -277,7 +280,8 @@ services:
     # 同 lightrag：釘 digest 不釘 tag。對應 v0.0.76（2026-08-08 在 dker 拉下、
     # 用 docker image inspect --format '{{.RepoDigests}}' 取值）。映像 7.55 GB。
     image: michaelf34/infinity@sha256:90bd83ecfb9922e9fdceec906cfb79863ad8aeaa45b15b950266679c3e2efd24
-    container_name: lightrag-infinity
+    # 同 postgres：跟著 WORKSPACE 走，不留上一代的名字。
+    container_name: infinity-${WORKSPACE:?WORKSPACE 未設定}
     restart: unless-stopped
 
     # 只綁 Tailscale 位址，跟其他服務一致
