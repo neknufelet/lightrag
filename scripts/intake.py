@@ -38,7 +38,7 @@ from typing import Literal, Protocol
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ledger  # noqa: E402
 import postprocess  # noqa: E402
-from chapters.pdf_splitter import extract_pages, read_toc  # noqa: E402
+from chapters.pdf_splitter import extract_pages, read_page_count, read_toc  # noqa: E402
 from chapters.picker_html import render_picker  # noqa: E402
 from chapters.selection import (  # noqa: E402
     DECIDED_BY_HUMAN,
@@ -265,6 +265,9 @@ class Candidate:
     filename: str
     sha256: str
     size: int
+    # 讀不出來就是 None，**不是 0** —— 呼叫端要能分辨「這份是 0 頁」與
+    # 「這份讀不出來」，而 0 兩種都像。
+    pages: int | None = None
 
     def public(self) -> dict[str, object]:
         return {
@@ -272,7 +275,7 @@ class Candidate:
             "filename": self.filename,
             "source": self.source_name,
             "size": self.size,
-            "pages": None,
+            "pages": self.pages,
             "items": None,
             "status": "candidate",
         }
@@ -664,6 +667,17 @@ class CandidateScanner:
                 ).hexdigest()[:32]
                 if candidate_id in used_ids or digest in known:
                     continue
+                # ⚠ **讀不出頁數不准把這一列丟掉**（藍桶第 2 條）。上面那圈
+                # `continue` 是「這個檔案根本不該進來」；這裡不是 —— 一份壞掉的
+                # PDF 必須看得見才刪得掉，而收件匣是唯一給刪除按鈕的地方。
+                #
+                # 頁數**不進 warnings**：壞檔的訊息屬於那一列（畫面會說「讀不出
+                # 頁數」），塞進整頁橫幅只會讓每次輪詢都跳一次警告。
+                try:
+                    pages: int | None = read_page_count(resolved)
+                except (OSError, ValueError, RuntimeError) as exc:
+                    LOGGER.info("讀不出頁數 %s：%s: %s", resolved, type(exc).__name__, exc)
+                    pages = None
                 candidates.append(Candidate(
                     candidate_id=candidate_id,
                     source_root=root.path,
@@ -673,6 +687,7 @@ class CandidateScanner:
                     filename=source.name,
                     sha256=digest,
                     size=size,
+                    pages=pages,
                 ))
         return candidates, warnings
 
@@ -3742,6 +3757,17 @@ def _format_size(value: object) -> str:
     return f"{value / (1024 * 1024):.1f} MiB"
 
 
+def _format_pages(value: object) -> str:
+    """頁數那一格。**讀不出來要說出來**，不能留白。
+
+    留白跟「0 頁」在畫面上長得一樣，而使用者要靠這個數字決定要不要切章 ——
+    看到空白他會以為是薄的，然後把一本 400 頁的書整份送去解析。
+    """
+    if not isinstance(value, int):
+        return "讀不出頁數"
+    return f"{value} 頁"
+
+
 def _status_label(status: object, decision: object = None, hold: object = "") -> str:
     # ⚠ **擋著的時候不能說「可以放行」。** 計畫判乾淨（decision=clean）與
     # 「這份可以往下走」是兩件事 —— 2026-08-18 PO 看到同一張卡片上面寫
@@ -3876,7 +3902,10 @@ def _render_candidate_row(candidate: Mapping[str, object]) -> str:
         f"<span style='display:flex;gap:6px'>{remove}{split_link}"
         f"<button data-act='parse' data-id='{candidate_id}'>只解析</button></span>"
         f"<span class='sub'><span>{_esc(source)}</span>"
-        f"<span>{_format_size(candidate.get('size'))}</span></span>"
+        f"<span>{_format_size(candidate.get('size'))}</span>"
+        # 頁數排在大小後面：大小回答不了「要不要切章」（9.7 MiB 可能是 13 頁的
+        # 彩圖論文，也可能是 400 頁的書），頁數才是使用者真正在找的數字。
+        f"<span>{_esc(_format_pages(candidate.get('pages')))}</span></span>"
         "</div>"
     )
 

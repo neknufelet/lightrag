@@ -158,6 +158,38 @@ def read_toc(pdf_path: Path) -> tuple[list[tuple[int, str, int]], int]:
         doc.close()
 
 
+def read_page_count(pdf_path: Path) -> int:
+    """只讀 PDF 的總頁數。收件匣清單那一格。
+
+    **為什麼不用 `read_toc`**：那支會順便把整份目錄解出來，而清單只要一個數字。
+    收件匣每 3 秒被重畫一次，白工會跟著檔案數一起長。
+
+    這支是 fitz adapter 的職責 —— 開檔在這裡發生，跟 :func:`read_toc` 同一條界線。
+
+    Args:
+        pdf_path: PDF 路徑。
+
+    Returns:
+        總頁數。**讀不出來不回 0** —— 呼叫端要能分辨「這份是 0 頁」與
+        「這份讀不出來」，而 0 兩種都像。
+
+    Raises:
+        FileNotFoundError: 檔案不存在。
+        ValueError: 檔案損壞、加密或不是 PDF（與 :func:`read_toc` 同一套處置）。
+    """
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF 檔案不存在: {pdf_path}")
+    fitz = _require_fitz()
+    try:
+        doc = fitz.open(pdf_path)
+    except (RuntimeError, ValueError) as exc:
+        raise ValueError(f"無法讀取 PDF（檔案損壞、加密或非 PDF）：{exc}") from exc
+    try:
+        return doc.page_count
+    finally:
+        doc.close()
+
+
 def extract_pages(pdf_path: Path, out_dir: Path,
                   cuts: list[tuple[str, int, int]]) -> list[Path]:
     """把指定頁範圍各自存成一個 PDF。**真的動刀的那一層。**
