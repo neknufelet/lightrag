@@ -97,7 +97,7 @@ def env_value(repo: Path, key: str, default: str) -> str:
 
 
 def render_all(repo: Path, user: str,
-               workspace: str = "acoustics_v2",
+               workspace: str = "rag_acoustic",
                data_root: str = "/data/lightrag",
                stack_dir: str = "/opt/stacks/lightrag",
                bind_addr: str = "100.87.88.7") -> dict[str, str]:
@@ -280,7 +280,7 @@ def main() -> int:
         # sudo 下 getuser() 會回 root，但單元要跑的是真正的使用者。
         args.user = os.environ.get("SUDO_USER") or getpass.getuser()
     if args.workspace is None:
-        args.workspace = env_value(args.repo, "WORKSPACE", "acoustics_v2")
+        args.workspace = env_value(args.repo, "WORKSPACE", "rag_acoustic")
     if args.data_root is None:
         args.data_root = env_value(args.repo, "DATA_ROOT", "/data/lightrag")
     if args.stack_dir is None:

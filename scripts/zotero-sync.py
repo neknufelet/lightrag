@@ -581,7 +581,7 @@ def _secret(name: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("command", choices=("check", "apply"))
-    parser.add_argument("--workspace", default="acoustics_v2")
+    parser.add_argument("--workspace", default="rag_acoustic")
     parser.add_argument("--prune", action="store_true",
                         help="連「找不到證據的」也一併移除（預設只補不刪）")
     parser.add_argument("--json", type=Path, help="差異另存成 JSON")

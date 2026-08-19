@@ -38,7 +38,7 @@
 # config / up / down / ps **全部** exit 1 —— 包含 **`down`**。也就是說
 # 「連停都停不掉」。逃生方式：
 #
-#     WORKSPACE=acoustics_v2 docker compose down
+#     WORKSPACE=rag_acoustic docker compose down
 #
 # 這是刻意接受的取捨：緊急停機多打一個前綴，換掉「安靜連到錯的庫」。
 # 但別假裝沒有這個代價 —— 真的遇到時要知道逃生指令長什麼樣。
