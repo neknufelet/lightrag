@@ -3,6 +3,60 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-08-19（三）· 舊庫全移除、新庫上線；而改一個容器名踩了四次
+
+**`deeptutor|lightrag` → `rag_acoustic|rag_acoustic`。** PO 抱怨了很久的
+「從 deeptutor 拔過來就說乾淨了結果裡面一堆沿用」，這次是真的沒有了：碟重新
+格式化（28K/916G）、7 個 systemd unit 全清全裝、資料庫與使用者都是新名字、
+Dockge stack 改叫 `rag_acoustic`、Postgres 密碼從 8 字換成 32 字。
+
+**三份走完整條線**：外掛 → 收件匣 → 解析 → 確認 → 抽取 → 查得出東西
+（3 份／48 段／943 實體／925 關係，實際查了一題回 200 帶原文）。
+
+### ⚠ 改一個容器名，踩了四次，每一次都是 PO 按下去才發現
+
+    mount-guard         ExecStop 寫死四個容器名（設計文件自己標著「要跟著改」）
+    backup-cold.sh      DEPS/DBS 寫死 → 還原點建不起來 → **整批進料被擋**
+    .env 的 embedding   EMBEDDING_BINDING_HOST 指著舊容器 → 抽完存向量時斷線
+    mineru_common       POSTGRES_CONTAINER_DEFAULT 寫死
+
+**共同形狀**：我改完名字 grep 了一次，但 `--include="*.py"` —— **沒有 `*.sh`、
+沒有 `.env`**。改名這種事要 grep 全部副檔名，而且要包含不在 repo 裡的設定。
+⇒ 第三次之後改用 compose 的**服務名**（`http://infinity:7997`）與**專案標籤**，
+不再用容器名 —— 名字會變，服務名與標籤不會。
+
+### 驗掉一個一直標著「沒有人實測過」的東西
+
+PO 問：「已經抽進去的文獻，改了新規則再抽，那些被規則清掉的內容會不會還在圖譜裡
+（只是沒有連結）？」**答案：會清掉，不留孤兒。**
+
+    探針：Elsevier ／ Journal of Sound and Vibration
+          （描述寫著「mentioned in the copyright notice」「where the article
+            is to appear」—— 只可能來自那張預印封面）
+    重抽前  945 實體 / 927 關係 → 重抽後  943 / 925，兩個探針都查不到了
+    內文層  undergone enhancements 0 段、PII 0 段、Published by Elsevier 0 段
+
+而且不必再付 MinerU 的錢（解析快取仍有效）。這條在 `roadmap` 與 `NEXT` 上標了
+好幾天的 `(未驗)`，今天有答案了。⚠ 唯一殘留是圖片 caption 裡的 `Journal
+Pre-proof` —— 規則消的是文字區塊，碰不到 caption，那是另一族。
+
+### 新庫第一批三篇就抓到一族漏網的
+
+`K7SS62X5` 的第 0 頁是 Elsevier 的「Journal Pre-proof」預印封面，**13 個區塊
+一個字都不是內容，整頁進了知識庫**。三個原因疊在一起：招牌字寫的是
+`To cite this article` 而它寫「**Please** cite this article **as**」；那頁有
+835 字聲明撞到字數關；封面頁眉那條只認 header/footer 而那頁全是 text。
+⇒ 補招牌之後五個不同招牌自動豁免字數關，實測整頁 13 項全丟，另外兩篇不開火。
+
+⚠ **誤傷試算這次做不了** —— 舊庫 319 份已經刪掉，全庫母體不存在了。
+驗證範圍只有 3 份。**語料長回來要重跑一次。**
+
+### 還缺的那一段
+
+「改規則 → 誰要重抽」中間沒有人。`canary` 查得出哪幾份的數字變了，但它不看
+知識庫、不知道誰已經進庫、也不會提醒。**昨天砍五條規則時庫裡有 319 份，
+沒有任何東西告訴我們幾份被影響** —— 當時沒出事只因為那個庫反正要刪。
+
 ## 2026-08-18（二）· 確認清單從純算層做到能點；四個洞都是「東西在、看不見」
 
 **確認清單四層做完三層**：存檔 → 畫面 → 接上審核台。首頁多一條入口，點進去
