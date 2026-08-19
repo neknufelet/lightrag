@@ -1,12 +1,12 @@
 ---
 title: 備份設計 — 兩份備份，各防一種災難
 date_created: 2026-08-10
-date_modified: 2026-08-10
+date_modified: 2026-08-19
 status: accepted
 kind: spec
 supersedes: ""
 superseded_by: ""
-summary: "每日 04:00 的完整冷備份（含異地）與每批進料前的還原點（只在本機）。為什麼都要停機、為什麼排除 models、還原怎麼做。⚠ 還原路徑仍然沒有人走過。"
+summary: "每日 04:00 的完整冷備份（含異地）與每批進料前的還原點（只在本機）。為什麼都要停機、為什麼排除 models、還原怎麼做。**本機還原 2026-08-19 實走驗過**；異地那份仍未驗。"
 ---
 
 # 備份設計
@@ -98,9 +98,40 @@ kbapi 每次都用滿 ⇒ **它沒有處理 SIGTERM，是被 SIGKILL 砍掉的**
 異地           restic repo：rclone:gdrive_LIH:restic_rag_db
 ```
 
-⚠⚠ **這條路從來沒有人走過。** `backup-cold.sh` 自己寫著「**沒驗過的還原路徑等於
-沒有備份**」，而截至 2026-08-10 它仍然成立。要驗必須停服務、動資料根，
-風險比備份本身高 —— 挑一個有人在旁邊的時間做，不要在進料途中。
+## ✅ 本機還原點：2026-08-19 實走驗過
+
+**這條路從 2026-08-10 起就標著「從來沒有人走過」，今天走了。** PO 要求在新庫
+只有 3 份文件時測 —— 那是代價最低的時刻（丟了重解析只要幾分鐘）。
+
+```
+                還原前      還原後
+文件              3           0
+段落             48           0
+實體            943           0
+關係            925           0
+收件匣            0           3      ← 三個檔跟著回來
+work/parsed       3           0      ← 解析成果也回到還原點的狀態
+models        49 檔 6.4G   49 檔 6.4G ← 一個檔都沒少
+審核台          200         200
+kbapi                {"workspace": "rag_acoustic", "documents": []}
+```
+
+四步完全照上面那張表走，指令是：
+
+```
+docker stop -t 60 kbapi-… lightrag-… postgres-…
+sudo rsync -a --delete --exclude='models/' --exclude='lost+found' \
+     /data/lightrag-restorepoint/ /data/lightrag/
+docker start postgres-… ; 等 pg_isready ; docker start lightrag-… kbapi-…
+```
+
+⚠ **`--exclude='models/'` 是整條指令裡最重要的一段。** 還原點裡沒有 models，
+少了那個排除、又帶著 `--delete`，6.4 GB 權重會一起消失。上面「還原時不能整個
+目錄換掉」那句警告是真的，實測時特別確認過 49 個檔一個沒少。
+
+⚠ **異地那份（restic → Google Drive）仍然沒有人驗過。** 這次驗的是本機還原點。
+兩者防的災難不同：本機那份防「這批放錯檔案」，異地那份防「機器沒了」。
+**不要因為這次驗過就以為兩個都通了。**
 
 ## 兩個戳記，不能共用
 
