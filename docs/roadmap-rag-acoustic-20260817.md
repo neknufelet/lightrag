@@ -230,8 +230,26 @@ $ diff <(cd /data/lightrag/models && find . -type f | sort) \
 ⚠ `docs/NEXT.md` 記著「走一次還原」從來沒做過。
 　證明：實際列一次快照、抽一個檔還原出來。唯讀、免費。
 
-### 4. 全移除舊庫
+### 4. 全移除舊庫　✅ **2026-08-19 做完**
 容器、資料庫、`/data/lightrag` 這顆碟、**7 個** systemd unit（含 2 個 timer）。
+
+```
+1) docker ps -a 沒有 *acoustics_v2        0 個
+2) lightrag 專案的容器                    0 個
+3) systemctl list-unit-files 'lightrag*'  0 個（另清掉一個 .bak-20260804 殘檔）
+4) 碟上的內容                             lost+found
+5) 用量                                   28K / 916G
+6) fstab 那一行還在（UUID 沿用，路徑不變）  1 行
+```
+
+⚠ **`mkfs` 第一次被擋下來：`/dev/sda1 is apparently in use by the system`。**
+`fuser`、`findmnt`、`/proc/mounts` 三個都說沒有人用它 —— 因為抓著它的是
+**backrest 容器自己的 mount namespace**（`sudo grep -l sda1 /proc/*/mounts`
+才找得到，三個 pid 都是 backrest，唯讀掛在 `/userdata/data/lightrag`）。
+停掉 backrest → 格式化 → 掛回來 → 開回 backrest。**下次重建要記得這一步。**
+
+⚠ **UUID 刻意沿用**（`mkfs.ext4 -U 6a240183-…`），所以 `/etc/fstab` 一個字沒改。
+換 UUID 會多一個「改 fstab 打錯就開不了機」的失敗點，而零重疊清單沒有要求換它。
 
 ⚠ **`/data/lightrag` 是掛載點不是目錄**（見上方「磁碟那句話我量錯了」）。
 「刪目錄」要 umount ＋ 改 `/etc/fstab`，否則重開機空碟又掛回來。
