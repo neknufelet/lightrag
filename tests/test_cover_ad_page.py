@@ -81,9 +81,14 @@ def test_marker_on_a_later_page_does_not_fire() -> None:
     assert p.mutes == []
 
 
-def test_page_with_a_long_paragraph_is_not_an_ad_page() -> None:
-    """保險：廣告頁上沒有長段落。實測那 26 頁沒有任何一段超過 300 字。"""
-    items = [*_wrapper_page(), _row("x" * (cap.BODY_PARAGRAPH_MIN_CHARS + 1), 0)]
+def test_one_marker_plus_a_long_paragraph_is_not_an_ad_page() -> None:
+    """保險：**只有一個招牌時**，頁上有長段落就不當廣告頁。
+
+    ⚠ 這支原本用 `_wrapper_page()`（招牌兩個），2026-08-19 加上「兩個招牌豁免
+    字數關」之後那個樣本就不再測得到這道關 —— 改成單一招牌。
+    **測試樣本會被後來的規則掏空，行為斷言不會。**
+    """
+    items = [_row("LEARN MORE", 0), _row("x" * (cap.BODY_PARAGRAPH_MIN_CHARS + 1), 0)]
 
     p = cap.plan(items)
 
@@ -256,3 +261,65 @@ def test_items_already_dropped_by_the_cover_rule_leave_the_confirm_list() -> Non
                                     "text": "LakeShore"}]}}
 
     assert items_from_plan(plan_) == []
+
+
+# ── 出版商換一家，招牌就換一批（PO 2026-08-19 指出 Taylor & Francis 那份）──
+
+
+def _tf_wrapper() -> list[dict]:
+    """Taylor & Francis 的包裝頁。取自 `2025 - 3D Printed multilayer overlapping`。
+
+    ⚠ 上面那段「引用格式」有 369 字 —— 比 `BODY_PARAGRAPH_MIN_CHARS` 還長，
+    所以單靠字數那道關會把整頁放掉。
+    """
+    return [
+        _row("3D Printed multilayer overlapping resonators for lowfrequency broadband"),
+        _row("Yiming Zhao, Zichao Guo, Jie Ye, Junjie Deng, Xinying Lu, Kexin Zeng"),
+        _row("To cite this article: " + "Yiming Zhao, Zichao Guo, Jie Ye. " * 11),
+        _row("To link to this article:https://doi.org/10.1080/17452759.2025.2455540"),
+        _row("Submit your article to this journal"),
+        _row("View related articles"),
+        _row("Citing articles: 1 View citing articles"),
+    ]
+
+
+def test_two_markers_waive_the_long_paragraph_guard() -> None:
+    """兩個以上招牌就夠強了，不必再靠字數。
+
+    PO 2026-08-19：「這個一樣有第 0 頁耶」。它有 10 處招牌，卻因為引用格式那段
+    369 字而整頁被放掉。**兩個獨立招牌是比字數更強的證據。**
+    """
+    items = [*_tf_wrapper(), *_real_body()]
+
+    p = cap.plan(items)
+
+    assert p.fired is True
+    assert len(p.mutes) == 7
+
+
+def test_one_marker_plus_a_long_paragraph_still_does_not_fire() -> None:
+    """只有一個招牌時，字數那道關**要留著**。
+
+    全庫實測 2026-08-19：有招牌但不開火的 38 份，全部是「一個招牌 ＋ 頁上有
+    1,200～2,500 字的真正文」—— 那是正常論文的第一頁，碰了就是刪內容。
+    """
+    items = [_row("To cite this article: J Z Song et al 2014 New J. Phys."),
+             _row("正文第一段。" * 60),
+             *_real_body()]
+
+    p = cap.plan(items)
+
+    assert p.fired is False
+    assert "長段落" in p.reason
+
+
+def test_the_iop_wording_counts_as_a_marker() -> None:
+    """IOP 用的是「You may also like」——`title_block` 的檔頭早就點名過這一種。"""
+    items = [_row("Acoustic coherent perfect absorbers"),
+             _row("You may also like"),
+             _row("- Ultra-broadband underwater metaabsorber with gradient impedance"),
+             *_real_body()]
+
+    p = cap.plan(items)
+
+    assert p.fired is True

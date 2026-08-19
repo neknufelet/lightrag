@@ -45,14 +45,39 @@ WRAPPER_PAGE_IDX: Final[int] = 0
 #: ① 「Articles you may be interested in」—— 那一行底下列的是**別人的論文**
 #: ② 廣告詞 —— 儀器商與期刊自己的推銷
 #:
+#: ③ 期刊自己的導覽字 —— Taylor & Francis／IOP 那種包裝頁沒有廣告，招牌是
+#:    「To cite this article」「Submit your article」「You may also like」
+#: ④ 機構典藏的封面 —— 學校的 Digital Commons／ScholarWorks
+#:
 #: ⚠ 判準是「這一頁上出現過」，不是「這一段就是它」。整頁丟的規則要的是
 #: **這一頁是什麼版面**，不是逐段判斷；逐段判斷正是上一輪做過而漏掉一半的做法。
+#:
+#: ⚠ ③④ 是 PO 2026-08-19 用真資料指出來的：「這個一樣有第 0 頁耶」。
+#: **換一家出版商就換一批用語** —— 這份清單不會一次寫完，會隨語料長。
 AD_MARKERS: Final[re.Pattern[str]] = re.compile(
-    r"articles?\s+you\s+may\s+be\s+interested\s+in"
+    r"articles?\s+you\s+may\s+be\s+interested\s+in|you\s+may\s+also\s+like"
     r"|learn\s+more|get\s+the\s+whitepaper|lake\s?shore|zurich\s+instruments"
     r"|advance\s+your\s+science|potential\s+to\s+shape\s+the\s+future"
     r"|save\s+your\s+money\s+for\s+your\s+research|belongs\s+in"
-    r"|challenge\s+us|lock-in\s+amplifiers|whitepaper", re.I)
+    r"|challenge\s+us|lock-in\s+amplifiers|whitepaper"
+    r"|to\s+cite\s+this\s+article|to\s+link\s+to\s+this\s+article"
+    r"|submit\s+your\s+article\s+to\s+this\s+journal|view\s+related\s+articles"
+    r"|citing\s+articles?\s*:|article\s+views\s*:|view\s+crossmark\s+data"
+    r"|issn\s*:\s*\(print\)|journal\s+homepage\s*:\s*www"
+    r"|full\s+terms\s+&?\s*conditions\s+of\s+access|recommended\s+citation"
+    r"|follow\s+this\s+and\s+additional\s+works|digital\s+commons|scholarworks"
+    r"|part\s+of\s+the\s+.{0,45}\bcommons\b"
+    r"|brought\s+to\s+you\s+for\s+free\s+and\s+open\s+access", re.I)
+
+#: 出現幾個**不同**招牌就不必再看字數。
+#:
+#: 一個招牌可能是正文引用到的（論文本來就會寫「journal homepage」），所以要靠
+#: 字數那道關把「這頁其實是正文」擋回去。**兩個不同的招牌就不是巧合了**，
+#: 這時字數關反而礙事：Taylor & Francis 那頁的「引用格式」一段就有 369 字。
+#:
+#: 全庫實測 2026-08-19：有招牌但仍不開火的 38 份，全部是「一個招牌 ＋ 頁上有
+#: 1,200～2,500 字的真正文」—— 正常論文的第一頁，正確地沒被碰。
+MARKERS_WAIVING_LENGTH: Final[int] = 2
 
 #: 這一頁上只要有一段比這個長，就不當廣告頁。
 #:
@@ -111,6 +136,15 @@ def _text_of(item: dict) -> str:
     return (item.get("text") or "").strip()
 
 
+def distinct_markers(text: str) -> int:
+    """這一頁上出現了幾個**不同**的招牌。
+
+    ⚠ **算不同的，不是算次數。** 同一句「To cite this article」印兩次仍然只是
+    一個訊號；兩個不同的招牌才代表這頁是包裝頁而不是正文提到了某個詞。
+    """
+    return len({m.group(0).strip().lower() for m in AD_MARKERS.finditer(text)})
+
+
 def _on_wrapper_page(items: list[dict]) -> list[int]:
     return [i for i, it in enumerate(items)
             if it.get("page_idx") == WRAPPER_PAGE_IDX]
@@ -135,11 +169,12 @@ def plan(items: list[dict], *, claimed: Container[int] = frozenset()) -> CoverAd
     if not page:
         return CoverAdPlan([], False, f"沒有第 {WRAPPER_PAGE_IDX} 頁", before, before)
 
-    if not any(AD_MARKERS.search(_text_of(items[i])) for i in page):
+    blob = "\n".join(_text_of(items[i]) for i in page)
+    if not AD_MARKERS.search(blob):
         return CoverAdPlan([], False, "第一頁沒有出版商招牌", before, before)
 
     longest = max((len(_text_of(items[i])) for i in page), default=0)
-    if longest >= BODY_PARAGRAPH_MIN_CHARS:
+    if longest >= BODY_PARAGRAPH_MIN_CHARS and distinct_markers(blob) < MARKERS_WAIVING_LENGTH:
         # ⚠ **不要因為「招牌字很明確」就放行。** 招牌字明確的那一頁正是有 807 字
         # 正文的那一份 —— 明確的招牌加上真正文，代表版面判斷錯了，不是廣告更明顯。
         return CoverAdPlan([], False, f"第一頁有 {longest} 字的長段落，不像廣告頁",
