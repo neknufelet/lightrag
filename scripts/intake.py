@@ -724,7 +724,7 @@ class IntakeRunner(Protocol):
     def wait_indexed(self, job: Job) -> OperationResult: ...
 
     def verify_batch(self, jobs: Sequence[Job],
-                     known_filenames: set[str]) -> dict[str, OperationResult]: ...
+                     known_filenames: Callable[[], set[str]]) -> dict[str, OperationResult]: ...
 
     def restore_point(self) -> OperationResult: ...
 
@@ -1334,7 +1334,7 @@ class SubprocessRunner:
         return OperationResult(False, "", f"等待 {job.filename} processed 逾時")
 
     def verify_batch(
-        self, jobs: Sequence[Job], known_filenames: set[str],
+        self, jobs: Sequence[Job], known_filenames: Callable[[], set[str]],
     ) -> dict[str, OperationResult]:
         """整批驗契約：**跑一次全庫的 compat-check**，不是逐份跑 N 次。
 
@@ -1345,8 +1345,18 @@ class SubprocessRunner:
         `processed` 是「這一份寫完了」，`pipeline_busy` 是「整條管線閒了沒」，
         兩者之間有一小段。A-19 是 hard，踩到那一段就會把好文件判死。
 
-        `known_filenames` 要是**全部** job 的檔名而不是這一批的 —— 比對母體太小時
+        `known_filenames` 要回**全部** job 的檔名而不是這一批的 —— 比對母體太小時
         別份文件的紅燈會被誤判成整庫層級（2026-08-10 實測踩過）。
+
+        ⚠ **它是個函式，不是一份現成的名單，而且要等量測完才呼叫。** 上面那段等待
+        可能好幾分鐘，而 PO 會一邊跑一邊往收件匣丟新檔 —— 開場就記下來的名單到
+        這裡已經過期，新來的那幾份（解析到一半，A-10 必紅）因此沒有主人，於是
+        有主的紅燈被當成整庫層級，整批陪葬。2026-08-20 實測：00:46:00 開始驗、
+        00:46:57 進來 4 份新的、00:49:28 整批判死，而 `XVD6N97J` 其實已經
+        `processed` 進庫了，壞掉的只有簿記。
+
+        晚一點問只會讓名單**變大**，而名單變大只會把紅燈從「無主」移到「有主」——
+        那是誤殺整批與只記那一份的差別，永遠是後者對。
         """
         blocked = self._wait_pipeline_idle()
         if blocked is not None:
@@ -1354,7 +1364,7 @@ class SubprocessRunner:
         command = [self.python, str(self.repo / "scripts" / "compat-check.py"), "--json"]
         result = self._run(command, self.command_timeout)
         try:
-            bad, fatal = hard_failing_documents(result.output, known_filenames)
+            bad, fatal = hard_failing_documents(result.output, known_filenames())
         except (ValueError, json.JSONDecodeError) as exc:
             message = (f"契約檢查的輸出讀不出來（exit {result.code}）：{exc}"
                        f"；前 200 字：{result.output[:200]}")
@@ -2597,8 +2607,11 @@ class IntakeApp:
         # 這樣被誤殺，資料庫那側 159 份全部是 processed，壞掉的只有簿記。
         survivors = [item for item, ok in zip(staged, waited, strict=True) if ok]
         if survivors:
-            known = {job.filename for job in self._jobs_snapshot()}
-            verdicts = self.runner.verify_batch([job for job, _ in survivors], known)
+            # **傳函式不傳名單**：`verify_batch` 會先等 pipeline 閒置（可能好幾
+            # 分鐘）再量測，這期間新丟進收件匣的檔案要算得進去。理由見那支的說明。
+            verdicts = self.runner.verify_batch(
+                [job for job, _ in survivors],
+                lambda: {job.filename for job in self._jobs_snapshot()})
             for job, admitted in survivors:
                 self._verify_one(job, admitted, verdicts.get(job.job_id))
         self._assert_staging_drained(len(staged))

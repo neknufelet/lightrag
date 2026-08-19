@@ -40,6 +40,7 @@ import json
 import logging
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Final
 
@@ -80,18 +81,25 @@ def decide(job_status: str, index_status: str | None, *, verify_ok: bool) -> tup
     return FLIP, "索引裡是 processed，契約也重驗過了"
 
 
-def _hard_failing_documents(filenames: set[str]) -> tuple[set[str], list[str]]:
+def _hard_failing_documents(
+    filenames: Callable[[], set[str]],
+) -> tuple[set[str], list[str]]:
     """跑一次全庫契約檢查，把結果交給共用的判準去分。
 
     ⚠ **解析那段不寫在這裡。** `intake.py` 的批次驗證用同一支
     `hard_failing_documents()` —— 兩份實作只要有人改一邊就會靜靜地不一致，
     而這個專案已經踩過五次「同一件事兩個地方」。
+
+    ⚠ **`filenames` 是函式，而且要等檢查跑完才呼叫。** 全庫檢查要跑幾十秒，
+    進料台同時在做事：這期間新進來的檔案解析到一半就會讓 A-10 紅，而它不在
+    開跑前記的名單裡 —— 於是有主的紅燈被當成整庫層級，這支拒絕翻牌，該撿回來的
+    假失敗一份都撿不回來。`intake.py` 的批次驗證 2026-08-20 修過同一個形狀。
     """
     completed = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "compat-check.py"), "--json"],
         cwd=REPO, capture_output=True, text=True, check=False, timeout=3600)
     try:
-        return hard_failing_documents(completed.stdout, filenames)
+        return hard_failing_documents(completed.stdout, filenames())
     except (ValueError, json.JSONDecodeError) as exc:
         raise RuntimeError(
             f"compat-check --json 的輸出不是 JSON（exit {completed.returncode}）："
@@ -131,7 +139,12 @@ def main() -> int:
     # **跑一次全庫的契約檢查，不是逐份跑。** 逐份跑 84 次要十幾分鐘而且會把
     # Postgres 打滿（2026-08-10 實測，中途只好停掉）；而那 84 次問的是同一個
     # 母體，一次就答得完。
-    bad_docs, fatal = _hard_failing_documents({job.filename for job in jobs})
+    # **名單等檢查跑完才算，而且跟開場那份取聯集。** 檢查那幾十秒裡進料台會繼續
+    # 做事，新進來的檔案解析到一半就會讓 A-10 紅；漏掉它們的話那盞紅燈沒有主人，
+    # 這支就整個停下來。取聯集是因為重讀只該讓名單**變大** —— 變小的話（某個 job
+    # 剛好被清掉）反而會製造出新的無主紅燈。
+    bad_docs, fatal = _hard_failing_documents(
+        lambda: {job.filename for job in jobs} | {job.filename for job in store.load()})
     if fatal:
         LOGGER.error("契約檢查有**不屬於任何一份文件**的 hard 失敗，先處理它們：\n  %s\n"
                      "整庫層級的紅燈沒排除之前翻牌是不負責任的。", "\n  ".join(fatal))

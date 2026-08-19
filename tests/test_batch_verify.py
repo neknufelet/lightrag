@@ -12,12 +12,19 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from intake import hard_failing_documents  # noqa: E402
+import pytest  # noqa: E402
+from intake import (  # noqa: E402
+    Job,
+    OperationResult,
+    SubprocessRunner,
+    hard_failing_documents,
+)
 
 
 def _row(check_id: str, level: str, what: str, ok: bool | None) -> dict:
@@ -78,3 +85,73 @@ def test_a_document_not_in_the_batch_is_ignored_but_still_has_an_owner() -> None
     bad, fatal = hard_failing_documents(payload, {"甲.pdf", "乙.pdf", "丙.pdf"})
     assert bad == {"丙.pdf"}
     assert fatal == [], "有主的紅燈被當成整庫層級了"
+
+
+# ── 名單什麼時候記下來 ──────────────────────────────────────────────────────
+#
+# 上面四支釘的是「怎麼歸屬」，這一段釘的是「拿什麼名單去歸屬」。判準對、名單過期，
+# 結果一樣錯。
+
+def _runner(monkeypatch: pytest.MonkeyPatch, compat_json: str,
+            on_compat_check: Callable[[], None]) -> SubprocessRunner:
+    """真的 `SubprocessRunner`，只把兩個會碰外面的動作換掉。
+
+    換掉 `_wait_pipeline_idle`（要打 LightRAG）與 `_run`（要跑 compat-check）。
+    `verify_batch` 本身、以及它決定「何時去問名單」的那段，都是真的在跑。
+    """
+    runner = SubprocessRunner(Path("/nonexistent"), {})
+    monkeypatch.setattr(runner, "_wait_pipeline_idle", lambda: None)
+
+    def fake_run(command: list[str], timeout: float) -> OperationResult:
+        on_compat_check()
+        return OperationResult(True, compat_json, code=0)
+
+    monkeypatch.setattr(runner, "_run", fake_run)
+    return runner
+
+
+def _one_job(filename: str) -> Job:
+    return Job(
+        job_id="j1", candidate_id="c1", source_root="/src", source_path=f"/src/{filename}",
+        source_name="inbox", source_key="inbox-1", filename=filename,
+        source_sha256="sha256:x", status="extracting", decision="clean", reasons=[],
+        details=[], plan=None, created_at="2026-08-20T00:00:00+00:00",
+        created_epoch=0.0, updated_at="2026-08-20T00:00:00+00:00",
+    )
+
+
+def test_a_job_created_during_the_check_is_still_attributable(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """**檢查跑到一半才進來的新檔，不准把整批判死。**
+
+    2026-08-20 實測踩過：00:46:00 這一批進入契約驗證並記下名單，00:46:57 PO 丟了
+    4 個新 PDF 進收件匣，00:49:28 整批判失敗。那 4 份當時解析到一半（`content_list.json`
+    還沒寫出來）所以 A-10 紅，而它們不在 57 秒前記的名單裡 —— 於是有主的紅燈被
+    當成整庫層級，`XVD6N97J` 陪葬。它其實已經 `processed` 進庫了，壞掉的只有簿記。
+
+    名單要在**量測之後**才問，那時候新來的已經有 job 了。
+    """
+    late = "遲到.pdf"
+    payload = json.dumps([_row("A-10", "hard", f"{late}：content_list.json 只在 critical_file", False)])
+    known = {"這一批.pdf"}
+    runner = _runner(monkeypatch, payload, on_compat_check=lambda: known.add(late))
+
+    verdicts = runner.verify_batch([_one_job("這一批.pdf")], lambda: set(known))
+
+    assert verdicts["j1"].ok, f"被別人的紅燈判死了：{verdicts['j1'].error}"
+
+
+def test_a_genuinely_ownerless_hard_failure_still_stops_the_batch(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """**控制組。** 晚一點問名單不等於把整庫層級的紅燈放掉。
+
+    A-19（pipeline 閒置）講的是整個系統，沒有任何檔名認領得了它。沒有這一條的話，
+    「名單永遠當成認領得了」也會讓上面那支通過。
+    """
+    payload = json.dumps([_row("A-19", "hard", "pipeline 目前 idle", False)])
+    runner = _runner(monkeypatch, payload, on_compat_check=lambda: None)
+
+    verdicts = runner.verify_batch([_one_job("這一批.pdf")], lambda: {"這一批.pdf"})
+
+    assert not verdicts["j1"].ok
+    assert "A-19" in (verdicts["j1"].error or "")

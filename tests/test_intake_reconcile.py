@@ -20,6 +20,8 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import importlib.util  # noqa: E402
 
+import pytest  # noqa: E402
+
 _spec = importlib.util.spec_from_file_location(
     "intake_reconcile", ROOT / "scripts" / "intake-reconcile.py")
 assert _spec is not None and _spec.loader is not None
@@ -77,3 +79,44 @@ def test_status_matching_ignores_case_the_way_lightrag_reports_it() -> None:
     """LightRAG 的狀態字面值實查是小寫，但別靠它 —— 大小寫變了不該讓工具靜靜失效。"""
     verdict, _ = reconcile.decide("failed", "PROCESSED", verify_ok=True)
     assert verdict is FLIP
+
+
+# ── 名單什麼時候記下來 ──────────────────────────────────────────────────────
+
+def test_a_job_created_while_the_contract_check_runs_is_still_attributable(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """**檢查跑到一半才進來的新檔，不准把整支工具擋下來。**
+
+    全庫契約檢查要跑幾十秒，而進料台同時在做事 —— 這期間新進來的檔案解析到一半
+    （`content_list.json` 還沒寫出來）就會讓 A-10 紅。名單如果是開跑前記的，
+    那盞紅燈沒有主人，這支就報「整庫層級的紅燈」然後拒絕翻牌，而該撿回來的
+    假失敗一份都撿不回來。
+
+    `intake.py` 的批次驗證 2026-08-20 修過同一個形狀（實測：00:46:00 記名單、
+    00:46:57 進來 4 份、00:49:28 整批判死）。**同一件事兩個地方**是這個專案踩過
+    五次的坑，所以兩邊一起釘。
+    """
+    import json as _json
+    import subprocess as _subprocess
+
+    late = "遲到.pdf"
+    known = {"本來就在.pdf"}
+    payload = _json.dumps([{
+        "id": "A-10", "level": "hard", "ok": False, "detail": "", "data": {},
+        "what": f"{late}：content_list.json 只在 critical_file",
+    }])
+
+    class _Completed:
+        stdout = payload
+        returncode = 2
+
+    def fake_run(*args: object, **kwargs: object) -> _Completed:
+        known.add(late)          # 檢查跑的那段期間，新的 job 出現了
+        return _Completed()
+
+    monkeypatch.setattr(_subprocess, "run", fake_run)
+
+    bad, fatal = reconcile._hard_failing_documents(lambda: set(known))
+
+    assert fatal == [], f"有主的紅燈被當成整庫層級：{fatal}"
+    assert bad == {late}
