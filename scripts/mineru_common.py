@@ -164,8 +164,9 @@ def load_env(repo: Path, *, required: bool = True) -> dict[str, str]:
         if not required:
             return {}
         raise EnvFileMissing(
-            f"{p} 不存在。現役的 .env 在 dker 的 /opt/stacks/lightrag/.env"
-            "（2026-08-07 搬出 git checkout，repo 根目錄放一條 symlink 指過去）。\n"
+            f"{p} 不存在。現役的 .env 在 dker 的 /opt/stacks/<WORKSPACE>/.env"
+            "（2026-08-07 搬出 git checkout，repo 根目錄放一條 symlink 指過去；"
+            "**路徑不寫死**，跟著 symlink 走：`readlink -f .env`）。\n"
             "coder 上刻意沒有 .env —— 需要它的腳本只能在 dker 跑。")
     return parse_env_text(p.read_text())
 

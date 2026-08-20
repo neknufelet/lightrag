@@ -18,7 +18,16 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-STACK_DIR = Path("/opt/stacks/lightrag")
+
+
+def _stack_dir() -> Path:
+    """這台機器的 stack 目錄，跟受測程式走同一條解析路徑。
+
+    ⚠ **不要寫死。** 這裡本來寫死 `/opt/stacks/lightrag`，2026-08-19 改名之後那個
+    目錄不存在了，於是下面那條 skipif **在 dker 上也成立** —— 唯一真正守著
+    「stack 那份與 repo 一致」的測試從此靜靜跳過，而跳過看起來跟通過一樣。
+    """
+    return _module().default_stack_dir()
 
 
 def _module():
@@ -83,11 +92,12 @@ def test_install_without_commit_writes_nothing(tmp_path: Path) -> None:
     assert not (tmp_path / "compose.yaml").exists(), "預設是 dry-run，不得寫檔"
 
 
-@pytest.mark.skipif(not STACK_DIR.is_dir(), reason="沒有 stack 目錄（coder 上就是這樣）⇒ 驗不了")
+@pytest.mark.skipif(not _stack_dir().is_dir(),
+                    reason="沒有 stack 目錄（coder 上就是這樣）⇒ 驗不了")
 def test_stack_matches_repo() -> None:
     """真正的守衛：dker 上跑時，stack 那份必須與 repo 一致。"""
     mod = _module()
-    assert mod.cmd_verify(_args(mod, STACK_DIR)) == 0, (
+    assert mod.cmd_verify(_args(mod, _stack_dir())) == 0, (
         "stack 的 compose.yaml 與 repo 不一致。"
         "repo 是 SSOT——若 stack 那份是在 Dockge UI 改的，先把改動搬回 repo。")
 
@@ -257,3 +267,44 @@ def test_unit_start_epoch_returns_none_for_a_unit_that_is_not_running() -> None:
     """
     mod = _module()
     assert mod._unit_start_epoch("this-unit-does-not-exist-drill.service") is None
+
+
+# ── stack 目錄從哪裡來 ─────────────────────────────────────────────────────
+#
+# 2026-08-19 workspace 從 `lightrag` 改名成 `rag_acoustic`，Dockge 的 stack 目錄
+# 跟著變成 `/opt/stacks/rag_acoustic`。`.env` 有 `STACK_DIR`，`systemd-units.py`
+# 讀它，**這支沒讀**——於是它去看一個不存在的目錄，報「stack 還沒部署」：
+#
+#     stack 還沒部署：/opt/stacks/lightrag/compose.yaml 不存在
+#     修法：deploy-stack.py install --commit
+#
+# 而照那句去做會把 stack 裝到舊路徑，變成真的有兩份。**寫死的名字跟寫死的數字
+# 是同一種病**——同日 CLAUDE.md 兩處、`deploy/` 的容器名都踩過同一個形狀。
+
+def test_the_stack_dir_comes_from_the_env_file(tmp_path: Path) -> None:
+    """`.env` 說了算 —— `systemd-units.py` 讀同一個鍵，兩邊不能各講各的。"""
+    (tmp_path / ".env").write_text("WORKSPACE=rag_acoustic\nSTACK_DIR=/opt/stacks/somewhere\n")
+    mod = _module()
+
+    assert mod.default_stack_dir(tmp_path) == Path("/opt/stacks/somewhere")
+
+
+def test_without_stack_dir_it_is_derived_from_the_workspace(tmp_path: Path) -> None:
+    """沒設 `STACK_DIR` 就從 `WORKSPACE` 算 —— Dockge 的目錄名就是專案名。
+
+    這是不寫死名字的那一半：改 workspace 時這裡自動跟上，不必記得改第二個地方。
+    """
+    (tmp_path / ".env").write_text("WORKSPACE=rag_acoustic\n")
+    mod = _module()
+
+    assert mod.default_stack_dir(tmp_path) == Path("/opt/stacks/rag_acoustic")
+
+
+def test_no_env_file_does_not_explode(tmp_path: Path) -> None:
+    """coder 上刻意沒有 `.env`，而 argparse 的預設值在 import 時就要算得出來。
+
+    丟例外的話這支在 coder 上連 `--help` 都跑不起來。
+    """
+    mod = _module()
+
+    assert mod.default_stack_dir(tmp_path).parent == Path("/opt/stacks")

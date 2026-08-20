@@ -26,7 +26,11 @@ def test_missing_env_raises_not_returns_empty(tmp_path: Path) -> None:
     with pytest.raises(EnvFileMissing) as e:
         load_env(tmp_path)
     msg = str(e.value)
-    assert "/opt/stacks/lightrag/.env" in msg, "錯誤訊息要指出現役的 .env 在哪"
+    # ⚠ **不比對寫死的目錄名。** 這裡本來斷言 `/opt/stacks/lightrag/.env`，
+    # 2026-08-19 workspace 改名之後那個路徑不存在了，而測試仍然綠 ——
+    # 它守的其實是「訊息要指得出路」，不是「訊息要提到 lightrag 這五個字」。
+    assert "/opt/stacks/" in msg, "錯誤訊息要指出現役的 .env 在哪"
+    assert "readlink -f .env" in msg, "目錄名會變，要給一條算得出來的路"
     assert "coder" in msg, "要說明 coder 上刻意沒有它，否則會有人去 coder 上找"
 
 

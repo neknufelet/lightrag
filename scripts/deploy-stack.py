@@ -48,11 +48,36 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from mineru_common import load_env  # noqa: E402
+
 REPO = Path(__file__).resolve().parent.parent
 SOURCE = REPO / "compose.yaml"
 
-# 換機器會變，所以可覆寫；預設是 dker 上的實際位置。
-DEFAULT_STACK_DIR = Path("/opt/stacks/lightrag")
+# Dockge 的 stack 目錄名 ＝ 專案名 ＝ `WORKSPACE`。
+STACKS_ROOT = Path("/opt/stacks")
+# `.env` 也讀不到時的最後一手。與 `systemd-units.py` 的 WORKSPACE 預設同一個值 ——
+# 兩邊講不同的話，沒有 `.env` 的機器上會各自指到不同目錄。
+FALLBACK_WORKSPACE = "rag_acoustic"
+
+
+def default_stack_dir(repo: Path = REPO) -> Path:
+    """這台機器的 stack 目錄。**不寫死名字。**
+
+    2026-08-19 workspace 從 `lightrag` 改名成 `rag_acoustic`，而這裡寫死著舊名，
+    於是 `verify` 去看一個不存在的目錄並回報「stack 還沒部署」——照它給的修法做
+    會把 stack 裝到舊路徑，變成真的有兩份。`systemd-units.py` 早就讀 `.env` 的
+    `STACK_DIR`，這支沒讀，兩邊各講各的。
+
+    順序：`.env` 的 `STACK_DIR` → `/opt/stacks/<WORKSPACE>` → 最後一手。
+    **不丟例外**：這是 argparse 的預設值，import 時就要算得出來，而 coder 上
+    刻意沒有 `.env`（那裡連 `--help` 都要跑得起來）。
+    """
+    env = load_env(repo, required=False)
+    configured = env.get("STACK_DIR", "").strip()
+    if configured:
+        return Path(configured)
+    return STACKS_ROOT / (env.get("WORKSPACE", "").strip() or FALLBACK_WORKSPACE)
 
 # 部署機唯一該有的分支。落後它就是「跑舊碼」。
 UPSTREAM_REF = "origin/master"
@@ -470,8 +495,9 @@ def cmd_install(args: argparse.Namespace) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--stack-dir", default=str(DEFAULT_STACK_DIR),
-                    help=f"Dockge 的 stack 目錄（預設 {DEFAULT_STACK_DIR}）")
+    resolved_stack_dir = default_stack_dir()
+    ap.add_argument("--stack-dir", default=str(resolved_stack_dir),
+                    help=f"Dockge 的 stack 目錄（預設 {resolved_stack_dir}，從 .env 算）")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("verify", help="比對 repo 與 stack，不一致回 2")
     sub.add_parser("freshness", help="跑著的是不是最新的碼，不是回 2")
