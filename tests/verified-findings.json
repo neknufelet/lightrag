@@ -175,6 +175,69 @@
    ],
    "source": "2026-08-10 對話：逐頁 pdftotext 與 MinerU 並排比對第 2 頁",
    "note": "這份是 13 份超標裡唯一「對照源詞數多於抽取」的，方向看似正確，逐頁並排才看出是重複輸出。⚠ 第 9 頁（參考文獻）確實空白，但那本來就會被 reference_section 消音"
+  },
+  {
+   "check": "extract-check",
+   "metric": "grounding_suspect_rate",
+   "doc": "GX4JFGVL 2018 - Broadband high sound absorption",
+   "verified_on": "2026-08-21",
+   "verdict": "not_hallucination",
+   "at_verification": {
+    "suspect": 11,
+    "total_discriminating": 87,
+    "rate": 0.126
+   },
+   "summary": "11 個接不回原文的實體**全部叫「⋯⋯ formula」**，是抽取模型幫式子取的英文標籤，論文裡對應的是 LaTeX 公式本身",
+   "root_cause": "字串比對只能對散文。公式衍生的實體名字在原文裡根本不以那種字串存在，所以「接不回去」是判準的必然結果，不是抽取出錯——與 K Muffler 的裸符號同族，差別只在這次是整句英文標籤而不是單一符號，因此沒有落進 SYMBOLIC 那一格",
+   "sample": [
+    "bandwidth formula",
+    "channel impedance formula",
+    "critical loss formula"
+   ],
+   "source": "2026-08-21 逐條看 extract-check --list-ungrounded 的輸出",
+   "note": "同日另外兩份（MIQ9V2ML、P2UYZJN8_05）是同一個形狀。三份的可疑率都只是剛好越過 0.1，沒有一份接近倍數級"
+  },
+  {
+   "check": "extract-check",
+   "metric": "grounding_suspect_rate",
+   "doc": "MIQ9V2ML 2017 - Perfect absorption of low-frequency",
+   "verified_on": "2026-08-21",
+   "verdict": "not_hallucination",
+   "at_verification": {
+    "suspect": 5,
+    "total_discriminating": 44,
+    "rate": 0.114
+   },
+   "summary": "5 個接不回原文的實體都帶數學符號或量測值，原文以 LaTeX／表格呈現",
+   "root_cause": "同 GX4JFGVL：名字含符號（下標、等號、單位）的實體，字串比對在散文裡永遠找不到",
+   "sample": [
+    "L_A = 275 mm",
+    "effective wavenumber k_e",
+    "reflectance R"
+   ],
+   "source": "2026-08-21 逐條看 extract-check --list-ungrounded 的輸出",
+   "note": "本身已有 5 個落進「符號型驗不了」，這 5 個是同族但沒被歸進去的"
+  },
+  {
+   "check": "extract-check",
+   "metric": "grounding_suspect_rate",
+   "doc": "P2UYZJN8_05 n.d. - Perception of room modes",
+   "verified_on": "2026-08-21",
+   "verdict": "not_hallucination",
+   "at_verification": {
+    "suspect": 10,
+    "total_discriminating": 96,
+    "rate": 0.104
+   },
+   "summary": "10 個裡 6 個是模態理論的符號型實體，其餘 4 個是概念改寫（原文有講，但不是逐字）",
+   "root_cause": "符號型同上；概念改寫那幾個是抽取模型把一段敘述濃縮成名詞片語，字串比對對不上但語意在原文裡找得到",
+   "sample": [
+    "modal coefficient C_n",
+    "modal shape function p_n",
+    "constant damping assumption"
+   ],
+   "source": "2026-08-21 逐條看 extract-check --list-ungrounded 的輸出",
+   "note": "這份的符號型計數是 0，代表判準把整批模態符號都算成「有鑑別力」了 —— 三份裡最能說明門檻位置的一份"
   }
  ]
 }
