@@ -3425,6 +3425,9 @@ class IntakeApp:
             # 「這個問題還在」在畫面上無法區分 —— 讀者會照著一份舊碼的判斷去處置。
             # daily-check.sh 寫入；舊的結果檔沒有這個欄位，所以要容許缺席。
             "commit": raw.get("commit"),
+            # `xxx_rc` → 一句白話，由 `check-levels.py` 的 WHAT 寫進來。
+            # 舊的結果檔沒有它，橫幅要能退回印原鍵名（見 `_say`）。
+            "labels": raw.get("labels"),
         }
 
     def health(self) -> dict[str, object]:
@@ -4902,6 +4905,21 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
     # 2026-08-17 之前 status **從來沒有 pass 過**（任何非零都算失敗），所以這個
     # 洞一直沒被踩到；紅燈分三態之後 pass 變成常態，不修的話橫幅會天天用警示色
     # 喊「每日檢查 pass（…）：未指明」。改 A 讓 B 安靜失效的那一族。
+    def _say(key: str) -> str:
+        """程式內部的鍵名 → 一句白話。
+
+        **為什麼不在這裡自己寫一份對照表。** 說法由 `check-levels.py` 的 `WHAT`
+        產生、寫進 `latest.json` 的 `labels`，這裡只負責印。畫面自己抄一份就是
+        「兩條路」，哪天有人只改一邊，橫幅與 journal 會講不一樣的話。
+
+        ⚠ 舊的 `latest.json` 沒有 `labels`（升級當下那份還是上一輪寫的）——
+        退回印原鍵名，**不得整條不顯示**：看不懂的警報還是警報，消失的不是。
+        """
+        got = checks.get("labels")
+        if isinstance(got, dict) and str(got.get(key) or "").strip():
+            return str(got[key])
+        return key
+
     green = {"ok", "pass"}
     if cs and cs not in green:
         age = checks.get("age_s")
@@ -4919,7 +4937,8 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
         else:
             tone = " bad"
             failing = checks.get("failing")
-            which = "、".join(str(x) for x in failing) if isinstance(failing, list) and failing else "未指明"
+            which = ("、".join(_say(str(x)) for x in failing)
+                     if isinstance(failing, list) and failing else "未指明")
             msg = (f"每日檢查 {cs}（{age_txt}）：{which}。"
                    f"細節 {checks.get('detail') or '（無）'}")
         # 產生它的 commit 跟著顯示：一筆紅燈是哪一版的碼判的，決定了它還算不算數。
@@ -4935,7 +4954,7 @@ def render_html(state: Mapping[str, object], selected_job_id: str | None = None)
         got = checks.get(key)
         return [str(x) for x in got] if isinstance(got, list) else []
 
-    parts = [f"{label} {len(items)}：{'、'.join(items)}"
+    parts = [f"{label} {len(items)}：{'、'.join(_say(k) for k in items)}"
              for label, items in (("提醒", _list("warnings")),
                                   ("驗不了", _list("unverified"))) if items]
     if parts and cs in green | {"fail"}:

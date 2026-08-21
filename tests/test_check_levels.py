@@ -146,6 +146,31 @@ def test_cli_emits_latest_json_with_old_fields_intact() -> None:
     assert got["blocking"] == []
 
 
+def test_every_light_says_what_it_watches_in_plain_language() -> None:
+    """2026-08-21 PO：「這三個能不能講白話功能，這樣我有點看不懂」。
+
+    橫幅上原本印的是 `compat_rc、coverage_rc、parse_rc` —— 程式內部的變數名。
+    橫幅是本專案**唯一**的警報管道（2026-08-08 裁決），一句看不懂的警報等於
+    沒有警報，因為看的人無法判斷該不該理它。
+    """
+    for name in ("compat", "canary", "scan", "units", "deploy",
+                 "fresh", "tests", "parse", "coverage"):
+        text = cl.WHAT.get(name, "")
+        assert text and text != name, f"{name} 沒有白話說法"
+        assert "_rc" not in text, f"{name} 的說法還是變數名：{text!r}"
+        assert any("\u4e00" <= ch <= "\u9fff" for ch in text), \
+            f"{name} 的說法沒有中文，PO 讀不了：{text!r}"
+
+
+def test_cli_emits_a_label_for_every_light() -> None:
+    """`labels` 要跟 `levels` 一對一 —— 少一盞，那一盞在橫幅上就會退回變數名。"""
+    r = _run(["--at", "t", "--commit", "c",
+              *[f"--rc={k}={v}" for k, v in {**ALL_GREEN, "compat": 5}.items()]])
+    got = json.loads(r.stdout)
+    assert set(got["labels"]) == set(got["levels"]), "每盞燈都要有說法"
+    assert got["labels"]["compat_rc"] == cl.WHAT["compat"]
+
+
 def test_cli_exit_1_only_when_something_blocks() -> None:
     r = _run(["--at", "t", "--commit", "c",
               *[f"--rc={k}={v}" for k, v in {**ALL_GREEN, "fresh": 2}.items()]])

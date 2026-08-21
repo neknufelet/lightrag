@@ -30,7 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Final
 
 BLOCK: Final[str] = "block"
@@ -38,17 +38,25 @@ WARN: Final[str] = "warn"
 UNVERIFIED: Final[str] = "unverified"
 OK: Final[str] = "ok"
 
-#: 檢查名 → 一句話，寫進 stderr 讓讀 journal 的人不必回查腳本。
+#: 檢查名 → 一句白話，說的是「這盞燈在看什麼」。
+#
+# **兩個讀者共用這一份**：讀 journal 的人（`messages()` 寫進 stderr）與看審核台
+# 橫幅的人（`labels()` 寫進 `latest.json`，畫面照著印）。各寫一份的話兩邊會漂。
+#
+# ⚠ **不要寫程式內部的名字。** 2026-08-21 PO 在橫幅上看到的是
+# 「提醒 3：compat_rc、coverage_rc、parse_rc」—— 那是變數名不是人話，
+# 看的人無法判斷該不該理它。橫幅是本專案**唯一**的警報管道，
+# 一句看不懂的警報等於沒有警報。
 WHAT: Final[dict[str, str]] = {
-    "compat": "契約斷言",
-    "canary": "規則漂移",
-    "scan": "∂ 誤讀探針",
-    "parse": "解析碎字元",
-    "coverage": "漏詞比對",
-    "units": "systemd 單元與 repo 一致",
-    "deploy": "stack 的 compose 與 repo 一致",
+    "compat": "設定與現況對照",
+    "canary": "改規則有沒有改壞別份文件",
+    "scan": "數學符號被讀錯",
+    "parse": "PDF 拆解出碎字",
+    "coverage": "PDF 的字有沒有漏掉",
+    "units": "開機自動啟動的設定",
+    "deploy": "部署的設定",
     "fresh": "跑著的是不是最新的碼",
-    "tests": "測試入口",
+    "tests": "測試",
 }
 
 
@@ -109,6 +117,19 @@ def summarise(rcs: Mapping[str, int]) -> dict[str, object]:
     }
 
 
+def labels(names: Iterable[str]) -> dict[str, str]:
+    """`xxx_rc` → 一句白話，給審核台橫幅直接印。
+
+    **為什麼要寫進 `latest.json` 而不是讓畫面自己查。** 橫幅在 `intake.py`，
+    判準在這裡，而這支的檔名有連字號、`import` 不進去。畫面自己抄一份的話，
+    就是這個專案已經被咬過的「兩條路」—— 哪天有人只改一邊，兩邊說法不一樣
+    而且沒有人會發現。所以由產生結果的這一支把說法一起寫進去。
+
+    鍵一律是 `xxx_rc`，跟 `levels`／`blocking`／`warnings` 三份名單對得起來。
+    """
+    return {f"{name}_rc": WHAT.get(name, name) for name in names}
+
+
 def messages(rcs: Mapping[str, int], reports: Mapping[str, str]) -> list[str]:
     """給人看的行。**三態都印** —— 「驗不了」不印出來就等於當成通過了。"""
     levels = classify(rcs)
@@ -158,6 +179,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     out["blocking"] = summary["blocking"]
     out["warnings"] = summary["warnings"]
     out["unverified"] = summary["unverified"]
+    # 新欄位，舊欄位一個不動。舊的 `latest.json` 沒有它 —— 讀的人要能退回
+    # 印原鍵名（`intake.py` 的橫幅就是那樣寫的），不得因此整條不顯示。
+    out["labels"] = labels(rcs)
 
     print(json.dumps(out, ensure_ascii=False))
     for line in messages(rcs, reports):

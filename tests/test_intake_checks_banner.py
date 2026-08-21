@@ -175,6 +175,46 @@ def test_a_blocking_red_still_shouts_and_keeps_the_quiet_line() -> None:
     assert any("banner quiet" in b for b in got), "提醒不得被紅燈吃掉"
 
 
+def test_banner_says_what_the_light_watches_not_the_variable_name() -> None:
+    """2026-08-21 PO：「這三個能不能講白話功能，這樣我有點看不懂」。
+
+    當天橫幅上寫的是「提醒 3：compat_rc、coverage_rc、parse_rc」——
+    那是程式內部的變數名，不是人話。橫幅是本專案**唯一**的警報管道
+    （2026-08-08 裁決），而**看不懂的警報等於沒有警報**：看的人無法
+    判斷該不該理它，久了就整條略過。
+
+    說法只有一份：`check-levels.py` 的 `WHAT` → `latest.json` 的 `labels`。
+    """
+    got = _banners({**BASE, "state": "pass", "failing": [],
+                    "warnings": ["compat_rc", "parse_rc"],
+                    "unverified": ["tests_rc"],
+                    "labels": {"compat_rc": "設定與現況對照",
+                               "parse_rc": "PDF 拆解出碎字",
+                               "tests_rc": "測試"}})
+    assert len(got) == 1
+    assert "設定與現況對照" in got[0] and "PDF 拆解出碎字" in got[0]
+    assert "compat_rc" not in got[0], "變數名不得出現在給人看的橫幅上"
+    assert "parse_rc" not in got[0]
+
+
+def test_blocking_banner_speaks_plainly_too() -> None:
+    """真紅燈那條也要講人話 —— 它比提醒更需要被看懂。"""
+    got = _banners({**BASE, "state": "fail", "failing": ["fresh_rc"],
+                    "labels": {"fresh_rc": "跑著的是不是最新的碼"}})
+    assert any("banner bad" in b and "跑著的是不是最新的碼" in b for b in got)
+    assert not any("fresh_rc" in b for b in got), "變數名不得出現在給人看的橫幅上"
+
+
+def test_banner_falls_back_to_the_raw_key_when_labels_are_missing() -> None:
+    """升級當下 `latest.json` 還是上一輪那份，沒有 `labels`。
+
+    退回印原鍵名 —— 看不懂的警報還是警報，**消失的不是**。
+    """
+    got = _banners({**BASE, "state": "pass", "failing": [],
+                    "warnings": ["compat_rc"]})
+    assert len(got) == 1 and "compat_rc" in got[0]
+
+
 def test_old_result_without_levels_falls_back_to_shouting(tmp_path: Path) -> None:
     """升級當下 `latest.json` 還是上一輪那份，沒有 `levels`。寧可多叫，不可漏叫。"""
     app = _app(tmp_path)
