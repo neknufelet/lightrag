@@ -48,6 +48,23 @@ def test_compat_soft_is_warn_and_hard_is_block() -> None:
     assert cl.level_of("compat", 9) == cl.BLOCK, "沒定義的非零 ＝ 腳本自己掛了"
 
 
+def test_canary_separates_no_corpus_from_no_baseline() -> None:
+    """金絲雀的三態：驗不了／擋／通過。**「守著 0 份」不得回 0。**
+
+    2026-08-21 實測，`tests/canary-baseline.json` 是 `{}` 而它天天回
+    「金絲雀通過」rc=0 —— 守著 0 份文件，報告上跟真的守住長得一模一樣。
+
+    ⚠ 兩個分支刻意不同態（`postprocess.py` 的 `CANARY_*`）：
+      3 沒有任何 bundle    母體不存在，誰都做不了事      → 驗不了
+      4 沒有基準／基準是空  有人要去跑 `canary --update`  → 擋（做得完的事）
+    後者與 `scan` 回 3 的裁決同一族，見 `level_of` 最後一段。
+    """
+    assert cl.level_of("canary", 3) == cl.UNVERIFIED, "沒有母體 ＝ 驗不了"
+    assert cl.level_of("canary", 4) == cl.BLOCK, "基準是空的要擋，不是提醒"
+    assert cl.level_of("canary", 2) == cl.BLOCK, "真的漂移要擋"
+    assert cl.level_of("canary", 0) == cl.OK
+
+
 def test_content_rulers_are_warn() -> None:
     """`parse` 與 `coverage` 量的是語料內容，不是系統壞掉，而且假訊號很多。
 

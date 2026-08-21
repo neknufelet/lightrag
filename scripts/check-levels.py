@@ -78,6 +78,15 @@ def level_of(check: str, rc: int) -> str:
         # 驗不了全部」。那是**執行環境的限制**，不是缺陷 —— dker 上沒有 node，
         # 明天也不會有。回 1 才是真的有測試掛掉。
         return UNVERIFIED if rc == 3 else BLOCK
+    if check == "canary":
+        # `postprocess.py` 的 `CANARY_*`：3 ＝ 沒有任何 bundle（母體不存在，
+        # 誰都做不了事）→ 驗不了。其餘非零都是**做得完的事**，一律擋：
+        # 4 ＝ 沒有基準檔／基準是空的（去跑 `canary --update`）、2 ＝ 真的漂移。
+        #
+        # ⚠ 與 `scan` 回 3 的裁決同一族（見本函式最後一段註解）：
+        # 「有人要去建一份基準」不是「這台驗不了」。2026-08-21 之前這盞燈
+        # 在基準是 `{}` 時回 0，於是**守著 0 份文件卻天天顯示通過**。
+        return UNVERIFIED if rc == 3 else BLOCK
     if check in ("parse", "coverage"):
         # 兩把尺量的是**語料內容**，不是系統壞掉，而且都有大量已查證的假訊號：
         # `parse-check` 317 份裡 WARN 283（89%）、`coverage-check` 15 份超標裡

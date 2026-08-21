@@ -393,12 +393,32 @@ def canary_row(p: dict) -> dict:
             "latex_vetoed": len(p["latex"].vetoed)}
 
 
+#: `canary` 的離開碼。**三態，不是兩態。**
+#
+# 2026-08-21 實測：基準是 `{}`（commit 4a6e533 清空舊庫那 319 份幽靈，
+# 那是對的；沒做後半步才是問題），而它每天回「金絲雀通過」rc=0 ——
+# **守著 0 份文件，在報告上跟真的守住長得一模一樣。**
+#
+# ⚠ 為什麼「沒有母體」與「基準是空的」分成兩碼：前者是母體不存在，
+# 誰都做不了事 → 驗不了；後者是「有人要去跑 `canary --update`」，
+# 是**做得完的事** → 擋。這與 `check-levels.py` 對 `scan` 回 3 的裁決同一族
+# （那裡的註解寫著：「那不是『這台驗不了』，是『有人要去建一份基準』」）。
+CANARY_OK = 0
+CANARY_DRIFT = 2
+CANARY_NO_CORPUS = 3      # 沒有任何 bundle → 驗不了
+CANARY_NO_BASELINE = 4    # 沒有基準檔／基準是空的 → 擋，去跑 --update
+
+
 def cmd_canary(a, env) -> int:
     """比對目前的 plan 結果與記錄的基準。
 
     存在的理由：規則是一份一份文件逼出來的，每次改動都可能無意間動到別份。
     手動逐份比對數字會漏，而漏掉的漂移不會有錯誤訊息。基準進版控，
     所以規則改動造成的行為變化會直接出現在 git diff 裡，賴不掉。
+
+    離開碼見 `CANARY_*`。**「驗不了」不得回 0** —— 回 0 的話「沒在守」與
+    「守了沒事」在 `latest.json` 上長得一樣，而那正是這盞燈下線三天沒人發現
+    的原因。
     """
     paths = _paths()
     source_dir = paths.inputs_dir(a.workspace)
@@ -406,7 +426,7 @@ def cmd_canary(a, env) -> int:
     bundles = find_bundles(a.workspace, None, allow_empty=True)
     if not bundles:
         print("金絲雀驗不了：目前沒有任何 bundle，沒有母體可供規則漂移比對。")
-        return 0
+        return CANARY_NO_CORPUS
     for raw in bundles:
         try:
             cur[DocContext(raw, source_dir=source_dir).doc_name] = canary_row(
@@ -422,8 +442,19 @@ def cmd_canary(a, env) -> int:
         return 0
 
     if not CANARY.is_file():
-        sys.exit(f"沒有基準檔 {CANARY}，先跑 `postprocess.py canary --update`")
+        print(f"金絲雀沒有基準檔 {CANARY} —— 現在沒有任何東西在守規則漂移。"
+              "\n先跑 `postprocess.py canary --update` 立基準。", file=sys.stderr)
+        return CANARY_NO_BASELINE
     base = json.loads(CANARY.read_text())
+    if not base:
+        # ⚠ **這一條就是 2026-08-21 那盞燈下線的形狀。** 基準是空的時候，
+        # 底下的比對會把每一份都算成「新增」，drift 與 gone 都是空的，
+        # 於是印出「金絲雀通過：0 份基準文件的數字都沒變」並回 0。
+        # 附了份數、看起來很像有在守 —— 而它守著 0 份。
+        print(f"金絲雀的基準是空的（{CANARY}）—— 目前有 {len(cur)} 份文件，"
+              "但**一份都沒有納入基準**，現在改任何規則都不會有人知道改壞了沒有。"
+              "\n先跑 `postprocess.py canary --update` 立基準。", file=sys.stderr)
+        return CANARY_NO_BASELINE
 
     drift, added, gone = [], [], []
     for name, row in cur.items():
@@ -447,10 +478,10 @@ def cmd_canary(a, env) -> int:
     if not drift and not gone:
         print(f"金絲雀通過：{len(base)} 份基準文件的數字都沒變"
               + (f"（另有 {len(added)} 份新文件尚未納入基準）" if added else ""))
-        return 0
+        return CANARY_OK
     print(f"\n金絲雀失敗：{len(drift)} 處漂移、{len(gone)} 份消失。"
           "\n若是預期中的改動，跑 `canary --update` 並在 commit 訊息說明原因。")
-    return 2
+    return CANARY_DRIFT
 
 
 def cmd_prepare(a: argparse.Namespace, env: dict[str, str]) -> int:

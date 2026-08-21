@@ -103,7 +103,13 @@ def test_canary_row_only_contains_tracked_numbers():
 def test_canary_empty_mother_is_unverifiable_not_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """真的沒有 bundle 時，canary 不得把「沒有母體」報成規則失敗。"""
+    """真的沒有 bundle 時，canary 不得把「沒有母體」報成規則失敗。
+
+    ⚠ **也不得報成通過。** 這條測試的名字從一開始就寫著「驗不了」，而它
+    2026-08-21 之前斷言的是 `== 0` —— 在這套系統裡 0 就是通過
+    （`check-levels.py` 的 `level_of`）。**名字寫三態、斷言寫兩態**，
+    於是連測試都一起塌了，沒有任何東西攔得住這盞燈變綠。
+    """
     module = _module()
     parsed = tmp_path / "parsed"
     parsed.mkdir()
@@ -113,8 +119,72 @@ def test_canary_empty_mother_is_unverifiable_not_failure(
     )
 
     args = argparse.Namespace(workspace="ws", update=False)
-    assert module.cmd_canary(args, {}) == 0
+    assert module.cmd_canary(args, {}) == module.CANARY_NO_CORPUS
+    assert module.CANARY_NO_CORPUS != 0, "「驗不了」回 0 就跟通過長得一樣"
     assert "驗不了" in capsys.readouterr().out
+
+
+def test_canary_empty_baseline_does_not_report_a_pass(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """**本檔最重要的一條。** 基準是 `{}` 時不得回「金絲雀通過」。
+
+    2026-08-21 實測的實際盤面：`tests/canary-baseline.json` 是 `{}`
+    （commit 4a6e533 清空舊庫那 319 份幽靈，**那是對的**；沒做後半步
+    才是問題），而它每天印：
+
+        金絲雀通過：0 份基準文件的數字都沒變（另有 172 份新文件尚未納入基準）
+        canary rc=0
+
+    附了份數、看起來很像有在守 —— 而它守著 0 份。**「守著 0 份」與
+    「守住了 172 份」在報告上長得一模一樣**，這就是整輪工單的形狀。
+    """
+    module = _module()
+    raw_dir = tmp_path / "parsed"
+    raw_dir.mkdir()
+    (raw_dir / "a.pdf.mineru_raw").mkdir()
+    monkeypatch.setattr(
+        module, "_paths",
+        lambda: SimpleNamespace(parsed_dir=raw_dir, inputs_dir=lambda _ws: tmp_path),
+    )
+    monkeypatch.setattr(module, "plan_one", lambda raw, source_dir=None: _fake_plan())
+    monkeypatch.setattr(
+        module, "DocContext",
+        lambda raw, source_dir=None: SimpleNamespace(doc_name=raw.name.split(".mineru_raw")[0]))
+
+    baseline = tmp_path / "canary-baseline.json"
+    baseline.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(module, "CANARY", baseline)
+
+    rc = module.cmd_canary(argparse.Namespace(workspace="ws", update=False), {})
+    assert rc == module.CANARY_NO_BASELINE
+    assert rc != 0, "守著 0 份不得回 0"
+    captured = capsys.readouterr()
+    assert "金絲雀通過" not in captured.out, "基準是空的時候不准說通過"
+    assert "基準是空的" in captured.err
+
+
+def test_canary_missing_baseline_file_blocks_and_says_what_to_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """沒有基準檔跟基準是空的是同一件事：有人要去跑 `--update`，是做得完的事。"""
+    module = _module()
+    raw_dir = tmp_path / "parsed"
+    raw_dir.mkdir()
+    (raw_dir / "a.pdf.mineru_raw").mkdir()
+    monkeypatch.setattr(
+        module, "_paths",
+        lambda: SimpleNamespace(parsed_dir=raw_dir, inputs_dir=lambda _ws: tmp_path),
+    )
+    monkeypatch.setattr(module, "plan_one", lambda raw, source_dir=None: _fake_plan())
+    monkeypatch.setattr(
+        module, "DocContext",
+        lambda raw, source_dir=None: SimpleNamespace(doc_name=raw.name.split(".mineru_raw")[0]))
+    monkeypatch.setattr(module, "CANARY", tmp_path / "不存在.json")
+
+    rc = module.cmd_canary(argparse.Namespace(workspace="ws", update=False), {})
+    assert rc == module.CANARY_NO_BASELINE
+    assert "canary --update" in capsys.readouterr().err, "要說清楚該跑什麼"
 
 
 def test_canary_new_document_is_info_but_drift_is_failure(
