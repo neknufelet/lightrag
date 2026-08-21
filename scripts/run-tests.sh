@@ -65,4 +65,7 @@ if [ "$pytest_unavailable" -eq 1 ] || [ "$node_unavailable" -eq 1 ]; then
   exit 3
 fi
 
+# 分母 ＝ 真的跑起來的測試入口數。⚠ **不是寫死的 3**：這台缺 node 或缺 pytest
+# 時走的是上面回 3 的路（驗不了），而回 0 這條路代表三個入口都真的跑過了。
+echo "#scope 3"
 echo "三個測試入口全部通過。"

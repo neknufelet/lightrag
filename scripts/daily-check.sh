@@ -155,6 +155,41 @@ commit=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)
 # ⚠ **先寫暫存再換上去。** 直接重導向到 latest.json 的話，check-levels.py 自己
 # 掛掉會留下一個空檔 —— 而審核台讀到空檔會報 unreadable，看起來像「檢查壞了」
 # 而不是「上一次的結果還在」。寫壞不如不寫。
+# ── 分母：每一支自己報「這次比對了幾件事」──────────────────────────────
+# **約定**：檢查跑完在輸出裡印一行 `#scope <整數>`（`--json` 的那幾支印到
+# 自己的 `.err`，因為 stdout 整份是 JSON）。這裡撿起來餵給 check-levels.py，
+# 它看到 rc=0 卻沒有分母（或分母 0）會**拒發綠燈**，改判「驗不了」。
+#
+# **為什麼要有這條約定。** 近 30 天 17 次「燈說假話」裡最大的一族，全部是
+# 綠燈在空集合上算出來的：金絲雀守著 0 份（d9c5373）、比對函式在搬家中丟失
+# 所以比了 0 次（7d4a878）、基準被清空（4a6e533）、少守 4 個量（0b3319d）。
+# 每一次的處置都只修那一盞燈。分母把它變成一條通則。
+#
+# ⚠ **撿不到就不傳**，不要傳 0 —— 「沒報分母」與「報了 0」在 check-levels.py
+# 裡都是驗不了，但訊息不同（「沒報分母」是還沒接上，「比對了 0 件」是真的空）。
+scope_of() {   # $1 = 輸出檔；印出分母，沒有就什麼都不印
+  [ -f "$1" ] || return 0
+  grep -oE '^#scope [0-9]+' "$1" 2>/dev/null | tail -1 | awk '{print $2}'
+}
+scope_args=()
+add_scope() {  # $1 = 檢查名；$2… = 要找的檔（第一個找到的算數）
+  local name="$1"; shift
+  local f n
+  for f in "$@"; do
+    n=$(scope_of "$f")
+    if [ -n "$n" ]; then scope_args+=(--scope "$name=$n"); return 0; fi
+  done
+}
+add_scope compat   "$CHECK_DIR/compat-$ts.err"
+add_scope canary   "$CHECK_DIR/canary-$ts.txt"
+add_scope scan     "$CHECK_DIR/scan-$ts.txt"
+add_scope units    "$CHECK_DIR/units-$ts.txt"
+add_scope deploy   "$CHECK_DIR/deploy-$ts.txt"
+add_scope fresh    "$CHECK_DIR/fresh-$ts.txt"
+add_scope tests    "$CHECK_DIR/tests-$ts.txt"
+add_scope parse    "$CHECK_DIR/parse-$ts.txt"
+add_scope coverage "$CHECK_DIR/coverage-$ts.err"
+
 tmp_latest="$CHECK_DIR/latest.json.tmp"
 "$PY" scripts/check-levels.py \
   --at "$ts" --commit "$commit" --detail "$CHECK_DIR/compat-$ts.json" \
@@ -167,6 +202,7 @@ tmp_latest="$CHECK_DIR/latest.json.tmp"
   --rc "tests=$tests_rc"     --report "tests=$CHECK_DIR/tests-$ts.txt" \
   --rc "parse=$parse_rc"     --report "parse=$CHECK_DIR/parse-$ts.txt" \
   --rc "coverage=$coverage_rc" --report "coverage=$CHECK_DIR/coverage-$ts.json" \
+  "${scope_args[@]}" \
   > "$tmp_latest"
 levels_rc=$?
 if [ ! -s "$tmp_latest" ]; then

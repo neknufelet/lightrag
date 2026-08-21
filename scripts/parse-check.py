@@ -173,6 +173,10 @@ def report(results, details=False):
     n_warn = sum(1 for _, _, s in results if s == "WARN")
     print("-" * 90)
     print(f"共 {len(results)} 份： OK {len(results)-n_err-n_warn} ／ WARN {n_warn} ／ ERROR {n_err}")
+    # 分母：這次比對了幾件事。`check-levels.py` 看到 rc=0 卻沒有這一行
+    # （或 0），會**拒發綠燈**改判「驗不了」—— 近 30 天 17 次「燈說假話」
+    # 裡最大的一族，全部是綠燈在空集合上算出來的。約定見 daily-check.sh。
+    print(f"#scope {len(results)}")
 
     if details:
         for name, r, sev in results:

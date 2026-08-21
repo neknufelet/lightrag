@@ -164,6 +164,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
     ok = len(rendered) - len(missing) - len(differs)
     print(f"systemd 單元：{ok}/{len(rendered)} 與 repo 一致")
+    # 分母：這次比對了幾件事。`check-levels.py` 看到 rc=0 卻沒有這一行
+    # （或 0），會**拒發綠燈**改判「驗不了」—— 近 30 天 17 次「燈說假話」
+    # 裡最大的一族，全部是綠燈在空集合上算出來的。約定見 daily-check.sh。
+    print(f"#scope {len(rendered)}")
     if missing:
         print(f"  ✗ 沒安裝 {len(missing)} 個：{', '.join(missing)}")
         print("    → 這台機器沒有這些排程。跑 `sudo scripts/systemd-units.py install`")

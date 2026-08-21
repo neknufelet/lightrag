@@ -60,13 +60,30 @@ WHAT: Final[dict[str, str]] = {
 }
 
 
-def level_of(check: str, rc: int) -> str:
+def level_of(check: str, rc: int, scope: int | None = None) -> str:
     """一個離開碼落在哪一態。不認得的檢查名一律當成擋流程的紅。
 
     **拒絕，不猜**（鐵則 1 那一族）：打錯字的檢查名如果落成「提醒」，它會安靜地
     從紅燈名單裡消失。不認得就當最嚴重的那一態，錯了會吵，不會沉默。
+
+    ⚠ **綠燈必須帶分母**（2026-08-21）。`scope` 是「這支這次比對了幾件事」。
+    近 30 天 17 次「燈說假話」裡最大的一族，全部是**綠燈是在空集合上算出來的**：
+
+        d9c5373  金絲雀守著 0 份文件          → 綠
+        7d4a878  比對函式在搬家中丟失，比 0 次 → 綠
+        4a6e533  基準清空成 {}                → 綠
+        0b3319d  少守 4 個量                  → 綠
+
+    每一次的處置都只修那一盞燈。這裡把它升格成通則：**rc=0 但比對了 0 件事、
+    或根本沒報分母 ⇒ 拒發 OK，改判「驗不了」。** 一個咽喉點，涵蓋現在與以後
+    所有這一族的燈 —— 而且它抓得到**生產環境的資料退化**，不只是源碼缺陷
+    （pytest 在 `4a6e533` 那天照樣全綠，因為清空基準是資料操作不是改碼）。
     """
     if rc == 0:
+        if scope is None:
+            return UNVERIFIED
+        if scope <= 0:
+            return UNVERIFIED
         return OK
     if check == "compat":
         # compat-check.py:1182 自己的離開碼：2 = 有 hard 斷言不過、5 = 只有 soft。
@@ -99,23 +116,26 @@ def level_of(check: str, rc: int) -> str:
     return BLOCK
 
 
-def classify(rcs: Mapping[str, int]) -> dict[str, str]:
-    """全部檢查的三態。"""
-    return {name: level_of(name, rc) for name, rc in rcs.items()}
+def classify(rcs: Mapping[str, int],
+             scopes: Mapping[str, int] | None = None) -> dict[str, str]:
+    """全部檢查的三態。`scopes` 是各支「這次比對了幾件事」。"""
+    got = scopes or {}
+    return {name: level_of(name, rc, got.get(name)) for name, rc in rcs.items()}
 
 
 def _names(levels: Mapping[str, str], want: str) -> list[str]:
     return sorted(name for name, lv in levels.items() if lv == want)
 
 
-def summarise(rcs: Mapping[str, int]) -> dict[str, object]:
+def summarise(rcs: Mapping[str, int],
+              scopes: Mapping[str, int] | None = None) -> dict[str, object]:
     """三態 ＋ 三份名單 ＋ status。status 只看擋流程的那一態。
 
     ⚠ 對外一律用 `xxx_rc` 這個名字 —— `latest.json` 的欄位、`levels` 的鍵、
     三份名單、審核台橫幅回的清單全部同一種寫法。輸入用裸名（`compat`）是因為
     `daily-check.sh` 那邊就是那樣傳的，轉換只在這一個地方做。
     """
-    levels = {f"{name}_rc": lv for name, lv in classify(rcs).items()}
+    levels = {f"{name}_rc": lv for name, lv in classify(rcs, scopes).items()}
     blocking = _names(levels, BLOCK)
     return {
         "status": "fail" if blocking else "pass",
@@ -139,16 +159,22 @@ def labels(names: Iterable[str]) -> dict[str, str]:
     return {f"{name}_rc": WHAT.get(name, name) for name in names}
 
 
-def messages(rcs: Mapping[str, int], reports: Mapping[str, str]) -> list[str]:
+def messages(rcs: Mapping[str, int], reports: Mapping[str, str],
+             scopes: Mapping[str, int] | None = None) -> list[str]:
     """給人看的行。**三態都印** —— 「驗不了」不印出來就等於當成通過了。"""
-    levels = classify(rcs)
+    levels = classify(rcs, scopes)
     label = {BLOCK: "擋", WARN: "提醒", UNVERIFIED: "驗不了"}
     out: list[str] = []
     for tag in (BLOCK, WARN, UNVERIFIED):
         for name in _names(levels, tag):
             where = reports.get(name)
             tail = f" → {where}" if where else ""
-            out.append(f"[{label[tag]}] {WHAT.get(name, name)} (rc={rcs[name]}){tail}")
+            # 分母一起印 —— 「比對了 0 件事」與「比對了 172 件事都沒變」是
+            # 兩件完全不同的事，只印 rc 的話兩者長得一模一樣。
+            n = (scopes or {}).get(name)
+            how = "沒報分母" if n is None else f"比對了 {n} 件"
+            out.append(f"[{label[tag]}] {WHAT.get(name, name)} "
+                       f"(rc={rcs[name]}、{how}){tail}")
     return out
 
 
@@ -169,6 +195,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     ap.add_argument("--detail", default="", help="compat 的完整報告路徑")
     ap.add_argument("--rc", action="append", default=[], metavar="名稱=離開碼")
     ap.add_argument("--report", action="append", default=[], metavar="名稱=路徑")
+    ap.add_argument("--scope", action="append", default=[], metavar="名稱=比對了幾件",
+                    help="這支這次比對了幾件事。**沒報的話 rc=0 不給綠燈**，"
+                         "改判「驗不了」—— 綠燈是在空集合上算出來的那一族，"
+                         "近 30 天有四次（見 level_of 的說明）")
     a = ap.parse_args(argv)
 
     raw = _pairs(a.rc, "rc")
@@ -177,8 +207,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as exc:
         raise SystemExit(f"--rc 的值要是整數：{exc}") from exc
     reports = _pairs(a.report, "report")
+    try:
+        scopes = {name: int(value) for name, value in _pairs(a.scope, "scope").items()}
+    except ValueError as exc:
+        raise SystemExit(f"--scope 的值要是整數：{exc}") from exc
+    unknown = sorted(set(scopes) - set(rcs))
+    if unknown:
+        # **拒絕，不猜。** 打錯名字的分母如果被默默丟掉，那盞燈會退回「沒報分母」
+        # 而看起來只是還沒接上 —— 錯字要吵，不要沉默。
+        raise SystemExit(f"--scope 指到不存在的檢查：{'、'.join(unknown)}")
 
-    summary = summarise(rcs)
+    summary = summarise(rcs, scopes)
     # 舊欄位一個都不動 —— 讀 latest.json 的人（審核台橫幅、人）還在用它們，
     # 而升級當下那份檔案還是舊的（鐵則 2：不得無聲消失）。
     out: dict[str, object] = {"at": a.at, "status": summary["status"], "commit": a.commit}
@@ -191,9 +230,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     # 新欄位，舊欄位一個不動。舊的 `latest.json` 沒有它 —— 讀的人要能退回
     # 印原鍵名（`intake.py` 的橫幅就是那樣寫的），不得因此整條不顯示。
     out["labels"] = labels(rcs)
+    # 各支這次比對了幾件事。⚠ 沒有這一欄的燈，`level_of` 不會給它綠 ——
+    # 「比對了 0 件事」與「比對了 172 件事都沒變」在只有 rc 的世界裡長得一樣。
+    out["scopes"] = {f"{name}_rc": n for name, n in sorted(scopes.items())}
 
     print(json.dumps(out, ensure_ascii=False))
-    for line in messages(rcs, reports):
+    for line in messages(rcs, reports, scopes):
         print(line, file=sys.stderr)
     return 1 if summary["blocking"] else 0
 

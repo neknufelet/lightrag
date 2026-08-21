@@ -164,6 +164,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
     src, dst = _read(SOURCE), _read(target)
     if src == dst:
         print(f"一致　sha256:{_sha(src)}　（{SOURCE.name} ↔ {target}）")
+        # 分母：這次比對了幾件事。`check-levels.py` 看到 rc=0 卻沒有這一行
+        # （或 0），會**拒發綠燈**改判「驗不了」。約定見 daily-check.sh。
+        print("#scope 1")
         return 0
 
     n = sum(1 for line in difflib.unified_diff(
@@ -403,7 +406,8 @@ def cmd_freshness(args: argparse.Namespace) -> int:
     # service（刻意不在 compose 裡，見 compose.yaml:150）。第一版 freshness 只看
     # compose 容器，於是它跑著 7 小時前的 intake.py 而沒有任何人知道——
     # 症狀是審核台顯示的檢查結果少了 commit 欄位，而那個欄位當天才加上。
-    for unit in _long_running_units():
+    units = _long_running_units()
+    for unit in units:
         entry = SYSTEMD_ENTRY_POINTS.get(unit)
         if not entry:
             problems.append(f"{unit} 是常駐服務但沒登記進入點 —— "
@@ -426,6 +430,10 @@ def cmd_freshness(args: argparse.Namespace) -> int:
         else:
             print(f"{unit}　啟動晚於它載入的 {len(paths)} 個檔")
 
+    # 分母 ＝ 兩條 git 檢查（落後 origin、工作區乾淨）＋ 實際比對過的容器
+    # 與常駐服務。⚠ **不是寫死的 5**：容器或服務一個都沒有時分母會是 2，
+    # 而「只驗了兩件事」與「五件事全驗過」不該長得一樣。
+    print(f"#scope {2 + len(containers) + len(units)}")
     if problems:
         print()
         for line in problems:

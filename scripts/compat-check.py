@@ -1186,6 +1186,10 @@ def main() -> NoReturn:
               f"驗不了 {len(unver)}{'（' + '、'.join(r.id for r in unver) + '）' if unver else ''}　"
               f"共 {len(c.results)} 項"
               + (f"（{n_docs} 份文件的資料層檢查，{hidden} 項通過未列出）" if hidden else ""))
+    # 分母：**真的判出結果的**斷言數。`ok=None`（驗不了）不算進來 ——
+    # 把它算進去的話，「33 條全部驗不了」看起來會跟「33 條全部驗過了」一樣，
+    # 而那正是三態要防的事。⚠ 走 stderr：`--json` 的 stdout 整份是 JSON。
+    print(f"#scope {len(c.results) - len(unver)}", file=sys.stderr)
     sys.exit(2 if hard else (5 if soft else 0))
 
 

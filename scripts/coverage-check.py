@@ -368,6 +368,11 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
         print(f"{r['doc'][:43]:<44} {r['rate']*100:>6.1f}% "
               f"{r['missing']:>7,}/{r['pdf_words']:>7,}  {'超標' if over else 'ok'}")
     print("-" * 92)
+    # 分母：這次比對了幾件事。`check-levels.py` 看到 rc=0 卻沒有這一行
+    # （或 0），會**拒發綠燈**改判「驗不了」—— 近 30 天 17 次「燈說假話」
+    # 裡最大的一族，全部是綠燈在空集合上算出來的。約定見 daily-check.sh。
+    # ⚠ 走 stderr —— `--json` 模式的 stdout 整份是 JSON，混一行進去會讓解析壞掉。
+    print(f"#scope {len(results)}", file=sys.stderr)
     print(f"共 {len(results)} 份：門檻 {threshold*100:.0f}%，"
           f"超標 {n_over} 份、驗不了 {n_unver} 份、"
           f"通過 {len(results)-n_over-n_unver} 份")

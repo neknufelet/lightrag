@@ -35,7 +35,7 @@ def test_tests_rc_3_is_unverified_not_failure() -> None:
     """
     assert cl.level_of("tests", 3) == cl.UNVERIFIED
     assert cl.level_of("tests", 1) == cl.BLOCK, "真的有測試掛掉還是要擋"
-    assert cl.level_of("tests", 0) == cl.OK
+    assert cl.level_of("tests", 0, 3) == cl.OK
 
 
 def test_compat_soft_is_warn_and_hard_is_block() -> None:
@@ -62,7 +62,7 @@ def test_canary_separates_no_corpus_from_no_baseline() -> None:
     assert cl.level_of("canary", 3) == cl.UNVERIFIED, "沒有母體 ＝ 驗不了"
     assert cl.level_of("canary", 4) == cl.BLOCK, "基準是空的要擋，不是提醒"
     assert cl.level_of("canary", 2) == cl.BLOCK, "真的漂移要擋"
-    assert cl.level_of("canary", 0) == cl.OK
+    assert cl.level_of("canary", 0, 172) == cl.OK
 
 
 def test_content_rulers_are_warn() -> None:
@@ -98,6 +98,11 @@ def test_unknown_check_is_block_not_silently_dropped() -> None:
 
 # ── 彙總 ───────────────────────────────────────────────────────────────────
 
+#: 每一支都報了分母。**沒有它，全綠不再是綠** —— 見 level_of 的「綠燈必須帶
+#: 分母」。數值取自 2026-08-21 dker 實跑的量級，不是隨手編的。
+ALL_SCOPES = {"compat": 1060, "canary": 172, "scan": 172, "units": 7,
+              "deploy": 1, "fresh": 5, "tests": 3, "parse": 172, "coverage": 172}
+
 ALL_GREEN = {"compat": 0, "canary": 0, "scan": 0, "units": 0,
              "deploy": 0, "fresh": 0, "tests": 0, "parse": 0, "coverage": 0}
 
@@ -105,7 +110,7 @@ ALL_GREEN = {"compat": 0, "canary": 0, "scan": 0, "units": 0,
 def test_only_blocking_turns_status_to_fail() -> None:
     """2026-08-17 的實際盤面：只剩提醒與驗不了，status 應該是 pass。"""
     today = {**ALL_GREEN, "compat": 5, "parse": 1, "coverage": 1, "tests": 3}
-    got = cl.summarise(today)
+    got = cl.summarise(today, ALL_SCOPES)
     assert got["status"] == "pass"
     assert got["blocking"] == []
     # 名字一律帶 `_rc`，跟 latest.json 的欄位與橫幅回的清單同一種寫法。
@@ -117,13 +122,13 @@ def test_a_real_red_still_fails_even_among_warnings() -> None:
     """這是回歸測試：08-16 那天 `fresh_rc=2` 被一片天天都在的紅淹掉了。"""
     that_day = {**ALL_GREEN, "compat": 5, "parse": 1, "coverage": 1,
                 "tests": 3, "fresh": 2}
-    got = cl.summarise(that_day)
+    got = cl.summarise(that_day, ALL_SCOPES)
     assert got["status"] == "fail"
     assert got["blocking"] == ["fresh_rc"]
 
 
 def test_all_green_is_pass_with_empty_lists() -> None:
-    got = cl.summarise(ALL_GREEN)
+    got = cl.summarise(ALL_GREEN, ALL_SCOPES)
     assert got["status"] == "pass"
     assert got["blocking"] == [] and got["warnings"] == [] and got["unverified"] == []
 
@@ -131,7 +136,7 @@ def test_all_green_is_pass_with_empty_lists() -> None:
 def test_every_light_is_printed_including_unverified() -> None:
     """「驗不了」不印出來就等於被當成通過了 —— 那正是要避開的形狀。"""
     lines = cl.messages({**ALL_GREEN, "tests": 3, "parse": 1, "fresh": 2},
-                        {"tests": "/checks/tests-x.txt"})
+                        {"tests": "/checks/tests-x.txt"}, ALL_SCOPES)
     joined = "\n".join(lines)
     assert "[擋]" in joined and "[提醒]" in joined and "[驗不了]" in joined
     assert "/checks/tests-x.txt" in joined, "報告路徑要跟著印，不然要人自己去翻"
@@ -211,3 +216,94 @@ def test_daily_check_calls_it_and_exits_with_its_code() -> None:
     for name in ("compat", "canary", "scan", "units", "deploy",
                  "fresh", "tests", "parse", "coverage"):
         assert f'--rc "{name}=$' in src, f"{name} 沒有被餵進判準"
+
+
+# ── 綠燈必須帶分母（2026-08-21）─────────────────────────────────────────────
+# 近 30 天 17 次「燈說假話」裡最大的一族，全部是**綠燈在空集合上算出來的**：
+# 金絲雀守著 0 份（d9c5373）、比對函式在搬家中丟失所以比了 0 次（7d4a878）、
+# 基準被清空成 `{}`（4a6e533）、少守 4 個量（0b3319d）。
+# 每一次的處置都只修那一盞燈；這一族的通則在 `level_of` 的 `scope`。
+
+def test_a_green_that_compared_nothing_is_not_green() -> None:
+    """**本檔最重要的一條。** 比對了 0 件事不得回綠。
+
+    這就是 `d9c5373` 當天的形狀：`postprocess.py canary` 印著
+    「金絲雀通過：0 份基準文件的數字都沒變」並回 rc=0，而 `latest.json` 上
+    它與「比對了 172 份都沒變」**完全無法區分**。
+    """
+    assert cl.level_of("canary", 0, 0) == cl.UNVERIFIED, "守著 0 份不是通過"
+    assert cl.level_of("canary", 0, 172) == cl.OK
+
+
+def test_a_green_without_any_denominator_is_not_green() -> None:
+    """沒報分母也不給綠 —— 「還沒接上」不該長得像「驗過了」。
+
+    ⚠ 這條刻意比較嚴：一支檢查改版之後忘了印 `#scope`，它會退回「驗不了」
+    而不是安靜地繼續發綠燈。**寧可吵，不要沉默**（同 `level_of` 對不認得的
+    檢查名的處置）。
+    """
+    assert cl.level_of("fresh", 0) == cl.UNVERIFIED
+    assert cl.level_of("fresh", 0, 5) == cl.OK
+
+
+def test_denominator_does_not_rescue_a_real_red() -> None:
+    """分母只管綠燈。真的紅了，報再大的分母也還是紅。"""
+    assert cl.level_of("fresh", 2, 9999) == cl.BLOCK
+    assert cl.level_of("canary", 2, 172) == cl.BLOCK
+    assert cl.level_of("tests", 3, 3) == cl.UNVERIFIED
+
+
+def test_the_denominator_is_visible_to_a_human_and_to_a_machine() -> None:
+    """分母要進 `latest.json`，也要進給人看的那一行。
+
+    只印 rc 的話，「比對了 0 件事」與「比對了 172 件事都沒變」長得一模一樣 ——
+    而那正是這條規則要修的東西。
+    """
+    got = cl.summarise({**ALL_GREEN, "canary": 0}, {**ALL_SCOPES, "canary": 0})
+    assert got["levels"]["canary_rc"] == "unverified"
+    line = "\n".join(cl.messages({**ALL_GREEN, "canary": 0}, {},
+                                 {**ALL_SCOPES, "canary": 0}))
+    assert "比對了 0 件" in line, f"人看不到分母：{line}"
+
+
+def test_a_typo_in_the_denominator_name_is_rejected_not_ignored() -> None:
+    """打錯的檢查名要吵。
+
+    默默丟掉的話，那盞燈會退回「沒報分母」而看起來只是還沒接上 ——
+    真正的原因（打錯字）永遠不會被發現。
+    """
+    r = _run(["--at", "t", "--commit", "c", "--rc", "canary=0", "--scope", "cnaary=1"])
+    assert r.returncode != 0
+    assert "不存在的檢查" in r.stderr
+
+
+def test_daily_check_actually_collects_the_denominators() -> None:
+    """守住接線：規則寫好了沒被呼叫等於沒寫。
+
+    ⚠ 這條守的是 `5de6735` 那個形狀 —— canary 的離開碼當時**根本沒有被存下來**，
+    紅了只出現在 stderr，讀 `latest.json` 的人看不到。分母同理。
+    """
+    src = (ROOT / "scripts" / "daily-check.sh").read_text(encoding="utf-8")
+    assert "scope_of()" in src, "daily-check 沒有撿分母的函式"
+    assert '"${scope_args[@]}"' in src, "撿到的分母沒有被餵進判準"
+    for name in ("compat", "canary", "scan", "units", "deploy",
+                 "fresh", "tests", "parse", "coverage"):
+        assert f"add_scope {name} " in src or f"add_scope {name:<8} " in src, \
+            f"{name} 沒有被撿分母"
+
+
+def test_every_producer_prints_its_own_denominator() -> None:
+    """分母要由**產出結果的那一支**自己印，不是由 daily-check 去 grep 它的散文。
+
+    只有它自己知道它比對了什麼。讓 shell 去解析人類可讀的摘要，就是又一條
+    會漂的路（同 `mineru_common` 檔頭警告的「同一份資料兩個答案」）。
+    """
+    producers = {
+        "postprocess.py": "canary", "scan-partial.py": "scan",
+        "parse-check.py": "parse", "coverage-check.py": "coverage",
+        "compat-check.py": "compat", "systemd-units.py": "units",
+        "deploy-stack.py": "deploy／fresh", "run-tests.sh": "tests",
+    }
+    missing = [f"{f}（{who}）" for f, who in producers.items()
+               if "#scope" not in (ROOT / "scripts" / f).read_text(encoding="utf-8")]
+    assert not missing, "這幾支沒有印分母，它們的綠燈會被判成驗不了：\n  " + "\n  ".join(missing)
