@@ -87,6 +87,24 @@ REPO = Path(__file__).resolve().parent.parent
 DEFAULT_ROOT = DEFAULT_DATA_ROOT
 DEFAULT_THRESHOLD = 0.05
 
+#: 抽取詞數 ÷ 證人詞數 超過這個比值，就當「證人涵蓋不了這份文件」。
+#
+# **這個數字是量出來的，不是猜的。** 2026-08-21 dker 全庫 171 份可比對文件的
+# 比值分布：
+#
+#     最小 0.79　25% 1.02　中位 1.04　75% 1.08　90% 1.13　最大 6.30
+#
+# ⚠ **中位數是 1.04 —— 抽取比證人多幾個百分點是全庫常態，不是異常。**
+# 第一版寫成「多一個字就算驗不了」（＝比值 > 1.0），實跑當場把 172 份裡的
+# 154 份判成驗不了，等於把這支檢查關掉九成。真實資料在進每日之前抓到它。
+#
+# 1.15 的來歷：三份 2026-08-10 人工逐份查證為假訊號的文件，比值分別是
+# 6.30（J8TSCA5Z）、1.58（HKP7TKW6）、1.16（C8ST3USB）。1.15 是最後一個
+# 同時蓋住這三份、又不動到任何其他超標文件的切點 —— 再往上（1.18）就漏掉
+# C8ST3USB，再往下（1.10）開始把常態文件掃進來（31 份）。
+# 全庫代價：15 份（9%）轉成驗不了，超標從 11 份降到 8 份。
+WITNESS_SHORT_RATIO = 1.15
+
 # ≥4 字母的純英文詞。理由見檔頭。
 WORD = re.compile(r"[a-z]{4,}")
 
@@ -300,12 +318,14 @@ def find_source_pdf(raw_dir: Path, source_dir: Path | None = None) -> Path | Non
 def witness_short(pdf_words: int, content_words: int) -> bool:
     """對照源（PDF 文字層）涵蓋不了這份文件嗎。
 
-    判準是「證人讀出來的詞**少於**抽取結果」—— 這時候「抽取漏了多少」量不出來。
+    判準是「抽取詞數比證人多出 `WITNESS_SHORT_RATIO` 以上」—— 差到那個程度時
+    證人讀漏的量本身就大過要量的東西，「抽取漏了多少」量不出來。
 
-    ⚠ **是 `>` 不是 `>=`。** 兩邊一樣大時比對仍然成立：2026-08-21 實測
-    `HMJ6IDEG_04` 是 469 vs 469，寫成 `>=` 的話它會從此永遠不受檢。
+    ⚠ **不是「多一個字就算」。** 全庫中位數是 1.04：抽取比證人多幾個百分點是
+    常態。用 `content_words > pdf_words` 會讓 172 份裡的 154 份不受檢
+    （2026-08-21 實跑，見 `WITNESS_SHORT_RATIO` 的註解）。
     """
-    return content_words > pdf_words
+    return content_words > pdf_words * WITNESS_SHORT_RATIO
 
 
 def check_doc(raw_dir: Path, source_dir: Path | None = None) -> dict:

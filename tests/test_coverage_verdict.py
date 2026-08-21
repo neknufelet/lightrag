@@ -69,8 +69,11 @@ def _doc(name: str, pdf_words: int, content_words: int, missing: int) -> dict:
 REALLY_LOST = _doc("真的掉字", pdf_words=1000, content_words=800, missing=200)
 # 同一份修好之後：只差 2%，在 5% 門檻以下。
 FIXED = _doc("修好了", pdf_words=1000, content_words=995, missing=20)
-# 證人讀不全：J8TSCA5Z 2026-08-21 的真實數字。
+# 證人讀不全：J8TSCA5Z 2026-08-21 的真實數字（比值 6.30）。
 SHORT_WITNESS = _doc("證人讀不全", pdf_words=397, content_words=2500, missing=314)
+# 證人只少一點點：比值 1.04 ＝ 2026-08-21 全庫 171 份的**中位數**。
+# 這是常態，不是量測失效 —— 它掉了 20% 的詞就必須照樣亮紅燈。
+TYPICAL_DOC = _doc("全庫常態", pdf_words=1000, content_words=1040, missing=200)
 
 
 def _run_json(results: list[dict], monkeypatch: pytest.MonkeyPatch) -> int:
@@ -141,6 +144,41 @@ def test_both_code_paths_agree_on_red(monkeypatch: pytest.MonkeyPatch) -> None:
             f"report={via_report}，資料={[r['doc'] for r in case]}")
 
 
+@pytest.mark.proves_red("daily:coverage")
+def test_a_typical_document_is_still_measured_not_silenced(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """**這一條擋的是「判準下太寬」。**
+
+    ⚠ 它是被真的踩到逼出來的。2026-08-21 第一版把判準寫成「抽取詞數 > 證人
+    詞數」就算驗不了 —— coder 上 6 條測試全綠，推到 dker 用真實資料一跑：
+
+        共 172 份：門檻 5%，超標 6 份、**驗不了 154 份**、通過 12 份
+
+    154/172 ＝ 把這支檢查關掉了九成，而畫面上不會有任何錯誤訊息。成因是
+    全庫比值中位數是 1.04（抽取本來就會比證人多幾個百分點），第一版把常態
+    當成異常。
+
+    ⇒ 只驗「極端的會被靜音」不夠，**還要驗「常態的不會被靜音」**。
+    """
+    assert cc.witness_short(1000, 1040) is False, (
+        "比值 1.04（全庫中位數）被判成證人讀不全 —— 判準又切太寬了")
+    assert _run_json([TYPICAL_DOC], monkeypatch) == 1, (
+        "一份常態文件掉了 20% 的詞卻沒有亮紅燈")
+
+
+def test_the_cut_point_covers_every_previously_hand_verified_false_alarm() -> None:
+    """切點必須蓋住那三份**已經花過人工查證**的假警報，否則這次改動白做。
+
+    比值取自 2026-08-21 dker 全庫實跑。切到 1.18 以上就漏掉 C8ST3USB。
+    """
+    for name, pdf_w, content_w in (("J8TSCA5Z", 397, 2500),
+                                   ("HKP7TKW6", 903, 1429),
+                                   ("C8ST3USB", 2359, 2748)):
+        assert cc.witness_short(pdf_w, content_w) is True, (
+            f"{name}（比值 {content_w/pdf_w:.2f}）沒有被判成證人讀不全 —— "
+            "它 2026-08-10 已經人工查證過是假訊號，切點漏掉它等於白改")
+
+
 def test_a_witness_exactly_as_large_as_the_extraction_is_still_measured() -> None:
     """邊界：證人與抽取一樣大時**比對仍然成立**，不該被判驗不了。
 
@@ -148,7 +186,8 @@ def test_a_witness_exactly_as_large_as_the_extraction_is_still_measured() -> Non
     469 vs 469）會從此永遠不受檢。
     """
     assert cc.witness_short(469, 469) is False, "一樣大被判成證人讀不全"
-    assert cc.witness_short(397, 2500) is True, "397 vs 2500 沒有被判成證人讀不全"
+    assert cc.witness_short(1000, 1150) is False, "剛好在切點上不該被靜音（判準是 >）"
+    assert cc.witness_short(1000, 1151) is True, "超過切點卻沒被判成證人讀不全"
     tie = _doc("一樣大", pdf_words=469, content_words=469, missing=30)
     assert not tie.get("unverifiable")
     assert cc.is_red(tie, THRESHOLD) is True
