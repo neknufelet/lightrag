@@ -22,6 +22,7 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
+from _plan_skeleton import skeleton
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "postprocess.py"
@@ -45,24 +46,22 @@ class _FakeChartPlan:
     def __init__(self) -> None:
         self.convert: list[int] = []
         self.dangling: list[int] = []
+        self.with_caption = 0
 
 
 def _fake_plan() -> dict:
-    return {
-        "ctx": SimpleNamespace(n_pages=4, items=[0] * 18),
-        "noise": SimpleNamespace(mutes=[], held=[1, 2], ratio=0.0),
-        # 2026-08-09 起金絲雀也守參考文獻與標題頁這兩條消音規則。它們一樣會清空
-        # content_list 的 text，在此之前改了多少項都不會出現在任何基準裡。
-        "refs": SimpleNamespace(mutes=[]),
-        "title": SimpleNamespace(mutes=[], held=[], fired=False),
-        # 封面廣告頁 2026-08-18 接進來 —— 這份假計畫少一段的話，`canary_row`
-        # 會在真實環境之外先 KeyError，那正是它該做的事。
-        "cover_ad": SimpleNamespace(mutes=[], fired=False),
-        "margin": SimpleNamespace(mutes=[], fired=False),
-        "tables": SimpleNamespace(total=0, repairable=[], review=[]),
-        "charts": _FakeChartPlan(),
-        "latex": SimpleNamespace(items=0, times=0, partials=0, glued=0, vetoed=[]),
-    }
+    """假計畫**只有一份**（`tests/_plan_skeleton.py`），這裡只蓋掉要用的幾段。
+
+    ⚠ 2026-08-21 之前這裡是第二份手寫骨架 —— 而骨架自己的檔頭就寫著
+    「骨架各寫一份的話，管線多接一條規則時只會有一邊紅，另一邊安靜地繼續測一個
+    不存在的形狀」。補 `CANARY_WATCHED` 那九個量時實測踩到：改完骨架測試還是紅，
+    因為紅的是**這一份**。
+    """
+    return skeleton(
+        ctx=SimpleNamespace(n_pages=4, items=[0] * 18),
+        noise=SimpleNamespace(mutes=[], held=[1, 2], ratio=0.0, distinct={}),
+        charts=_FakeChartPlan(),
+    )
 
 
 def test_canary_update_writes_flat_serialisable_rows(tmp_path, monkeypatch):
@@ -124,6 +123,7 @@ def test_canary_empty_mother_is_unverifiable_not_failure(
     assert "驗不了" in capsys.readouterr().out
 
 
+@pytest.mark.proves_red("daily:canary")
 def test_canary_empty_baseline_does_not_report_a_pass(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -164,6 +164,7 @@ def test_canary_empty_baseline_does_not_report_a_pass(
     assert "基準是空的" in captured.err
 
 
+@pytest.mark.proves_red("daily:canary")
 def test_canary_missing_baseline_file_blocks_and_says_what_to_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -187,6 +188,7 @@ def test_canary_missing_baseline_file_blocks_and_says_what_to_run(
     assert "canary --update" in capsys.readouterr().err, "要說清楚該跑什麼"
 
 
+@pytest.mark.proves_red("daily:canary")
 def test_canary_new_document_is_info_but_drift_is_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -221,3 +223,90 @@ def test_canary_new_document_is_info_but_drift_is_failure(
     assert module.cmd_canary(argparse.Namespace(workspace="ws", update=False), {}) == 0
     output = capsys.readouterr().out
     assert "新文件尚未納入基準" in output
+
+
+# ── 計畫多一個量而沒人表態，要當場紅 ────────────────────────────────────────
+# **這一組守的是 `0b3319d` 的病根。** 那個 commit 的訊息寫著「在此之前這三條
+# 規則完全沒有被金絲雀守著」，而它的處置只是「把漏掉的三格補上去」—— 補完之後
+# 下一條新規則還是會漏，事實上 2026-08-21 盤點時又發現九個量沒被守著
+# （包括 `refs.ratio`，也就是體檢表 `pp.preflight` 在抓的那個數字）。
+#
+# 同一個病在本檔記著犯過四次。第五次會被下面這兩條擋下來。
+
+def _real_plan(tmp_path: Path) -> dict:
+    """用真的 Plan 物件組一份計畫（空輸入就夠 —— 這裡盤的是形狀不是數值）。"""
+    import sys as _sys
+    _sys.path.insert(0, str(ROOT / "scripts"))
+    from pp.rules import (  # noqa: PLC0415
+        chart_type,
+        cover_ad_page,
+        empty_table,
+        latex_fix,
+        layout_noise,
+        margin_text,
+        reference_section,
+        title_block,
+    )
+    return {
+        "noise": layout_noise.plan([], 0),
+        "refs": reference_section.plan([]),
+        "title": title_block.plan([]),
+        "tables": empty_table.plan([], 595.0, 842.0),
+        "charts": chart_type.plan([], tmp_path),
+        "latex": latex_fix.plan([]),
+        "cover_ad": cover_ad_page.plan([], claimed=set()),
+        "margin": margin_text.plan([], claimed=set()),
+    }
+
+
+def test_every_quantity_in_the_plan_is_either_watched_or_explicitly_not(
+    tmp_path: Path,
+) -> None:
+    """**本檔第二重要的一條。** 計畫裡的每一個量都要表態。
+
+    紅的時候不是「測試壞了」，是「有一條規則多算了一個東西，而沒有人決定
+    金絲雀要不要守它」。處置二選一：加進 `CANARY_WATCHED`（同時要在
+    `canary_row()` 記下來、重跑 `canary --update`、在 commit 訊息說明），
+    或加進 `CANARY_NOT_WATCHED` **並寫下理由** —— 沒有理由的排除跟忘記記
+    長得一模一樣。
+    """
+    module = _module()
+    found = module.plan_quantities(_real_plan(tmp_path))
+    declared = set(module.CANARY_WATCHED) | set(module.CANARY_NOT_WATCHED)
+
+    unaccounted = sorted(found - declared)
+    assert not unaccounted, (
+        "計畫多了這些量，但沒有人決定金絲雀要不要守：\n  " + "\n  ".join(unaccounted))
+
+    ghosts = sorted(declared - found)
+    assert not ghosts, (
+        "對照表上有計畫裡已經不存在的量（改名或刪掉了）：\n  " + "\n  ".join(ghosts))
+
+
+def test_watched_quantities_all_land_in_the_baseline(tmp_path: Path) -> None:
+    """宣告要守的量，`canary_row()` 真的要記下來 —— 宣告不等於記錄。"""
+    module = _module()
+    row = module.canary_row(_fake_plan())
+    missing = sorted(set(module.CANARY_WATCHED.values()) - set(row))
+    assert not missing, f"對照表說要守，但基準裡沒有這幾格：{missing}"
+    assert set(module._CANARY_KEYS) == set(row), "比對的欄位與記錄的欄位對不起來"
+
+
+def test_canary_sections_match_what_plan_one_actually_returns() -> None:
+    """`CANARY_SECTIONS` 要跟 `plan_one()` 真的回傳的段名一致。
+
+    少一段就整段不被盤點 —— 而「整段沒人盤」跟「盤過沒事」在測試報告上
+    長得一樣，那正是這一輪在修的形狀。
+    """
+    import ast  # noqa: PLC0415
+
+    tree = ast.parse((ROOT / "scripts" / "postprocess.py").read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "plan_one")
+    ret = next(n for n in ast.walk(fn) if isinstance(n, ast.Return))
+    assert isinstance(ret.value, ast.Dict)
+    keys = {k.value for k in ret.value.keys if isinstance(k, ast.Constant)}
+    module = _module()
+    assert keys - {"ctx"} == set(module.CANARY_SECTIONS), (
+        f"plan_one 回傳 {sorted(keys)}，但 CANARY_SECTIONS 是 "
+        f"{sorted(module.CANARY_SECTIONS)}")

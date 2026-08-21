@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import dataclasses
 import json
 import re
 import shutil
@@ -37,6 +38,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Final
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from mineru_common import LEAK, add_workspace_arg, resolve_env  # noqa: E402
@@ -341,13 +343,6 @@ def env_with_overlay(argv: list[str] | None = None) -> dict[str, str]:
     return env
 
 
-_CANARY_KEYS = ("pages", "items", "mute", "held", "ratio",
-                "refs_mute", "title_mute", "title_held", "title_fired",
-                "cover_ad_mute", "cover_ad_fired", "margin_mute", "margin_fired",
-                "tables_total", "repairable", "review",
-                "charts_convert", "charts_dangling",
-                "latex_items", "latex_times", "latex_partials", "latex_glued",
-                "latex_vetoed")
 
 
 def canary_row(p: dict) -> dict:
@@ -390,7 +385,107 @@ def canary_row(p: dict) -> dict:
             "latex_glued": p["latex"].glued,
             # 統計記號否決的項數。**這一格是探針**：本語料是 0，一旦拉進含
             # 統計分析的論文就會非 0，而那正是「有一項需要人看」的訊號。
-            "latex_vetoed": len(p["latex"].vetoed)}
+            "latex_vetoed": len(p["latex"].vetoed),
+            # ── 2026-08-21 補上的九格 ───────────────────────────────────────
+            # **手寫清單又落後了。** 上面那幾段註解各自記著同一件事犯過三次
+            # （refs／title 一次、LaTeX 三格一次、封面廣告頁一次），而盤點
+            # `plan_quantities()` 之後發現**還有九個量沒被守著** —— 包括
+            # `refs.ratio`，也就是體檢表 `pp.preflight` 在抓的那個數字
+            # （XVK63KEV 32.4%、NV7XSSJM 49.0% 都是它）。
+            # ⇒ 光補這九格治不了病，所以同時加了 `CANARY_WATCHED` /
+            # `CANARY_NOT_WATCHED`：計畫多一個量而沒人表態，測試會紅。
+            "noise_distinct": len(noise.distinct),
+            "refs_sections": len(p["refs"].sections),
+            "refs_ratio": round(p["refs"].ratio, 4),
+            "title_ratio": round(p["title"].ratio, 4),
+            "cover_ad_ratio": round(p["cover_ad"].ratio, 4),
+            "margin_ratio": round(p["margin"].ratio, 4),
+            "tables_targets": len(tables.targets),
+            "charts_captioned": p["charts"].with_caption,
+            "latex_edits": len(p["latex"].edits)}
+
+
+#: 計畫裡的每一個「量」→ 金絲雀記在基準的哪一格。
+#
+# 鍵是 `<計畫區段>.<屬性>`。`plan_quantities()` 會把區段的 dataclass 欄位與
+# 計算屬性全部盤出來，`tests/test_canary.py` 斷言**每一個量都要出現在這裡
+# 或下面那份「刻意不記」裡** —— 落在兩份之外就紅。
+#
+# **為什麼要有這份。** 「規則落地、基準沒跟上」這件事在本檔犯過三次
+# （commit `0b3319d` 的訊息寫著「在此之前這三條規則完全沒有被金絲雀守著」），
+# 而每一次的處置都只是「把漏掉的補上去」—— 補完之後下一條新規則還是會漏。
+# 這份對照表把「漏掉」從沉默改成當場失敗。
+CANARY_WATCHED: Final[dict[str, str]] = {
+    "noise.mutes": "mute", "noise.held": "held", "noise.ratio": "ratio",
+    "noise.distinct": "noise_distinct",
+    "refs.mutes": "refs_mute", "refs.sections": "refs_sections",
+    "refs.ratio": "refs_ratio",
+    "title.mutes": "title_mute", "title.held": "title_held",
+    "title.fired": "title_fired", "title.ratio": "title_ratio",
+    "cover_ad.mutes": "cover_ad_mute", "cover_ad.fired": "cover_ad_fired",
+    "cover_ad.ratio": "cover_ad_ratio",
+    "margin.mutes": "margin_mute", "margin.fired": "margin_fired",
+    "margin.ratio": "margin_ratio",
+    "tables.total": "tables_total", "tables.targets": "tables_targets",
+    "tables.repairable": "repairable", "tables.review": "review",
+    "charts.convert": "charts_convert", "charts.dangling": "charts_dangling",
+    "charts.with_caption": "charts_captioned",
+    "latex.edits": "latex_edits", "latex.items": "latex_items",
+    "latex.times": "latex_times", "latex.partials": "latex_partials",
+    "latex.glued": "latex_glued", "latex.vetoed": "latex_vetoed",
+}
+
+#: 刻意不記的量 → **為什麼**。沒有理由的排除跟忘記記長得一樣，所以理由是必填。
+CANARY_NOT_WATCHED: Final[dict[str, str]] = {
+    "noise.suspicious": "由 ratio 導出（ratio > 門檻），記了 ratio 等於記了它",
+    "refs.suspicious": "同上",
+    "title.suspicious": "同上",
+    "cover_ad.suspicious": "同上",
+    "margin.suspicious": "同上",
+    "noise.body_chars_before": "正文字元數對**任何解析變動**都敏感，記了會讓金絲雀"
+                               "變成「文件有沒有改過」的偵測器，而它守的是「規則有沒有改過」",
+    "noise.body_chars_after": "同上",
+    "refs.body_chars_before": "同上", "refs.body_chars_after": "同上",
+    "title.body_chars_before": "同上", "title.body_chars_after": "同上",
+    "cover_ad.body_chars_before": "同上", "cover_ad.body_chars_after": "同上",
+    "margin.body_chars_before": "同上", "margin.body_chars_after": "同上",
+    "title.reason": "給人看的說明字串，不是量；改字不該讓金絲雀紅",
+    "cover_ad.reason": "同上", "margin.reason": "同上",
+}
+
+#: 基準要比對哪幾欄。**從 `CANARY_WATCHED` 導出，不手寫。**
+#
+# 在此之前這是一份手寫 tuple，而 `canary_row()` 是另一份手寫 dict —— 兩份
+# 各自手寫就是兩條路，改一邊漏一邊不會有任何訊息。
+# `pages`／`items` 另外加：它們來自 `ctx`（文件本身），不是任何一條規則。
+_CANARY_KEYS: Final[tuple[str, ...]] = (
+    "pages", "items", *sorted(set(CANARY_WATCHED.values())))
+
+
+#: 計畫的哪幾個區段要被盤點。`ctx` 不在裡面 —— 它不是規則，是文件本身
+#: （`pages`／`items` 兩格已經單獨記著）。
+CANARY_SECTIONS: Final[tuple[str, ...]] = (
+    "noise", "refs", "title", "tables", "charts", "latex", "cover_ad", "margin")
+
+
+def plan_quantities(plan: dict) -> set[str]:
+    """盤出計畫裡每一個可以數的量，回 `{"<區段>.<屬性>"}`。
+
+    **自動盤點，不手寫。** 手寫的清單就是 `0b3319d` 那個病本身 ——
+    規則落地、清單沒跟上，而漏掉不會有任何訊息。
+
+    只認 dataclass 欄位與 `property`：前者是規則算出來的東西，後者是它們的
+    衍生量。方法（`summary()`／`line()`）不算 —— 那是給人看的字串。
+    """
+    found: set[str] = set()
+    for section in CANARY_SECTIONS:
+        obj = plan[section]
+        for f in dataclasses.fields(obj):
+            found.add(f"{section}.{f.name}")
+        for name, attr in vars(type(obj)).items():
+            if isinstance(attr, property):
+                found.add(f"{section}.{name}")
+    return found
 
 
 #: `canary` 的離開碼。**三態，不是兩態。**
@@ -478,6 +573,10 @@ def cmd_canary(a, env) -> int:
     if not drift and not gone:
         print(f"金絲雀通過：{len(base)} 份基準文件的數字都沒變"
               + (f"（另有 {len(added)} 份新文件尚未納入基準）" if added else ""))
+        # 分母 ＝ 真的比對過的基準份數。**這一格就是 d9c5373 的病灶**：
+        # 基準是 `{}` 時這裡是 0，而在此之前它照樣回 rc=0（綠）。
+        # `check-levels.py` 現在看到 rc=0 而分母 0 會拒發綠燈。
+        print(f"#scope {len(base)}")
         return CANARY_OK
     print(f"\n金絲雀失敗：{len(drift)} 處漂移、{len(gone)} 份消失。"
           "\n若是預期中的改動，跑 `canary --update` 並在 commit 訊息說明原因。")
