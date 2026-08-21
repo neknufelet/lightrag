@@ -297,6 +297,17 @@ def find_source_pdf(raw_dir: Path, source_dir: Path | None = None) -> Path | Non
     return fallback
 
 
+def witness_short(pdf_words: int, content_words: int) -> bool:
+    """對照源（PDF 文字層）涵蓋不了這份文件嗎。
+
+    判準是「證人讀出來的詞**少於**抽取結果」—— 這時候「抽取漏了多少」量不出來。
+
+    ⚠ **是 `>` 不是 `>=`。** 兩邊一樣大時比對仍然成立：2026-08-21 實測
+    `HMJ6IDEG_04` 是 469 vs 469，寫成 `>=` 的話它會從此永遠不受檢。
+    """
+    return content_words > pdf_words
+
+
 def check_doc(raw_dir: Path, source_dir: Path | None = None) -> dict:
     cl = raw_dir / "content_list.json"
     name = raw_dir.name.removesuffix(".pdf.mineru_raw")
@@ -320,16 +331,36 @@ def check_doc(raw_dir: Path, source_dir: Path | None = None) -> dict:
 
     missing = a - b            # 多重集合差：逐詞的次數差，負的自動歸零
     n_missing = sum(missing.values())
-    return {
+    n_content = sum(b.values())
+    out = {
         "doc": name,
         "pdf": str(pdf),
         "items": n_items,
         "pdf_words": total,
-        "content_words": sum(b.values()),
+        "content_words": n_content,
         "missing": n_missing,
         "rate": n_missing / total,
         "top": missing.most_common(10),
     }
+    if witness_short(total, n_content):
+        # 證人（PDF 文字層）讀出來的詞比抽取結果還少 ⇒ 它涵蓋不了這份文件，
+        # 「抽取漏了多少」在數學上量不出來。**這是驗不了，不是超標。**
+        #
+        # `ledger.py` 檔頭第 14 行寫著：「把 unverifiable 併進 fail，等於宣稱
+        # 壞了」。這支之前對這一族做的正是那件事。
+        #
+        # 2026-08-21 全庫實測：11 份超標裡 5 份是這個形狀，其中 3 份早在
+        # 2026-08-10 就被逐份查證為假訊號並寫進 verified-findings.json
+        # （J8TSCA5Z 397 vs 2500、C8ST3USB 2359 vs 2748、HKP7TKW6 903 vs 1429）。
+        # 一份一份記結論沒有盡頭 —— 這裡改的是**類別**。
+        #
+        # ⚠ 指標方向是反的：MinerU 抽得越完整，這個數字越高。所以在這個區間裡
+        # 「漏詞率高」不是壞消息，是量測失效。
+        out["unverifiable"] = True
+        out["unverifiable_reason"] = (
+            f"對照源只讀出 {total:,} 詞、抽取有 {n_content:,} 詞"
+            "——證人涵蓋不了它，漏詞率量不出來")
+    return out
 
 
 def scan(root: Path, workspace: str, doc: str | None) -> list[dict]:
@@ -347,6 +378,29 @@ def scan(root: Path, workspace: str, doc: str | None) -> list[dict]:
     return out
 
 
+def is_red(r: dict, threshold: float) -> bool:
+    """這一份該不該亮紅燈。
+
+    **驗不了的一律不紅。** 三態不是兩態加一個雜項（`ledger.py` 檔頭）：
+    併進 pass 等於宣稱驗過了，併進 fail 等於宣稱壞了 —— 兩種都是把「不知道」
+    講成「知道」。
+    """
+    if r.get("unverifiable"):
+        return False
+    return bool(r.get("error")) or r.get("rate", 0) > threshold
+
+
+def over_threshold(results: list[dict], threshold: float) -> list[dict]:
+    """該亮紅燈的那幾份。**離開碼的唯一來源。**
+
+    ⚠ 單一入口是**刻意的**。改之前 `report()` 與 `--json` 各算一次紅綠，而且
+    **已經漂開了**：解析失敗（`error` 但不是 unverifiable）在人看的報表裡算紅，
+    在 `--json` 裡不算 —— 而 daily-check 走的正是 `--json`。兩邊對同一批資料
+    給出不同答案，中間不會有任何錯誤訊息。這正是本專案一路在防的形狀。
+    """
+    return [r for r in results if is_red(r, threshold)]
+
+
 def report(results: list[dict], threshold: float, show_top: bool) -> int:
     if not results:
         print("沒有已解析的文件。")
@@ -357,13 +411,17 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
     print("-" * 92)
     n_over = n_unver = 0
     for r in results:
-        if r.get("error"):
-            state = "驗不了" if r.get("unverifiable") else " ERROR"
-            n_unver += 1 if r.get("unverifiable") else 0
-            n_over += 0 if r.get("unverifiable") else 1
-            print(f"{r['doc'][:43]:<44} {'':>7} {'':>16}  {state} {r['error']}")
+        if r.get("unverifiable"):
+            n_unver += 1
+            why = r.get("unverifiable_reason") or r.get("error") or ""
+            rate = f"{r['rate']*100:>6.1f}%" if "rate" in r else " " * 7
+            print(f"{r['doc'][:43]:<44} {rate} {'':>16}  驗不了 {why}")
             continue
-        over = r["rate"] > threshold
+        if r.get("error"):
+            n_over += 1
+            print(f"{r['doc'][:43]:<44} {'':>7} {'':>16}   ERROR {r['error']}")
+            continue
+        over = is_red(r, threshold)
         n_over += over
         print(f"{r['doc'][:43]:<44} {r['rate']*100:>6.1f}% "
               f"{r['missing']:>7,}/{r['pdf_words']:>7,}  {'超標' if over else 'ok'}")
@@ -376,7 +434,7 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
         for r in results:
             if r.get("error") or not r.get("top"):
                 continue
-            if show_top != "all" and r["rate"] <= threshold:
+            if show_top != "all" and not is_red(r, threshold):
                 continue
             print(f"\n=== {r['doc']}　漏詞率 {r['rate']*100:.1f}% ===")
             print("  漏最多的詞：" + "、".join(f"{w}({n})" for w, n in r["top"]))
@@ -422,7 +480,7 @@ def main() -> int:
     print(f"#scope {len(results)}", file=sys.stderr)
     if a.json:
         print(json.dumps(results, ensure_ascii=False, indent=1))
-        return 1 if any(r.get("rate", 0) > a.threshold for r in results) else 0
+        return 1 if over_threshold(results, a.threshold) else 0
     # 指定單一文件時就是在看那一份，漏詞清單一律印出來。
     show = "all" if (a.all_top or a.doc) else True
     return report(results, a.threshold, show)
