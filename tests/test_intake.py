@@ -209,14 +209,33 @@ def _source(tmp_path: Path, names: tuple[str, ...] = ("paper.pdf",)) -> Path:
     return raw.parent.parent
 
 
+#: 等背景 worker 把 job 推到某個狀態的上限。
+#
+# ⚠ **原本是 3 秒，而那讓 `tests` 這盞燈會隨機變紅。** 2026-08-21 dker 實測：
+# `test_failed_job_is_visible_and_reset_restores_all_candidate_sources` 在
+# daily-check 的全庫跑裡失敗一次（`1 failed, 889 passed`），單獨跑、整檔跑、
+# 之後再跑全庫都過。部署機同時扛著容器與知識庫，3 秒不夠。
+#
+# **會隨機變紅的燈跟天天紅的燈是同一個病** —— 幾次之後所有人都學會無視它，
+# 而真的紅燈就埋在裡面（2026-08-16 `fresh_rc=2` 就是這樣被淹掉的）。
+#
+# 拉長不會讓快樂路徑變慢：條件一成立就回，迴圈不會等滿。代價只有「真的卡住時
+# 要多等 27 秒才報錯」，而那是一年幾次的事。
+_WAIT_TIMEOUT_S = 30.0
+
+
 def _wait_for(app: IntakeApp, job_id: str, status: str) -> dict[str, object]:
-    deadline = time.monotonic() + 3
+    start = time.monotonic()
+    deadline = start + _WAIT_TIMEOUT_S
     while time.monotonic() < deadline:
         for job in app.state()["jobs"]:
             if isinstance(job, dict) and job.get("job_id") == job_id and job.get("status") == status:
                 return job
         time.sleep(0.01)
-    raise AssertionError(f"job {job_id} 沒有到 {status}：{app.state()}")
+    # 等了多久要講 —— 「卡住」與「機器太慢」的處置完全不同。
+    raise AssertionError(
+        f"job {job_id} 等了 {time.monotonic() - start:.1f} 秒還沒到 {status}"
+        f"（上限 {_WAIT_TIMEOUT_S:.0f} 秒）：{app.state()}")
 
 
 def test_state_machine_rejects_reversed_or_skipped_transitions(tmp_path: Path) -> None:
