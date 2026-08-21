@@ -190,6 +190,20 @@ def t_partial_anchor():
                  (r"\frac{\widehat{c}\zeta}{\widehat{\sigma} x_{0}}", 2)):    # D #247
         assert latex_fix.fix_partial(s)[1] == k, (s, latex_fix.fix_partial(s))
 
+    # **第五種：`\hat{o}`（2026-08-21 補）。** `scan` 探針從 08-20 起天天紅著
+    # 報它而清單裡沒有這個寫法。用**當時的原文**當夾具 —— 改寫過的字串證明不了
+    # 它抓得到真實情況（SS9HU52M #45，全庫 2 處都在這一條裡）。
+    real = (r"$D _ { n } = \left( \hat { o } \Omega _ { n } / \hat { o } n "
+            r"\right) ^ { - 1 } = 8 \Omega _ { n } ^ { - 1 }$")
+    out4, n4, _ = latex_fix.fix_partial(real)
+    assert n4 == 2 and r"\hat { o }" not in out4, (n4, out4)
+    assert out4.count(r"\partial") == 2, out4
+    print(f"      {out4}")
+    # 錨點照樣擋得住：孤零零一個、或成對但沒有分數構造，一律不碰。
+    for s in (r"\hat{o} = 3", r"\hat{o}_{1} + \hat{o}_{2}"):
+        assert latex_fix.fix_partial(s) == (s, 0, False), latex_fix.fix_partial(s)
+    print("      真 ô（無配對／無分數）：一處都沒動")
+
     # **統計估計量要否決，而且要出聲。** deepseek 2026-08-04 對抗找碴的反例：
     # t 檢定的 σ̂ 是樣本標準差，完全符合①②，改成 ∂ 就是毀資料。
     # 本語料實測 0 命中（理論章節），但論文拉進來就會咬。

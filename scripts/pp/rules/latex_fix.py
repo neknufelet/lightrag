@@ -158,6 +158,18 @@ def unspace(text: str) -> tuple[str, list[str]]:
 #
 #   \hat{\sigma}      165    \widehat{\sigma}    6
 #   \hat{\partial}     17    \widehat{c}         2
+#   \hat{o}             2 ← 2026-08-21 補（新庫才出現）
+#
+# **2026-08-21 補第五種寫法 `\hat{o}`。** `scan` 探針從 08-20 起天天紅著報它，
+# 而自動修正清單裡沒有這個寫法（舊庫沒出現過）。逐處判讀：
+#
+#     全庫 2 處，都在 SS9HU52M #45 的同一條式子裡：
+#     $D_n = \left( \hat{o}\Omega_n / \hat{o} n \right)^{-1} = 8\Omega_n^{-1}$
+#     ＝ 模態密度是 Ω 對 n 的偏微分的倒數。**2/2 都是 ∂，0 個是真的 ô。**
+#
+# ⚠ 與 `\hat{c}` 的差別就在這個比例（那邊 9 處裡 3 處為真，所以整族不碰）。
+# `\widehat{o}` 本語料 0 處，一併收 —— 檔頭自己的教訓是「第一版只認
+# `\hat{\sigma}` 就宣稱零例外，那句話只對搜過的字串成立」，這次兩種都搜過了。
 #
 # **刻意不含 `\hat{c}`（9 處）**：那一族有 3 處是真的 ĉ（F #259 的遞迴係數
 # `ĉ_n = (1-β²)k₀a/n · ĉ_{n-1}`），而且那一項**同時滿足下面兩條錨點**——
@@ -166,6 +178,7 @@ HAT_SIGMA = re.compile(
     r"\\(?:wide)?hat\s*\{\s*\\sigma\s*\}"        # σ̂ ／ widehat σ
     r"|\\(?:wide)?hat\s*\{\s*\\partial\s*\}"     # ∂ 頭上多一頂帽子
     r"|\\widehat\s*\{\s*c\s*\}"                  # 只有 widehat 的 c，不含 \hat{c}
+    r"|\\(?:wide)?hat\s*\{\s*o\s*\}"              # ∂ 讀成戴帽子的 o
 )
 # 分數／斜線構造。偏微分**必然**寫成分子分母，這是錨點的另一半。
 _FRACTION = re.compile(r"\\[Bb]igg?/|\\frac|/")
