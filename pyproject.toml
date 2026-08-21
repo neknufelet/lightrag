@@ -43,3 +43,26 @@ dev = [
 # 這種用法。宣告 false，uv 就只建環境、不試著 build 它。
 [tool.uv]
 package = false
+
+# ── pytest 的自訂記號 ────────────────────────────────────────────────────────
+# `proves_red` 標在測試上，意思是「這條測試證明了某盞燈**會紅**」。
+# 名冊與守門在 `scripts/lamps.py` 與 `tests/test_lamp_coverage.py`。
+#
+# **為什麼要有這個記號。** 近 30 天有 17 次修補是同一個形狀：一盞燈說了假話，
+# 而說的假話是「綠」，所以沒有人發現。每一次都只修一盞。這個記號修的是類別 ——
+# 加一盞新燈卻沒附「證明它會紅」的測試，`test_lamp_coverage` 會當場擋下來。
+[tool.pytest.ini_options]
+# ⚠ **證明必須執行「發訊號的那一支」，不是分類器。** 每盞燈是一條鏈：
+#     producer 發 rc → daily-check.sh 接住 → check-levels.py 分類
+#                    → latest.json → 審核台橫幅
+# 而那 17 次事故**每一環都出過**（d9c5373 在 producer、5de6735 在 shell、
+# 6af2c80 在分類、48efe50 在橫幅）。把 `proves_red("daily:fresh")` 標在
+# 「`level_of("fresh",2)==BLOCK`」那種測試上，守門會滿足 —— 但那只證明了
+# 分類器，**沒有證明 `deploy-stack.py freshness` 真的會發 2**。
+#
+# ⚠ **pytest 證明的是「源碼能紅」，不是「跑著的系統會紅」。** `4a6e533`
+# 把基準清成 `{}` 是**資料操作**，當天任何 pytest 都照樣全綠。
+# 那一族靠 `check-levels.py` 的「綠燈必須帶分母」擋（見 level_of）。
+markers = [
+    "proves_red(lamp_id): 這條測試證明了 lamp_id 那盞燈會紅。必須真的呼叫發訊號的那一支，不是只驗分類器（見 scripts/lamps.py 與 tests/lamp-unproven.json 的 _how_to_shrink）",
+]
