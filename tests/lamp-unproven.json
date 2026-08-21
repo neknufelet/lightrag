@@ -5,7 +5,7 @@
  "_how_to_shrink": "寫一條真的把那盞燈逼紅的測試，標上 @pytest.mark.proves_red(\"<燈的編號>\")，然後把它從 lamps 陣列裡刪掉、把 proven 加一。⚠ **證明必須執行發訊號的那一支**（producer 的入口），不是分類器 —— 「level_of('fresh',2)==BLOCK」只證明了分類器，沒證明 deploy-stack.py freshness 真的會發 2。",
  "_known_limit": "記號只表示『有人宣稱證明過』。宣稱是假的（標在爛測試上、標在分類器上）這裡查不出來，要靠 review。但『連宣稱都沒有』從此會當場擋下來，而那是十七次裡每一次的起點。",
  "_measured_on": "2026-08-21",
- "proven": 4,
+ "proven": 5,
  "lamps": [
   "daily:compat",
   "daily:coverage",

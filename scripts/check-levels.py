@@ -57,6 +57,7 @@ WHAT: Final[dict[str, str]] = {
     "deploy": "部署的設定",
     "fresh": "跑著的是不是最新的碼",
     "tests": "測試",
+    "drill": "紅燈自己會不會亮（實地演習）",
 }
 
 
@@ -94,6 +95,14 @@ def level_of(check: str, rc: int, scope: int | None = None) -> str:
         # run-tests.sh 回 3 的定義（它自己的檔頭）：「跑得動的都通過了，但這台
         # 驗不了全部」。那是**執行環境的限制**，不是缺陷 —— dker 上沒有 node，
         # 明天也不會有。回 1 才是真的有測試掛掉。
+        return UNVERIFIED if rc == 3 else BLOCK
+    if check == "drill":
+        # `drill.py` 的離開碼：2 ＝ **有燈該紅而沒紅**（那盞燈死了）→ 擋；
+        # 3 ＝ 這台跑不了（例如沒有 bundle 可以複製）→ 驗不了。
+        #
+        # ⚠ 這一盞是「燈的燈」。它紅的意思不是「知識庫有問題」，是
+        # **「某一盞監控燈已經不會叫了」** —— 而那比任何單一問題都嚴重，
+        # 因為它代表你不知道自己不知道什麼。
         return UNVERIFIED if rc == 3 else BLOCK
     if check == "canary":
         # `postprocess.py` 的 `CANARY_*`：3 ＝ 沒有任何 bundle（母體不存在，

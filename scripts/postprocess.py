@@ -516,6 +516,8 @@ def cmd_canary(a, env) -> int:
     的原因。
     """
     paths = _paths()
+    # `--baseline` 只給實地演習用；沒指定就是 repo 裡那份，行為與以前相同。
+    baseline_path = getattr(a, "baseline", None) or CANARY
     source_dir = paths.inputs_dir(a.workspace)
     cur = {}
     bundles = find_bundles(a.workspace, None, allow_empty=True)
@@ -530,23 +532,24 @@ def cmd_canary(a, env) -> int:
             cur[raw.name.removesuffix(".mineru_raw")] = {"error": str(e)[:200]}
 
     if a.update:
-        CANARY.parent.mkdir(parents=True, exist_ok=True)
-        CANARY.write_text(json.dumps(cur, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
-        print(f"基準已更新：{len(cur)} 份 → {CANARY}")
+        baseline_path.parent.mkdir(parents=True, exist_ok=True)
+        baseline_path.write_text(
+            json.dumps(cur, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+        print(f"基準已更新：{len(cur)} 份 → {baseline_path}")
         print("記得在 commit 訊息說明每個數字為什麼變 —— 沒說明的變動等同未被察覺的漂移。")
         return 0
 
-    if not CANARY.is_file():
-        print(f"金絲雀沒有基準檔 {CANARY} —— 現在沒有任何東西在守規則漂移。"
+    if not baseline_path.is_file():
+        print(f"金絲雀沒有基準檔 {baseline_path} —— 現在沒有任何東西在守規則漂移。"
               "\n先跑 `postprocess.py canary --update` 立基準。", file=sys.stderr)
         return CANARY_NO_BASELINE
-    base = json.loads(CANARY.read_text())
+    base = json.loads(baseline_path.read_text())
     if not base:
         # ⚠ **這一條就是 2026-08-21 那盞燈下線的形狀。** 基準是空的時候，
         # 底下的比對會把每一份都算成「新增」，drift 與 gone 都是空的，
         # 於是印出「金絲雀通過：0 份基準文件的數字都沒變」並回 0。
         # 附了份數、看起來很像有在守 —— 而它守著 0 份。
-        print(f"金絲雀的基準是空的（{CANARY}）—— 目前有 {len(cur)} 份文件，"
+        print(f"金絲雀的基準是空的（{baseline_path}）—— 目前有 {len(cur)} 份文件，"
               "但**一份都沒有納入基準**，現在改任何規則都不會有人知道改壞了沒有。"
               "\n先跑 `postprocess.py canary --update` 立基準。", file=sys.stderr)
         return CANARY_NO_BASELINE
@@ -1110,6 +1113,12 @@ def main():
     n = sub.add_parser("canary", help="比對 plan 結果與記錄的基準，抓規則漂移")
     add_workspace_arg(n, env)
     n.add_argument("--update", action="store_true", help="把目前結果寫成新基準")
+    # **給實地演習用的。** 演習要餵它一份故意寫錯的基準，看它會不會紅 ——
+    # 而那必須用**真的這一支**跑，不是用測試替身。`7d4a878`（比對函式在路徑
+    # 搬家中丟失）那種病，只有「真的按一次鈕」抓得到。
+    # ⚠ 預設仍是 repo 裡那份，不指定就跟以前完全一樣。
+    n.add_argument("--baseline", type=Path, default=None,
+                   help="改用指定的基準檔（實地演習用；預設 tests/canary-baseline.json）")
 
     ap2 = sub.add_parser("apply", help="寫進 content_list.json 並更新 manifest")
     add_workspace_arg(ap2, env)

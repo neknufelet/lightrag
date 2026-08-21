@@ -101,10 +101,11 @@ def test_unknown_check_is_block_not_silently_dropped() -> None:
 #: 每一支都報了分母。**沒有它，全綠不再是綠** —— 見 level_of 的「綠燈必須帶
 #: 分母」。數值取自 2026-08-21 dker 實跑的量級，不是隨手編的。
 ALL_SCOPES = {"compat": 1060, "canary": 172, "scan": 172, "units": 7,
-              "deploy": 1, "fresh": 5, "tests": 3, "parse": 172, "coverage": 172}
+              "deploy": 1, "fresh": 5, "tests": 3, "parse": 172, "coverage": 172,
+              "drill": 2}
 
-ALL_GREEN = {"compat": 0, "canary": 0, "scan": 0, "units": 0,
-             "deploy": 0, "fresh": 0, "tests": 0, "parse": 0, "coverage": 0}
+ALL_GREEN = {"compat": 0, "canary": 0, "scan": 0, "units": 0, "deploy": 0,
+             "fresh": 0, "tests": 0, "parse": 0, "coverage": 0, "drill": 0}
 
 
 def test_only_blocking_turns_status_to_fail() -> None:
@@ -214,7 +215,7 @@ def test_daily_check_calls_it_and_exits_with_its_code() -> None:
     # 那段講 2026-08-16 canary 缺欄位的**註解**，測試就永遠是紅的。
     assert "fail_msgs=()" not in src, "舊的『任何非零都是失敗』又回來了"
     for name in ("compat", "canary", "scan", "units", "deploy",
-                 "fresh", "tests", "parse", "coverage"):
+                 "fresh", "tests", "parse", "coverage", "drill"):
         assert f'--rc "{name}=$' in src, f"{name} 沒有被餵進判準"
 
 
@@ -287,7 +288,7 @@ def test_daily_check_actually_collects_the_denominators() -> None:
     assert "scope_of()" in src, "daily-check 沒有撿分母的函式"
     assert '"${scope_args[@]}"' in src, "撿到的分母沒有被餵進判準"
     for name in ("compat", "canary", "scan", "units", "deploy",
-                 "fresh", "tests", "parse", "coverage"):
+                 "fresh", "tests", "parse", "coverage", "drill"):
         assert f"add_scope {name} " in src or f"add_scope {name:<8} " in src, \
             f"{name} 沒有被撿分母"
 
@@ -351,6 +352,7 @@ def test_every_producer_prints_its_own_denominator() -> None:
         "parse-check.py": "parse", "coverage-check.py": "coverage",
         "compat-check.py": "compat", "systemd-units.py": "units",
         "deploy-stack.py": "deploy／fresh", "run-tests.sh": "tests",
+        "drill.py": "drill",
     }
     missing = [f"{f}（{who}）" for f, who in producers.items()
                if "#scope" not in (ROOT / "scripts" / f).read_text(encoding="utf-8")]

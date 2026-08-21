@@ -134,6 +134,17 @@ fi
 scripts/run-tests.sh > "$CHECK_DIR/tests-$ts.txt" 2>&1
 tests_rc=$?
 
+# ── 實地演習：紅燈自己會不會亮（2026-08-21 加入）──────────────────────────
+# **火災警報器的測試鈕是按在裝好的大樓裡，不是工廠裡。** 上面每一支檢查都有
+# 單元測試，但單元測試餵的是替身 —— 而 `7d4a878`（金絲雀的比對函式在路徑搬家中
+# 丟失）那種病，替身不會跟著搬家一起壞，源碼「能」紅而跑著的那份根本沒在比。
+# `4a6e533`（基準被清空）更直接：那是**資料操作**，當天任何 pytest 都全綠。
+#
+# 演習用真的那一支指令、在暫存資料根上餵一個故意弄壞的情境，看它會不會紅。
+# ⚠ 它**不碰真的語料**（`PP_DATA_ROOT` / `--root` 指到暫存目錄，跑完就丟）。
+"$PY" scripts/drill.py > "$CHECK_DIR/drill-$ts.txt" 2>&1
+drill_rc=$?
+
 # 2026-08-03 CUTOVER：這裡原本有第二段，去 ../lightrag-v2 那個 worktree 再跑一次
 # compat-check 與 canary。worktree 已收掉、acoustics_v155 已退役，現在只有一個
 # checkout、一個 workspace，上面那一段就是全部。
@@ -187,6 +198,7 @@ add_scope units    "$CHECK_DIR/units-$ts.txt"
 add_scope deploy   "$CHECK_DIR/deploy-$ts.txt"
 add_scope fresh    "$CHECK_DIR/fresh-$ts.txt"
 add_scope tests    "$CHECK_DIR/tests-$ts.txt"
+add_scope drill    "$CHECK_DIR/drill-$ts.txt"
 add_scope parse    "$CHECK_DIR/parse-$ts.txt"
 add_scope coverage "$CHECK_DIR/coverage-$ts.err"
 
@@ -200,6 +212,7 @@ tmp_latest="$CHECK_DIR/latest.json.tmp"
   --rc "deploy=$deploy_rc"   --report "deploy=$CHECK_DIR/deploy-$ts.txt" \
   --rc "fresh=$fresh_rc"     --report "fresh=$CHECK_DIR/fresh-$ts.txt" \
   --rc "tests=$tests_rc"     --report "tests=$CHECK_DIR/tests-$ts.txt" \
+  --rc "drill=$drill_rc"     --report "drill=$CHECK_DIR/drill-$ts.txt" \
   --rc "parse=$parse_rc"     --report "parse=$CHECK_DIR/parse-$ts.txt" \
   --rc "coverage=$coverage_rc" --report "coverage=$CHECK_DIR/coverage-$ts.json" \
   "${scope_args[@]}" \
