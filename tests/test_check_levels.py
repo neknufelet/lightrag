@@ -292,6 +292,54 @@ def test_daily_check_actually_collects_the_denominators() -> None:
             f"{name} 沒有被撿分母"
 
 
+def test_the_json_producers_print_the_denominator_on_the_path_daily_check_takes(
+) -> None:
+    """`--json` 的那兩支，分母要印在**提早 return 之前**。
+
+    ⚠ **這條是被真的漏掉逼出來的。** 2026-08-21 第一版把 `#scope` 印在
+    `coverage-check.py` 的 `report()` 裡，而 `--json` 會在呼叫 `report()`
+    之前就 return —— 而 daily-check 用的正是 `--json`。上面那條 grep 測試
+    照樣綠，因為檔案裡**確實有** `#scope` 這幾個字。
+
+    ⇒ 「檔案裡有這行」與「那行跑得到」是兩件事。這正是本輪主題的縮影，
+    而且它發生在修這個主題的 commit 裡。
+
+    ⚠ **這仍然只是代理證明。** 真正的證明是在 dker 上用 `--json` 跑一次、
+    看 stderr 有沒有那一行 —— 那需要 `.env`，coder 上刻意沒有。
+    """
+    import ast  # noqa: PLC0415
+
+    for name in ("coverage-check.py", "compat-check.py"):
+        src = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        main = next((n for n in ast.walk(tree)
+                     if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+        assert main is not None, f"{name} 沒有 main()"
+
+        # ⚠ **必須印在 `main()` 裡面。** 印在別的函式裡不算 —— `report()` 定義在
+        # 檔案前面但**呼叫在 `--json` 分支之後**，所以「行號比較小」完全證明不了
+        # 「執行得到」。第一版守衛就是用行號比大小，把 bug 搬回去它照樣綠。
+        in_main = [n.lineno for n in ast.walk(main)
+                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                   and n.func.id == "print" and "#scope" in ast.unparse(n)]
+        assert in_main, (
+            f"{name} 的分母沒有印在 main() 裡 —— 印在別的函式裡的話，"
+            f"`--json` 那條路可能根本呼叫不到它（2026-08-21 實際踩過）")
+
+        # 再確認它在會提早結束的 `--json` 分支**之前**。
+        for node in ast.walk(main):
+            if not isinstance(node, ast.If) or "json" not in ast.unparse(node.test):
+                continue
+            exits_early = any(
+                isinstance(x, ast.Return)
+                or (isinstance(x, ast.Call) and ast.unparse(x).startswith("sys.exit"))
+                for x in ast.walk(node))
+            if exits_early:
+                assert min(in_main) < node.lineno, (
+                    f"{name} 第 {node.lineno} 行的 `--json` 分支會提早結束，"
+                    f"而分母印在第 {min(in_main)} 行 —— 跑不到")
+
+
 def test_every_producer_prints_its_own_denominator() -> None:
     """分母要由**產出結果的那一支**自己印，不是由 daily-check 去 grep 它的散文。
 

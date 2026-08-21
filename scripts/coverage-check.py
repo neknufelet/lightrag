@@ -368,11 +368,6 @@ def report(results: list[dict], threshold: float, show_top: bool) -> int:
         print(f"{r['doc'][:43]:<44} {r['rate']*100:>6.1f}% "
               f"{r['missing']:>7,}/{r['pdf_words']:>7,}  {'超標' if over else 'ok'}")
     print("-" * 92)
-    # 分母：這次比對了幾件事。`check-levels.py` 看到 rc=0 卻沒有這一行
-    # （或 0），會**拒發綠燈**改判「驗不了」—— 近 30 天 17 次「燈說假話」
-    # 裡最大的一族，全部是綠燈在空集合上算出來的。約定見 daily-check.sh。
-    # ⚠ 走 stderr —— `--json` 模式的 stdout 整份是 JSON，混一行進去會讓解析壞掉。
-    print(f"#scope {len(results)}", file=sys.stderr)
     print(f"共 {len(results)} 份：門檻 {threshold*100:.0f}%，"
           f"超標 {n_over} 份、驗不了 {n_unver} 份、"
           f"通過 {len(results)-n_over-n_unver} 份")
@@ -416,6 +411,15 @@ def main() -> int:
     a = ap.parse_args()
 
     results = scan(a.root, a.workspace, a.doc)
+    # 分母：這次比對了幾份。`check-levels.py` 看到 rc=0 卻沒有這一行（或 0），
+    # 會**拒發綠燈**改判「驗不了」。約定見 daily-check.sh。
+    #
+    # ⚠ **印在這裡，不是印在 `report()` 裡。** `--json` 會提早 return，
+    # 根本走不到 `report()` —— 而 daily-check 用的正是 `--json`。
+    # 2026-08-21 第一版就是放錯地方，橫幅當場寫「PDF 的字有沒有漏掉
+    # (rc=1、沒報分母)」把自己的缺口叫出來了。
+    # ⚠ 走 stderr：`--json` 的 stdout 整份是 JSON，混一行進去會讓解析壞掉。
+    print(f"#scope {len(results)}", file=sys.stderr)
     if a.json:
         print(json.dumps(results, ensure_ascii=False, indent=1))
         return 1 if any(r.get("rate", 0) > a.threshold for r in results) else 0
