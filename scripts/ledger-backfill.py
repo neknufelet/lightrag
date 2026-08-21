@@ -74,6 +74,22 @@ def latest_job_per_document(jobs: list[Mapping[str, object]]) -> dict[str, Mappi
     return best
 
 
+def select_gates(planned: list[tuple], gates: list[str] | None) -> list[tuple]:
+    """只留下指定欄位的那幾格。`gates` 給 None／空的就全留。
+
+    ⚠ **打錯欄位名要拒絕，不能當成「沒有符合的」。** 靜靜回一份空清單的話，
+    `--gate pp.equation`（少個 s）會印「寫入 0 格」然後 rc=0 —— 看起來像
+    做完了（鐵則 1：拒絕，不猜）。
+    """
+    if not gates:
+        return planned
+    unknown = sorted(set(gates) - set(ledger.GATES))
+    if unknown:
+        raise ValueError(f"不認得的欄位 {unknown}。可用的：{ledger.GATES}")
+    keep = set(gates)
+    return [row for row in planned if row[1] in keep]
+
+
 def main() -> int:
     env = load_env(REPO)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -81,6 +97,8 @@ def main() -> int:
     ap.add_argument("--root", type=Path,
                     default=Path(env.get("DATA_ROOT", str(DEFAULT_DATA_ROOT))))
     ap.add_argument("--apply", action="store_true", help="真的寫進去（預設只乾跑）")
+    ap.add_argument("--gate", action="append", metavar="GATE",
+                    help="只寫這幾欄（可重複）。預設寫全部。")
     ap.add_argument("--extract-json", type=Path, metavar="FILE",
                     help="`extract-check.py --json` 的輸出，用來填 extract.grounding")
     ap.add_argument("--threshold", type=float, default=0.10,
@@ -137,6 +155,20 @@ def main() -> int:
         if doc in grounding:
             state, note, ratio = grounding_entry(grounding[doc], a.threshold)
             planned.append((doc, "extract.grounding", state, note, ratio))
+
+    # ⚠ **回填是機械判定，它不知道哪一格是人看過之後改的。**
+    # 2026-08-21 實測：不加 `--gate` 直接 `--apply` 會把 3 格 `pp.preflight`
+    # 從 `pass` 改回 `unverifiable` —— 而那 3 格正是當天人工逐項看過原文、
+    # 確認消音拿掉的全是頁首頁尾與參考文獻之後才改成通過的。
+    # 「補上空白欄位」與「重算全部欄位」是兩件事，之前只有後者。
+    if a.gate:
+        before = len(planned)
+        try:
+            planned = select_gates(planned, a.gate)
+        except ValueError as exc:
+            sys.exit(str(exc))
+        print(f"--gate {'、'.join(a.gate)}：{before} 格裡只留下 {len(planned)} 格，"
+              f"其餘 {before - len(planned)} 格**不動**\n")
 
     tally = Counter((g, s) for _, g, s, _, _ in planned)
     print(f"現役文件 {len(live)} 份；會寫 {len(planned)} 格\n")
