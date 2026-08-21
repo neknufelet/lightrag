@@ -384,7 +384,22 @@ def test_failed_job_is_visible_and_reset_restores_all_candidate_sources(
         assert isinstance(error, str) and "測試用解析失敗" in error
 
         state = app.state()
-        assert state["sections"]["failed"] == [failed]
+        # ⚠ **比對身分與狀態，不是整份快照。** 原本寫
+        # `state["sections"]["failed"] == [failed]`，而 `failed` 是
+        # `_wait_for` 在**更早那一刻**拿到的 —— job 進 `failed` 之後背景
+        # worker 還在往 `log_tail` 補 traceback，於是兩份快照差一點點。
+        #
+        # 2026-08-21 dker 實測這條在 daily-check 的全庫跑裡掛了兩次
+        # （單獨跑、整檔跑都過）。第一次誤判成「機器太慢」，把 `_wait_for`
+        # 的上限從 3 秒拉到 30 秒 —— **那個修法是錯的，掛第二次才看出來**。
+        # 拉長上限本身仍然值得留著，但它治的是別的病。
+        #
+        # 這裡要驗的是「失敗的 job 出現在 failed 那一節」，逐位元比對整份
+        # 快照是過度指定，而過度指定的代價就是一盞會隨機變紅的燈。
+        section = state["sections"]["failed"]
+        assert [j["job_id"] for j in section] == [job.job_id]
+        assert section[0]["status"] == "failed"
+        assert "測試用解析失敗" in str(section[0]["error"])
         assert app._public_job(job)["error"] == error
         html = render_html(state, job.job_id)
         assert error in html
