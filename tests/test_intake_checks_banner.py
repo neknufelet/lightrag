@@ -17,6 +17,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from intake import IntakeApp  # noqa: E402
@@ -39,6 +41,7 @@ def _write(app: IntakeApp, payload: dict, *, age_s: float = 0.0) -> Path:
     return path
 
 
+@pytest.mark.proves_red("meta:missing")
 def test_missing_result_is_not_a_pass(tmp_path: Path) -> None:
     """沒有結果檔 ⇒ `missing`，不得是 `ok`。
 
@@ -49,6 +52,7 @@ def test_missing_result_is_not_a_pass(tmp_path: Path) -> None:
     assert "不存在" in str(got.get("reason"))
 
 
+@pytest.mark.proves_red("meta:unreadable")
 def test_unreadable_result_is_not_a_pass(tmp_path: Path) -> None:
     app = _app(tmp_path)
     app.paths.checks_dir.mkdir(parents=True, exist_ok=True)
@@ -225,6 +229,7 @@ def test_old_result_without_levels_falls_back_to_shouting(tmp_path: Path) -> Non
     assert got["warnings"] == [] and got["unverified"] == []
 
 
+@pytest.mark.proves_red("meta:stale")
 def test_stale_pass_is_reported_as_stale_not_ok(tmp_path: Path) -> None:
     """**本檔最重要的一條。**
 

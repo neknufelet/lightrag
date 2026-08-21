@@ -43,6 +43,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"
@@ -114,8 +115,50 @@ def _contract_assertions(path: Path) -> list[tuple[str, str]]:
     return sorted(set(found))
 
 
+#: 死人開關的三個狀態 → 白話。它們在 `intake.py` 的 `daily_checks()` 裡。
+#
+# **這是整個系統的死人開關**：排程死掉、結果檔不見、結果檔壞掉時，唯一會出聲的
+# 就是它。⚠ **它壞掉的話其餘 51 盞全部白搭** —— 沒有人會發現任何一盞燈停了。
+# 而它在 2026-08-21 之前不在名冊的三個來源裡，也沒有人要求它的證明。
+#
+# ⚠ **最重要的是 `stale`。** 排程停掉之後 `latest.json` 會凍在最後一次的結果，
+# 於是「一週前通過」跟「剛剛通過」長得一模一樣。**過期的綠燈比紅燈危險。**
+_DEADMAN: Final[dict[str, str]] = {
+    "stale": "每日檢查停了（結果凍住，過期的綠燈比紅燈危險）",
+    "missing": "每日檢查的結果檔不見了",
+    "unreadable": "每日檢查的結果檔壞了",
+}
+
+
+def _deadman_states(path: Path) -> set[str]:
+    """從 `daily_checks()` 的原始碼撈出它會回哪幾種失敗狀態。**不手寫。**
+
+    撈兩種寫法：`return {"state": "missing", …}` 與
+    `state = "stale" if … else …`。撈到的與 `_DEADMAN` 對不起來時，
+    `registry_self_check()` 會出聲 —— 那表示有人加了新狀態而沒有人守它。
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    fn = next((n for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and n.name == "daily_checks"), None)
+    if fn is None:
+        return set()
+    found: set[str] = set()
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values, strict=False):
+                if (isinstance(key, ast.Constant) and key.value == "state"
+                        and isinstance(value, ast.Constant)
+                        and isinstance(value.value, str)):
+                    found.add(value.value)
+        if isinstance(node, ast.IfExp):
+            for branch in (node.body, node.orelse):
+                if isinstance(branch, ast.Constant) and isinstance(branch.value, str):
+                    found.add(branch.value)
+    return found
+
+
 def all_lamps() -> list[Lamp]:
-    """名冊。**三個來源全部自動讀出來，這裡不手寫任何一盞。**"""
+    """名冊。**四個來源全部自動讀出來，這裡不手寫任何一盞。**"""
     lamps: list[Lamp] = []
     what = _module_constant(SCRIPTS / "check-levels.py", "WHAT")
     assert isinstance(what, dict)
@@ -125,6 +168,8 @@ def all_lamps() -> list[Lamp]:
     gates = _module_constant(SCRIPTS / "ledger.py", "GATES")
     assert isinstance(gates, list)
     lamps += [Lamp(f"gate:{g}", "體檢表閘門", str(g)) for g in gates]
+    # 死人開關。⚠ 排在最後但它是 P0 —— 其餘 51 盞全靠它才會被人看到。
+    lamps += [Lamp(f"meta:{k}", "死人開關", v) for k, v in sorted(_DEADMAN.items())]
     return lamps
 
 
@@ -184,7 +229,15 @@ def registry_self_check() -> list[str]:
             f"daily-check.sh 餵了 {sorted(fed)}，但判準認得的是 {sorted(what)}"
             f" —— 差集 {sorted(fed ^ set(what))}")
 
-    # 3. 懸空的證明：標記指到名冊上沒有的燈（燈改名或刪掉了）。
+    # 3. 死人開關：`_DEADMAN` 要跟 `daily_checks()` 真的會回的失敗狀態一致。
+    #    多一個沒守的狀態 ＝ 系統多一種「安靜地停掉」的方式。
+    real = _deadman_states(SCRIPTS / "intake.py") - {"ok", "pass", "fail", "unknown"}
+    if real != set(_DEADMAN):
+        problems.append(
+            f"死人開關：`daily_checks()` 會回 {sorted(real)}，"
+            f"而名冊守的是 {sorted(_DEADMAN)} —— 差集 {sorted(real ^ set(_DEADMAN))}")
+
+    # 4. 懸空的證明：標記指到名冊上沒有的燈（燈改名或刪掉了）。
     #    留著的話它會一直算作「已證明」，而那盞燈其實已經不存在。
     known = {lamp.lamp_id for lamp in all_lamps()}
     for lamp_id, where in sorted(proven_ids().items()):

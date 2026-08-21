@@ -97,10 +97,17 @@ def test_the_todo_list_has_no_ghosts() -> None:
     assert not ghosts, f"待辦清單裡有已經不存在的燈：{ghosts}"
 
 
-def test_the_registry_reads_all_three_families_from_source() -> None:
-    """名冊必須**自動**長出來 —— 手寫的名冊本身就是下一盞會說假話的燈。"""
+def test_the_registry_reads_all_four_families_from_source() -> None:
+    """名冊必須**自動**長出來 —— 手寫的名冊本身就是下一盞會說假話的燈。
+
+    ⚠ 「死人開關」是 2026-08-21 補的第四族，而且它是 P0：排程死掉、結果檔不見、
+    結果檔壞掉時**唯一會出聲的就是它**，它壞掉的話其餘 51 盞全部白搭。
+    在此之前它不在名冊的任何一個來源裡。
+    """
     families = {lamp.family for lamp in lamps.all_lamps()}
-    assert families == {"每日檢查", "契約斷言", "體檢表閘門"}, families
+    assert families == {"每日檢查", "契約斷言", "體檢表閘門", "死人開關"}, families
+    assert "meta:stale" in {lamp.lamp_id for lamp in lamps.all_lamps()}, \
+        "過期的綠燈比紅燈危險 —— 那一盞一定要在名冊上"
     ids = [lamp.lamp_id for lamp in lamps.all_lamps()]
     assert len(ids) == len(set(ids)), "名冊裡有重複的編號"
     assert "daily:canary" in ids and "gate:pp.preflight" in ids
