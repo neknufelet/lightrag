@@ -238,6 +238,29 @@
    ],
    "source": "2026-08-21 逐條看 extract-check --list-ungrounded 的輸出",
    "note": "這份的符號型計數是 0，代表判準把整批模態符號都算成「有鑑別力」了 —— 三份裡最能說明門檻位置的一份"
+  },
+  {
+   "check": "coverage-check",
+   "metric": "missing_word_rate",
+   "doc": "F9FBE9QK",
+   "verified_on": "2026-08-21",
+   "verdict": "not_a_defect",
+   "at_verification": {
+    "rate": 0.0899,
+    "missing": 258,
+    "pdf_words": 2869,
+    "content_words": 2740
+   },
+   "summary": "9.0% 缺的全是 AIP 蓋在每一頁頁邊的「accepted manuscript」直式戳章，一頁一個共 9 頁；正文一個字都沒少",
+   "root_cause": "戳章是側著印的，pdftotext 讀得出那串字（this/version/cite/author/peer/reviewed/accepted/manuscript/however 各 9 次 ＝ 頁數），MinerU 把它認成 aside_text 而後處理照規則消音。於是「證人有、抽取沒有」＝ 被算成缺少。⚠ 與證人讀不全那一族不同：這份比值 0.96，證人是好的，缺的東西是真的被拿掉了——只是**該拿掉**",
+   "sample": [
+    "this(27)",
+    "version(18)",
+    "accepted(9)",
+    "manuscript(9)"
+   ],
+   "source": "2026-08-21：muted-audit.py --doc F9FBE9QK --details 逐項看過，戳章在 p1–p9 每頁都被消音；再對知識庫下 SQL 確認 chunks 裡 'peer reviewed, accepted manuscript' 與 'Thist' 皆 0 筆",
+   "note": "同一份在 parse-check 是 ERROR（mangled p9: 'Thist  o t  e r o  e  set.'）—— 那是同一個戳章被文字層讀成亂碼，也已消音。另外 3 個「無正文的頁」是 p7/p8/p9，內容是 4+3+1 張圖：AIP 的 accepted manuscript 把圖排在參考文獻之後，不是掉頁。⚠ parse-check 目前不讀這份紀錄，所以它那邊還是會叫"
   }
  ]
 }
