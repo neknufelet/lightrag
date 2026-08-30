@@ -188,6 +188,11 @@ def head_threshold(n_pages: int) -> int:
 
 # 消音佔比超過此值就標記待查。誤刪真內容不會有錯誤訊息，只能靠比例異常察覺。
 # 實測：論文 2.2%、J Duct 1.3%、C Equivalent Networks 5.58%。
+#
+# 2026-08-31 全庫 252 份重量（比例已改成不含出版社樣板，見 `NoisePlan.ratio`）：
+#   中位 2.04%、p90 3.74%、p95 4.46%、p99 7.86%、最高 9.98%
+# 切點留在 10%：它就落在觀測分佈的頂端外側，而**演習證明它該叫時仍然會叫**
+# （見 tests/test_boilerplate_ratio.py 的注入測試）。
 SUSPICIOUS_RATIO = 0.10
 
 
@@ -207,20 +212,41 @@ class NoisePlan:
     body_chars_before: int
     body_chars_after: int
     distinct: dict[str, int]    # 文字 → 出現次數
+    # 消掉的字元裡 `is_publisher_boilerplate` 認得的那部分。**不計入比例**，見 `ratio`。
+    boilerplate_chars: int = 0
 
     @property
     def ratio(self) -> float:
-        b = self.body_chars_before
-        return (b - self.body_chars_after) / b if b else 0.0
+        """消掉的正文佔比。**出版社樣板不計入分子，也不計入分母。**
+
+        比例守衛防的是「規則圈太大、吃到正文」。版權宣告、DOI、ISSN 那類出版商
+        印上去的東西**按定義就不是正文** —— 把它算進來，量到的就不是「吃掉多少
+        正文」，而是「這家期刊的頁尾有多長」。
+
+        2026-08-31 實測：ASA 期刊那行 161 字的重製宣告貼在每一頁上，單獨就佔
+        TDYNP8ZY 正文的 6.22%、XG57NPIY 的 6.22%、CK37MDB2 的 7.85% —— 三份
+        因此各自剛好踩過 10% 被擋下來要人看，而消音清單裡**一項正文都沒有**。
+
+        ⚠ **沒有樣板的文件，這個值與舊版逐位相同**（實測 26C22T9I 12.86%／
+        2GAAEJGE 8.51%／38CF8F6F 14.18%，新舊完全一致）。改動拿掉的是假底噪，
+        不是偵測力 —— TDYNP8ZY 上「舊的抓得到誤吃 1 段、新的抓不到」看起來像
+        變鈍，其實是舊的靠那 6.22% 的假底噪墊高才跨過切點。
+        """
+        base = self.body_chars_before - self.boilerplate_chars
+        muted = self.body_chars_before - self.body_chars_after - self.boilerplate_chars
+        return muted / base if base > 0 else 0.0
 
     @property
     def suspicious(self) -> bool:
         return self.ratio > SUSPICIOUS_RATIO
 
     def summary(self) -> str:
+        # 樣板字元要印出來，否則 before/after 與百分比對不起來，讀的人會以為算錯。
+        boiler = (f"，其中出版社樣板 {self.boilerplate_chars:,} 字元不計入比例"
+                  if self.boilerplate_chars else "")
         return (f"消音 {len(self.mutes)} 項、保留待查 {len(self.held)} 項；"
                 f"正文 {self.body_chars_before:,} → {self.body_chars_after:,} "
-                f"（{self.ratio*100:.2f}%）"
+                f"（{self.ratio*100:.2f}%{boiler}）"
                 + ("　⚠ 比例異常，請人工確認" if self.suspicious else ""))
 
 
@@ -288,7 +314,12 @@ def plan(items: list[dict], n_pages: int = 0) -> NoisePlan:
 
     before = body_chars(set())
     after = body_chars({m.index for m in mutes})
-    return NoisePlan(mutes, held, before, after, dict(counts))
+    # ⚠ 只數「會計進 body_chars 的那些」。漏了型別條件，分子分母就會對不起來
+    # ——樣板字元被扣掉兩次，比例變成負的。
+    boiler = sum(len(m.text) for m in mutes
+                 if items[m.index].get("type") in BODY_TYPES
+                 and is_publisher_boilerplate(m.text.strip()))
+    return NoisePlan(mutes, held, before, after, dict(counts), boiler)
 
 
 def apply_to_items(items: list[dict], plan_: NoisePlan) -> int:

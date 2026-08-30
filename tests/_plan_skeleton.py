@@ -30,7 +30,8 @@ def skeleton(**sections: object) -> dict:
     # 紅，不會安靜地測一個不存在的形狀（同本檔檔頭記的「同一件事兩個地方」）。
     base: dict = {
         "ctx": SimpleNamespace(doc_name="x.pdf", n_pages=1, items=[], page_size=(595, 842)),
-        "noise": _empty(distinct={}),
+        # boilerplate_chars 只有 noise 有 —— 出版社樣板不計入消音比例（2026-08-31）。
+        "noise": _empty(distinct={}, boilerplate_chars=0),
         "refs": _empty(sections=[]),
         "title": _empty(),
         "cover_ad": _empty(),

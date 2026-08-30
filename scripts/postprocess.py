@@ -224,6 +224,10 @@ def as_json(p: dict) -> dict:
                      for m in noise.held],
             "body_chars_before": noise.body_chars_before,
             "body_chars_after": noise.body_chars_after,
+            # 消掉的字元裡屬於出版社樣板的那部分。**不計入 ratio**，寫進來是
+            # 為了讓 before → after 與百分比對得起來 —— 少了它，看畫面的人
+            # 會自己算一遍然後以為程式算錯。
+            "boilerplate_chars": noise.boilerplate_chars,
             "ratio": round(noise.ratio, 4),
             "suspicious": noise.suspicious,
         },
@@ -445,6 +449,8 @@ CANARY_NOT_WATCHED: Final[dict[str, str]] = {
     "noise.body_chars_before": "正文字元數對**任何解析變動**都敏感，記了會讓金絲雀"
                                "變成「文件有沒有改過」的偵測器，而它守的是「規則有沒有改過」",
     "noise.body_chars_after": "同上",
+    "noise.boilerplate_chars": "同上（字元數，解析一動就變）。而且它只透過 ratio "
+                               "影響判定，而 ratio 有守 —— 樣板判準改了，ratio 會先紅",
     "refs.body_chars_before": "同上", "refs.body_chars_after": "同上",
     "title.body_chars_before": "同上", "title.body_chars_after": "同上",
     "cover_ad.body_chars_before": "同上", "cover_ad.body_chars_after": "同上",
