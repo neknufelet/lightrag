@@ -102,8 +102,10 @@ def _runner(monkeypatch: pytest.MonkeyPatch, compat_json: str,
     runner = SubprocessRunner(Path("/nonexistent"), {})
     monkeypatch.setattr(runner, "_wait_pipeline_idle", lambda: None)
 
-    def fake_run(command: list[str], timeout: float) -> OperationResult:
+    def fake_run(command: list[str], timeout: float,
+                 *, merge_stderr: bool = True) -> OperationResult:
         on_compat_check()
+        assert not merge_stderr, "compat-check 的 stdout 要拿去解析，不能併 stderr"
         return OperationResult(True, compat_json, code=0)
 
     monkeypatch.setattr(runner, "_run", fake_run)
@@ -155,3 +157,38 @@ def test_a_genuinely_ownerless_hard_failure_still_stops_the_batch(
 
     assert not verdicts["j1"].ok
     assert "A-19" in (verdicts["j1"].error or "")
+
+
+# ── stdout 要能餵給 json.loads ──────────────────────────────────────────────
+
+def test_a_parsed_command_keeps_stderr_out_of_stdout() -> None:
+    """**要解析的輸出不准被 stderr 污染。**
+
+    2026-08-30 實測踩過：`compat-check --json` 刻意把 `#scope N` 走 stderr 以
+    保持 stdout 整份是 JSON，而 `_run` 預設 `stderr=STDOUT` 把它併了回去 ——
+    那一行就黏在收尾的 `]` 後面，`json.loads` 回
+    `Extra data: line 11206 column 2`，一批 11 份全部倒在「輸出讀不出來」，
+    而契約檢查本身其實跑完了。
+    """
+    runner = SubprocessRunner(ROOT, {})
+    script = "import sys; print('[1, 2]', end=''); sys.stderr.write('#scope 1132')"
+
+    result = runner._run([sys.executable, "-c", script], 30.0, merge_stderr=False)
+
+    assert json.loads(result.output) == [1, 2]
+    assert result.stderr == "#scope 1132", "stderr 不能就這樣消失，它是診斷"
+
+
+def test_merged_output_is_still_the_default_for_human_facing_commands() -> None:
+    """**控制組。** 併流本身沒有錯，錯的是拿併過的東西去解析。
+
+    給人看的命令（解析、放行、備份）只有一份輸出比較好讀，而失敗原因常常只在
+    stderr。沒有這一條的話，「一律分流」也會通過上面那支，而那會讓 run.log 裡
+    的失敗原因安靜地少一半。
+    """
+    runner = SubprocessRunner(ROOT, {})
+    script = "import sys; print('out'); sys.stderr.write('err\\n')"
+
+    result = runner._run([sys.executable, "-c", script], 30.0)
+
+    assert "out" in result.output and "err" in result.output

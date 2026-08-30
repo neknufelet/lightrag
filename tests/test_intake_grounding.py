@@ -39,8 +39,12 @@ class _Runner(intake.SubprocessRunner):
         self.python, self.repo = "python3", ROOT
         self.command_timeout = 1.0
 
-    def _run(self, command: list[str], timeout: float) -> intake.OperationResult:
+    def _run(self, command: list[str], timeout: float,
+             *, merge_stderr: bool = True) -> intake.OperationResult:
         self.calls.append(command)
+        # extract-check 的 stdout 要餵給 `json.loads`，併了 stderr 就會被污染
+        # （2026-08-30 compat-check 走過同一個坑）。
+        assert not merge_stderr, "要解析的輸出不能併 stderr"
         return self._results.pop(0)
 
 

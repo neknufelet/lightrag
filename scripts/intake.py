@@ -702,6 +702,10 @@ class OperationResult:
     # 訊息會為了給人看而加細節，而字串比對不會因此報錯，只會安靜地永遠不成立
     # （2026-08-08：soft 失敗的容忍就是這樣壞掉的，見 `_compat_check`）。
     code: int | None = None
+    # 子行程的 stderr，**只有 `_run(merge_stderr=False)` 才會有東西**。
+    # 分流的那些命令，stdout 整份是給程式解析的，診斷訊息只能放這裡；
+    # 併進 `output` 就會污染 JSON（2026-08-30 實測，見 `_run`）。
+    stderr: str = ""
 
 
 @dataclass(frozen=True)
@@ -1153,9 +1157,10 @@ class SubprocessRunner:
         ⚠ 失敗不影響這一批：接地率要等抽取做完才量得到，那時文件已經在圖譜裡。
         """
         script = str(self.repo / "scripts" / "extract-check.py")
+        # ⚠ **不併 stderr**：這裡的 stdout 要餵給 `json.loads`。見 `_run`。
         out = self._run(
             [self.python, script, "--workspace", workspace, "--json"],
-            self.command_timeout)
+            self.command_timeout, merge_stderr=False)
         if not out.ok:
             return out, {}
         try:
@@ -1168,7 +1173,21 @@ class SubprocessRunner:
             return OperationResult(False, "", "讀不到接地報告：沒有 per_doc"), {}
         return OperationResult(True, f"量到 {len(per_doc)} 份"), per_doc
 
-    def _run(self, command: list[str], timeout: float) -> OperationResult:
+    def _run(self, command: list[str], timeout: float,
+             *, merge_stderr: bool = True) -> OperationResult:
+        """跑一個子行程。**stdout 要拿去解析的話，一定要 `merge_stderr=False`。**
+
+        預設把 stderr 併進 stdout：給人看的命令（解析、放行、備份）只有一份
+        輸出比較好讀，而失敗原因常常只出現在 stderr。
+
+        ⚠ **但輸出要餵給 `json.loads` 的命令不能併。** `compat-check --json`
+        刻意把 `#scope N` 走 stderr 以保持 stdout 整份是 JSON —— 併流之後那一行
+        就黏在收尾的 `]` 後面，於是每一份文件都倒在
+        `Extra data: line 11206 column 2`。2026-08-30 實測：11 份一批全滅，
+        而契約檢查本身其實跑完了。⚠ 併流的順序還不固定（stdout 對 pipe 是
+        區塊緩衝、stderr 是行緩衝），JSON 短的時候那一行會跑到**最前面** ——
+        所以「只解析開頭那段 JSON」不是解法，分流才是。
+        """
         try:
             completed = subprocess.run(
                 command,
@@ -1176,21 +1195,26 @@ class SubprocessRunner:
                 env=self.environment,
                 check=False,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.STDOUT if merge_stderr else subprocess.PIPE,
                 text=True,
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired as exc:
             output = str(exc.stdout or "")
-            return OperationResult(False, output, f"命令逾時（{timeout:.0f} 秒）")
+            return OperationResult(False, output, f"命令逾時（{timeout:.0f} 秒）",
+                                   stderr=str(exc.stderr or ""))
         except OSError as exc:
             return OperationResult(False, "", f"無法執行命令：{type(exc).__name__}: {exc}")
         output = completed.stdout or ""
+        errors = completed.stderr or ""
         if completed.returncode != 0:
+            # 說明原因時看兩條流：分流之後結論那幾行通常只在 stderr，
+            # 只看 stdout 會回一句「exit 2（沒有輸出可說明原因）」。
             return OperationResult(False, output,
-                                   _explain_exit(completed.returncode, output),
-                                   code=completed.returncode)
-        return OperationResult(True, output)
+                                   _explain_exit(completed.returncode,
+                                                 "\n".join(filter(None, (output, errors)))),
+                                   code=completed.returncode, stderr=errors)
+        return OperationResult(True, output, stderr=errors)
 
     def parse(self, job: Job, source_pdf: Path) -> OperationResult:
         # **先數頁數再送出去。** MinerU 官方 API 的上限是 200 頁，超過直接退回：
@@ -1362,7 +1386,8 @@ class SubprocessRunner:
         if blocked is not None:
             return {job.job_id: OperationResult(False, "", blocked) for job in jobs}
         command = [self.python, str(self.repo / "scripts" / "compat-check.py"), "--json"]
-        result = self._run(command, self.command_timeout)
+        # ⚠ **不併 stderr**：這裡的 stdout 要餵給 `json.loads`。見 `_run`。
+        result = self._run(command, self.command_timeout, merge_stderr=False)
         try:
             bad, fatal = hard_failing_documents(result.output, known_filenames())
         except (ValueError, json.JSONDecodeError) as exc:
