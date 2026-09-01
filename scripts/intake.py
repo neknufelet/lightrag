@@ -968,20 +968,39 @@ def evaluate_plan_payload(payload: object, expected_doc: str) -> PlanEvaluation:
     if numeric:
         reasons.append("數字異常")
         details.extend(numeric)
-    # 三條消音規則的比例守衛都要在**計畫階段**講出來。少講的那兩條會變成
+    # **`apply` 的每一條比例守衛都要在計畫階段講出來。** 少講的會變成
     # 「計畫說乾淨、動手才被擋」—— 2026-08-09 三份綜述論文就是這樣掉的
     # （參考文獻佔 31–49%，`apply` 拒絕，而計畫已經自動放行了）。
     # 講出來之後它們會停在「等你看」，走跟其他 novel 一樣的確認流程。
-    for key, label in (("refs", "參考文獻消音比例"), ("title", "標題頁消音比例")):
+    #
+    # ⚠ **2026-09-01：當初只補了 refs 與 title，cover_ad 與 margin 漏掉，
+    # 同一個形狀又發作一次。** `CY89WRGB`（物理学报：封面整頁是引用資訊＋
+    # 六篇別人的論文廣告，而本文只有 8 頁 → 17.0%）判成 clean、自動放行、
+    # 被 `apply` 的封面廣告頁守衛拒絕成 failed。而 `--acknowledged-ratio`
+    # 只在 `decision != "clean"` 時才帶，於是畫面上**重試與放行都回到同一
+    # 道牆**，人沒有任何動作救得了它。
+    #
+    # 判準：**這個清單要與 `pp/apply.py` 裡 `_ratio_guard()` 的呼叫點一一對應**，
+    # 少一條就是一條「人救不了」的死路。noise 那條由 `_numeric_issues` 的
+    # `noise.suspicious` 負責，不在這裡重複。
+    ratio_hints = {
+        "refs": "綜述論文的參考文獻本來就可能佔三到五成",
+        "title": "標題頁在論文裡佔比本來就小，超過通常表示圈到了摘要或正文",
+        "cover_ad": "出版商夾在最前面那一頁（引用資訊＋別人的論文廣告）"
+                    "整頁都不是正文，短文章容易過線",
+        "margin": "印在正文框外面的字（投稿版行號欄、側標）不是正文",
+    }
+    for key, label in (("refs", "參考文獻消音比例"), ("title", "標題頁消音比例"),
+                       ("cover_ad", "封面廣告頁消音比例"),
+                       ("margin", "頁面邊緣消音比例")):
         block = _as_mapping(plan.get(key))
         if block.get("suspicious"):
             ratio = block.get("ratio")
             pct = f"{float(ratio) * 100:.1f}%" if isinstance(ratio, (int, float)) else "?"
             reasons.append(f"{label}異常（{pct}）")
             details.append(
-                f"{label} {pct}，超過自動套用的門檻。"
-                "綜述論文的參考文獻本來就可能佔三到五成 —— 看過消音清單確認"
-                "沒有吃到正文就可以放行")
+                f"{label} {pct}，超過自動套用的門檻。{ratio_hints[key]}"
+                " —— 看過消音清單確認沒有吃到正文就可以放行")
     return PlanEvaluation(not reasons, tuple(reasons), tuple(details), plan)
 
 
