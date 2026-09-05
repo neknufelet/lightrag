@@ -940,6 +940,46 @@ def test_in_flight_foreign_document_keeps_the_page_refreshing(tmp_path: Path) ->
     assert "data-running='1'" in render_html(app.state()), "有東西在跑但畫面不會更新"
 
 
+def test_polling_signature_sections_match_between_python_and_javascript(tmp_path: Path) -> None:
+    """前端輪詢的簽章欄位必須與後端 data-sig 完全一致。
+
+    2026-09-06 實測：後端 signature 包含 8 欄（含 skipped），而前端 JS 的
+    清單只列了 7 欄（漏掉 skipped）。當 data-running='1' 時，前端算出的
+    7 欄字串永遠不等於後端給的 8 欄字串，導致 sig !== seen 恆真，畫面每 3 秒
+    被迫 reload 一次不斷閃爍。
+    """
+    app = _app(tmp_path)
+    _with_index(app, [{"file_path": "別人在跑的.pdf", "status": "processing"}])
+    state = app.state()
+    html = render_html(state)
+
+    m_running = re.search(r"data-running='([^']*)'", html)
+    m_sig = re.search(r"data-sig='([^']*)'", html)
+    assert m_running and m_running.group(1) == "1"
+    assert m_sig is not None
+    seen = m_sig.group(1)
+
+    # 從前端嵌入的 JS 抽出 polling 使用的 section 名單
+    m_js_secs = re.search(
+        r"\.\.\.\[([a-zA-Z0-9_', ]+)\]\s*\.map\(k\s*=>\s*\(sec\[k\]\s*\|\|\s*\[\]\)\.length\)",
+        html,
+    )
+    assert m_js_secs is not None, "找不到前端 JS 的 polling signature 邏輯"
+    raw_keys = m_js_secs.group(1)
+    keys = [k.strip().strip("'\"") for k in raw_keys.split(",")]
+
+    # 模擬前端 JS 的計算邏輯
+    sec = state.get("sections") or {}
+    sig_parts = [1 if (state.get("health") or {}).get("running") else 0]
+    sig_parts.extend(len(sec.get(k, [])) for k in keys)
+    computed_sig = ".".join(str(x) for x in sig_parts)
+
+    assert computed_sig == seen, (
+        f"前端 JS 算出的簽章 ({computed_sig}) 與後端 data-sig ({seen}) 不一致，"
+        f"會導致 sig !== seen 恆真而無限 reload！"
+    )
+
+
 # ── 放行被擋：「現在不方便」不是「這份文件壞了」（PO 2026-08-08）──────────
 
 

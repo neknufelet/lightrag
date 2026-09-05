@@ -4636,7 +4636,9 @@ const picker = document.getElementById('picker');
 if (picker) picker.onchange = () => { if (picker.files.length) send(picker.files); };
 
 /* 只在真的有工作在跑時才輪詢。閒著的時候整頁不動 ——
-   原本那個 <meta refresh 5> 會在你看東西看到一半把畫面抽掉。 */
+   原本那個 <meta refresh 5> 會在你看東西看到一半把畫面抽掉。
+   ⚠ 節的清單與順序必須與 render_html() 的 signature 完全一致（含 skipped），
+   否則 sig !== seen 恆真，工作執行期間畫面會每 3 秒 reload 一次不斷閃爍。 */
 if (document.body.dataset.running === '1') {
   const seen = document.body.dataset.sig;
   setInterval(async () => {
@@ -4644,7 +4646,7 @@ if (document.body.dataset.running === '1') {
       const s = await (await fetch('/api/state')).json();
       const sec = s.sections || {};
       const sig = [s.health && s.health.running ? 1 : 0,
-                   ...['selection','parsing','review','in_progress','completed','failed']
+                   ...['selection','parsing','review','in_progress','completed','failed','skipped']
                      .map(k => (sec[k] || []).length)].join('.');
       if (sig !== seen) { saveScroll(); location.reload(); }
     } catch (_) { /* 網路瞬斷不該把畫面弄壞，下一輪再試 */ }
