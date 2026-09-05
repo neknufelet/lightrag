@@ -3,6 +3,12 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-09-06 · CLAUDE.md 改用 BASELINE 標記，九條與〈提交紀律〉同步到 2.1.0
+
+LEAN 線（AI_TOOLS/work/LEAN）收線：`CLAUDE.md` 的核心九條改為 `BASELINE SNAPSHOT` 標記、
+〈提交紀律〉改為 `BASELINE SECTION` 逐字副本，兩者由 `AI_TOOLS/scripts/sync_baseline_snapshot.py`
+生成與檢查（`--check` 綠）。手寫的「最小版」摘要退場。上游 BASELINE 2.1.0，指紋 `41d3304f414a5a12`。
+
 ## 2026-08-30（日・夜）· 一行 `#scope` 判死整批 12 份，而那 12 份其實早就進庫了
 
 PO：**「你看一下我再輸入的時候現在出現錯誤 一堆這個是怎樣」**（審核台 :9710）。

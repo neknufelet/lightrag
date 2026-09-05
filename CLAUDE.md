@@ -54,13 +54,8 @@ tag `archive/pre-rebuild-20260807`。
 
 ---
 
+<!-- BEGIN BASELINE SNAPSHOT — baseline_version: 2.1.0 rules_sha256: 41d3304f414a5a12 synced: 2026-09-05 -->
 ## 藍桶規則（9 條，BASELINE SNAPSHOT，勿手改此區塊）
-
-> `baseline_version: 2.0.0`　`rules_sha256: f2d0bcfa04c43fb3`　`synced: 2026-08-07`
-> （9 條與上游**逐字比對相同，用程式抽出、不手抄**。2.0.0 動了核心第 9 條
-> ——加上「貼出的輸出必須是原文、不符時以輸出為準」，所以指紋從
-> `d31afca400873b28` 變成現值。指紋算法：
-> `grep -E '^[0-9]+\. \*\*' BASELINE.md | sha256sum | cut -c1-16`）
 
 1. **Read before write**：修改任何檔案前先讀取現有內容，禁止覆蓋未讀的內容。
 2. **No silent drops**：任何資料、欄位、邏輯在重構時不得無聲消失；刪除必須明確說明。
@@ -70,17 +65,31 @@ tag `archive/pre-rebuild-20260807`。
 6. **Explicit resource management**：file handle、DB connection、thread 必須用 `with` 或明確 `close()`。
 7. **Pathlib over string paths**：路徑全程用 `pathlib.Path`，不靠 `os.path` 字串拼接。
 8. **Tests before merge**：新功能必須有對應測試（至少一個 smoke test），無測試的 PR 不得合入主線。
-9. **Verify-then-claim（驗證再斷言）**：任何關於「跑著的系統行為／狀態」的陳述（checkpoint、PR、回覆）必須附**驗證指令及其輸出**（curl／`docker exec`／pytest／實測），不得只靠讀 code 推理；未驗證者明確標 `(未驗,推測)`，不混入事實陳述。涉及 baked image／容器／部署的系統，須區分「源碼狀態」與「as-built 跑著的狀態」。貼出的輸出必須是指令**實際輸出的原文**；斷言與輸出不符時，**以輸出為準、改斷言**。「附了驗證指令、卻寫下與輸出不符的數字」比沒驗更糟——讀者會因為看到指令而更信任那個假數字（血淚 2026-08-07：grep 當場回 2 而 commit 訊息寫 0；同日稍晚宣稱行數676→115，實測是 445→115，676 不存在於任何 commit）。引用的數字必須來自**可重現的來源**（某個 commit、某次指令的輸出），或明確標示是中途狀態。
+9. **Verify-then-claim（驗證再斷言）**：任何關於「跑著的系統行為／狀態」的陳述（checkpoint、PR、回覆）必須附驗證指令及其輸出（curl／`docker exec`／pytest／實測），不得只靠讀 code 推理。
+  未驗證者明確標 `(未驗,推測)`，不混入事實陳述。
+  涉及 baked image／容器／部署的系統，須區分「源碼狀態」與「as-built 跑著的狀態」。
+  貼出的輸出必須是指令實際輸出的原文；斷言與輸出不符時，以輸出為準、改斷言。
+  「附了驗證指令、卻寫下與輸出不符的數字」比沒驗更糟——讀者會因為看到指令而更信任那個假數字（案例：CHANGELOG 2.1.0）。
+  引用的數字必須來自可重現的來源（某個 commit、某次指令的輸出），或明確標示是中途狀態。
+<!-- END BASELINE SNAPSHOT -->
 
 ---
-## 提交紀律（最小版，BASELINE ≥ 1.8.0）
+<!-- BEGIN BASELINE SECTION: 提交紀律（Commit-on-done，禁 done-but-uncommitted 累積） — baseline_version: 2.1.0 synced: 2026-09-05 -->
+## 提交紀律（Commit-on-done，禁 done-but-uncommitted 累積）
 
-- **做完即提交**：驗證過的範圍當場提隔離 commit，禁「done 但 uncommitted」長存。
-- **只顯式 staging**：禁 `git add .`／`-A`；永不提交 `.env` 或金鑰。
-- **推出去之後不得 `--amend`。** dker 可能已 pull 走那個 hash，amend + force push
-  之後它抱著一個遠端不存在的 hash，`pull --ff-only` 直接失敗。2026-08-05 實測踩過。
-- commit 訊息用 `<type>(<scope>): <subject>`，pre-commit 會擋。緊急時
-  `--no-verify` 可繞過（知道有這個後門比不知道好）。
+> 目的：杜絕「做完卻放著不提交」在長命共用分支上滾成一團、無人記得歸屬的髒樹（案例：CHANGELOG 2.1.0）。
+
+- 做完即提交（commit-on-done）：任何完成且驗證（tsc／pytest／實測綠）的 gate／工單／明確範圍，當場提成一個範圍隔離的 commit（大型工作線可含多個 commit）。「done 但 uncommitted」是禁止長存的狀態；收尾（wrap-up）不是「攢一堆再一次全提」的時機。
+- 開新線前驗乾淨基線：開新 gate／工作線前 `git status` 對該範圍必須乾淨；樹上已有別線的髒，先提交／stash 理清再開工（把「基線不乾淨就 STOP」變事前常規閘，非事後補救）。
+- 只顯式 staging：**禁 `git add .`／`git add -A`**；一律列明檔案路徑。共用檔跨多線時用 hunk-stage（`git add -p`／patch），不整檔連帶別線 hunk。**永不提交 `.env`／本機 remote URL／機密。**
+- 跨 repo 功能鎖步：一個功能橫跨多 repo（前端＋後端＋worker）時，各 repo 的對應改動同批或緊接著一起提交，不留一半髒；gate 報告記錄各 repo SHA。
+- 留髒是逃生門非常態：萬一真須留未提交的完成品過 session，在該專案的狀態交接檔（`docs/next.md` 或該專案慣例的 `STATUS_UPDATE.md`）明記「線 X：done、未提交、檔清單」，讓下個 session 認得，不靠記憶。
+- 推出去之後不得 `--amend`（含任何改寫已發布 hash 的操作）：第二個 checkout／CI／協作者可能已 pull 走原 hash，amend + force push 後對方抱著一個遠端不存在的 hash，`pull --ff-only` 直接失敗（案例：CHANGELOG 2.1.0）。
+  要補驗證輸出：先驗再提交，或另開 commit 寫「補 <hash> 的實跑輸出」。可行時在遠端鎖 force-push（branch protection），把這條從紀律升級成「會擋下」。
+- 復原（真滾成一團時）：read-only 連通性審計把髒檔按 import／call-site 分線（工具可靠度：harness 內 grep-agent ＞ 外部 footprint 猜測），再按依賴序逐條隔離提交。
+<!-- END BASELINE SECTION -->
+
+> 本專案補充：上節「第二個 checkout」在本專案就是 dker（見〈機器關係〉）；緊急時 `--no-verify` 可繞過 pre-commit。
 
 ## 其他東西在哪
 
