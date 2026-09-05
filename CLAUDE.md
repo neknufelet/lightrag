@@ -54,7 +54,7 @@ tag `archive/pre-rebuild-20260807`。
 
 ---
 
-<!-- BEGIN BASELINE SNAPSHOT — baseline_version: 2.1.0 rules_sha256: 41d3304f414a5a12 synced: 2026-09-05 -->
+<!-- BEGIN BASELINE SNAPSHOT — baseline_version: 2.1.1 rules_sha256: 41d3304f414a5a12 synced: 2026-09-06 -->
 ## 藍桶規則（9 條，BASELINE SNAPSHOT，勿手改此區塊）
 
 1. **Read before write**：修改任何檔案前先讀取現有內容，禁止覆蓋未讀的內容。
