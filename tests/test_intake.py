@@ -1643,6 +1643,34 @@ def test_the_staging_banner_stays_quiet_when_nothing_is_wrong(tmp_path: Path) ->
         "把自己正在放行的那份當成殘留在喊")
 
 
+def test_staged_leftovers_from_already_indexed_jobs_are_automatically_drained(tmp_path: Path) -> None:
+    """重啟或中斷遺留在暫存區、但帳冊記錄已是 indexed 的檔案，必須自動清理不擋放行。
+
+    2026-09-06 實測：重啟服務時兩份剛入庫的文件來不及被 unlink，遺留在 inputs/。
+    重啟後記憶體清空，兩份檔案被判定為 foreign，導致後續整批 49 份正常放行的文件
+    全體被拒絕退回 review。
+    """
+    app = _app(tmp_path)
+    inputs = app.paths.inputs_dir(app.workspace)
+    inputs.mkdir(parents=True, exist_ok=True)
+
+    app.save_upload("已入庫遺留.pdf", PDF)
+    candidate = next(c for c in app._candidates()[0] if c.filename == "已入庫遺留.pdf")
+    job = Job.from_candidate(candidate)
+    job.workspace = app.workspace
+    job.status = "indexed"                        # 帳冊中已成功索引
+    app._jobs[job.job_id] = job
+
+    # 模擬服務重啟或中斷：暫存區留有這份實體 PDF
+    staged_file = inputs / "已入庫遺留.pdf"
+    staged_file.write_bytes(PDF)
+
+    # 查詢暫存區警示或放行阻擋原因時，必須自動清理該檔案
+    assert app.staging_warning() is None
+    assert not staged_file.exists(), "已完成索引的殘留檔案未被自動清除"
+    assert app._inputs_blocked_reason() is None
+
+
 def test_a_novel_plan_needs_every_reason_acknowledged(tmp_path: Path) -> None:
     """`novel` 放得出去，**但要逐條確認**。
 

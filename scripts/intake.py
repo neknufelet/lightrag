@@ -2320,6 +2320,31 @@ class IntakeApp:
                     if job.admitted_path
                     and job.status in {"admitted", "scanning", "extracting"}}
 
+    def _drain_indexed_leftovers(self) -> list[Path]:
+        """自動清理已完成索引卻殘留在暫存區的檔案。
+
+        重啟或異常中斷可能打斷 `_finish_one()` 裡的 `_cleanup_admitted()`，
+        導致已成功入庫的檔案殘留在 `inputs/`。這些檔案在帳冊裡已經是 `indexed`，
+        且內容雜湊與記錄相符，安全清理它們能防止整個進料佇列被假性阻塞。
+        """
+        cleaned: list[Path] = []
+        with self._lock:
+            indexed_jobs = {
+                job.filename: job
+                for job in self._jobs.values()
+                if job.status == "indexed"
+            }
+        for path in self._inputs_pdf_paths():
+            job = indexed_jobs.get(path.name)
+            if job is not None and path.is_file() and _sha256(path) == job.source_sha256:
+                try:
+                    path.unlink()
+                    cleaned.append(path)
+                    LOGGER.info("暫存區自動清理已完成索引的殘留檔案：%s（job %s）", path.name, job.job_id)
+                except OSError as exc:
+                    LOGGER.warning("嘗試清理已完成索引的殘留檔案失敗：%s：%s", path, exc)
+        return cleaned
+
     def _foreign_staged_paths(self) -> list[Path]:
         """暫存區裡**不是本服務放的** PDF。
 
@@ -2327,6 +2352,7 @@ class IntakeApp:
         警示（`staging_warning`）都從這裡讀。分成兩份實作會漂走，**而漂走不報錯** ——
         2026-08-09 最貴的一次就是同一個判準只加在其中一個呼叫端，索引完了才判失敗。
         """
+        self._drain_indexed_leftovers()
         mine = self._my_staged_names()
         return [path for path in self._inputs_pdf_paths() if path.name not in mine]
 
