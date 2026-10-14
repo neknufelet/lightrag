@@ -375,7 +375,7 @@ def cmd_freshness(args: argparse.Namespace) -> int:
     if target is not None and not _is_deploy_copy():
         # 從編輯用的 checkout 叫的話，git 那兩條會去看編輯區 —— 那裡有未提交的
         # 改動是正常的，判成「跑舊碼」是假紅燈。轉去問部署那份。
-        print(f"（這是編輯用的資料夾，改看部署那份：{target}）")
+        print(f"（這是編輯用的資料夾，改看部署那份：{target}）", flush=True)
         p = subprocess.run([str(target / ".venv" / "bin" / "python"),
                             str(target / "scripts" / "deploy-stack.py"),
                             "--stack-dir", args.stack_dir, "freshness"], check=False)
@@ -652,7 +652,7 @@ def cmd_release(args: argparse.Namespace) -> int:
     for service in plan.restart_services:
         _check(_run(["docker", "compose", "restart", service], cwd=stack_dir, timeout=300),
                f"重啟 {service}")
-    print(f"已上線 {new[:7]}。核對：")
+    print(f"已上線 {new[:7]}。核對：", flush=True)
     return subprocess.run([py, str(app / "scripts" / "deploy-stack.py"),
                            "--stack-dir", str(stack_dir), "freshness"], check=False).returncode
 
