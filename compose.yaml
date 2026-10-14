@@ -48,14 +48,15 @@ services:
     # 再推一次，於是 compose 一個字沒改、拉到的卻是不同映像。我們整套後處理都建立在
     # 「LightRAG 如何讀寫 __parsed__ 底下的檔案」這些假設上，環境默默變動會讓假設失效
     # 而無人察覺。釘 digest 後升級變成一個明確的動作（改這一行），而非某次重啟的副作用。
-    # 對應 v1.5.6（2026-08-07 換上，前值 206579ab… 是 v1.5.5，已在 dker 逐字元核對）。
+    # 對應 v1.5.7（2026-10-14 換上，前值 ab23a9c8… 是 v1.5.6；影響評估見
+    # docs/upgrade-v157-20261014.md）。再之前 206579ab… 是 v1.5.5。
     # 升級時用 docker image inspect --format '{{.RepoDigests}}' 取新值。
     #
     # ⚠ **不 fork、不 build 自己的映像。** 官方映像原封不動拉下來，我們要的額外
     # 功能一律「插在旁邊」——見下面的 kbapi：官方 python:3.12-slim ＋ 把 ./scripts
     # 掛進去 ＋ 一行 command。這樣升級只是換這一行 digest，沒有「我們的 patch
     # 要 rebase」這件事。
-    image: ghcr.io/hkuds/lightrag@sha256:ab23a9c83a735901b18c8960b6b482b602d5b6291abb7e07c5776f7bb2da504e
+    image: ghcr.io/hkuds/lightrag@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
     container_name: lightrag-${WORKSPACE:?WORKSPACE 未設定}
     restart: unless-stopped
 
