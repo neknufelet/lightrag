@@ -23,9 +23,6 @@ summary: "做不做都不影響新庫上線的待辦。從 NEXT.md 分出來，�
 > **已經 hard 失敗而沒有人看到** —— pre-commit 不跑 `standards-check`）。
 > PO 原話：「我看 next.md 怎麼還這麼多事情」。
 
-## 部署邊界
-- ⬜ `scripts/`、`prompts/` 補上「repo → 執行目錄」的複製手續（compose.yaml 已有，見 `deploy-stack.py`）：三個 systemd 單元與兩個容器掛載改指向執行目錄　→ 在 `lightrag` 存檔不會改到跑著的系統，`freshness` 也守得到 scripts
-
 ## 拆章（設計見 [rebuild-v3-design](rebuild-v3-design-20260816.md)）
 - ⬜ `pdf_splitter.py` 的測試從 6 增到 10（`extract_pages` 那層有了）　→ 剩「無目錄三策略」與「超長章子切」沒有自己的測試
 - ⬜ 附錄編號 900 會撞第 9 章（`appendix_idx` 從 0 起算）　→ 改基底或改起算，現有檔名的影響先想清楚

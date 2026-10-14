@@ -29,7 +29,8 @@ docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAc \
 
 ## 機器
 
-2026-10-14 起只在 **florian-dker**：編輯在 `lightrag-draft`，跑著的是 `lightrag`，
+2026-10-14 起只在 **florian-dker**：編輯在 `~/ghq/github.com/neknufelet/lightrag`，
+跑著的是部署那份 `/opt/stacks/rag_acoustic/app`（`deploy-stack.py release` 才會更新它），
 資料在 `/data/lightrag`。細節見 [CLAUDE.md](CLAUDE.md)〈機器關係〉。
 凡是關於跑著的系統的陳述，一律要附實跑輸出。
 

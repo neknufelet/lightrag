@@ -23,7 +23,7 @@ tag `archive/pre-rebuild-20260807`。
 
 | | |
 |---|---|
-| repo | `~/ghq/github.com/neknufelet/lightrag` 是**跑著的那份**：`lightrag-intake`／`daily-check`／`cold-backup` 三個 systemd 單元、LightRAG 容器的 `prompts/`、kbapi 容器的 `scripts/` 都直接讀它——**存檔就生效**。編輯在 `lightrag-draft`（同一個 repo 的 worktree，branch `draft`），上線＝在 `lightrag` 裡 `git merge --ff-only draft`。兩份裡的 `.env` 都是指向下一列的 symlink |
+| repo | 編輯在 `~/ghq/github.com/neknufelet/lightrag`。**跑著的是另一份 clone** `/opt/stacks/rag_acoustic/app`（＝ `.env` 的 `REPO_DIR`）：`lightrag-intake`／`daily-check`／`cold-backup` 三個 systemd 單元、LightRAG 容器的 `prompts/`、kbapi 容器的 `scripts/` 都讀它。它只由 `deploy-stack.py release` 更新，而且只拿已推上 origin 的 commit——**在編輯區存檔不會上線**（2026-10-14 起；之前編輯區就是線上）。兩份裡的 `.env` 都是指向下一列的 symlink |
 | 上位規範 | `~/ghq/github.com/neknufelet/standards` |
 | worker CLI | `codex`、`opencode` |
 | git hook | pre-commit 擋 commit 格式（`<type>(<scope>): <subject>`），2026-10-14 才在這台裝上——在那之前這台的 commit 都沒被擋過 |
@@ -89,7 +89,7 @@ tag `archive/pre-rebuild-20260807`。
 - 復原（真滾成一團時）：read-only 連通性審計把髒檔按 import／call-site 分線（工具可靠度：harness 內 grep-agent ＞ 外部 footprint 猜測），再按依賴序逐條隔離提交。
 <!-- END BASELINE SECTION -->
 
-> 本專案補充：上節「第二個 checkout」在本專案就是 `lightrag-draft` 與 GitHub 上的 origin（見〈機器關係〉）；緊急時 `--no-verify` 可繞過 pre-commit。
+> 本專案補充：上節「第二個 checkout」在本專案就是部署那份 `/opt/stacks/rag_acoustic/app` 與 GitHub 上的 origin（見〈機器關係〉）；緊急時 `--no-verify` 可繞過 pre-commit。
 
 ## 其他東西在哪
 

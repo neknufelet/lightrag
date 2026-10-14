@@ -3,6 +3,12 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-10-14（傍晚）· 跑著的系統改讀部署那份 clone，存檔不再等於上線
+
+`/opt/stacks/rag_acoustic/app` 是 origin 的 clone，`.env` 的 `REPO_DIR` 與三個 systemd 單元改指向它；上線改用 `deploy-stack.py release`（停審核台 → 換碼 → uv sync → 視改動裝單元／compose、重啟容器 → 開審核台 → freshness）。`lightrag-draft` worktree 撤掉。
+切換後：圖譜四項 +0、compat 紅燈同樣 7 個；檢索有一題在容器剛重啟後第一次查多了 3,683 字元，重查兩次回到基準值。
+順手修掉 freshness 的專案標籤寫死 `lightrag`：08-19 改名之後它一個容器都沒看（`#scope 3`）。
+
 ## 2026-10-14（下午）· 升到 v1.5.7，驗收前後一致
 
 先修 `GET /documents` 的三個呼叫點（`01f496a`），在 v1.5.6 上驗過新舊拿到同樣 472 份；存備份與基準到 `/data/backups/lightrag-pre-v157-20261014/`；換指紋（`469f17a`）。
