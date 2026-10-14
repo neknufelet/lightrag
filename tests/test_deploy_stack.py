@@ -308,3 +308,33 @@ def test_no_env_file_does_not_explode(tmp_path: Path) -> None:
     mod = _module()
 
     assert mod.default_stack_dir(tmp_path).parent == Path("/opt/stacks")
+
+
+def test_compose_project_follows_the_stack_dir() -> None:
+    """標籤寫死 `lightrag` 的那一版，改名之後 freshness 一個容器都沒看到。"""
+    assert _module().compose_project(Path("/opt/stacks/rag_acoustic")) == "rag_acoustic"
+
+
+def test_release_plan_for_a_docs_only_change_restarts_nothing() -> None:
+    plan = _module().plan_release(["docs/NEXT.md", "cairn/LOG.md"])
+    assert plan.restart_services == ()
+    assert not plan.install_compose and not plan.install_units
+
+
+def test_release_plan_maps_each_kind_of_change() -> None:
+    plan = _module().plan_release([
+        "prompts/entity_type/x.md", "scripts/kbapi.py",
+        "compose.yaml", "deploy/systemd/lightrag-intake.service"])
+    assert plan.restart_services == ("lightrag", "kbapi")
+    assert plan.install_compose and plan.install_units
+
+
+def test_install_from_the_editing_copy_is_refused(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """從編輯區裝會把還沒 commit 的 compose 送上線。"""
+    mod = _module()
+    monkeypatch.setattr(mod, "deploy_dir", lambda repo=None: tmp_path / "elsewhere")
+    args = _args(mod, tmp_path)
+    args.commit = True
+    with pytest.raises(mod.StackError):
+        mod.cmd_install(args)

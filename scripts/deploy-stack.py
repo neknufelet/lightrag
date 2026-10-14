@@ -25,24 +25,36 @@ healthy、端點會回應、測試也過——**跑舊碼完全沒有外顯症�
 一個動作而是一串要靠人記得的動作：pull、restart、確認新碼真的在跑。漏掉任何一步
 都不會有人吭聲。只做 pull + restart 而不驗證，是同一個坑換位置再踩。
 
+**`release` 守的是「存檔不等於上線」。** 2026-10-14 之前，審核台、每日檢查、
+冷備份、LightRAG 的 prompts、kbapi 的 scripts 全都直接讀編輯用的 checkout ——
+存檔那一刻就上線了，改到一半的檔案也會被跑。現在它們讀部署那份 clone
+（`.env` 的 `REPO_DIR`，`/opt/stacks/<WORKSPACE>/app`），那份只由 `release` 更新，
+而且只拿**已經推上 origin 的 commit**。
+
 用法：
     deploy-stack.py verify            # 比對 compose，不一致回 2
     deploy-stack.py freshness         # 跑著的是不是最新的碼，不是回 2
     deploy-stack.py diff              # 印出差在哪
     deploy-stack.py install           # repo → stack（會先印 diff 並要 --commit）
     deploy-stack.py install --commit  # 真的寫
+    deploy-stack.py release           # 列出上線會動到什麼，不動手
+    deploy-stack.py release --commit  # 把 origin/master 上線
+    deploy-stack.py release --commit --to <commit>   # 退回某一版
 """
 from __future__ import annotations
 
 import argparse
 import ast
 import difflib
+import getpass
 import hashlib
 import json
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -82,9 +94,26 @@ def default_stack_dir(repo: Path = REPO) -> Path:
 # 部署機唯一該有的分支。落後它就是「跑舊碼」。
 UPSTREAM_REF = "origin/master"
 
-# compose 給自己容器打的專案標籤。用它列容器**而不是寫死名字**——名字含
-# workspace（`kbapi-acoustics_v2`），寫死就會在改 workspace 時安靜地少檢查一台。
-COMPOSE_PROJECT = "lightrag"
+def deploy_dir(repo: Path = REPO) -> Path | None:
+    """跑著的系統讀的那份 checkout（`.env` 的 `REPO_DIR`）。沒設就回 None。"""
+    configured = load_env(repo, required=False).get("REPO_DIR", "").strip()
+    return Path(configured) if configured else None
+
+
+def _is_deploy_copy() -> bool:
+    target = deploy_dir()
+    return target is not None and target.resolve() == REPO.resolve()
+
+
+def compose_project(stack_dir: Path) -> str:
+    """compose 給自己容器打的專案標籤 ＝ stack 目錄名（compose.yaml 沒有 `name:`）。
+
+    用它列容器**而不是寫死名字**——名字含 workspace，寫死就會在改 workspace 時
+    安靜地少檢查一台。⚠ 這裡曾經寫死 `"lightrag"`：2026-08-19 workspace 改名成
+    `rag_acoustic` 之後標籤跟著變，freshness 從此**一個容器都沒看到**（`#scope 3`），
+    而「沒有容器要檢查」印出來跟「容器都對」一樣安靜。2026-10-14 發現。
+    """
+    return stack_dir.name
 
 # 掛進容器的 repo 路徑，**以 compose 的服務名為鍵**（不是容器名——容器名含
 # workspace，會隨改名而變；服務名不會）。
@@ -279,14 +308,14 @@ def _containers_needing_recreate(stack_dir: Path) -> list[str]:
     return sorted(set(stale))
 
 
-def _project_containers() -> list[dict[str, object]]:
+def _project_containers(stack_dir: Path) -> list[dict[str, object]]:
     """本專案跑著的容器：名字、compose 服務名、設定雜湊、啟動時間。
 
     用 compose 的 project 標籤列，**不寫死名字** —— 名字含 workspace，寫死就會
     在改 workspace 時安靜地少檢查一台。
     """
     p = _run(["docker", "ps", "--filter",
-              f"label=com.docker.compose.project={COMPOSE_PROJECT}",
+              f"label=com.docker.compose.project={compose_project(stack_dir)}",
               "--format", "{{.Names}}"])
     if p.returncode != 0:
         raise StackError(f"docker ps 失敗：{p.stderr.strip()[:200]}")
@@ -342,6 +371,15 @@ def _unit_start_epoch(unit: str) -> float | None:
 
 def cmd_freshness(args: argparse.Namespace) -> int:
     """跑著的東西是不是最新的碼。三條各自獨立，全綠才回 0。"""
+    target = deploy_dir()
+    if target is not None and not _is_deploy_copy():
+        # 從編輯用的 checkout 叫的話，git 那兩條會去看編輯區 —— 那裡有未提交的
+        # 改動是正常的，判成「跑舊碼」是假紅燈。轉去問部署那份。
+        print(f"（這是編輯用的資料夾，改看部署那份：{target}）")
+        p = subprocess.run([str(target / ".venv" / "bin" / "python"),
+                            str(target / "scripts" / "deploy-stack.py"),
+                            "--stack-dir", args.stack_dir, "freshness"], check=False)
+        return p.returncode
     problems: list[str] = []
 
     # ── 1. 落後版控 ──────────────────────────────────────────────
@@ -372,7 +410,7 @@ def cmd_freshness(args: argparse.Namespace) -> int:
     # 判準是**問 compose 本人**（`up -d --dry-run`），不是自己算一份雜湊。
     # 詳細的兩次失敗記錄在 `_containers_needing_recreate` 的 docstring。
     stale = _containers_needing_recreate(Path(args.stack_dir))
-    containers = _project_containers()
+    containers = _project_containers(Path(args.stack_dir))
     for c in sorted(containers, key=lambda x: str(x["name"])):
         name = str(c["name"])
         if name in stale:
@@ -475,6 +513,9 @@ def _assert_parses(text: str) -> None:
 
 
 def cmd_install(args: argparse.Namespace) -> int:
+    if args.commit and deploy_dir() is not None and not _is_deploy_copy():
+        # 從編輯區裝會把**還沒 commit 的** compose 送上線 —— 正是 release 要擋的事。
+        raise StackError("這是編輯用的資料夾。compose 要上線請用 deploy-stack.py release")
     stack_dir = Path(args.stack_dir)
     _guard_stack_dir(stack_dir)
     target = _target(stack_dir)
@@ -501,6 +542,121 @@ def cmd_install(args: argparse.Namespace) -> int:
     return 0
 
 
+INTAKE_UNIT = "lightrag-intake.service"
+
+
+@dataclass(frozen=True)
+class ReleasePlan:
+    """一次上線除了換碼之外還要做什麼。只看改了哪些檔，不碰外界 —— 可以單獨測。"""
+    install_compose: bool
+    install_units: bool
+    restart_services: tuple[str, ...]
+
+
+def plan_release(changed: Sequence[str]) -> ReleasePlan:
+    """從改動的檔案推出要重啟／重裝什麼。
+
+    審核台不在這裡：它**每次都停**（換碼期間它若開子行程，會拿到一半新一半舊的
+    scripts/），所以不必判斷。kbapi 看整個 `scripts/` 而不算 import closure ——
+    上線時多重啟幾秒沒有代價，少重啟就是跑舊碼。prompts 是不是每次請求重讀沒查過，
+    所以改到就重啟 LightRAG。
+    """
+    restart: list[str] = []
+    if any(f.startswith("prompts/") for f in changed):
+        restart.append("lightrag")
+    if any(f.startswith("scripts/") for f in changed):
+        restart.append("kbapi")
+    return ReleasePlan(
+        install_compose="compose.yaml" in changed,
+        install_units=any(f.startswith("deploy/systemd/") for f in changed),
+        restart_services=tuple(restart),
+    )
+
+
+def _check(p: subprocess.CompletedProcess[str], what: str) -> str:
+    if p.returncode != 0:
+        raise StackError(f"{what} 失敗：{(p.stderr or p.stdout).strip()[:300]}")
+    return p.stdout.strip()
+
+
+def _warn_unpublished_edits() -> None:
+    """從編輯區叫的時候，提醒哪些東西**不會**跟著上線。"""
+    ahead = _git("rev-list", "--count", f"{UPSTREAM_REF}..HEAD").stdout.strip()
+    if ahead and ahead != "0":
+        print(f"⚠ 編輯區有 {ahead} 個 commit 還沒 push —— 它們不會上線")
+    if _git("status", "--porcelain").stdout.strip():
+        print("⚠ 編輯區有還沒 commit 的改動 —— 它們不會上線")
+
+
+def cmd_release(args: argparse.Namespace) -> int:
+    app = deploy_dir()
+    if app is None:
+        raise StackError(".env 沒有 REPO_DIR，不知道部署那份在哪")
+    if not (app / ".git").exists():
+        raise StackError(f"{app} 不是 git checkout")
+    stack_dir = Path(args.stack_dir)
+
+    def git(*a: str) -> subprocess.CompletedProcess[str]:
+        return _run(["git", "-C", str(app), *a], timeout=120)
+
+    if git("status", "--porcelain").stdout.strip():
+        raise StackError(f"{app} 有人手改過（git status 不乾淨）。部署那份只能由 release 改；"
+                         "先看清楚改了什麼、搬回編輯區，再 git -C 那裡 checkout -- .")
+    _check(git("fetch", "--quiet", "origin"), "git fetch")
+    if not _is_deploy_copy():
+        _warn_unpublished_edits()
+    old = _check(git("rev-parse", "HEAD"), "讀目前版本")
+    new = _check(git("rev-parse", "--verify", f"{args.to or UPSTREAM_REF}^{{commit}}"),
+                 f"找 {args.to or UPSTREAM_REF}")
+    if old == new:
+        print(f"跑著的已經是 {new[:7]}，不用上線")
+        return 0
+
+    print(f"上線：{old[:7]} → {new[:7]}")
+    print(git("log", "--oneline", f"{old}..{new}").stdout.rstrip()
+          or "（往回退：目標比現在舊）")
+    changed = git("diff", "--name-only", old, new).stdout.split()
+    plan = plan_release(changed)
+    print(f"改到 {len(changed)} 個檔。會做：停審核台 → 換碼 → uv sync"
+          + ("　→ 裝 systemd 單元" if plan.install_units else "")
+          + ("　→ 裝 compose" if plan.install_compose else "")
+          + " → 開審核台"
+          + ("　→ compose up -d" if plan.install_compose else "")
+          + "".join(f"　→ 重啟 {s}" for s in plan.restart_services))
+    if not args.commit:
+        print("\ndry-run，沒有動任何東西。確認無誤後加 --commit")
+        return 0
+
+    py = str(app / ".venv" / "bin" / "python")
+    uv = shutil.which("uv")
+    if uv is None:
+        raise StackError("找不到 uv")
+    _check(_run(["sudo", "-n", "systemctl", "stop", INTAKE_UNIT]), "停審核台")
+    try:
+        _check(git("checkout", "--quiet", "--detach", new), "換碼")
+        _check(_run([uv, "sync", "--frozen"], cwd=app, timeout=600), "uv sync")
+        if plan.install_units:
+            _check(_run(["sudo", "-n", py, str(app / "scripts" / "systemd-units.py"),
+                         "--repo", str(app), "--user", getpass.getuser(), "install"],
+                        timeout=120), "裝 systemd 單元")
+            _check(_run(["sudo", "-n", "systemctl", "daemon-reload"]), "daemon-reload")
+        if plan.install_compose:
+            _check(_run([py, str(app / "scripts" / "deploy-stack.py"),
+                         "--stack-dir", str(stack_dir), "install", "--commit"]), "裝 compose")
+    finally:
+        # 換碼中途失敗也要把審核台開回來 —— 停著的審核台比舊碼更糟，沒人會發現。
+        _check(_run(["sudo", "-n", "systemctl", "start", INTAKE_UNIT]), "開審核台")
+    if plan.install_compose:
+        _check(_run(["docker", "compose", "up", "-d"], cwd=stack_dir, timeout=600),
+               "compose up -d")
+    for service in plan.restart_services:
+        _check(_run(["docker", "compose", "restart", service], cwd=stack_dir, timeout=300),
+               f"重啟 {service}")
+    print(f"已上線 {new[:7]}。核對：")
+    return subprocess.run([py, str(app / "scripts" / "deploy-stack.py"),
+                           "--stack-dir", str(stack_dir), "freshness"], check=False).returncode
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     resolved_stack_dir = default_stack_dir()
@@ -512,11 +668,15 @@ def main() -> int:
     sub.add_parser("diff", help="印出差在哪")
     inst = sub.add_parser("install", help="repo → stack")
     inst.add_argument("--commit", action="store_true", help="真的寫檔（預設只印 diff）")
+    rel = sub.add_parser("release", help="把 origin/master 上線到部署那份（REPO_DIR）")
+    rel.add_argument("--commit", action="store_true", help="真的上線（預設只列出會做什麼）")
+    rel.add_argument("--to", default=None, help="上線這個 commit 而不是 origin/master（退版用）")
     a = ap.parse_args()
 
     try:
         return {"verify": cmd_verify, "freshness": cmd_freshness,
-                "diff": cmd_diff, "install": cmd_install}[a.cmd](a)
+                "diff": cmd_diff, "install": cmd_install,
+                "release": cmd_release}[a.cmd](a)
     except StackError as e:
         print(f"停下來：{e}", file=sys.stderr)
         return 3
