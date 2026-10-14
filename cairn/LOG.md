@@ -3,6 +3,17 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-10-14 · 工作收到 dker 一台；v1.5.7 只壞一處
+
+PO 問上游新版差在哪、要修多少。比對兩版 tarball：上游刪掉 `GET /documents`，我們三個地方在用
+（`intake.py` 兩處、`pp/oracle.py` 一處），其他碰得到的介面都沒變，資料庫建表語句逐字相同。
+替代接口 v1.5.6 就有，在 dker 實打：`/documents/status_counts` 與 `/documents` 都是 472。
+細節 [upgrade-v157-20261014](../docs/upgrade-v157-20261014.md)。
+
+查的途中發現 CLAUDE.md 說「dker 唯讀只 pull」，reflog 卻有 73 次在 dker 的 commit（`git reflog | grep -c commit`），
+而且跑著的系統直接讀 repo 工作目錄。PO 決定收成一台：coder 的 repo 與記憶搬來後刪除，
+編輯改在 worktree `lightrag-draft`。交接 [handoff-20261014](../docs/handoff-20261014.md)。
+
 ## 2026-09-06 · CLAUDE.md 改用 BASELINE 標記，九條與〈提交紀律〉同步到 2.1.0
 
 LEAN 線（AI_TOOLS/work/LEAN）收線：`CLAUDE.md` 的核心九條改為 `BASELINE SNAPSHOT` 標記、

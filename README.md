@@ -27,15 +27,11 @@ docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAc \
 
 **規則、契約、座標在 [CLAUDE.md](CLAUDE.md)**，接下來做什麼在 [NEXT.md](docs/NEXT.md)。
 
-## 兩台機器
+## 機器
 
-| | 角色 |
-|---|---|
-| **florian-coder** | 工作台。所有編輯、commit、worker CLI 都在這裡。**沒有 `.env`、沒有 docker** |
-| **florian-dker** | 部署。唯讀，只 `git pull`。資料在 `/data/lightrag` |
-
-coder 上刻意沒有 `.env` 與 docker——那讓「我在 coder 上驗過了」在物理上做不到。
-凡是關於跑著的系統的陳述，一律要附 dker 上的實跑輸出。
+2026-10-14 起只在 **florian-dker**：編輯在 `lightrag-draft`，跑著的是 `lightrag`，
+資料在 `/data/lightrag`。細節見 [CLAUDE.md](CLAUDE.md)〈機器關係〉。
+凡是關於跑著的系統的陳述，一律要附實跑輸出。
 
 ## 解析選項：三組實測（重建後仍然成立）
 

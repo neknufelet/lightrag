@@ -1,7 +1,7 @@
 ---
 title: NEXT — 現在這一輪要做什麼
 date_created: 2026-06-20
-date_modified: 2026-08-21
+date_modified: 2026-10-14
 status: living
 kind: sop
 supersedes: ""
@@ -22,6 +22,11 @@ summary: "只放這一輪。順序與完成判準在 goal.md，這裡是它的�
 做完的**刪整行**。`→` 後面是「怎麼知道做完了」，寫不出來的不算待辦。
 **現在的狀態不寫在這裡** —— 跑 `scripts/compat-check.py`，或看
 `/data/lightrag/checks/latest.json`（每天 08:30 寫的）。
+
+## 升級到 v1.5.7（2026-10-14 查完，見 [upgrade-v157-20261014](upgrade-v157-20261014.md)）
+- ⬜ `pp/oracle.py:322` 改打 `/documents/status_counts`　→ 在現行 v1.5.6 上 compat-check A-25 照常判斷
+- ⬜ `intake.py:1079`、`:3691` 改走 `POST /documents/paginated` 翻頁，`tests/test_intake.py:652,745` 的假資料一起換　→ 測試綠，審核台外來文件份數與 `/documents/status_counts` 對得上
+- ⬜ 升級前存基準（pg_dump、`graph-shape.py --json`、`compat-check.py --json`），再換指紋　→ compat-check 0、`deploy-stack.py freshness` 綠、`graph-shape --compare` 沒走形
 
 ## 第 1 批 · 讓體檢表說實話
 - ⬜ 每天量了的碎字與漏字結果回寫體檢表（走既有的 `ledger.record()`）　→ 「未設定」從 860 格掉下來，掉的數字對得上 172×2

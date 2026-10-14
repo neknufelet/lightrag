@@ -21,8 +21,7 @@ summary: "「這個東西該放哪」的唯一判準。從 AGENTS.md 搬出來�
 
 ## 上位規範在哪
 
-上位規範是 `~/ghq/github.com/neknufelet/standards/BASELINE.md`（**只在 florian-coder**，
-dker 沒有）。它的 9 條核心規則已 inline 在 `CLAUDE.md`，其餘 section 沒有——
+上位規範是 `~/ghq/github.com/neknufelet/standards/BASELINE.md`（2026-10-14 起 dker 也有）。它的 9 條核心規則已 inline 在 `CLAUDE.md`，其餘 section 沒有——
 所以 commit 格式、文件 frontmatter 這類規則要去上游看，或跑 `scripts/standards-check.py`。
 
 ## `cairn/` 還是 `docs/`？判準是「知識還是資產」

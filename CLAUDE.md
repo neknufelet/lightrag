@@ -11,23 +11,22 @@ tag `archive/pre-rebuild-20260807`。
 
 ## 機器關係
 
-### florian-coder（本機，Tailscale `100.71.26.77`）——工作台
+### florian-coder（Tailscale `100.71.26.77`）——2026-10-14 起不放本專案
 
 | | |
 |---|---|
-| repo | `~/ghq/github.com/neknufelet/lightrag` ← **所有編輯與 commit 在這裡** |
-| 上位規範 | `~/ghq/github.com/neknufelet/standards`（**只有這台有**） |
-| 本機 llama | 容器 `llama-qwen36-moe` :8080，2× RTX 3060。**2026-08-09 起停著，也不再是抽取用 LLM**（抽取改走 DeepSeek，見下方外部服務表）。它自己的 `.env` 在 `deploy/llama-qwen36-moe/.env`（一個鍵 `LLAMA_API_KEY`）。⚠ **它與 LightRAG `.env` 的 `LLM_BINDING_API_KEY` 已不再是同一把**——後者現在是 DeepSeek 的。⚠ **金鑰在容器的命令列上**，`docker inspect` 與 `ps aux` 都看得到——2026-08-08 因此外洩一次，處置見 NEXT 第 4 批；重新啟用前先處理它 |
+| 本專案的東西 | **沒有了**。repo、Claude 記憶都已搬到 dker 並從這台刪除（2026-10-14）。這台仍是其他專案（aosr、choras…）的工作台，`standards` 也還在 |
+| 本機 llama | 容器 `llama-qwen36-moe` :8080，2× RTX 3060，**還在這台但停著**（2026-08-09 起，抽取改走 DeepSeek）。它的 compose 與 `.env`（一個鍵 `LLAMA_API_KEY`）現在只在 dker 的 `deploy/llama-qwen36-moe/`——**要重啟得先抄回這台**。⚠ **它與 LightRAG `.env` 的 `LLM_BINDING_API_KEY` 不是同一把**。⚠ **金鑰在容器的命令列上**，`docker inspect` 與 `ps aux` 都看得到——2026-08-08 因此外洩一次，處置見 NEXT 第 4 批；重新啟用前先處理它 |
 | 併發參數 | 不寫死，要知道就問伺服器。⚠ **`MAX_TOTAL_TOKENS` 與 slot 的乘除關係只在抽取走本機 llama.cpp 時成立**（每 slot 上限 ＝ `-c` ÷ `--parallel`，`docker logs llama-qwen36-moe \| grep n_slots`；改了併發不重算查詢預算，知識庫會對使用者謊報「找不到」）。**2026-08-09 起抽取走 DeepSeek，這條暫時不適用**——API 的 context 是單一請求的上限，不是所有併發共分的預算。**改回本機就會重新生效，別當它消失了** |
-| worker CLI | `codex`、`opencode`（**只有這台有**） |
-| git hook | pre-commit 擋 commit 格式（`<type>(<scope>): <subject>`） |
-| **沒有** | LightRAG 的 `.env`、跑 LightRAG 的 docker |
 
-### florian-dker（ssh，Tailscale `100.87.88.7`）——部署
+### florian-dker（Tailscale `100.87.88.7`）——工作與部署，2026-10-14 起本專案只在這台
 
 | | |
 |---|---|
-| repo | 同路徑，**唯讀，只 `git pull`**。repo 裡的 `.env` 是指向下一列的 symlink |
+| repo | `~/ghq/github.com/neknufelet/lightrag` 是**跑著的那份**：`lightrag-intake`／`daily-check`／`cold-backup` 三個 systemd 單元、LightRAG 容器的 `prompts/`、kbapi 容器的 `scripts/` 都直接讀它——**存檔就生效**。編輯在 `lightrag-draft`（同一個 repo 的 worktree，branch `draft`），上線＝在 `lightrag` 裡 `git merge --ff-only draft`。兩份裡的 `.env` 都是指向下一列的 symlink |
+| 上位規範 | `~/ghq/github.com/neknufelet/standards` |
+| worker CLI | `codex`、`opencode` |
+| git hook | pre-commit 擋 commit 格式（`<type>(<scope>): <subject>`），2026-10-14 才在這台裝上——在那之前這台的 commit 都沒被擋過 |
 | LightRAG 的 `.env` | **只在這台**，2026-08-07 起搬出 repo（刪 repo 不再連帶弄丟秘密）。**路徑不寫死**，跟著 symlink 走：`readlink -f .env`（stack 目錄名 ＝ `WORKSPACE`，換 workspace 就換路徑；寫死 `/opt/stacks/lightrag` 的那一版 2026-08-19 已經不存在）。哪些是秘密、去哪裡拿，看 `.env.example` 開頭那張表；`compat-check` 的 A-30 守著兩邊鍵名一致。⚠ 數鍵用 `^[A-Za-z_][A-Za-z0-9_]*=`；用 `^[A-Z_]+=` 會漏掉含數字的鍵名（`NEO4J` 的 `4`），2026-08-07 因此少算 4 個並寫錯進 commit。⚠ **不要 `source` 它**：`LIGHTRAG_PARSER` 的值含 `;`，shell 會把分號後面當指令 |
 | 資料根 | `/data/lightrag` — `records` 與 `checks` 兩個目錄。**份數不寫死**，要知道就 `ls … \| wc -l` |
 | 本專案容器 | 由 Dockge 管。**專案名不寫死**，它 ＝ `.env` 的 `WORKSPACE`：`docker ps --filter "label=com.docker.compose.project=$(grep -E '^WORKSPACE=' "$(readlink -f .env)" \| cut -d= -f2)"`。⚠ 寫死 `=lightrag` 的那一版**列不出任何東西**，看起來就像容器全掛了（2026-08-19 實測）。**要判斷健康看「打得到端點」不是「容器在跑」**（compat-check A-27） |
@@ -49,8 +48,9 @@ tag `archive/pre-rebuild-20260807`。
 **這張表裡刻意沒有數字。** 鍵數、檔數、容器數、費用都會變，寫死的那一版每次都撐不過
 一週——2026-08-07 到 08 之間這幾格全部錯過一輪。要數就跑指令，指令不會過期。
 
-**為什麼要兩台**：coder 上沒有 LightRAG 的 `.env` 也沒有它的 docker，所以「我在 coder
-上驗過了」在物理上做不到。凡是關於跑著的系統的陳述，一律附 dker 的實跑輸出。
+**為什麼 2026-10-14 收成一台**：原本分兩台是為了讓 coder 上「驗過了」在物理上做不到，
+但規則 9 要的實跑輸出全在 dker，於是實際上 dker 自己做了 73 次 commit，文件與現實分家。
+凡是關於跑著的系統的陳述，仍然一律附實跑輸出。
 
 ---
 
@@ -89,7 +89,7 @@ tag `archive/pre-rebuild-20260807`。
 - 復原（真滾成一團時）：read-only 連通性審計把髒檔按 import／call-site 分線（工具可靠度：harness 內 grep-agent ＞ 外部 footprint 猜測），再按依賴序逐條隔離提交。
 <!-- END BASELINE SECTION -->
 
-> 本專案補充：上節「第二個 checkout」在本專案就是 dker（見〈機器關係〉）；緊急時 `--no-verify` 可繞過 pre-commit。
+> 本專案補充：上節「第二個 checkout」在本專案就是 `lightrag-draft` 與 GitHub 上的 origin（見〈機器關係〉）；緊急時 `--no-verify` 可繞過 pre-commit。
 
 ## 其他東西在哪
 
