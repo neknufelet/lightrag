@@ -48,7 +48,6 @@ summary: "只放這一輪。順序與完成判準在 goal.md，這裡是它的�
 
 ## 第 4 批 · 收尾
 - ⬜ 關掉 backrest 那兩個 rag 排程（PO 早就說要關）　→ backrest 上看不到
-- ⬜ 換掉 2026-08-08 外洩的 `LLAMA_API_KEY`　→ ⚠ 那個容器**重新啟用之前**必須先換
 - ⬜ 走一次**異地**還原（restic → Google Drive）　→ 列得出快照、抽得出一個檔。本機還原點已驗過，但**不能互相代替**
 - ⬜ `Invalid cross-device link` 177 次：要動掛載＝要停機　→ 排最後，需要停機視窗
 

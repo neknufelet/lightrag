@@ -16,7 +16,7 @@ tag `archive/pre-rebuild-20260807`。
 | | |
 |---|---|
 | 本專案的東西 | **沒有了**。repo、Claude 記憶都已搬到 dker 並從這台刪除（2026-10-14）。這台仍是其他專案（aosr、choras…）的工作台，`standards` 也還在 |
-| 本機 llama | 容器 `llama-qwen36-moe` :8080，2× RTX 3060，**還在這台但停著**（2026-08-09 起，抽取改走 DeepSeek）。它的 compose 與 `.env`（一個鍵 `LLAMA_API_KEY`）現在只在 dker 的 `deploy/llama-qwen36-moe/`——**要重啟得先抄回這台**。⚠ **它與 LightRAG `.env` 的 `LLM_BINDING_API_KEY` 不是同一把**。⚠ **金鑰在容器的命令列上**，`docker inspect` 與 `ps aux` 都看得到——2026-08-08 因此外洩一次，處置見 NEXT 第 4 批；重新啟用前先處理它 |
+| 本機 llama | **2026-10-14 移除**（容器 `llama-qwen36-moe` 與 llama.cpp 映像；模型資料夾早已是空的）。2026-08-09 起抽取就改走 DeepSeek。要重建的話 compose 還在 repo 的 `deploy/llama-qwen36-moe/`。⚠ 舊的 `LLAMA_API_KEY` 2026-08-08 外洩過，重建時不要沿用 |
 | 併發參數 | 不寫死，要知道就問伺服器。⚠ **`MAX_TOTAL_TOKENS` 與 slot 的乘除關係只在抽取走本機 llama.cpp 時成立**（每 slot 上限 ＝ `-c` ÷ `--parallel`，`docker logs llama-qwen36-moe \| grep n_slots`；改了併發不重算查詢預算，知識庫會對使用者謊報「找不到」）。**2026-08-09 起抽取走 DeepSeek，這條暫時不適用**——API 的 context 是單一請求的上限，不是所有併發共分的預算。**改回本機就會重新生效，別當它消失了** |
 
 ### florian-dker（Tailscale `100.87.88.7`）——工作與部署，2026-10-14 起本專案只在這台
