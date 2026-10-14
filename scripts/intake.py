@@ -1028,6 +1028,47 @@ class LightRAGClient:
         return value
 
 
+_PAGE_SIZE = 200          # /documents/paginated 的上限（傳 500 回 422）
+_MAX_PAGES = 50           # 跑不完就停，不要無聲無盡地翻
+
+
+def list_indexed_documents(
+    client: LightRAGClient, *, timeout: float = 10.0,
+) -> list[dict[str, object]]:
+    """索引裡的**全部**文件（翻完所有頁）。問不到或數不齊就丟例外，不回半份。
+
+    v1.5.7 刪掉了 `GET /documents`（一次給全部），只剩分頁版（2026-10-14）。
+    依 `id` 排序：依時間排的話，抽取中的文件狀態一變就換頁，翻到一半會漏。
+    翻完要跟伺服器報的總數對得上；對不上（翻的時候有人刪文件）重翻一次，
+    還是不齊就丟 `ValueError` —— 少一份的清單比報錯更糟，呼叫端會把它當成真的。
+    """
+    for _attempt in range(2):
+        seen: dict[str, dict[str, object]] = {}
+        total = -1
+        for page in range(1, _MAX_PAGES + 1):
+            payload = client.request(
+                "/documents/paginated", "POST",
+                {"page": page, "page_size": _PAGE_SIZE,
+                 "sort_field": "id", "sort_direction": "asc"},
+                timeout=timeout,
+            )
+            documents = payload.get("documents")
+            pagination = payload.get("pagination")
+            if not isinstance(documents, list) or not isinstance(pagination, dict):
+                raise ValueError("LightRAG /documents/paginated 回傳少了 documents 或 pagination")
+            for item in documents:
+                if isinstance(item, dict):
+                    seen[str(item.get("id") or item.get("file_path") or len(seen))] = item
+            total = int(pagination.get("total_count") or 0)
+            if not pagination.get("has_next"):
+                break
+        else:
+            raise ValueError(f"翻頁超過 {_MAX_PAGES} 頁，先確認 /documents/paginated 的行為")
+        if len(seen) == total:
+            return list(seen.values())
+    raise ValueError(f"文件清單數不齊：翻到 {len(seen)} 份，伺服器說 {total} 份")
+
+
 def hard_failing_documents(
     compat_json: str, filenames: set[str],
 ) -> tuple[set[str], list[str]]:
@@ -1076,18 +1117,13 @@ def index_status_by_filename(
     """
     rows: dict[str, str] = {}
     try:
-        payload = client.request("/documents", timeout=timeout)
+        documents = list_indexed_documents(client, timeout=timeout)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return {}, f"{type(exc).__name__}: {exc}"
-    statuses = payload.get("statuses")
-    if isinstance(statuses, dict):
-        for status_name, documents in statuses.items():
-            for item in documents if isinstance(documents, list) else []:
-                if not isinstance(item, dict):
-                    continue
-                name = Path(str(item.get("file_path") or "")).name
-                if name:
-                    rows[name] = str(item.get("status") or status_name).lower()
+    for item in documents:
+        name = Path(str(item.get("file_path") or "")).name
+        if name:
+            rows[name] = str(item.get("status") or "").lower()
     return rows, None
 
 
@@ -3618,8 +3654,7 @@ class IntakeApp:
         # 算一次，於是同一頁的兩個數字互相矛盾而沒有任何東西會發現。現在
         # 「已處理」就是「已進知識庫」那一節的長度，兩者不可能再對不上。
         #
-        # 字面值實查為小寫 processing／processed（GET /documents 的 statuses
-        # 鍵與 item.status 同值）。
+        # 字面值實查為小寫 processing／processed（文件清單裡 item.status 的值）。
         processed = len(sections["completed"])
         events = sorted(events, key=lambda event: str(event.get("created_at", "")))
         last_event = events[-1] if events else None
@@ -3685,21 +3720,12 @@ class IntakeApp:
         rows: dict[str, str] = {}
         error: str | None = None
         try:
-            # 用 GET /documents 而不是 /documents/paginated：後者的 page_size
-            # 上限是 200（實測傳 500 回 HTTP 422），而這裡要的是**全部**，
-            # 分頁只會讓「有沒有漏」多一個要驗的東西。
-            payload = self.client.request("/documents", timeout=4.0)
-            statuses = payload.get("statuses")
-            if isinstance(statuses, dict):
-                for status_name, documents in statuses.items():
-                    if not isinstance(documents, list):
-                        continue
-                    for item in documents:
-                        if not isinstance(item, dict):
-                            continue
-                        name = str(item.get("file_path") or item.get("id") or "")
-                        if name:
-                            rows[name] = str(item.get("status") or status_name)
+            # 原本用 GET /documents 一次拿全部，v1.5.7 刪掉了（2026-10-14）。
+            # 改成翻頁；「有沒有漏」由 list_indexed_documents 對總數來驗。
+            for item in list_indexed_documents(self.client, timeout=4.0):
+                name = str(item.get("file_path") or item.get("id") or "")
+                if name:
+                    rows[name] = str(item.get("status") or "")
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             error = f"問不到 LightRAG 的文件清單（{type(exc).__name__}），下面的份數可能不完整"
 

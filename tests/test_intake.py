@@ -24,6 +24,8 @@ from intake import (  # noqa: E402
     Job,
     OperationResult,
     PlanEvaluation,
+    index_status_by_filename,
+    list_indexed_documents,
     make_handler,
     make_server,
     render_html,
@@ -640,16 +642,20 @@ def test_page_links_to_lightrag_from_env_not_hardcoded(tmp_path: Path) -> None:
 # ── 對帳：索引裡那一列該不該算在本站頭上（PO 2026-08-04 咬到）────────────
 
 
+def _one_page(rows: list[dict[str, str]]) -> dict[str, object]:
+    """`POST /documents/paginated` 只有一頁時的回傳形狀（v1.5.7 起唯一的文件清單）。"""
+    return {"documents": rows,
+            "pagination": {"page": 1, "page_size": 200, "total_count": len(rows),
+                           "total_pages": 1, "has_next": False, "has_prev": False}}
+
+
 def _with_index(app: IntakeApp, rows: list[dict[str, str]]) -> IntakeApp:
     """讓 app 看到一份指定的 LightRAG 文件清單。
 
     直接換掉 client.request 而不是起假伺服器：這裡要驗的是**歸屬判準**，
     多一層 HTTP 只會讓失敗訊息指向網路。
     """
-    grouped: dict[str, list[dict[str, str]]] = {}
-    for row in rows:
-        grouped.setdefault(row["status"], []).append(row)
-    app.client.request = lambda *a, **k: {"statuses": grouped}  # type: ignore[method-assign]
+    app.client.request = lambda *a, **k: _one_page(rows)  # type: ignore[method-assign]
     app._index_cache = None
     return app
 
@@ -734,15 +740,13 @@ def _restart_with_index(tmp_path: Path, status: str, rows: dict[str, str] | None
     job.stage_started_at = stage_started_at
     app.store.save(job)
 
-    grouped: dict[str, list[dict[str, str]]] = {}
-    for name, st in (rows or {}).items():
-        grouped.setdefault(st, []).append({"file_path": name, "status": st})
+    documents = [{"file_path": name, "status": st} for name, st in (rows or {}).items()]
 
     class _Client:
         def request(self, *a, **k):
             if rows is None:
                 raise OSError("connection refused")
-            return {"statuses": grouped}
+            return _one_page(documents)
 
     original = IntakeApp._recover_active_jobs
     seen: list[tuple[str, str]] = []
@@ -1781,3 +1785,48 @@ def test_an_untouched_bundle_still_blocks_duplicates(tmp_path: Path) -> None:
         json.dumps({"source_content_hash": candidate.sha256}), encoding="utf-8")
     assert not any(c.filename == "沒重置.pdf" for c in app._candidates()[0]), (
         "沒有重置記號的解析成果沒擋住 —— 同一份會進去兩次")
+
+
+# ── 文件清單要翻完、要數得齊（v1.5.7 刪掉 GET /documents，2026-10-14）────────
+
+
+class _PagedClient:
+    """照頁回應；`total` 可以故意報得跟實際不一樣。"""
+
+    def __init__(self, pages: list[list[dict[str, str]]], total: int | None = None) -> None:
+        self.pages = pages
+        self.total = sum(len(page) for page in pages) if total is None else total
+        self.calls: list[dict[str, object]] = []
+
+    def request(self, path: str, method: str = "GET", body: dict[str, object] | None = None,
+                timeout: float = 0.0) -> dict[str, object]:
+        assert path == "/documents/paginated" and method == "POST" and body is not None
+        self.calls.append(body)
+        page = int(body["page"])  # type: ignore[arg-type]
+        return {"documents": self.pages[page - 1],
+                "pagination": {"page": page, "total_count": self.total,
+                               "has_next": page < len(self.pages)}}
+
+
+def test_list_indexed_documents_reads_every_page() -> None:
+    pages = [[{"id": f"d{i}", "file_path": f"{i}.pdf"} for i in range(p * 200, p * 200 + n)]
+             for p, n in enumerate([200, 200, 72])]
+    client = _PagedClient(pages)
+    got = list_indexed_documents(client)  # type: ignore[arg-type]
+    assert len(got) == 472
+    assert [call["page"] for call in client.calls] == [1, 2, 3]
+    assert all(call["page_size"] == 200 and call["sort_field"] == "id" for call in client.calls)
+
+
+def test_list_indexed_documents_refuses_a_short_list() -> None:
+    # 翻的時候有人刪了文件：翻到的比伺服器報的少。寧可報錯，不給半份。
+    client = _PagedClient([[{"id": "a", "file_path": "a.pdf"}]], total=2)
+    with pytest.raises(ValueError, match="數不齊"):
+        list_indexed_documents(client)  # type: ignore[arg-type]
+    assert len(client.calls) == 2              # 先重翻一次才放棄
+
+
+def test_index_status_reports_error_not_empty_when_list_is_short(tmp_path: Path) -> None:
+    client = _PagedClient([[{"id": "a", "file_path": "x/a.pdf", "status": "processed"}]], total=5)
+    rows, error = index_status_by_filename(client)  # type: ignore[arg-type]
+    assert rows == {} and error and "數不齊" in error

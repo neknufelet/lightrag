@@ -317,12 +317,15 @@ class Oracle:
         chunk 進索引。20 份全 pending 跟 0 份一樣驗不了，但兩者的原因不同，
         回報要分得開，所以整份狀態表都帶回去。
         """
+        # 2026-10-14 從 GET /documents 改成 /documents/status_counts：前者 v1.5.7
+        # 刪掉了，後者 v1.5.6 就有。它多一個 "all"（總數），拿掉 —— 呼叫端把
+        # processed 以外的鍵都當成「其他狀態」，留著會說成有一種叫 all 的狀態。
         return self.py(
             "import json,os,urllib.request as u\n"
-            f"r=u.urlopen(u.Request('http://localhost:{port}/documents',"
+            f"r=u.urlopen(u.Request('http://localhost:{port}/documents/status_counts',"
             f"headers={{'X-API-Key':{api_key!r}}}),timeout=30)\n"
-            "st=json.loads(r.read()).get('statuses') or {}\n"
-            "print(json.dumps({k:len(v or []) for k,v in st.items()}))"
+            "st=json.loads(r.read()).get('status_counts') or {}\n"
+            "print(json.dumps({k:int(v) for k,v in st.items() if k!='all'}))"
         )
 
     def chunk_top_k_effect(self, api_key: str, ks: tuple[int, ...] = (2, 8),
