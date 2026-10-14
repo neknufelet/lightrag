@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +39,18 @@ REPO = Path(__file__).resolve().parent.parent
 # standards repo 只在 florian-coder。在 dker 上與它相關的檢查一律「驗不了」，
 # 不是失敗 —— 把「沒得驗」講成「壞了」是這個專案一路在防的事。
 STANDARDS = REPO.parent / "standards"
+
+
+def hooks_dir(repo: Path) -> Path:
+    """git 實際讀 hook 的目錄。
+
+    不能寫死 `<repo>/.git/hooks`：在 worktree 裡 `.git` 是一個檔案，hook 放在
+    共用的 git 目錄（2026-10-14 開 `lightrag-draft` 之後，這支在那裡誤報「hook 不在」）。
+    問 git 本人，`core.hooksPath` 也一併算進去。
+    """
+    out = subprocess.run(["git", "rev-parse", "--git-path", "hooks"], cwd=repo,
+                         capture_output=True, text=True, check=True).stdout.strip()
+    return (repo / out).resolve()
 
 LEVELS = ("hard", "soft")
 
@@ -205,8 +218,9 @@ class Checker:
         # 兩種 hook type 都要查。`.git/hooks/` 不進版控，所以重 clone 之後
         # 兩個都會不見 —— 而「hook 不在」與「hook 在但全部通過」在畫面上
         # 長得一樣，這正是這支檢查存在的理由。
-        msg_hook = REPO / ".git" / "hooks" / "commit-msg"
-        pre_hook = REPO / ".git" / "hooks" / "pre-commit"
+        hooks = hooks_dir(REPO)
+        msg_hook = hooks / "commit-msg"
+        pre_hook = hooks / "pre-commit"
         cfg = REPO / ".pre-commit-config.yaml"
         ok = msg_hook.is_file() and pre_hook.is_file() and cfg.is_file()
         detail = (f"commit-msg {'在' if msg_hook.is_file() else '不在'}、"
