@@ -35,6 +35,8 @@ tag `archive/pre-rebuild-20260807`。
 
 **`/data/rag` 已廢除**（見 ADR-0003），不得再寫入任何東西。
 
+**改了 kbapi（`scripts/kbapi.py`，:9700）的網址、參數、回傳格式，或改了 workspace 名**，同一批要改 `AI_TOOLS/skills/common/` 的 `lightrag-search`／`lightrag-fetch`／`lightrag-images`。它們是每台機器呼叫 :9700 的說明書，住 AI_TOOLS 的理由見 `docs/knowledge-routing.md`〈skill 放哪〉。執行者：pre-commit 的 `kbapi-skill-reminder`，改到 `scripts/kbapi.py` 時印提醒，等級「會印警告」，不擋。
+
 ### 外部服務
 
 | 誰 | 做什麼 | 注意 |

@@ -83,6 +83,22 @@ repos:
   # 格式化器看不出那個意圖，只會看到「奇怪的空白」。
   #
   # 速度不是問題：ruff 跑完整包約幾十毫秒，遠低於上面那支 pytest。
+  # 改到 kbapi 時提醒去改 AI_TOOLS 的三個查詢 skill（2026-11-01 使用者同意加）。
+  # 那三個住 AI_TOOLS（每台機器都要叫得到），本 repo 改了 :9700 它們不會跟著變，
+  # 2026-08 換庫時就有 8 處 URL 打到不存在的庫（ADR-0006）。只印不擋：
+  # 很多 kbapi 的改動不影響接口，擋下來只會讓人習慣 --no-verify。
+  - repo: local
+    hooks:
+      - id: kbapi-skill-reminder
+        name: 改了 kbapi → 檢查 AI_TOOLS 的 lightrag-search／fetch／images
+        entry: >-
+          sh -c 'echo "提醒：scripts/kbapi.py 有改。網址、參數、回傳格式有變的話，同一批改
+          AI_TOOLS/skills/common/lightrag-{search,fetch,images}/SKILL.md"'
+        language: system
+        files: ^scripts/kbapi\.py$
+        pass_filenames: false
+        verbose: true
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.2
     hooks:
