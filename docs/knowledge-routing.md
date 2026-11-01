@@ -1,7 +1,7 @@
 ---
 title: 知識與文件放哪 — 路由判準
 date_created: 2026-08-07
-date_modified: 2026-08-07
+date_modified: 2026-11-01
 status: accepted
 kind: governance
 supersedes: "AGENTS.md（2026-08-07 之前的版本，該檔已縮成純指標）"
@@ -19,10 +19,11 @@ summary: "「這個東西該放哪」的唯一判準。從 AGENTS.md 搬出來�
 
 所以 `AGENTS.md` 縮成純指標，判準搬到這裡。**這是唯一的一份。**
 
+**2026-11-01 反過來**：規則改住 `AGENTS.md`，`CLAUDE.md` 只剩一行 `@AGENTS.md`。理由：codex、opencode、agy、dsh、hermes 都讀 `AGENTS.md`，而 Claude Code 遇到內容不同的 `CLAUDE.md` 會只讀它、不讀 `AGENTS.md`（2.1.316 實測）。入口仍然只有一份，本檔仍是判準的唯一一份。
+
 ## 上位規範在哪
 
-上位規範是 `~/ghq/github.com/neknufelet/standards/BASELINE.md`（2026-10-14 起 dker 也有）。它的 9 條核心規則已 inline 在 `CLAUDE.md`，其餘 section 沒有——
-所以 commit 格式、文件 frontmatter 這類規則要去上游看，或跑 `scripts/standards-check.py`。
+共用原則和寫程式、提交的規則在全域規則檔：每家 agent 自動載入，正本在 AI_TOOLS（寫程式那段的正本是 coding_rules 的 `CORE.md`）。舊的 `standards/BASELINE.md` 2026-11-01 封存，入口檔裡的 9 條 snapshot 同日拿掉。本專案沿用的文件規範（frontmatter、交接檔行數、必要檔案、commit hook）由 `scripts/standards-check.py` 檢查。
 
 ## `cairn/` 還是 `docs/`？判準是「知識還是資產」
 
@@ -72,7 +73,7 @@ commit type 三處、導航表兩份（2026-08-07 發現）、三個 lightrag sk
 
 | 什麼時候會需要 | 放哪 | 誰會發現沒做 |
 |---|---|---|
-| 每次開工都要知道 | `CLAUDE.md` | 沒有人 |
+| 每次開工都要知道 | `AGENTS.md` | 沒有人 |
 | 決定下一步時 | `docs/NEXT.md` | `standards-check` 檢查行數上限 |
 | 想知道某天發生了什麼 | `cairn/LOG.md` | `tests/test_log_freshness.py`（落後 git 超過一天就紅） |
 | **下次跑同一支檢查、看到同一個數字時** | `tests/verified-findings.json` | 工具自己在超標時印出前例 |
@@ -96,14 +97,14 @@ commit type 三處、導航表兩份（2026-08-07 發現）、三個 lightrag sk
 
 ## 只有兩種東西保證會被讀到
 
-**「放哪裡」跟「會不會被讀到」是兩件事。** 會自動載入的只有三個：`CLAUDE.md`
-（Claude Code 每次開 session）、`AGENTS.md`（codex／opencode）、以及被觸發的 skill
+**「放哪裡」跟「會不會被讀到」是兩件事。** 會自動載入的只有三個：全域規則檔、
+`AGENTS.md`（各家 agent 每次開 session；Claude 經由一行 `@AGENTS.md` 的 `CLAUDE.md`）、以及被觸發的 skill
 （連同它的 `description`）。**`docs/` 底下沒有任何東西會自動被讀。**
 
 所以要確定一份東西真的生效，只有兩條路：
 
-1. **搬進自動載入的檔**——代價是每次開 session 都付它的長度。這就是 `CLAUDE.md`
-   被砍到只剩 9 條的原因。
+1. **搬進自動載入的檔**——代價是每次開 session 都付它的長度。這就是入口檔
+   被砍到只剩機器關係的原因。
 2. **寫成程式會檢查的斷言**——違反時有東西會紅。
 
 其餘都是希望，不是保證。這就是 `docs/rebuild-checklist.md` 結尾那句判準的另一面：

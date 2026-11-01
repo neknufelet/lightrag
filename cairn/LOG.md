@@ -3,6 +3,13 @@
 本檔以逆時序記錄實質進展 —— 最新的一則放最上面、緊接在這一行下方。每則保持簡短：
 只放摘要與指標，結論沉澱進 `cairn/<topic>.md`。
 
+## 2026-11-01 · 入口檔改成 AGENTS.md，舊 standards 九條拿掉
+
+規則從 `CLAUDE.md` 搬進 `AGENTS.md`，`CLAUDE.md` 只剩一行 `@AGENTS.md`（各家 agent 都讀 AGENTS.md；Claude 遇到內容不同的 CLAUDE.md 會不讀 AGENTS.md）。
+拿掉：BASELINE 九條 snapshot 與〈提交紀律〉全文——改由每台的全域規則檔載入（正本 AI_TOOLS、coding_rules）；本專案的補充（部署 clone、`docs/NEXT.md` 留髒記法、滾成一團怎麼拆、`--no-verify`）留在 AGENTS.md〈提交〉。
+`standards-check` 的 A06（snapshot 與上游一致）同日退役，A03 改成也要有 `CLAUDE.md`。backrest 那列更新成現況（每日備 `/data` 到 NAS，postgres 靠 04:00 冷備份）。
+判準見 [knowledge-routing](../docs/knowledge-routing.md)。
+
 ## 2026-10-14（傍晚）· 跑著的系統改讀部署那份 clone，存檔不再等於上線
 
 `/opt/stacks/rag_acoustic/app` 是 origin 的 clone，`.env` 的 `REPO_DIR` 與三個 systemd 單元改指向它；上線改用 `deploy-stack.py release`（停審核台 → 換碼 → uv sync → 視改動裝單元／compose、重啟容器 → 開審核台 → freshness）。`lightrag-draft` worktree 撤掉。

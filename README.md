@@ -25,13 +25,13 @@ docker exec lightrag-postgres psql -U deeptutor -d lightrag -tAc \
 - 新環境必須保持什麼樣子：[docs/rebuild-checklist.md](docs/rebuild-checklist.md)
 - 重建前的完整狀態：tag `archive/pre-rebuild-20260807`
 
-**規則、契約、座標在 [CLAUDE.md](CLAUDE.md)**，接下來做什麼在 [NEXT.md](docs/NEXT.md)。
+**規則、契約、座標在 [AGENTS.md](AGENTS.md)**，接下來做什麼在 [NEXT.md](docs/NEXT.md)。
 
 ## 機器
 
 2026-10-14 起只在 **florian-dker**：編輯在 `~/ghq/github.com/neknufelet/lightrag`，
 跑著的是部署那份 `/opt/stacks/rag_acoustic/app`（`deploy-stack.py release` 才會更新它），
-資料在 `/data/lightrag`。細節見 [CLAUDE.md](CLAUDE.md)〈機器關係〉。
+資料在 `/data/lightrag`。細節見 [AGENTS.md](AGENTS.md)〈機器關係〉。
 凡是關於跑著的系統的陳述，一律要附實跑輸出。
 
 ## 解析選項：三組實測（重建後仍然成立）

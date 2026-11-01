@@ -29,16 +29,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-# standards repo 只在 florian-coder。在 dker 上與它相關的檢查一律「驗不了」，
-# 不是失敗 —— 把「沒得驗」講成「壞了」是這個專案一路在防的事。
-STANDARDS = REPO.parent / "standards"
 
 
 def hooks_dir(repo: Path) -> Path:
@@ -174,11 +170,10 @@ class Checker:
             "docs/decisions": ("hard", ""),
             "CHANGELOG.md": ("soft", ""),
             "STATUS.md": ("soft", ""),
-            # 本專案的明文豁免：SSOT 是 CLAUDE.md（Claude Code 每個 session 自動
-            # 載入它，不載入 AGENTS.md），不是範本預設的反向。AGENTS.md 仍是 hard
-            # 必要檔，因為 codex／opencode 只讀它 —— 但它 2026-08-07 起是純指標，
-            # 零內容，理由寫在它自己的檔頭與 docs/knowledge-routing.md。
+            # 規則住 AGENTS.md（各家 agent 都讀它）；CLAUDE.md 只有一行 @AGENTS.md，
+            # 讓 Claude 也讀到。2026-11-01 起，之前是反過來（見 docs/knowledge-routing.md）。
             "AGENTS.md": ("hard", ""),
+            "CLAUDE.md": ("hard", ""),
         }
         missing_hard: list[str] = []
         missing_soft: list[str] = []
@@ -234,75 +229,14 @@ class Checker:
         # 同日加入 pre-commit hook：它守 cairn/LOG.md 不落後於 git。
         self.add("A05", "hard", "pre-commit 的兩個 hook 都已安裝", ok, detail)
 
-    @staticmethod
-    def core_rules(text: str, section_marker: str) -> list[str]:
-        """抓某個 section 內的編號規則行。
-
-        **必須限定 section**：兩份檔案裡都還有別的編號清單（CLAUDE.md 的鐵則、
-        重票觸發清單；BASELINE.md 的版本史），整份掃會多抓一堆。
-        第一版就是這樣錯的 —— 報了一個假的 hard 失敗，而它會每天打一次 ntfy。
-        """
-        i = text.find(section_marker)
-        if i == -1:
-            return []
-        seg = text[i:]
-        end = seg.find("\n---", 10)
-        return re.findall(r"^\d+\.\s+\*\*.+$", seg[:end] if end != -1 else seg,
-                          re.MULTILINE)
-
-    @staticmethod
-    def stamps(text: str) -> tuple[str, str]:
-        v = re.search(r"baseline_version:?\s*`?([0-9.]+)", text)
-        s = re.search(r"rules_sha256:?\s*`?([0-9a-f]{16})", text)
-        return (v.group(1) if v else ""), (s.group(1) if s else "")
-
-    def check_baseline_snapshot(self) -> None:
-        """CLAUDE.md 的 BASELINE snapshot 有沒有跟上游漂移。
-
-        **比對的是規則本文與版本戳記，不重算那個 sha256。** 上游 frontmatter 的
-        `rules_sha256` 註解寫著算法是 `sha256(grep '^N. **' rules)[:16]`，但確切的
-        邊界（要不要 trailing newline、從哪份檔案取）沒有落檔，重現它是脆的 ——
-        真正要答的問題是「這 9 條有沒有變」，那就直接逐條比字串。
-        戳記則兩邊互相對照即可（它們本來就該是同一個值）。
-
-        standards repo 只在 coder ⇒ 在 dker 上是「驗不了」，回 soft 通過並說明。
-        """
-        claude_text = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
-        c_ver, c_sha = self.stamps(claude_text)
-        upstream = STANDARDS / "BASELINE.md"
-        if not upstream.is_file():
-            self.add("A06", "soft", "BASELINE snapshot 與上游一致", True,
-                     f"驗不了：{upstream} 不存在（standards repo 只在 coder，"
-                     f"dker 沒有）。CLAUDE.md 記 {c_ver or '?'}／{c_sha or '?'}")
-            return
-
-        up_text = upstream.read_text(encoding="utf-8")
-        b_ver, b_sha = self.stamps(up_text)
-        up_rules = self.core_rules(up_text, "## 核心規則（9 條）")
-        snap_rules = self.core_rules(claude_text, "## 藍桶規則（9 條")
-
-        problems: list[str] = []
-        if len(up_rules) != 9 or len(snap_rules) != 9:
-            problems.append(f"條數異常：上游 {len(up_rules)} 條、snapshot {len(snap_rules)} 條")
-        elif diff := [i + 1 for i, (x, y) in
-                     enumerate(zip(up_rules, snap_rules, strict=True)) if x != y]:
-            problems.append(f"第 {'、'.join(map(str, diff))} 條文字與上游不同")
-        if c_ver != b_ver:
-            problems.append(f"baseline_version 上游 {b_ver}、snapshot {c_ver}")
-        if c_sha != b_sha:
-            problems.append(f"rules_sha256 上游 {b_sha}、snapshot {c_sha}")
-
-        self.add("A06", "hard", "BASELINE snapshot 與上游一致", not problems,
-                 f"9 條逐字相同、戳記 {b_ver}／{b_sha}" if not problems
-                 else "；".join(problems) + " ⇒ 去同步 snapshot（改規則只改上游）")
-
     def run(self) -> None:
         self.check_frontmatter()
         self.check_line_limits()
         self.check_required_files()
         self.check_adr_format()
         self.check_commit_hook()
-        self.check_baseline_snapshot()
+        # A06（BASELINE snapshot 與上游一致）2026-11-01 拿掉：入口檔不再放 snapshot，
+        # 寫程式的規則改由全域規則檔載入，副本過期由 AI_TOOLS 的 sync_coding_rules.py --check 查。
 
 
 def report(c: Checker, as_json: bool) -> int:
